@@ -1,0 +1,35 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('movimientos_puntos', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('cliente_id')->constrained('clientes')->cascadeOnDelete();
+            $table->foreignId('pedido_id')->nullable()->constrained('pedidos')->nullOnDelete();
+            $table->string('tipo'); // 'acumulacion', 'canje', 'ajuste'
+            $table->integer('puntos'); // Positivo o negativo
+            $table->integer('saldo_anterior');
+            $table->integer('saldo_nuevo');
+            $table->string('concepto');
+            $table->foreignId('usuario_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('movimientos_puntos');
+    }
+};
