@@ -230,6 +230,47 @@ new class extends Component
                     </div>
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">DLV</span>
                 </a>
+
+                <!-- Reservas (RES-01) -->
+                <a 
+                    href="{{ route('reservas') }}" 
+                    wire:navigate
+                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[20px]">event</span>
+                        <span>Reservas</span>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
+                </a>
+
+                <!-- Reportes DIAN (REP-01) -->
+                <a 
+                    href="{{ route('reportes') }}" 
+                    wire:navigate
+                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[20px]">monitoring</span>
+                        <span>Reportes DIAN</span>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">REP</span>
+                </a>
+
+                @if (auth()->user()?->role?->slug === 'admin')
+                    <!-- Configuración (CFG-01) -->
+                    <a 
+                        href="{{ route('configuracion') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('configuracion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">settings</span>
+                            <span>Configuración</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">CFG</span>
+                    </a>
+                @endif
             </nav>
         </div>
 
@@ -393,6 +434,47 @@ new class extends Component
                     </div>
                     <span class="text-[10px] font-bold">DLV</span>
                 </a>
+
+                <a 
+                    href="{{ route('reservas') }}" 
+                    @click="mobileMenuOpen = false" 
+                    wire:navigate 
+                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[20px]">event</span>
+                        <span>Reservas</span>
+                    </div>
+                    <span class="text-[10px] font-bold">RES</span>
+                </a>
+
+                <a 
+                    href="{{ route('reportes') }}" 
+                    @click="mobileMenuOpen = false" 
+                    wire:navigate 
+                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[20px]">monitoring</span>
+                        <span>Reportes DIAN</span>
+                    </div>
+                    <span class="text-[10px] font-bold">REP</span>
+                </a>
+
+                @if (auth()->user()?->role?->slug === 'admin')
+                    <a 
+                        href="{{ route('configuracion') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('configuracion') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">settings</span>
+                            <span>Configuración</span>
+                        </div>
+                        <span class="text-[10px] font-bold">CFG</span>
+                    </a>
+                @endif
             </div>
 
             <!-- Drawer Logout -->

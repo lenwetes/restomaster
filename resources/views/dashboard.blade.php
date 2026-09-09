@@ -1,4 +1,5 @@
 <x-app-layout>
+    <?php $kpis = app(\App\Services\ReporteService::class)->kpisRealtime(); ?>
     <div class="flex flex-col gap-6">
         <!-- Encabezado de Bienvenida y Estado Ejecutivo (DASH-01 Aura Gastro) -->
         <div class="w-full bg-surface-container-lowest rounded-3xl p-6 shadow-sm border border-surface-container-highest flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
@@ -63,7 +64,7 @@
                     <div class="flex flex-col">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ventas Facturadas Hoy</span>
                         <span class="text-2xl lg:text-3xl font-extrabold text-on-surface mt-1 tracking-tight">
-                            $4,850.00 <span class="text-xs font-bold text-outline">USD</span>
+                            ${{ number_format($kpis['ventas_dia'], 0, ',', '.') }} <span class="text-xs font-bold text-outline">COP</span>
                         </span>
                     </div>
                     <div class="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
@@ -71,9 +72,9 @@
                     </div>
                 </div>
                 <div class="mt-4 pt-2 border-t border-surface-container flex items-center justify-between text-xs">
-                    <span class="text-on-surface-variant">38 transacciones</span>
+                    <span class="text-on-surface-variant">{{ $kpis['transacciones_dia'] }} transacciones</span>
                     <span class="inline-flex items-center gap-1 font-bold text-secondary">
-                        <span class="material-symbols-outlined text-[16px]">trending_up</span> +14% vs ayer
+                        <span class="material-symbols-outlined text-[16px]">star</span> {{ $kpis['top_productos_hoy'][0]['producto'] ?? 'Sin ventas' }}
                     </span>
                 </div>
             </div>
@@ -84,7 +85,7 @@
                     <div class="flex flex-col">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ticket Promedio</span>
                         <span class="text-2xl lg:text-3xl font-extrabold text-on-surface mt-1 tracking-tight">
-                            $42.50 <span class="text-xs font-bold text-outline">USD</span>
+                            ${{ number_format($kpis['ticket_promedio'], 0, ',', '.') }} <span class="text-xs font-bold text-outline">COP</span>
                         </span>
                     </div>
                     <div class="w-10 h-10 rounded-2xl bg-tertiary-container/20 border border-tertiary-container/30 flex items-center justify-center text-tertiary">
@@ -92,8 +93,8 @@
                     </div>
                 </div>
                 <div class="mt-4 pt-2 border-t border-surface-container flex items-center justify-between text-xs">
-                    <span class="text-on-surface-variant">3.2 comensales / mesa</span>
-                    <span class="font-bold text-tertiary">Ticket Alto</span>
+                    <span class="text-on-surface-variant">Food cost de hoy</span>
+                    <span class="font-bold text-tertiary">{{ $kpis['food_cost_porcentaje'] }}%</span>
                 </div>
             </div>
 
@@ -103,7 +104,7 @@
                     <div class="flex flex-col">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Ocupación de Salón</span>
                         <span class="text-2xl lg:text-3xl font-extrabold text-secondary mt-1 tracking-tight">
-                            10 / 10 <span class="text-xs font-medium text-on-surface-variant">(100% activo)</span>
+                            {{ $kpis['mesas_ocupadas'] }} <span class="text-xs font-medium text-on-surface-variant">mesas ocupadas</span>
                         </span>
                     </div>
                     <div class="w-10 h-10 rounded-2xl bg-secondary-container/30 border border-secondary-container/40 flex items-center justify-center text-secondary">
@@ -112,11 +113,11 @@
                 </div>
                 <div class="mt-4 pt-2 border-t border-surface-container flex flex-col gap-1 text-xs">
                     <div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-                        <div class="bg-secondary h-full rounded-full" style="width: 70%"></div>
+                        <div class="bg-secondary h-full rounded-full" style="width: {{ min(100, $kpis['mesas_ocupadas'] * 10) }}%"></div>
                     </div>
                     <div class="flex justify-between text-on-surface-variant text-[11px] font-semibold mt-0.5">
-                        <span>7 mesas disponibles</span>
-                        <span class="text-secondary font-bold">Capacidad Alta</span>
+                        <span>{{ $kpis['mesas_ocupadas'] }} en servicio</span>
+                        <span class="text-secondary font-bold">Ocupación en vivo</span>
                     </div>
                 </div>
             </div>
@@ -127,7 +128,7 @@
                     <div class="flex flex-col">
                         <span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Comandas KDS Activas</span>
                         <span class="text-2xl lg:text-3xl font-extrabold text-primary mt-1 tracking-tight">
-                            4 en cocina
+                            {{ $kpis['comandas_cocina_activas'] }} en cocina
                         </span>
                     </div>
                     <div class="w-10 h-10 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
@@ -135,8 +136,8 @@
                     </div>
                 </div>
                 <div class="mt-4 pt-2 border-t border-surface-container flex items-center justify-between text-xs">
-                    <span class="text-on-surface-variant">Tiempo Promedio: 14 min</span>
-                    <span class="font-bold text-secondary">SLA 94%</span>
+                    <span class="text-on-surface-variant">Comandas activas ahora</span>
+                    <span class="font-bold text-secondary">KDS en vivo</span>
                 </div>
             </div>
         </div>
@@ -353,25 +354,60 @@
                 </a>
 
                 <!-- Reportes DIAN Card (Fase 5) -->
-                <div class="flex flex-col justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest/60 p-5 opacity-70">
+                <a 
+                    href="{{ route('reportes') }}" 
+                    wire:navigate
+                    class="group relative flex flex-col justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 transition-all hover:border-primary hover:shadow-lg active:scale-[0.99]"
+                >
                     <div>
                         <div class="flex items-center justify-between">
-                            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container text-2xl">
+                            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl group-hover:scale-105 transition-transform border border-primary/20">
                                 📊
                             </span>
-                            <span class="rounded-full bg-surface-container-high px-2.5 py-0.5 text-xs font-bold text-on-surface-variant">
-                                Fase 5 · REP-01
+                            <span class="rounded-full bg-secondary-container/50 border border-secondary/30 px-2.5 py-0.5 text-xs font-bold text-on-secondary-container">
+                                ✓ Operativo · REP-01
                             </span>
                         </div>
-                        <h3 class="mt-4 text-base font-bold text-on-surface">Reportes DIAN & Analítica</h3>
+                        <h3 class="mt-4 text-base font-extrabold text-on-surface group-hover:text-primary transition-colors">
+                            Reportes DIAN & Analítica
+                        </h3>
                         <p class="mt-1.5 text-xs text-on-surface-variant leading-relaxed">
-                            Facturación electrónica, libros fiscales, platos estrella y rentabilidad por franjas horarias.
+                            Estado de resultados, ventas por canal/producto, clientes, reservas y exportación PDF/CSV.
                         </p>
                     </div>
-                    <div class="mt-5 pt-3 border-t border-surface-container">
-                        <span class="text-xs font-semibold text-on-surface-variant">Próximo en Fase 5</span>
+                    <div class="mt-5 pt-3 border-t border-surface-container flex items-center justify-between text-xs font-bold text-primary">
+                        <span>Ver Reportes</span>
+                        <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
                     </div>
-                </div>
+                </a>
+
+                <!-- Reservas Card (Fase 5) -->
+                <a 
+                    href="{{ route('reservas') }}" 
+                    wire:navigate
+                    class="group relative flex flex-col justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 transition-all hover:border-primary hover:shadow-lg active:scale-[0.99]"
+                >
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary-container/30 text-2xl group-hover:scale-105 transition-transform border border-secondary-container/40">
+                                🗓️
+                            </span>
+                            <span class="rounded-full bg-secondary-container/50 border border-secondary/30 px-2.5 py-0.5 text-xs font-bold text-on-secondary-container">
+                                ✓ Operativo · RES-01
+                            </span>
+                        </div>
+                        <h3 class="mt-4 text-base font-extrabold text-on-surface group-hover:text-primary transition-colors">
+                            Reservas & Agenda
+                        </h3>
+                        <p class="mt-1.5 text-xs text-on-surface-variant leading-relaxed">
+                            Agenda de reservas del día, creación, confirmación de mesas y trazabilidad de estados.
+                        </p>
+                    </div>
+                    <div class="mt-5 pt-3 border-t border-surface-container flex items-center justify-between text-xs font-bold text-primary">
+                        <span>Gestionar Reservas</span>
+                        <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    </div>
+                </a>
             </div>
         </div>
     </div>

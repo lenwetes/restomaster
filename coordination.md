@@ -6,13 +6,13 @@
 ---
 
 ## Última Actualización
-2026-09-09 20:52 | Antigravity | Fase 4 Completada: Clientes VIP, Fidelización (puntos & tiers), Delivery & Flota de Despacho, Liquidación en Caja, UI Stitch Aura Gastro Expressive OS (CLI-01, PED-04). Suite completa 102/102 PASS (315 assertions).
+2026-09-09 23:00 | OpenCode | Inicio Fase 5: Reservas, Reportes, Configuración/DIAN y KPIs Dashboard. Lock `.locks/fase5-reservas-reportes.lock` creado.
+2026-09-09 23:59 | OpenCode | Fase 5 completada: Reservas + webhook + Reportes avanzados + export PDF/CSV + KPIs dashboard + navegación. Suite 147/147 OK (425 aserciones). Lock liberado.
 
 ---
 
 ## Trabajo en Progreso
-
-*Ninguno (Fase 4 finalizada con éxito. Lock `.locks/fase4-clientes-delivery.lock` liberado. Listo para Fase 5: Reservas y Reportes).*
+**Fase 5 (OpenCode, COMPLETADA):** Fase 5 finalizada el 2026-09-09. Suite completa 147/147 tests (425 assertions). Lock `.locks/fase5-reservas-reportes.lock` eliminado.
 
 ## Tareas Completadas (Historial)
 
@@ -39,6 +39,9 @@
 | 2026-09-09 | OpenCode | Cierre brechas F0–F3: Audit log (`auditorias` + AuditoriaService, trazabilidad de acciones sensibles en menú y trabajadores) | database/migrations/2026_09_09_193000_*.php, app/Models/Auditoria.php, app/Services/AuditoriaService.php, app/Services/{MenuService,TrabajadorService}.php, tests/Feature/Fase2AuditoriaTest.php |
 | 2026-09-09 | OpenCode | Cierre brechas F0–F3: Cuentas por Pagar CXP-01 (cuentas, pagos/abonos, saldos por proveedor) | database/migrations/2026_09_09_1935*.php, app/Models/{CuentaPorPagar,PagoCxp}.php, app/Services/CuentasPorPagarService.php, resources/views/livewire/cxp/index.blade.php, routes/web.php, tests/Feature/Fase2CxpTest.php |
 | 2026-09-09 | Antigravity | Fase 4: Clientes VIP, Fidelización (Puntos & Tiers) + Delivery & Flota de Despacho (CLI-01, PED-04, Liquidación en Caja, POS integrado, 102/102 tests OK) | database/migrations/*, app/Models/{Cliente,DireccionCliente,MovimientoPuntos,Pedido}.php, app/Services/{ClienteService,FidelizacionService,DeliveryService}.php, resources/views/livewire/{clientes,delivery,pos}/*, resources/views/dashboard.blade.php, routes/web.php, tests/Feature/Fase4ClientesDeliveryTest.php |
+| 2026-09-09 | OpenCode | Fase 5: Reservas internas RES-01 (CRUD + confirmación de mesas + estados) y reserva pública + webhook con token | app/Models/Mesa.php, app/Services/ReservaService.php, app/Http/Controllers/{ReservaPublicaController,ReservaWebhookController}.php, resources/views/livewire/reservas/index.blade.php, resources/views/reservas/crear.blade.php, routes/web.php, tests/Feature/{Fase5ReservasTest,Fase5PublicoReservasTest}.php |
+| 2026-09-09 | OpenCode | Fase 5: Reportes avanzados REP-01 por pestañas + exportación PDF (dompdf) y CSV restringida a gerente | app/Services/ReporteService.php, app/Http/Controllers/ReporteExportController.php, resources/views/livewire/reportes/index.blade.php, resources/views/pdf/reporte.blade.php, composer.json (barryvdh/laravel-dompdf ^3.1), routes/web.php, tests/Feature/Fase5ReportesTest.php |
+| 2026-09-09 | OpenCode | Fase 5: KPIs reales en Dashboard DASH-01 (kpisRealtime) + tarjetas REP-01/RES-01 activas + navegación Reservas/Reportes/Configuración | resources/views/dashboard.blade.php, resources/views/livewire/layout/navigation.blade.php, tests/Feature/Fase5DashboardTest.php |
 
 ## Pendientes
 
@@ -58,9 +61,17 @@
 - [x] Fase 2: Contabilidad básica (asientos automáticos de ventas)
 - [x] Fase 3: Inventario y Recetas (insumos, recetas/escandallo, deducción automática de stock)
 - [x] Fase 4: Clientes y Fidelización + Delivery (clientes, puntos, repartidores, pedidos a domicilio)
-- [ ] Fase 5: Reservas y Reportes Avanzados / Facturación Electrónica DIAN
+- [x] Fase 5: Reservas y Reportes Avanzados / Facturación Electrónica DIAN
 
 ## Notas para el otro agente
+
+> **Fase 5 finalizada (OpenCode, 2026-09-09 23:59) — Suite completa 147/147 tests (425 assertions).**
+> - **Reservas (RES-01):** `ReservaService` (crear/confirmar/marcarLlego/finalizar/cancelar/marcarNoShow/reservasDelDia/verificarDisponibilidad) con relación pivot `reserva_mesa`. **Gotcha SQLite:** columna `date` se guarda como `YYYY-MM-DD 00:00:00` → comparar con `whereDate('fecha', ...)` (NO `where('fecha', $dia)`). Pantalla `/reservas` (mesero,cajero,gerente).
+> - **Reserva pública y webhook:** `GET/POST /reservas/crear` (throttle 10/1, honeypot `empresa`) y `POST /api/reservas` (throttle 20/1, header `X-Webhook-Token` comparado con `hash_equals`; 401/403/422/201). Registrada en `routes/web.php` FUERA del grupo auth (bootstrap no carga `routes/api.php`). Contrato en `docs/modulos/reservas.md`.
+> - **Reportes (REP-01):** `/reportes` por pestañas estado/ventas/clientes/reservas + exportaciones `GET /reportes/exportar-pdf` y `GET /reportes/exportar-csv` (name `reportes.pdf`/`reportes.csv`, role:gerente). Nuevo paquete `barryvdh/laravel-dompdf ^3.1` (auditado: compatible Laravel 13, sin CVEs, mantenido — `composer audit` limpio). Vista PDF en `resources/views/pdf/reporte.blade.php` (letter portrait, usa `DejaVu Sans`).
+> - **Dashboard (DASH-01) y navegación MODIFICADOS por OpenCode:** `resources/views/dashboard.blade.php` ahora consume `ReporteService::kpisRealtime()` reales (ventas_dia, ticket_promedio, mesas_ocupadas, comandas_cocina_activas, food_cost_porcentaje, top_productos_hoy) y activó tarjetas REP-01 (`route('reportes')`) y RES-01 (`route('reservas')`). `resources/views/livewire/layout/navigation.blade.php` ganó enlaces Reservas/Reportes/Configuración (admin) en sidebar y drawer. **Verificar diff antes de la Fase 6.**
+> - **Configuración (CFG-01):** `/configuracion` (role:admin) con `ConfiguracionService::obtener(grupo, clave, default)` / `guardar(grupo, clave, valor)`; seeder `ConfiguracionSeeder` (datos DIAN: razon_social, nit, regimen, resolución, prefijo, rango, token_webhook, zona_horaria, moneda).
+> - **Volt:** recuerda pasar datos por `with()` (métodos privados/`#[Computed]` no se exponen). <x-layouts.guest> NO existe → vistas públicas usan `@component('layouts.guest')`.
 
 > **Fase 4 finalizada con éxito (Antigravity, 2026-09-09 20:52):**
 > - **Base de datos & Migraciones:** Creadas `clientes`, `direcciones_cliente`, `movimientos_puntos` y enriquecido `pedidos` con campos de delivery (`costo_envio`, `canal_entrega`, `estado_delivery`, `repartidor_id`, `direccion_cliente_id`, `despachado_at`, `entregado_at`, `recaudo_liquidado`, `puntos_ganados`, `puntos_canjeados`, `descuento_puntos`).

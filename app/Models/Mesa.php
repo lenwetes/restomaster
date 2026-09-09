@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Mesa extends Model
 {
@@ -49,5 +50,10 @@ class Mesa extends Model
     public function pedidos(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Pedido::class);
+    }
+
+    public function reservas(): BelongsToMany
+    {
+        return $this->belongsToMany(Reserva::class, 'reserva_mesa');
     }
 }

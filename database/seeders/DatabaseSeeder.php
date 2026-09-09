@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             CajaSeeder::class,
             InventarioSeeder::class,
             ClienteSeeder::class,
+            ConfiguracionSeeder::class,
         ]);
     }
 }

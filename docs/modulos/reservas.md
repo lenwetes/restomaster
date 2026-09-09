@@ -53,3 +53,39 @@ Solicitada → Confirmada → Llegó (ocupa mesa) → Finalizada
 - **Clientes:** liga la reserva al cliente.
 - **Pedidos:** al llegar, se convierte en pedido de mesa.
 - **Reportes:** tasa de cumplimiento y no-shows.
+
+## Webhook (n8n/WhatsApp)
+
+Permite crear reservas desde bots (WhatsApp, Instagram, páginas externas) sin sesión.
+
+### Endpoint
+```
+POST /api/reservas
+```
+
+### Autenticación
+Header obligatorio `X-Webhook-Token` con el valor configurado en **Configuración → Reservas → Token webhook** (clave `reservas.webhook_token`). La comparación usa `hash_equals` (constante en tiempo). Si el webhook está desactivado (`reservas.webhook_activo` = `false`) responde `403`.
+
+### Payload
+```json
+{
+  "nombre": "Cliente WhatsApp",
+  "telefono": "3200000001",
+  "email": "cliente@mail.com",
+  "fecha": "2026-09-26",
+  "hora": "19:00",
+  "personas": 3,
+  "notas": "Sin soja"
+}
+```
+Solo `nombre`, `telefono`, `fecha`, `hora` y `personas` son obligatorios. `email` y `notas` son opcionales. `fecha` debe ser hoy o posterior y `hora` en formato `H:i`.
+
+### Respuestas
+| Código | Situación |
+|--------|-----------|
+| `201` | Reserva creada (`{"reserva_id": 1, "token_publico": "..."}`) |
+| `401` | Token ausente/incorrecto |
+| `403` | Webhook desactivado |
+| `422` | Payload inválido o reserva rechazada (solo se crea en estado `solicitada`) |
+
+Al crearse, la reserva queda en estado `solicitada` con `origen = webhook`; el equipo la confirma desde **Reservas** (RES-01). Toggle y token se gestionan en CFG-01.
