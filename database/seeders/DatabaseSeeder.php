@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
             InventarioSeeder::class,
             ClienteSeeder::class,
             ConfiguracionSeeder::class,
+            ImpresoraSeeder::class,
+            DemoOperacionesSeeder::class,
         ]);
     }
 }

@@ -297,6 +297,34 @@
                     </div>
                 </a>
 
+                <!-- Carta & Menú Card (MEN-01) -->
+                <a 
+                    href="{{ route('menu') }}" 
+                    wire:navigate
+                    class="group relative flex flex-col justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 transition-all hover:border-primary hover:shadow-lg active:scale-[0.99]"
+                >
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl group-hover:scale-105 transition-transform border border-primary/20">
+                                🍱
+                            </span>
+                            <span class="rounded-full bg-secondary-container/50 border border-secondary/30 px-2.5 py-0.5 text-xs font-bold text-on-secondary-container">
+                                ✓ Operativo · MEN-01
+                            </span>
+                        </div>
+                        <h3 class="mt-4 text-base font-extrabold text-on-surface group-hover:text-primary transition-colors">
+                            Carta & Menú (Platos y Servicios)
+                        </h3>
+                        <p class="mt-1.5 text-xs text-on-surface-variant leading-relaxed">
+                            Creación de nuevos platos, rolls, bebidas y combos, fijación de precios, áreas de preparación y categorización en vivo.
+                        </p>
+                    </div>
+                    <div class="mt-5 pt-3 border-t border-surface-container flex items-center justify-between text-xs font-bold text-primary">
+                        <span>Gestionar Carta y Productos</span>
+                        <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    </div>
+                </a>
+
                 <!-- Clientes & Fidelización Card (Fase 4) -->
                 <a 
                     href="{{ route('clientes') }}" 
@@ -405,6 +433,34 @@
                     </div>
                     <div class="mt-5 pt-3 border-t border-surface-container flex items-center justify-between text-xs font-bold text-primary">
                         <span>Gestionar Reservas</span>
+                        <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    </div>
+                </a>
+
+                <!-- Impresión & Spooler Card (Fase 6) -->
+                <a 
+                    href="{{ route('impresion') }}" 
+                    wire:navigate
+                    class="group relative flex flex-col justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 transition-all hover:border-primary hover:shadow-lg active:scale-[0.99]"
+                >
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl group-hover:scale-105 transition-transform border border-primary/20">
+                                🖨️
+                            </span>
+                            <span class="rounded-full bg-secondary-container/50 border border-secondary/30 px-2.5 py-0.5 text-xs font-bold text-on-secondary-container">
+                                ✓ Operativo · IMP-01
+                            </span>
+                        </div>
+                        <h3 class="mt-4 text-base font-extrabold text-on-surface group-hover:text-primary transition-colors">
+                            Spooler & Impresión en Red
+                        </h3>
+                        <p class="mt-1.5 text-xs text-on-surface-variant leading-relaxed">
+                            Cola asíncrona de impresión térmica (80mm), sockets TCP/IP por área, visor de cinta y reimpresión histórica auditada.
+                        </p>
+                    </div>
+                    <div class="mt-5 pt-3 border-t border-surface-container flex items-center justify-between text-xs font-bold text-primary">
+                        <span>Monitor de Spooler</span>
                         <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
                     </div>
                 </a>

@@ -2,15 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\AsientoContable;
 use App\Models\Caja;
 use App\Models\Categoria;
-use App\Models\MovimientoCaja;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Role;
 use App\Models\Sucursal;
-use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\CajaService;
 use App\Services\PedidoService;
@@ -22,10 +19,15 @@ class Fase2CajaTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $cajero;
+
     private Sucursal $sucursal;
+
     private Caja $caja;
+
     private CajaService $cajaService;
+
     private PedidoService $pedidoService;
 
     protected function setUp(): void
@@ -119,8 +121,8 @@ class Fase2CajaTest extends TestCase
 
         $turno->refresh();
 
-        $this->assertEquals(35000.00, (float)$turno->total_egresos);
-        $this->assertEquals(165000.00, (float)$turno->monto_esperado_efectivo);
+        $this->assertEquals(35000.00, (float) $turno->total_egresos);
+        $this->assertEquals(165000.00, (float) $turno->monto_esperado_efectivo);
 
         $this->assertDatabaseHas('movimientos_caja', [
             'id' => $movimiento->id,
@@ -155,8 +157,8 @@ class Fase2CajaTest extends TestCase
 
         $turno->refresh();
 
-        $this->assertEquals(200000.00, (float)$turno->total_retiros);
-        $this->assertEquals(300000.00, (float)$turno->monto_esperado_efectivo);
+        $this->assertEquals(200000.00, (float) $turno->total_retiros);
+        $this->assertEquals(300000.00, (float) $turno->monto_esperado_efectivo);
 
         $this->assertDatabaseHas('asientos_contables', [
             'tipo' => 'gasto',
@@ -185,15 +187,15 @@ class Fase2CajaTest extends TestCase
             $this->cajero
         );
 
-        $this->assertEquals(90000.00, (float)$pedido->total);
+        $this->assertEquals(90000.00, (float) $pedido->total);
 
         // Cobrar pedido en efectivo
         $this->pedidoService->cobrarPedido($pedido, 'efectivo', 100000.00);
 
         $turno->refresh();
 
-        $this->assertEquals(90000.00, (float)$turno->total_ventas_efectivo);
-        $this->assertEquals(190000.00, (float)$turno->monto_esperado_efectivo);
+        $this->assertEquals(90000.00, (float) $turno->total_ventas_efectivo);
+        $this->assertEquals(190000.00, (float) $turno->monto_esperado_efectivo);
         $this->assertEquals($turno->id, $pedido->fresh()->turno_caja_id);
 
         $this->assertDatabaseHas('asientos_contables', [
@@ -213,8 +215,8 @@ class Fase2CajaTest extends TestCase
         $turno = $this->cajaService->cerrarTurno($turno, 105000.00, $this->admin, 'Cierre sin incidencias');
 
         $this->assertEquals('cerrado', $turno->estado);
-        $this->assertEquals(105000.00, (float)$turno->monto_real_efectivo);
-        $this->assertEquals(5000.00, (float)$turno->diferencia);
+        $this->assertEquals(105000.00, (float) $turno->monto_real_efectivo);
+        $this->assertEquals(5000.00, (float) $turno->diferencia);
         $this->assertNotNull($turno->cierre_en);
 
         $this->assertDatabaseHas('asientos_contables', [
@@ -237,7 +239,7 @@ class Fase2CajaTest extends TestCase
         // El esperado es 100,000. El cajero cuenta 98,000 (faltante de -2,000)
         $turno = $this->cajaService->cerrarTurno($turno, 98000.00, $this->admin, 'Faltante de 2000');
 
-        $this->assertEquals(-2000.00, (float)$turno->diferencia);
+        $this->assertEquals(-2000.00, (float) $turno->diferencia);
 
         $this->assertDatabaseHas('asientos_contables', [
             'tipo' => 'gasto',

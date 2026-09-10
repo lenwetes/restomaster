@@ -11,10 +11,10 @@ return new class extends Migration
         Schema::create('configuraciones', function (Blueprint $table) {
             $table->id();
             $table->string('grupo')->index();
-            $table->string('clave')->unique();
+            $table->string('clave');
             $table->json('valor')->nullable();
             $table->timestamps();
-            $table->index(['grupo', 'clave']);
+            $table->unique(['grupo', 'clave']);
         });
     }
 

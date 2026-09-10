@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\ReporteService;
 use App\Services\ReservaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class Fase5ReportesTest extends TestCase
@@ -21,8 +22,11 @@ class Fase5ReportesTest extends TestCase
     use RefreshDatabase;
 
     private ReporteService $service;
+
     private Sucursal $sucursal;
+
     private Producto $producto;
+
     private User $admin;
 
     protected function setUp(): void
@@ -46,7 +50,7 @@ class Fase5ReportesTest extends TestCase
     private function pedidoEn(string $fecha, string $tipo = 'mesa', ?User $usuario = null): Pedido
     {
         $pedido = Pedido::create([
-            'codigo' => 'T-' . uniqid(),
+            'codigo' => 'T-'.uniqid(),
             'tipo' => $tipo,
             'estado' => 'pagado',
             'usuario_id' => ($usuario ?? $this->admin)->id,
@@ -55,9 +59,9 @@ class Fase5ReportesTest extends TestCase
             'total' => 50000,
             'metodo_pago' => 'efectivo',
             'monto_pagado' => 50000,
-            'pagado_en' => $fecha . ' 13:00:00',
+            'pagado_en' => $fecha.' 13:00:00',
         ]);
-        $pedido->forceFill(['created_at' => $fecha . ' 12:00:00'])->save();
+        $pedido->forceFill(['created_at' => $fecha.' 12:00:00'])->save();
 
         ItemPedido::create([
             'pedido_id' => $pedido->id,
@@ -205,7 +209,7 @@ class Fase5ReportesTest extends TestCase
         $gerente = User::create(['name' => 'G2', 'email' => 'g2@t.com', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'gerente')->value('id'), 'activo' => true]);
         $this->pedidoEn('2026-09-05');
 
-        \Livewire\Volt\Volt::actingAs($gerente)
+        Volt::actingAs($gerente)
             ->test('reportes.index')
             ->set('desde', '2026-09-01')
             ->set('hasta', '2026-09-30')
@@ -222,7 +226,7 @@ class Fase5ReportesTest extends TestCase
     {
         $gerente = User::create(['name' => 'G3', 'email' => 'g3@t.com', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'gerente')->value('id'), 'activo' => true]);
 
-        \Livewire\Volt\Volt::actingAs($gerente)
+        Volt::actingAs($gerente)
             ->test('reportes.index')
             ->set('pestana', 'reservas')
             ->assertSee('Cumplimiento')

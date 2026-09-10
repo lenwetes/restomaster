@@ -42,9 +42,9 @@ class CajaSeeder extends Seeder
         );
 
         // Open an initial shift if none is open
-        if (!$cajaPrincipal->turnoActivo()) {
-            $cajero = User::whereHas('role', fn($q) => $q->where('slug', 'cajero'))->first()
-                ?? User::whereHas('role', fn($q) => $q->where('slug', 'admin'))->first();
+        if (! $cajaPrincipal->turnoActivo()) {
+            $cajero = User::whereHas('role', fn ($q) => $q->where('slug', 'cajero'))->first()
+                ?? User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))->first();
 
             if ($cajero) {
                 $cajaService = app(CajaService::class);

@@ -12,6 +12,7 @@ use InvalidArgumentException;
 class FidelizacionService
 {
     public const VALOR_PUNTO_COP = 10.0; // 1 punto = $10 COP de descuento
+
     public const CONSUMO_POR_PUNTO = 10000.0; // Cada $10.000 COP genera 1 punto
 
     /**

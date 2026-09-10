@@ -16,7 +16,9 @@ class Fase2CxpTest extends TestCase
     use RefreshDatabase;
 
     private User $gerente;
+
     private User $mesero;
+
     private CuentasPorPagarService $service;
 
     protected function setUp(): void

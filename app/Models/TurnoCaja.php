@@ -60,6 +60,11 @@ class TurnoCaja extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function cerradoPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cerrado_por_user_id');
@@ -82,6 +87,6 @@ class TurnoCaja extends Model
 
     public function getTotalVentasAttribute(): float
     {
-        return (float)$this->total_ventas_efectivo + (float)$this->total_ventas_tarjeta + (float)$this->total_ventas_transferencia;
+        return (float) $this->total_ventas_efectivo + (float) $this->total_ventas_tarjeta + (float) $this->total_ventas_transferencia;
     }
 }

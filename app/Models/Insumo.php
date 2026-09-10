@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Insumo extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'insumos';
 
@@ -79,7 +80,10 @@ class Insumo extends Model
     public function getPorcentajeStockAttribute(): float
     {
         $max = (float) $this->capacidad_maxima > 0 ? (float) $this->capacidad_maxima : (float) $this->stock_minimo * 2;
-        if ($max <= 0) return 0;
+        if ($max <= 0) {
+            return 0;
+        }
+
         return min(100, round(((float) $this->stock_actual / $max) * 100, 1));
     }
 

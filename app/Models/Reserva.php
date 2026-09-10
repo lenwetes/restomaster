@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class Reserva extends Model
 {
@@ -27,6 +28,15 @@ class Reserva extends Model
             'duracion_min' => 'integer',
             'personas' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function ($reserva) {
+            if (empty($reserva->token_publico)) {
+                $reserva->token_publico = Str::random(32);
+            }
+        });
     }
 
     public function mesas(): BelongsToMany

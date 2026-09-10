@@ -49,4 +49,12 @@ class Sucursal extends Model
     {
         return $this->hasMany(Mesa::class);
     }
+
+    /**
+     * Get the users assigned to this branch.
+     */
+    public function usuarios(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
 }

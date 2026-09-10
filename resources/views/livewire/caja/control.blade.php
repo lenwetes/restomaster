@@ -10,27 +10,74 @@ new class extends Component
 {
     // Shift selection and active shift
     public ?int $turnoId = null;
+
     public ?int $cajaSeleccionadaId = null;
 
     // Shift opening form
     public bool $mostrarModalApertura = false;
+
     public float $fondoInicial = 150000.0;
+
     public string $notasApertura = '';
 
     // Movement (Egreso / Retiro / Ingreso) modal
     public bool $mostrarModalMovimiento = false;
+
     public string $tipoMovimiento = 'egreso'; // egreso, retiro, ingreso
+
     public float $montoMovimiento = 0.0;
+
     public string $conceptoMovimiento = '';
+
     public string $comprobanteMovimiento = '';
+
     public string $autorizadoPor = '';
 
     // Arqueo y Cierre de Turno (CAJ-04 / CAJ-05)
     public bool $mostrarModalCierre = false;
+
     public float $montoContado = 0.0;
+
     public string $notasCierre = '';
+
     public ?array $reporteZ = null;
+
     public bool $mostrarModalReporteZ = false;
+
+    // Nueva Terminal de Caja State
+    public bool $modalNuevaCajaOpen = false;
+
+    public array $formCaja = [
+        'nombre' => '',
+        'codigo' => '',
+    ];
+
+    public function abrirModalNuevaCaja(): void
+    {
+        $conteo = Caja::count() + 1;
+        $this->formCaja = [
+            'nombre' => "Caja {$conteo} Barra",
+            'codigo' => "CAJA-0{$conteo}",
+        ];
+        $this->modalNuevaCajaOpen = true;
+    }
+
+    public function guardarNuevaCaja(): void
+    {
+        $this->validate([
+            'formCaja.nombre' => 'required|string|max:60',
+            'formCaja.codigo' => 'required|string|max:20|unique:cajas,codigo',
+        ]);
+
+        $caja = app(CajaService::class)->crearCaja($this->formCaja, auth()->user());
+        $this->cajaSeleccionadaId = $caja->id;
+        $this->modalNuevaCajaOpen = false;
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Terminal {$caja->nombre} ({$caja->codigo}) creada exitosamente.",
+            'tipo' => 'success',
+        ]);
+    }
 
     public function mount(): void
     {
@@ -42,7 +89,7 @@ new class extends Component
         $turnoActivo = TurnoCaja::where('estado', 'abierto')->latest()->first();
         if ($turnoActivo) {
             $this->turnoId = $turnoActivo->id;
-            $this->montoContado = (float)$turnoActivo->monto_esperado_efectivo;
+            $this->montoContado = (float) $turnoActivo->monto_esperado_efectivo;
         }
     }
 
@@ -122,7 +169,7 @@ new class extends Component
     {
         $turno = TurnoCaja::findOrFail($this->turnoId);
         app(CajaService::class)->recalcularEsperado($turno);
-        $this->montoContado = (float)$turno->monto_esperado_efectivo;
+        $this->montoContado = (float) $turno->monto_esperado_efectivo;
         $this->notasCierre = '';
         $this->mostrarModalCierre = true;
     }
@@ -153,7 +200,7 @@ new class extends Component
 
     public function generarReporteX(): void
     {
-        if (!$this->turnoId) {
+        if (! $this->turnoId) {
             return;
         }
         $turno = TurnoCaja::findOrFail($this->turnoId);
@@ -185,8 +232,8 @@ new class extends Component
     }
 }; ?>
 
-<x-slot name="header">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div class="space-y-6">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[24px] text-primary">payments</span>
@@ -202,8 +249,17 @@ new class extends Component
             </p>
         </div>
         <div class="flex items-center gap-2">
-            <a 
-                href="{{ route('pos') }}" 
+            @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                <button
+                    wire:click="abrirModalNuevaCaja"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3.5 py-2 text-xs font-extrabold text-on-secondary shadow-sm hover:bg-secondary-fixed-dim transition-all active:scale-95"
+                >
+                    <span class="material-symbols-outlined text-[16px]">add_box</span>
+                    <span>+ Nueva Terminal</span>
+                </button>
+            @endif
+            <a
+                href="{{ route('pos') }}"
                 wire:navigate
                 class="inline-flex items-center gap-2 rounded-xl bg-surface-container hover:bg-surface-container-high border border-surface-container-highest px-3.5 py-2 text-xs font-extrabold text-on-surface transition-all"
             >
@@ -211,10 +267,8 @@ new class extends Component
                 <span>Ir al POS</span>
             </a>
         </div>
-    </div>
-</x-slot>
+    </header>
 
-<div class="space-y-6">
     @if($turno && $turno->estado === 'abierto')
         <!-- SUB-HEADER CONTEXTUAL Y COMANDOS DE TURNO (Stitch CAJ-01 Aura Gastro Expressive OS) -->
         <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4">
@@ -869,6 +923,67 @@ new class extends Component
                         ✓ Entendido
                     </button>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL: NUEVA TERMINAL DE CAJA -->
+    @if($modalNuevaCajaOpen)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest space-y-4">
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-secondary-container/50 text-secondary flex items-center justify-center border border-secondary/30">
+                            <span class="material-symbols-outlined text-[20px]">add_box</span>
+                        </div>
+                        <h3 class="text-base font-extrabold text-on-surface">Nueva Terminal de Caja</h3>
+                    </div>
+                    <button wire:click="$set('modalNuevaCajaOpen', false)" class="text-on-surface-variant hover:text-on-surface">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <form wire:submit="guardarNuevaCaja" class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant block mb-1">Nombre Descriptivo de la Caja:</label>
+                        <input 
+                            type="text" 
+                            wire:model="formCaja.nombre" 
+                            placeholder="Ej. Caja 2 Barra & Coctelería"
+                            class="w-full h-11 rounded-xl border border-surface-container-high bg-surface-container-low px-3 text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
+                            required
+                        />
+                        @error('formCaja.nombre') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant block mb-1">Código de Terminal (Único):</label>
+                        <input 
+                            type="text" 
+                            wire:model="formCaja.codigo" 
+                            placeholder="Ej. CAJA-02"
+                            class="w-full h-11 rounded-xl border border-surface-container-high bg-surface-container-low px-3 font-mono text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
+                            required
+                        />
+                        @error('formCaja.codigo') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="pt-3 border-t border-surface-container-high grid grid-cols-2 gap-2">
+                        <button 
+                            type="button"
+                            wire:click="$set('modalNuevaCajaOpen', false)" 
+                            class="rounded-xl border border-surface-container-high bg-surface-container py-2.5 text-xs font-extrabold text-on-surface-variant hover:text-on-surface"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="submit"
+                            class="rounded-xl bg-primary py-2.5 text-xs font-black text-on-primary shadow-md hover:bg-primary-container"
+                        >
+                            ✓ Crear Terminal
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     @endif

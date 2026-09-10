@@ -6,6 +6,7 @@ use App\Models\AsientoContable;
 use App\Models\Caja;
 use App\Models\MovimientoCaja;
 use App\Models\Pedido;
+use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +14,34 @@ use InvalidArgumentException;
 
 class CajaService
 {
+    /**
+     * Registrar una nueva caja física o terminal de cobro.
+     */
+    public function crearCaja(array $datos, ?User $usuario = null): Caja
+    {
+        $sucursalId = $datos['sucursal_id'] ?? Sucursal::value('id') ?? 1;
+
+        $caja = Caja::create([
+            'sucursal_id' => $sucursalId,
+            'nombre' => trim($datos['nombre']),
+            'codigo' => strtoupper(trim($datos['codigo'])),
+            'activa' => $datos['activa'] ?? true,
+        ]);
+
+        if ($usuario) {
+            app(AuditoriaService::class)->registrar(
+                usuario: $usuario,
+                accion: 'cajas.creada',
+                entidad: 'caja',
+                entidadId: $caja->id,
+                descripcion: "Terminal de caja {$caja->nombre} ({$caja->codigo}) creada en el sistema.",
+                datos: $caja->toArray()
+            );
+        }
+
+        return $caja;
+    }
+
     /**
      * Open a new shift for a cash register.
      */
@@ -70,11 +99,11 @@ class CajaService
     ): MovimientoCaja {
         return DB::transaction(function () use ($turno, $tipo, $monto, $concepto, $metodoPago, $comprobante, $autorizadoPor, $user) {
             if ($turno->estado !== 'abierto') {
-                throw new InvalidArgumentException("No se pueden registrar movimientos en un turno cerrado o cancelado.");
+                throw new InvalidArgumentException('No se pueden registrar movimientos en un turno cerrado o cancelado.');
             }
 
             if ($monto <= 0) {
-                throw new InvalidArgumentException("El monto del movimiento debe ser mayor a cero.");
+                throw new InvalidArgumentException('El monto del movimiento debe ser mayor a cero.');
             }
 
             $userId = $user ? $user->id : $turno->user_id;
@@ -92,9 +121,9 @@ class CajaService
 
             // Actualizar acumuladores del turno
             if ($tipo === 'egreso') {
-                $turno->total_egresos = (float)$turno->total_egresos + $monto;
+                $turno->total_egresos = (float) $turno->total_egresos + $monto;
             } elseif ($tipo === 'retiro') {
-                $turno->total_retiros = (float)$turno->total_retiros + $monto;
+                $turno->total_retiros = (float) $turno->total_retiros + $monto;
             }
 
             $this->recalcularEsperado($turno);
@@ -134,11 +163,11 @@ class CajaService
             $metodo = strtolower($pedido->metodo_pago ?? 'efectivo');
 
             if ($metodo === 'efectivo') {
-                $turno->total_ventas_efectivo = (float)$turno->total_ventas_efectivo + (float)$pedido->total;
+                $turno->total_ventas_efectivo = (float) $turno->total_ventas_efectivo + (float) $pedido->total;
             } elseif (in_array($metodo, ['tarjeta', 'tarjeta_credito', 'tarjeta_debito'])) {
-                $turno->total_ventas_tarjeta = (float)$turno->total_ventas_tarjeta + (float)$pedido->total;
+                $turno->total_ventas_tarjeta = (float) $turno->total_ventas_tarjeta + (float) $pedido->total;
             } else {
-                $turno->total_ventas_transferencia = (float)$turno->total_ventas_transferencia + (float)$pedido->total;
+                $turno->total_ventas_transferencia = (float) $turno->total_ventas_transferencia + (float) $pedido->total;
             }
 
             $this->recalcularEsperado($turno);
@@ -150,7 +179,7 @@ class CajaService
                 'tipo' => 'ingreso',
                 'cuenta' => 'ventas_restaurante',
                 'concepto' => "Venta POS {$pedido->codigo} ({$metodo}) - Turno #{$turno->id}",
-                'monto' => (float)$pedido->total,
+                'monto' => (float) $pedido->total,
                 'referencia_tipo' => 'pedido',
                 'referencia_id' => $pedido->id,
                 'user_id' => $pedido->usuario_id ?? $turno->user_id,
@@ -163,10 +192,10 @@ class CajaService
      */
     public function recalcularEsperado(TurnoCaja $turno): void
     {
-        $montoEsperado = (float)$turno->monto_inicial
-            + (float)$turno->total_ventas_efectivo
-            - (float)$turno->total_egresos
-            - (float)$turno->total_retiros;
+        $montoEsperado = (float) $turno->monto_inicial
+            + (float) $turno->total_ventas_efectivo
+            - (float) $turno->total_egresos
+            - (float) $turno->total_retiros;
 
         $turno->monto_esperado_efectivo = max(0.0, $montoEsperado);
     }
@@ -178,13 +207,13 @@ class CajaService
     {
         return DB::transaction(function () use ($turno, $montoRealEfectivo, $cerradoPor, $notasCierre) {
             if ($turno->estado !== 'abierto') {
-                throw new InvalidArgumentException("El turno ya está cerrado o cancelado.");
+                throw new InvalidArgumentException('El turno ya está cerrado o cancelado.');
             }
 
             $this->recalcularEsperado($turno);
 
             // Diferencia: Sobrante (+) o Faltante (-)
-            $diferencia = $montoRealEfectivo - (float)$turno->monto_esperado_efectivo;
+            $diferencia = $montoRealEfectivo - (float) $turno->monto_esperado_efectivo;
 
             $turno->update([
                 'cierre_en' => now(),
@@ -201,13 +230,16 @@ class CajaService
                     'fecha' => now()->toDateString(),
                     'tipo' => $diferencia > 0 ? 'ingreso' : 'gasto',
                     'cuenta' => $diferencia > 0 ? 'sobrante_caja' : 'faltante_caja',
-                    'concepto' => "Ajuste por arqueo de caja turno #{$turno->id}: " . ($diferencia > 0 ? "Sobrante" : "Faltante"),
+                    'concepto' => "Ajuste por arqueo de caja turno #{$turno->id}: ".($diferencia > 0 ? 'Sobrante' : 'Faltante'),
                     'monto' => abs($diferencia),
                     'referencia_tipo' => 'arqueo_caja',
                     'referencia_id' => $turno->id,
                     'user_id' => $cerradoPor->id,
                 ]);
             }
+
+            // Despachar Reporte Z térmico a la impresora de caja
+            app(ImpresionService::class)->despacharReporteZ($turno, $cerradoPor);
 
             return $turno;
         });
@@ -233,22 +265,22 @@ class CajaService
             'cerrado_por' => $turno->cerradoPor?->name ?? 'N/A',
             'apertura' => $turno->apertura_en->format('d/m/Y H:i'),
             'cierre' => $turno->cierre_en?->format('d/m/Y H:i') ?? 'En curso',
-            'fondo_inicial' => (float)$turno->monto_inicial,
+            'fondo_inicial' => (float) $turno->monto_inicial,
             'total_transacciones' => $pedidos->count(),
-            'subtotal_ventas' => (float)$subtotal,
-            'total_descuentos' => (float)$descuentos,
-            'total_ventas' => (float)$totalVentas,
+            'subtotal_ventas' => (float) $subtotal,
+            'total_descuentos' => (float) $descuentos,
+            'total_ventas' => (float) $totalVentas,
             'desglose_pagos' => [
-                'efectivo' => (float)$turno->total_ventas_efectivo,
-                'tarjeta' => (float)$turno->total_ventas_tarjeta,
-                'transferencia' => (float)$turno->total_ventas_transferencia,
+                'efectivo' => (float) $turno->total_ventas_efectivo,
+                'tarjeta' => (float) $turno->total_ventas_tarjeta,
+                'transferencia' => (float) $turno->total_ventas_transferencia,
             ],
-            'total_egresos' => (float)$turno->total_egresos,
-            'total_retiros' => (float)$turno->total_retiros,
-            'monto_esperado' => (float)$turno->monto_esperado_efectivo,
-            'monto_real' => (float)($turno->monto_real_efectivo ?? 0.0),
-            'diferencia' => (float)$turno->diferencia,
-            'estado_cuadre' => abs((float)$turno->diferencia) < 0.01 ? 'CUADRADA' : ((float)$turno->diferencia > 0 ? 'SOBRANTE' : 'FALTANTE'),
+            'total_egresos' => (float) $turno->total_egresos,
+            'total_retiros' => (float) $turno->total_retiros,
+            'monto_esperado' => (float) $turno->monto_esperado_efectivo,
+            'monto_real' => (float) ($turno->monto_real_efectivo ?? 0.0),
+            'diferencia' => (float) $turno->diferencia,
+            'estado_cuadre' => abs((float) $turno->diferencia) < 0.01 ? 'CUADRADA' : ((float) $turno->diferencia > 0 ? 'SOBRANTE' : 'FALTANTE'),
             'movimientos' => $turno->movimientos()->get(),
         ];
     }

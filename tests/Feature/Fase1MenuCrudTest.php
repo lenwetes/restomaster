@@ -17,7 +17,11 @@ class Fase1MenuCrudTest extends TestCase
     use RefreshDatabase;
 
     private User $gerente;
+
+    private User $admin;
+
     private User $mesero;
+
     private MenuService $service;
 
     protected function setUp(): void
@@ -25,20 +29,25 @@ class Fase1MenuCrudTest extends TestCase
         parent::setUp();
 
         Role::create(['nombre' => 'Gerente', 'slug' => 'gerente']);
+        Role::create(['nombre' => 'Administrador', 'slug' => 'admin']);
         Role::create(['nombre' => 'Mesero', 'slug' => 'mesero']);
 
         $this->gerente = User::factory()->create(['role_id' => Role::where('slug', 'gerente')->value('id')]);
+        $this->admin = User::factory()->create(['role_id' => Role::where('slug', 'admin')->value('id')]);
         $this->mesero = User::factory()->create(['role_id' => Role::where('slug', 'mesero')->value('id')]);
 
         $this->service = app(MenuService::class);
     }
 
-    public function test_pantalla_menu_solo_disponible_para_gerente(): void
+    public function test_pantalla_menu_solo_disponible_para_gerente_y_admin(): void
     {
         $this->actingAs($this->mesero)->get(route('menu'))->assertForbidden();
 
         $this->actingAs($this->gerente)->get(route('menu'))->assertOk();
         $this->actingAs($this->gerente)->get(route('menu'))->assertSeeVolt('menu.index');
+
+        $this->actingAs($this->admin)->get(route('menu'))->assertOk();
+        $this->actingAs($this->admin)->get(route('menu'))->assertSeeVolt('menu.index');
     }
 
     public function test_crear_categoria_genera_slug_icono_y_orden(): void
@@ -175,9 +184,17 @@ class Fase1MenuCrudTest extends TestCase
         $this->assertCount(0, $categoria->fresh()->productos()->get());
     }
 
-    public function test_componente_puede_crear_categoria_desde_ui(): void
+    public function test_componente_puede_crear_categoria_desde_ui_solo_admin(): void
     {
+        // Gerente no puede guardar categoría
         Volt::actingAs($this->gerente)
+            ->test('menu.index')
+            ->set('categoriaForm.nombre', 'Combos')
+            ->call('guardarCategoria')
+            ->assertStatus(403);
+
+        // Admin sí puede crear categoría
+        Volt::actingAs($this->admin)
             ->test('menu.index')
             ->set('mostrarModalCategoria', true)
             ->set('categoriaForm.nombre', 'Combos')
@@ -187,5 +204,112 @@ class Fase1MenuCrudTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('categorias', ['nombre' => 'Combos', 'slug' => 'combos']);
+    }
+
+    public function test_componente_puede_crear_producto_desde_ui_solo_admin(): void
+    {
+        $categoria = Categoria::create(['nombre' => 'Rolls Especiales', 'slug' => 'rolls-especiales']);
+
+        // Gerente no puede guardar producto
+        Volt::actingAs($this->gerente)
+            ->test('menu.index')
+            ->set('productoForm.categoria_id', $categoria->id)
+            ->set('productoForm.nombre', 'Dragon Roll Imperial')
+            ->set('productoForm.precio', 45000)
+            ->call('guardarProducto')
+            ->assertStatus(403);
+
+        // Admin sí puede crear producto
+        Volt::actingAs($this->admin)
+            ->test('menu.index')
+            ->call('abrirNuevoProducto', $categoria->id)
+            ->assertSet('mostrarModalProducto', true)
+            ->set('productoForm.categoria_id', $categoria->id)
+            ->set('productoForm.nombre', 'Dragon Roll Imperial')
+            ->set('productoForm.descripcion', 'Anguila, aguacate, masago y salsa teriyaki artesanal')
+            ->set('productoForm.precio', 45000)
+            ->set('productoForm.costo', 16500)
+            ->set('productoForm.area_cocina', 'sushi')
+            ->call('guardarProducto')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('productos', [
+            'nombre' => 'Dragon Roll Imperial',
+            'categoria_id' => $categoria->id,
+            'precio' => 45000,
+            'costo' => 16500,
+            'area_cocina' => 'sushi',
+            'activo' => true,
+        ]);
+    }
+
+    public function test_reactivar_producto_y_categoria(): void
+    {
+        $categoria = Categoria::create(['nombre' => 'Bebidas', 'slug' => 'bebidas', 'activo' => false]);
+        $producto = Producto::create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Limonada de Coco',
+            'slug' => 'limonada-de-coco',
+            'precio' => 12000,
+            'area_cocina' => 'barra',
+            'activo' => false,
+        ]);
+
+        $this->service->activarCategoria($categoria);
+        $this->assertTrue((bool) $categoria->fresh()->activo);
+
+        $this->service->activarProducto($producto);
+        $this->assertTrue((bool) $producto->fresh()->activo);
+    }
+
+    public function test_pos_barra_navegacion_categorias_y_boton_crear_producto_solo_admin(): void
+    {
+        // Admin ve la barra de navegación con flechas y el botón de crear producto
+        $this->actingAs($this->admin)
+            ->get(route('pos'))
+            ->assertOk()
+            ->assertSee('id="btnCatNavLeft"', false)
+            ->assertSee('id="btnCatNavRight"', false)
+            ->assertSee('id="btnPosCrearProductoAdmin"', false);
+
+        // Gerente ve la barra de categorías pero el botón de crear producto es INVISIBLE
+        $this->actingAs($this->gerente)
+            ->get(route('pos'))
+            ->assertOk()
+            ->assertSee('id="btnCatNavLeft"', false)
+            ->assertSee('id="btnCatNavRight"', false)
+            ->assertDontSee('id="btnPosCrearProductoAdmin"', false);
+
+        // Mesero ve la barra de categorías pero el botón de crear producto es INVISIBLE
+        $this->actingAs($this->mesero)
+            ->get(route('pos'))
+            ->assertOk()
+            ->assertSee('id="btnCatNavLeft"', false)
+            ->assertSee('id="btnCatNavRight"', false)
+            ->assertDontSee('id="btnPosCrearProductoAdmin"', false);
+    }
+
+    public function test_modal_categoria_muestra_selector_de_iconos_y_frecuentes(): void
+    {
+        Volt::actingAs($this->admin)
+            ->test('menu.index')
+            ->call('abrirNuevaCategoria')
+            ->assertSet('mostrarModalCategoria', true)
+            ->assertSee('Frecuentes:')
+            ->assertSee('Sushi & Rolls', false)
+            ->assertSee('Wok & Ramen', false)
+            ->assertSee('Bebidas & Bar', false)
+            ->assertSee('Postres & Dulces', false)
+            ->set('categoriaForm.nombre', 'Ramen Especial')
+            ->set('categoriaForm.icono', '🍜')
+            ->set('categoriaForm.orden', 5)
+            ->call('guardarCategoria')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('categorias', [
+            'nombre' => 'Ramen Especial',
+            'icono' => '🍜',
+            'orden' => 5,
+        ]);
     }
 }

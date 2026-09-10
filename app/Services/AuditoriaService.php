@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Auditoria;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 
 class AuditoriaService
 {
@@ -32,7 +33,7 @@ class AuditoriaService
     /**
      * Devuelve la traza de auditoría de una entidad concreta (más recientes primero).
      */
-    public function porEntidad(string $entidad, int $entidadId): \Illuminate\Database\Eloquent\Collection
+    public function porEntidad(string $entidad, int $entidadId): Collection
     {
         return Auditoria::with('usuario')
             ->where('entidad', $entidad)
@@ -44,7 +45,7 @@ class AuditoriaService
     /**
      * Devuelve auditorías filtradas por acción.
      */
-    public function porAccion(string $accion): \Illuminate\Database\Eloquent\Collection
+    public function porAccion(string $accion): Collection
     {
         return Auditoria::with('usuario')
             ->where('accion', $accion)

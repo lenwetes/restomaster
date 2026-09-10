@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\Role;
+use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class TrabajadorService
@@ -25,6 +27,11 @@ class TrabajadorService
             throw new InvalidArgumentException('El rol seleccionado no existe.');
         }
 
+        $sucursalId = $datos['sucursal_id'] ?? null;
+        if (! is_null($sucursalId) && ! Sucursal::where('id', $sucursalId)->exists()) {
+            throw new InvalidArgumentException('La sucursal seleccionada no existe.');
+        }
+
         $name = $datos['name'] ?? $datos['nombre'] ?? '';
 
         $user = User::create([
@@ -32,6 +39,7 @@ class TrabajadorService
             'email' => $email,
             'telefono' => $datos['telefono'] ?? null,
             'role_id' => $roleId,
+            'sucursal_id' => $sucursalId,
             'activo' => $datos['activo'] ?? true,
             'password' => Hash::make($datos['password'] ?? 'secret'),
         ]);
@@ -69,7 +77,11 @@ class TrabajadorService
             $trabajador->email = $email;
         }
 
-        foreach (['name', 'telefono', 'role_id'] as $campo) {
+        if (isset($datos['sucursal_id']) && ! is_null($datos['sucursal_id']) && ! Sucursal::where('id', $datos['sucursal_id'])->exists()) {
+            throw new InvalidArgumentException('La sucursal seleccionada no existe.');
+        }
+
+        foreach (['name', 'telefono', 'role_id', 'sucursal_id'] as $campo) {
             if (array_key_exists($campo, $datos)) {
                 $trabajador->{$campo} = $datos[$campo];
             }
@@ -128,5 +140,24 @@ class TrabajadorService
         );
 
         return $trabajador;
+    }
+
+    /**
+     * Genera una contraseña temporal, la guarda hasheada y la devuelve en texto plano (se muestra una sola vez).
+     */
+    public function resetearPassword(User $trabajador): string
+    {
+        $claveTemporal = Str::password(10);
+
+        $trabajador->update(['password' => Hash::make($claveTemporal)]);
+
+        app(AuditoriaService::class)->registrar(
+            accion: 'trabajador.password_reseteado',
+            entidad: 'usuario',
+            entidadId: $trabajador->id,
+            descripcion: "Se reseteó la contraseña del trabajador {$trabajador->name}",
+        );
+
+        return $claveTemporal;
     }
 }

@@ -128,7 +128,7 @@ class ClienteService
     {
         $termino = trim($termino);
         if ($termino === '') {
-            return new Collection();
+            return new Collection;
         }
 
         return Cliente::with(['direcciones', 'direccionPredeterminada'])
@@ -148,6 +148,7 @@ class ClienteService
     public function desactivar(Cliente $cliente): Cliente
     {
         $cliente->update(['activo' => false]);
+
         return $cliente;
     }
 
@@ -157,6 +158,7 @@ class ClienteService
     public function reactivar(Cliente $cliente): Cliente
     {
         $cliente->update(['activo' => true]);
+
         return $cliente;
     }
 }

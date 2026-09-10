@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Mesa extends Model
 {
@@ -47,7 +48,7 @@ class Mesa extends Model
     /**
      * Get the orders associated with the table.
      */
-    public function pedidos(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function pedidos(): HasMany
     {
         return $this->hasMany(Pedido::class);
     }

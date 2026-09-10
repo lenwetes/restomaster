@@ -18,6 +18,7 @@ class Fase5DashboardTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private Producto $producto;
 
     protected function setUp(): void
@@ -43,7 +44,7 @@ class Fase5DashboardTest extends TestCase
     private function pedidoEn(string $fecha): void
     {
         $pedido = Pedido::create([
-            'codigo' => 'T-' . uniqid(),
+            'codigo' => 'T-'.uniqid(),
             'tipo' => 'mesa',
             'estado' => 'pagado',
             'usuario_id' => $this->admin->id,
@@ -52,9 +53,9 @@ class Fase5DashboardTest extends TestCase
             'total' => 50000,
             'metodo_pago' => 'efectivo',
             'monto_pagado' => 50000,
-            'pagado_en' => $fecha . ' 13:00:00',
+            'pagado_en' => $fecha.' 13:00:00',
         ]);
-        $pedido->forceFill(['created_at' => $fecha . ' 12:00:00'])->save();
+        $pedido->forceFill(['created_at' => $fecha.' 12:00:00'])->save();
 
         ItemPedido::create([
             'pedido_id' => $pedido->id,

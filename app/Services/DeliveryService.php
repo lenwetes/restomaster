@@ -44,7 +44,7 @@ class DeliveryService
                 }
             }
 
-            $codigo = 'DLV-' . strtoupper(substr(uniqid(), -5));
+            $codigo = 'DLV-'.strtoupper(substr(uniqid(), -5));
             $costoEnvio = (float) ($datos['costo_envio'] ?? 0);
 
             $pedido = Pedido::create([

@@ -7,8 +7,11 @@ use Livewire\Volt\Component;
 new class extends Component
 {
     public string $fecha = '';
+
     public string $filtrarEstado = 'todas';
+
     public ?int $reservaSeleccionada = null;
+
     public bool $modalCrear = false;
 
     public array $crearForm = [
@@ -58,7 +61,7 @@ new class extends Component
         $validated = $this->validate([
             'crearForm.nombre_contacto' => ['required', 'string', 'max:255'],
             'crearForm.telefono_contacto' => ['required', 'string', 'max:30'],
-            'crearForm.fecha' => ['required', 'date', 'after_or_equal:' . now()->toDateString()],
+            'crearForm.fecha' => ['required', 'date', 'after_or_equal:'.now()->toDateString()],
             'crearForm.hora_llegada' => ['required', 'date_format:H:i'],
             'crearForm.personas' => ['required', 'integer', 'min:1'],
             'crearForm.mesa_ids' => ['nullable', 'array'],
@@ -120,8 +123,8 @@ new class extends Component
     }
 }; ?>
 
-<x-slot name="header">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div class="space-y-6">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[24px] text-primary">event_available</span>
@@ -133,10 +136,8 @@ new class extends Component
         <button wire:click="abrirCrear" class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary">
             <span class="material-symbols-outlined text-[18px]">add</span> Nueva reserva
         </button>
-    </div>
-</x-slot>
+    </header>
 
-<div class="space-y-6">
     <div class="h-1 w-full rounded-full bg-gradient-to-r from-primary via-primary-container to-secondary"></div>
 
     @if (session('status'))
@@ -193,65 +194,65 @@ new class extends Component
             @endforeach
         </div>
     @endif
-</div>
 
-@if ($modalCrear)
-    <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="$set('modalCrear', false)">
-        <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl">
-            <h3 class="text-base font-extrabold text-on-surface">Nueva reserva</h3>
-            <form wire:submit="crearReserva" class="mt-4 space-y-4">
-                <div><label class="text-xs font-bold text-on-surface-variant">Nombre del cliente</label>
-                    <input type="text" wire:model="crearForm.nombre_contacto" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" />
-                    @error('crearForm.nombre_contacto') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror</div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Teléfono</label>
-                    <input type="text" wire:model="crearForm.telefono_contacto" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" />
-                    @error('crearForm.telefono_contacto') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror</div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div><label class="text-xs font-bold text-on-surface-variant">Fecha</label>
-                        <input type="date" wire:model.live="crearForm.fecha" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                    <div><label class="text-xs font-bold text-on-surface-variant">Hora</label>
-                        <input type="time" wire:model.live="crearForm.hora_llegada" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
+    @if ($modalCrear)
+        <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="$set('modalCrear', false)">
+            <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl">
+                <h3 class="text-base font-extrabold text-on-surface">Nueva reserva</h3>
+                <form wire:submit="crearReserva" class="mt-4 space-y-4">
+                    <div><label class="text-xs font-bold text-on-surface-variant">Nombre del cliente</label>
+                        <input type="text" wire:model="crearForm.nombre_contacto" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" />
+                        @error('crearForm.nombre_contacto') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror</div>
+                    <div><label class="text-xs font-bold text-on-surface-variant">Teléfono</label>
+                        <input type="text" wire:model="crearForm.telefono_contacto" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" />
+                        @error('crearForm.telefono_contacto') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-xs font-bold text-on-surface-variant">Fecha</label>
+                            <input type="date" wire:model.live="crearForm.fecha" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
+                        <div><label class="text-xs font-bold text-on-surface-variant">Hora</label>
+                            <input type="time" wire:model.live="crearForm.hora_llegada" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
+                    </div>
+                    <div><label class="text-xs font-bold text-on-surface-variant">Personas</label>
+                        <input type="number" min="1" wire:model.live="crearForm.personas" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
+                    <p class="text-[11px] text-on-surface-variant">Mesas disponibles: {{ $disponibles->map(fn ($m) => $m->numero . 'PK' . $m->capacidad)->join(' · ') ?: 'ninguna para este horario' }}</p>
+                    <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">Crear reserva</button>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    @if ($reservaSeleccionada)
+        @php $detalle = \App\Models\Reserva::with(['mesas', 'confirmadoPor'])->find($reservaSeleccionada); @endphp
+        <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="cerrarDetalle">
+            <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-extrabold text-on-surface">{{ $detalle->nombre_contacto }}</h3>
+                    <button wire:click="cerrarDetalle" class="text-on-surface-variant"><span class="material-symbols-outlined">close</span></button>
                 </div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Personas</label>
-                    <input type="number" min="1" wire:model.live="crearForm.personas" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <p class="text-[11px] text-on-surface-variant">Mesas disponibles: {{ $disponibles->map(fn ($m) => $m->numero . 'PK' . $m->capacidad)->join(' · ') ?: 'ninguna para este horario' }}</p>
-                <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">Crear reserva</button>
-            </form>
-        </div>
-    </div>
-@endif
-
-@if ($reservaSeleccionada)
-    @php $detalle = \App\Models\Reserva::with(['mesas', 'confirmadoPor'])->find($reservaSeleccionada); @endphp
-    <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="cerrarDetalle">
-        <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-extrabold text-on-surface">{{ $detalle->nombre_contacto }}</h3>
-                <button wire:click="cerrarDetalle" class="text-on-surface-variant"><span class="material-symbols-outlined">close</span></button>
-            </div>
-            <dl class="mt-4 space-y-2 text-xs">
-                <div class="flex justify-between"><dt class="text-on-surface-variant">Teléfono</dt><dd class="font-bold">{{ $detalle->telefono_contacto }}</dd></div>
-                <div class="flex justify-between"><dt class="text-on-surface-variant">Fecha y hora</dt><dd class="font-bold">{{ $detalle->fecha->format('d/m/Y') }} {{ \Illuminate\Support\Carbon::parse($detalle->hora_llegada)->format('H:i') }}</dd></div>
-                <div class="flex justify-between"><dt class="text-on-surface-variant">Personas</dt><dd class="font-bold">{{ $detalle->personas }}</dd></div>
-                <div class="flex justify-between"><dt class="text-on-surface-variant">Estado</dt><dd class="font-bold">{{ $detalle->estado }}</dd></div>
-                <div class="flex justify-between"><dt class="text-on-surface-variant">Origen</dt><dd class="font-bold">{{ $detalle->origen }}</dd></div>
-                @if ($detalle->notas)<div class="flex justify-between"><dt class="text-on-surface-variant">Notas</dt><dd class="font-bold">{{ $detalle->notas }}</dd></div>@endif
-            </dl>
-            <div class="mt-5 flex flex-wrap gap-2">
-                @if (in_array($detalle->estado, ['solicitada', 'confirmada']) && $detalle->estado !== 'confirmada')
-                    <button wire:click="confirmar" class="rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-white">Confirmar</button>
-                @endif
-                @if ($detalle->estado === 'confirmada')
-                    <button wire:click="marcarLlego" class="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary">Llegó</button>
-                @endif
-                @if ($detalle->estado === 'llego')
-                    <button wire:click="finalizar" class="rounded-xl bg-surface-container-high px-4 py-2 text-xs font-bold text-white">Finalizar</button>
-                @endif
-                @if (in_array($detalle->estado, ['solicitada', 'confirmada']))
-                    <button wire:click="cancelarReserva" class="rounded-xl bg-error px-4 py-2 text-xs font-bold text-white">Cancelar</button>
-                    <button wire:click="noShow" class="rounded-xl border border-error px-4 py-2 text-xs font-bold text-error">No se mostró</button>
-                @endif
+                <dl class="mt-4 space-y-2 text-xs">
+                    <div class="flex justify-between"><dt class="text-on-surface-variant">Teléfono</dt><dd class="font-bold">{{ $detalle->telefono_contacto }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-on-surface-variant">Fecha y hora</dt><dd class="font-bold">{{ $detalle->fecha->format('d/m/Y') }} {{ \Illuminate\Support\Carbon::parse($detalle->hora_llegada)->format('H:i') }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-on-surface-variant">Personas</dt><dd class="font-bold">{{ $detalle->personas }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-on-surface-variant">Estado</dt><dd class="font-bold">{{ $detalle->estado }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-on-surface-variant">Origen</dt><dd class="font-bold">{{ $detalle->origen }}</dd></div>
+                    @if ($detalle->notas)<div class="flex justify-between"><dt class="text-on-surface-variant">Notas</dt><dd class="font-bold">{{ $detalle->notas }}</dd></div>@endif
+                </dl>
+                <div class="mt-5 flex flex-wrap gap-2">
+                    @if (in_array($detalle->estado, ['solicitada', 'confirmada']) && $detalle->estado !== 'confirmada')
+                        <button wire:click="confirmar" class="rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-white">Confirmar</button>
+                    @endif
+                    @if ($detalle->estado === 'confirmada')
+                        <button wire:click="marcarLlego" class="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary">Llegó</button>
+                    @endif
+                    @if ($detalle->estado === 'llego')
+                        <button wire:click="finalizar" class="rounded-xl bg-surface-container-high px-4 py-2 text-xs font-bold text-white">Finalizar</button>
+                    @endif
+                    @if (in_array($detalle->estado, ['solicitada', 'confirmada']))
+                        <button wire:click="cancelarReserva" class="rounded-xl bg-error px-4 py-2 text-xs font-bold text-white">Cancelar</button>
+                        <button wire:click="noShow" class="rounded-xl border border-error px-4 py-2 text-xs font-bold text-error">No se mostró</button>
+                    @endif
+                </div>
             </div>
         </div>
-    </div>
-@endif
+    @endif
+</div>

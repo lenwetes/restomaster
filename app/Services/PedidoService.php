@@ -7,6 +7,7 @@ use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\TurnoCaja;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -18,7 +19,7 @@ class PedidoService
     public function crearPedido(array $datos, array $items, ?User $usuario = null): Pedido
     {
         return DB::transaction(function () use ($datos, $items, $usuario) {
-            $codigo = 'ORD-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4));
+            $codigo = 'ORD-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
 
             $pedido = Pedido::create([
                 'codigo' => $codigo,
@@ -32,14 +33,19 @@ class PedidoService
                 'direccion_delivery' => $datos['direccion_delivery'] ?? null,
                 'notas' => $datos['notas'] ?? null,
                 'descuento' => $datos['descuento'] ?? 0,
+                'canal_origen' => $datos['canal_origen'] ?? 'pos',
             ]);
 
             $subtotal = 0;
+            $descuentoSolicitado = max(0, (float) ($datos['descuento'] ?? 0));
+            $costoEnvio = max(0, (float) ($datos['costo_envio'] ?? 0));
+            $descuentoPuntos = max(0, (float) ($datos['descuento_puntos'] ?? 0));
 
             foreach ($items as $itemData) {
                 $producto = Producto::findOrFail($itemData['producto_id']);
-                $cantidad = max(1, (int)($itemData['cantidad'] ?? 1));
-                $precioUnitario = (float)($itemData['precio_unitario'] ?? $producto->precio);
+                $cantidad = max(1, (int) ($itemData['cantidad'] ?? 1));
+                // C1 FIX: El precio unitario SIEMPRE se toma de la base de datos, nunca del cliente
+                $precioUnitario = (float) $producto->precio;
                 $itemSubtotal = $precioUnitario * $cantidad;
 
                 ItemPedido::create([
@@ -57,15 +63,20 @@ class PedidoService
                 $subtotal += $itemSubtotal;
             }
 
-            $total = max(0, $subtotal - (float)$pedido->descuento);
+            // C2 & M2 FIX: Descuento acotado al subtotal y fórmula unificada con envío y puntos
+            $descuentoAplicado = min($subtotal, $descuentoSolicitado);
+            $total = max(0, $subtotal + $costoEnvio - $descuentoAplicado - $descuentoPuntos);
 
             $pedido->update([
                 'subtotal' => $subtotal,
+                'descuento' => $descuentoAplicado,
+                'costo_envio' => $costoEnvio,
+                'descuento_puntos' => $descuentoPuntos,
                 'total' => $total,
             ]);
 
             // Si es pedido de mesa, actualizar la mesa a 'ocupada'
-            if (!empty($pedido->mesa_id)) {
+            if (! empty($pedido->mesa_id)) {
                 $mesa = Mesa::find($pedido->mesa_id);
                 if ($mesa && $mesa->estado === MesaEstado::LIBRE->value) {
                     $mesa->update(['estado' => MesaEstado::OCUPADA->value]);
@@ -88,6 +99,9 @@ class PedidoService
             'iniciado_en' => now(),
         ]);
 
+        // Despachar comanda a las impresoras térmicas de cocina por estación
+        app(ImpresionService::class)->despacharComandaCocina($pedido);
+
         return $pedido->fresh('items');
     }
 
@@ -102,7 +116,7 @@ class PedidoService
         ]);
 
         // Descontar materia prima e insumos de la receta en inventario
-        app(\App\Services\InventarioService::class)->descontarPorItemPedido($item);
+        app(InventarioService::class)->descontarPorItemPedido($item);
 
         $pedido = $item->pedido;
         $itemsPendientes = $pedido->items()
@@ -141,7 +155,11 @@ class PedidoService
     public function cobrarPedido(Pedido $pedido, string $metodoPago, float $montoPagado): Pedido
     {
         return DB::transaction(function () use ($pedido, $metodoPago, $montoPagado) {
-            $cambio = max(0, $montoPagado - (float)$pedido->total);
+            // H5 FIX: Bloqueo pesimista e idempotencia para evitar cobros dobles por race condition
+            $pedido = Pedido::where('id', $pedido->id)->lockForUpdate()->firstOrFail();
+            abort_if($pedido->estado === 'pagado', 400, 'El pedido ya se encuentra pagado.');
+
+            $cambio = max(0, $montoPagado - (float) $pedido->total);
 
             $pedido->update([
                 'estado' => 'pagado',
@@ -160,18 +178,76 @@ class PedidoService
             }
 
             // Vincular automáticamente con turno de caja abierto
-            $turnoActivo = \App\Models\TurnoCaja::where('estado', 'abierto')->latest()->first();
+            $turnoActivo = TurnoCaja::where('estado', 'abierto')->latest()->first();
             if ($turnoActivo) {
-                app(\App\Services\CajaService::class)->vincularCobroPedido($turnoActivo, $pedido);
+                app(CajaService::class)->vincularCobroPedido($turnoActivo, $pedido);
             }
 
             // Salvaguarda: descontar cualquier ítem del pedido que no haya pasado por KDS
-            app(\App\Services\InventarioService::class)->descontarPorPedido($pedido);
+            app(InventarioService::class)->descontarPorPedido($pedido);
 
             // Acumular puntos de fidelización si el pedido está asociado a un comensal
-            app(\App\Services\FidelizacionService::class)->acumularPuntosPorPedido($pedido);
+            app(FidelizacionService::class)->acumularPuntosPorPedido($pedido);
+
+            // Despachar ticket térmico fiscal de venta al spooler de impresión
+            app(ImpresionService::class)->despacharTicketVenta($pedido);
 
             return $pedido->fresh(['items', 'mesa', 'cliente']);
+        });
+    }
+
+    /**
+     * Crear un pedido iniciado por un comensal desde el menú QR de mesa.
+     */
+    public function crearPedidoDesdeQr(Mesa $mesa, array $items, string $nombreCliente = '', ?string $notas = null): Pedido
+    {
+        return $this->crearPedido([
+            'tipo' => 'mesa',
+            'estado' => 'solicitado_qr',
+            'canal_origen' => 'qr_mesa',
+            'mesa_id' => $mesa->id,
+            'nombre_cliente' => ! empty(trim($nombreCliente)) ? trim($nombreCliente) : 'Comensal Mesa '.$mesa->numero,
+            'notas' => $notas,
+        ], $items, null);
+    }
+
+    /**
+     * Asignar un mesero a un pedido QR con protección de concurrencia pesimista (lockForUpdate).
+     * Si otro mesero ya tomó la asignación, arroja DomainException con el nombre del mesero que lo tomó.
+     */
+    public function asignarMeseroAPedidoQr(int $pedidoId, User $mesero): Pedido
+    {
+        return DB::transaction(function () use ($pedidoId, $mesero) {
+            $pedido = Pedido::where('id', $pedidoId)
+                ->lockForUpdate()
+                ->with(['mesa', 'usuario'])
+                ->firstOrFail();
+
+            // Verificación de concurrencia: si ya fue asignado y no es el mismo mesero
+            if ($pedido->usuario_id !== null && $pedido->usuario_id !== $mesero->id) {
+                $nombreAsignado = $pedido->usuario?->name ?? 'otro mesero';
+                throw new \DomainException("Este pedido de la Mesa #{$pedido->mesa?->numero} ya fue tomado por {$nombreAsignado}.");
+            }
+
+            $pedido->usuario_id = $mesero->id;
+            if ($pedido->estado === 'solicitado_qr') {
+                $pedido->estado = 'en_cocina';
+            }
+            $pedido->save();
+
+            if ($pedido->mesa) {
+                $pedido->mesa->update(['estado' => MesaEstado::OCUPADA->value]);
+            }
+
+            // Actualizar items de la comanda para cocina
+            $pedido->items()->where('estado_cocina', 'pendiente')->update([
+                'estado_cocina' => 'en_preparacion',
+                'iniciado_en' => now(),
+            ]);
+
+            app(ImpresionService::class)->despacharComandaCocina($pedido);
+
+            return $pedido->fresh(['usuario', 'mesa', 'items']);
         });
     }
 }

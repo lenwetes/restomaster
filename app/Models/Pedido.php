@@ -129,7 +129,7 @@ class Pedido extends Model
     public function recalcularTotales(): void
     {
         $subtotal = $this->items()->sum('subtotal');
-        $total = max(0, $subtotal + (float)($this->costo_envio ?? 0) - (float)$this->descuento - (float)($this->descuento_puntos ?? 0));
+        $total = max(0, $subtotal + (float) ($this->costo_envio ?? 0) - (float) $this->descuento - (float) ($this->descuento_puntos ?? 0));
 
         $this->update([
             'subtotal' => $subtotal,

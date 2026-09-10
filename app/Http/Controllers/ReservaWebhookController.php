@@ -28,7 +28,7 @@ class ReservaWebhookController extends Controller
             'nombre' => ['required', 'string', 'max:255'],
             'telefono' => ['required', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:120'],
-            'fecha' => ['required', 'date', 'after_or_equal:' . now()->toDateString()],
+            'fecha' => ['required', 'date', 'after_or_equal:'.now()->toDateString()],
             'hora' => ['required', 'date_format:H:i'],
             'personas' => ['required', 'integer', 'min:1'],
             'notas' => ['nullable', 'string', 'max:500'],

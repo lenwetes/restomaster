@@ -8,6 +8,7 @@ use Livewire\Volt\Component;
 new class extends Component
 {
     public string $areaSeleccionada = 'todas'; // 'todas', 'sushi', 'caliente', 'barra'
+
     public ?int $comandaParaImprimir = null;
 
     public function abrirComanda(int $pedidoId): void
@@ -77,13 +78,18 @@ new class extends Component
             return $p->items->isNotEmpty();
         });
 
-        // Contadores por área
-        $itemsPendientes = ItemPedido::whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->get();
+        // Contadores por área optimizados en SQL
+        $conteosArea = ItemPedido::query()
+            ->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])
+            ->selectRaw('area_cocina, count(*) as total')
+            ->groupBy('area_cocina')
+            ->pluck('total', 'area_cocina');
+
         $conteo = [
             'total' => $pedidos->count(),
-            'sushi' => $itemsPendientes->where('area_cocina', 'sushi')->count(),
-            'caliente' => $itemsPendientes->where('area_cocina', 'caliente')->count(),
-            'barra' => $itemsPendientes->where('area_cocina', 'barra')->count(),
+            'sushi' => (int) ($conteosArea['sushi'] ?? 0),
+            'caliente' => (int) ($conteosArea['caliente'] ?? 0),
+            'barra' => (int) ($conteosArea['barra'] ?? 0),
         ];
 
         return [
@@ -100,8 +106,8 @@ new class extends Component
     }
 }; ?>
 
-<x-slot name="header">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div wire:poll.10s class="space-y-5">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[24px] text-primary">skillet</span>
@@ -119,28 +125,28 @@ new class extends Component
 
         <!-- Station Selector Filter (Stitch COC-01 Area Pills) -->
         <div class="inline-flex rounded-2xl bg-surface-container-lowest p-1 border border-surface-container-highest shadow-sm">
-            <button 
+            <button
                 wire:click="$set('areaSeleccionada', 'todas')"
                 class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $areaSeleccionada === 'todas' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
             >
                 <span class="material-symbols-outlined text-[16px]">restaurant_menu</span>
                 <span>Todas ({{ $conteo['total'] }})</span>
             </button>
-            <button 
+            <button
                 wire:click="$set('areaSeleccionada', 'sushi')"
                 class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $areaSeleccionada === 'sushi' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
             >
                 <span>🍣</span>
                 <span>Barra Sushi ({{ $conteo['sushi'] }})</span>
             </button>
-            <button 
+            <button
                 wire:click="$set('areaSeleccionada', 'caliente')"
                 class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $areaSeleccionada === 'caliente' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
             >
                 <span class="material-symbols-outlined text-[16px] text-primary">soup_kitchen</span>
                 <span>Wok & Caliente ({{ $conteo['caliente'] }})</span>
             </button>
-            <button 
+            <button
                 wire:click="$set('areaSeleccionada', 'barra')"
                 class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $areaSeleccionada === 'barra' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
             >
@@ -148,10 +154,8 @@ new class extends Component
                 <span>Barra Bebidas ({{ $conteo['barra'] }})</span>
             </button>
         </div>
-    </div>
-</x-slot>
+    </header>
 
-<div wire:poll.10s class="space-y-5">
     <!-- Top Ambient Accent Line (Stitch Signature) -->
     <div class="h-1.5 w-full rounded-full bg-gradient-to-r from-primary via-primary-container to-secondary"></div>
 
@@ -331,7 +335,7 @@ new class extends Component
 
     @if($comandaImpresion && $comandaImpresion->items->isNotEmpty())
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto">
-            <div class="w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
+            <div class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
                 <!-- Comanda Ticket Header -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
                     <p class="text-base font-black tracking-tight text-primary">🍣 SUSHIXPRESS 🍣</p>
@@ -377,16 +381,17 @@ new class extends Component
                 </div>
 
                 <!-- Close / Print buttons -->
-                <div class="mt-5 grid grid-cols-2 gap-2">
+                <div class="no-print mt-5 grid grid-cols-2 gap-2">
                     <button
                         onclick="window.print()"
-                        class="rounded-xl border border-surface-container-high bg-surface-container py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high"
+                        class="rounded-xl border border-surface-container-high bg-surface-container py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                        🖨️ Imprimir Comanda
+                        <span class="material-symbols-outlined text-[16px]">print</span>
+                        <span>Imprimir Comanda</span>
                     </button>
                     <button
                         wire:click="cerrarComanda"
-                        class="rounded-xl bg-primary py-2.5 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container"
+                        class="rounded-xl bg-primary py-2.5 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container cursor-pointer"
                     >
                         ✓ Cerrar
                     </button>

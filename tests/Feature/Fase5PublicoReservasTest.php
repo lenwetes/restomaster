@@ -6,7 +6,6 @@ use App\Models\Mesa;
 use App\Models\Role;
 use App\Models\Sucursal;
 use App\Services\ConfiguracionService;
-use App\Services\ReservaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -30,7 +29,7 @@ class Fase5PublicoReservasTest extends TestCase
 
     public function test_formulario_publico_muestra_franjas_disponibles(): void
     {
-        $response = $this->get(route('reservas.publico') . '?fecha=2026-09-25');
+        $response = $this->get(route('reservas.publico').'?fecha=2026-09-25');
         $response->assertOk();
         $response->assertSee('Reserva');
         $response->assertSee('Disponible');

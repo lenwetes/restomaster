@@ -194,4 +194,38 @@ class MenuService
 
         return $producto;
     }
+
+    /**
+     * Reactiva un producto previamente desactivado.
+     */
+    public function activarProducto(Producto $producto): Producto
+    {
+        $producto->update(['activo' => true]);
+
+        app(AuditoriaService::class)->registrar(
+            accion: 'producto.activado',
+            entidad: 'producto',
+            entidadId: $producto->id,
+            descripcion: "Se activó el producto {$producto->nombre}",
+        );
+
+        return $producto;
+    }
+
+    /**
+     * Reactiva una categoría previamente desactivada.
+     */
+    public function activarCategoria(Categoria $categoria): Categoria
+    {
+        $categoria->update(['activo' => true]);
+
+        app(AuditoriaService::class)->registrar(
+            accion: 'categoria.activada',
+            entidad: 'categoria',
+            entidadId: $categoria->id,
+            descripcion: "Se activó la categoría {$categoria->nombre}",
+        );
+
+        return $categoria;
+    }
 }

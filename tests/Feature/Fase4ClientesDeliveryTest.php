@@ -4,15 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Caja;
 use App\Models\Categoria;
-use App\Models\Cliente;
-use App\Models\DireccionCliente;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Role;
 use App\Models\Sucursal;
-use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\CajaService;
 use App\Services\ClienteService;
@@ -27,10 +24,15 @@ class Fase4ClientesDeliveryTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $repartidor;
+
     protected Sucursal $sucursal;
+
     protected Caja $caja;
+
     protected Mesa $mesa;
+
     protected Producto $producto;
 
     protected function setUp(): void

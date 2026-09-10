@@ -5,10 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Producto extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'productos';
 
@@ -41,7 +44,7 @@ class Producto extends Model
     /**
      * Componentes de la receta (escandallo).
      */
-    public function recetas(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function recetas(): HasMany
     {
         return $this->hasMany(Receta::class, 'producto_id');
     }
@@ -49,7 +52,7 @@ class Producto extends Model
     /**
      * Insumos utilizados en este plato.
      */
-    public function insumos(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function insumos(): BelongsToMany
     {
         return $this->belongsToMany(Insumo::class, 'recetas', 'producto_id', 'insumo_id')
             ->withPivot(['cantidad', 'merma_esperada_pct', 'notas'])

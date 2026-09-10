@@ -5,7 +5,10 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Aura Gastro') }} — Colombia POS Enterprise</title>
+        <title>{{ config('app.name', 'SushiXpress') }} — Barra de Sushi & Gastro POS</title>
+
+        <!-- Favicon -->
+        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
 
         <!-- Stitch Design System Typography & Icons (Aura Gastro Expressive OS) -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,6 +35,62 @@
             }
             .material-symbols-outlined.fill {
                 font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            }
+
+            /* Estilos de Impresión Térmica Directa (@media print 80mm / 58mm) */
+            @media print {
+                @page {
+                    size: 80mm auto;
+                    margin: 0mm;
+                }
+                html, body {
+                    background: #ffffff !important;
+                    color: #000000 !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    width: 80mm !important;
+                    font-size: 11px !important;
+                }
+                nav, header, aside, .no-print, [role="navigation"], button, input, select, .lg\:pl-64 > header, #btnCatNavLeft, #btnCatNavRight {
+                    display: none !important;
+                }
+                .min-h-screen, main, .lg\:pl-64 {
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    background: transparent !important;
+                }
+                .print-ticket-termico {
+                    display: block !important;
+                    visibility: visible !important;
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 78mm !important;
+                    max-width: 80mm !important;
+                    margin: 0 !important;
+                    padding: 2mm !important;
+                    font-family: 'Courier New', Courier, monospace !important;
+                    font-size: 11px !important;
+                    line-height: 1.25 !important;
+                    background: #ffffff !important;
+                    color: #000000 !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                }
+                .print-ticket-termico * {
+                    visibility: visible !important;
+                    color: #000000 !important;
+                    background: transparent !important;
+                    border-color: #555555 !important;
+                    text-shadow: none !important;
+                    box-shadow: none !important;
+                }
+                .print-ticket-termico pre {
+                    font-family: 'Courier New', Courier, monospace !important;
+                    font-size: 11px !important;
+                    white-space: pre-wrap !important;
+                    color: #000000 !important;
+                }
             }
         </style>
 

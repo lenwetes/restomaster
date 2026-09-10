@@ -11,7 +11,6 @@ use App\Models\Sucursal;
 use App\Models\User;
 use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class Fase1OperacionesTest extends TestCase
@@ -19,10 +18,15 @@ class Fase1OperacionesTest extends TestCase
     use RefreshDatabase;
 
     protected User $usuario;
+
     protected Sucursal $sucursal;
+
     protected Mesa $mesa;
+
     protected Categoria $categoria;
+
     protected Producto $producto1;
+
     protected Producto $producto2;
 
     protected function setUp(): void
@@ -130,7 +134,7 @@ class Fase1OperacionesTest extends TestCase
         ], $items, $this->usuario);
 
         $this->assertNotNull($pedido->codigo);
-        $this->assertEquals(26.00, (float)$pedido->total);
+        $this->assertEquals(26.00, (float) $pedido->total);
 
         // La mesa debe haber pasado automáticamente a 'ocupada'
         $this->mesa->refresh();
@@ -161,7 +165,7 @@ class Fase1OperacionesTest extends TestCase
         $pedidoPagado = $pedidoService->cobrarPedido($pedido, 'efectivo', 30.00);
 
         $this->assertEquals('pagado', $pedidoPagado->estado);
-        $this->assertEquals(4.00, (float)$pedidoPagado->cambio);
+        $this->assertEquals(4.00, (float) $pedidoPagado->cambio);
         $this->assertNotNull($pedidoPagado->pagado_en);
 
         // La mesa debe quedar en 'por_limpiar'

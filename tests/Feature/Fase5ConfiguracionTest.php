@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Configuracion;
+use App\Models\Role;
+use App\Models\User;
 use App\Services\ConfiguracionService;
 use Database\Seeders\ConfiguracionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class Fase5ConfiguracionTest extends TestCase
@@ -66,19 +69,19 @@ class Fase5ConfiguracionTest extends TestCase
 
     public function test_pantalla_configuracion_solo_admin(): void
     {
-        $mesero = \App\Models\User::factory()->create(['role_id' => \App\Models\Role::where('slug', 'mesero')->value('id')]);
+        $mesero = User::factory()->create(['role_id' => Role::where('slug', 'mesero')->value('id')]);
         $this->actingAs($mesero)->get(route('configuracion'))->assertForbidden();
 
-        $admin = \App\Models\User::factory()->create(['role_id' => \App\Models\Role::where('slug', 'admin')->value('id')]);
+        $admin = User::factory()->create(['role_id' => Role::where('slug', 'admin')->value('id')]);
         $this->actingAs($admin)->get(route('configuracion'))->assertOk();
         $this->actingAs($admin)->get(route('configuracion'))->assertSeeVolt('configuracion.index');
     }
 
     public function test_guardar_config_dian_desde_ui(): void
     {
-        $admin = \App\Models\User::factory()->create(['role_id' => \App\Models\Role::where('slug', 'admin')->value('id')]);
+        $admin = User::factory()->create(['role_id' => Role::where('slug', 'admin')->value('id')]);
 
-        \Livewire\Volt\Volt::actingAs($admin)
+        Volt::actingAs($admin)
             ->test('configuracion.index')
             ->set('dianForm.razon_social', 'SushiXpress S.A.S.')
             ->set('dianForm.nit', '9011234567')
@@ -87,21 +90,21 @@ class Fase5ConfiguracionTest extends TestCase
             ->call('guardarDian')
             ->assertHasNoErrors();
 
-        $svc = app(\App\Services\ConfiguracionService::class);
+        $svc = app(ConfiguracionService::class);
         $this->assertSame('9011234567', $svc->obtener('general', 'nit'));
         $this->assertTrue($svc->obtener('dian', 'envio_activo'));
     }
 
     public function test_regenerar_token_desde_ui(): void
     {
-        $admin = \App\Models\User::factory()->create(['role_id' => \App\Models\Role::where('slug', 'admin')->value('id')]);
-        $antes = app(\App\Services\ConfiguracionService::class)->obtener('reservas', 'webhook_token');
+        $admin = User::factory()->create(['role_id' => Role::where('slug', 'admin')->value('id')]);
+        $antes = app(ConfiguracionService::class)->obtener('reservas', 'webhook_token');
 
-        \Livewire\Volt\Volt::actingAs($admin)
+        Volt::actingAs($admin)
             ->test('configuracion.index')
             ->call('regenerarToken');
 
-        $despues = app(\App\Services\ConfiguracionService::class)->obtener('reservas', 'webhook_token');
+        $despues = app(ConfiguracionService::class)->obtener('reservas', 'webhook_token');
         $this->assertNotSame($antes, $despues);
     }
 }

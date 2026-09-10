@@ -7,9 +7,7 @@ use App\Models\ItemPedido;
 use App\Models\MovimientoInventario;
 use App\Models\Pedido;
 use App\Models\Receta;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class InventarioService
 {
@@ -24,15 +22,16 @@ class InventarioService
         }
 
         $producto = $item->producto()->with('recetas.insumo')->first();
-        if (!$producto || $producto->recetas->isEmpty()) {
+        if (! $producto || $producto->recetas->isEmpty()) {
             $item->update(['inventario_descontado' => true]);
+
             return false;
         }
 
         return DB::transaction(function () use ($item, $producto) {
             foreach ($producto->recetas as $receta) {
                 $insumo = Insumo::where('id', $receta->insumo_id)->lockForUpdate()->first();
-                if (!$insumo) {
+                if (! $insumo) {
                     continue;
                 }
 
@@ -61,6 +60,7 @@ class InventarioService
             }
 
             $item->update(['inventario_descontado' => true]);
+
             return true;
         });
     }
@@ -72,12 +72,13 @@ class InventarioService
     {
         $descontados = 0;
         foreach ($pedido->items as $item) {
-            if (!$item->inventario_descontado) {
+            if (! $item->inventario_descontado) {
                 if ($this->descontarPorItemPedido($item)) {
                     $descontados++;
                 }
             }
         }
+
         return $descontados;
     }
 
@@ -118,8 +119,8 @@ class InventarioService
                 'costo_unitario' => $costoUnitario,
                 'costo_total' => round($cantidad * $costoUnitario, 2),
                 'user_id' => $userId ?? auth()->id(),
-                'motivo' => "Recepción factura {$factura} · Proveedor: " . ($proveedor ?? $insumo->proveedor_nombre ?? 'General'),
-                'referencia_documento' => $factura ?? 'FAC-COMPRA-' . date('YmdHis'),
+                'motivo' => "Recepción factura {$factura} · Proveedor: ".($proveedor ?? $insumo->proveedor_nombre ?? 'General'),
+                'referencia_documento' => $factura ?? 'FAC-COMPRA-'.date('YmdHis'),
             ]);
         });
     }
@@ -152,7 +153,7 @@ class InventarioService
                 'costo_total' => round($cantidad * (float) $insumo->costo_unitario, 2),
                 'user_id' => $userId ?? auth()->id(),
                 'motivo' => $motivo,
-                'referencia_documento' => $referencia ?? 'MER-' . strtoupper(uniqid()),
+                'referencia_documento' => $referencia ?? 'MER-'.strtoupper(uniqid()),
             ]);
         });
     }
@@ -185,7 +186,7 @@ class InventarioService
                 'costo_total' => round(abs($diferencia) * (float) $insumo->costo_unitario, 2),
                 'user_id' => $userId ?? auth()->id(),
                 'motivo' => $motivo,
-                'referencia_documento' => 'AJUSTE-' . date('YmdHis'),
+                'referencia_documento' => 'AJUSTE-'.date('YmdHis'),
             ]);
         });
     }

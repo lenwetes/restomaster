@@ -1,10 +1,42 @@
 <?php
 
 use App\Livewire\Actions\Logout;
+use App\Services\NotificacionService;
+use App\Services\PedidoService;
 use Livewire\Volt\Component;
 
 new class extends Component
 {
+    public ?string $notificacionFlash = null;
+    public ?string $tipoNotificacionFlash = 'info';
+
+    /**
+     * Tomar / Asignarse un pedido QR de mesa con control de concurrencia.
+     */
+    public function atenderPedidoQr(int $pedidoId): void
+    {
+        try {
+            $pedidoService = app(PedidoService::class);
+            $pedido = $pedidoService->asignarMeseroAPedidoQr($pedidoId, auth()->user());
+            $this->notificacionFlash = "¡Has tomado la comanda de la Mesa #{$pedido->mesa?->numero}! Pedido en preparación.";
+            $this->tipoNotificacionFlash = 'success';
+            $this->dispatch('notificacion', [
+                'mensaje' => $this->notificacionFlash,
+                'tipo' => 'success',
+            ]);
+        } catch (\DomainException $e) {
+            $this->notificacionFlash = $e->getMessage();
+            $this->tipoNotificacionFlash = 'warning';
+            $this->dispatch('notificacion', [
+                'mensaje' => $this->notificacionFlash,
+                'tipo' => 'warning',
+            ]);
+        } catch (\Throwable $e) {
+            $this->notificacionFlash = "Error al atender pedido: " . $e->getMessage();
+            $this->tipoNotificacionFlash = 'error';
+        }
+    }
+
     /**
      * Log the current user out of the application.
      */
@@ -13,6 +45,15 @@ new class extends Component
         $logout();
 
         $this->redirect('/', navigate: true);
+    }
+
+    public function with(): array
+    {
+        $notificaciones = app(NotificacionService::class)->obtenerResumen(auth()->user());
+
+        return [
+            'notificaciones' => $notificaciones,
+        ];
     }
 }; ?>
 
@@ -36,33 +77,201 @@ new class extends Component
                 <span class="material-symbols-outlined text-on-surface-variant text-[16px]">expand_more</span>
             </div>
 
-            <!-- Shift / Cash Status Pill -->
-            <div class="hidden sm:inline-flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1 rounded-full border border-secondary/20">
-                <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-                <span class="text-xs font-bold text-on-secondary-container">Caja #01: Abierta</span>
-            </div>
+            @if(auth()->user()?->role?->slug === 'mesero')
+                <!-- Mesero Active Badge -->
+                <div class="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+                    <span class="material-symbols-outlined text-[16px]">room_service</span>
+                    <span class="text-xs font-black">Mesero: {{ auth()->user()->name }}</span>
+                    <span class="w-2 h-2 rounded-full bg-secondary animate-pulse ml-0.5" title="En servicio"></span>
+                </div>
+            @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+                <!-- Cocina Active Badge -->
+                <div class="inline-flex items-center gap-1.5 bg-secondary/15 text-secondary px-3 py-1 rounded-full border border-secondary/30">
+                    <span class="material-symbols-outlined text-[16px]">restaurant</span>
+                    <span class="text-xs font-black">Cocina KDS: {{ auth()->user()->name }}</span>
+                    <span class="w-2 h-2 rounded-full bg-secondary animate-pulse ml-0.5" title="En preparación"></span>
+                </div>
+            @else
+                <!-- Shift / Cash Status Pill -->
+                <div class="hidden sm:inline-flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1 rounded-full border border-secondary/20">
+                    <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                    <span class="text-xs font-bold text-on-secondary-container">Caja #01: Abierta</span>
+                </div>
 
-            <!-- DIAN Sync Badge -->
-            <div class="hidden md:inline-flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-full">
-                <span class="material-symbols-outlined text-secondary text-[16px]">verified</span>
-                <span class="text-xs font-semibold text-on-surface-variant">Sincronizado DIAN</span>
-            </div>
+                <!-- DIAN Sync Badge -->
+                <div class="hidden md:inline-flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-full">
+                    <span class="material-symbols-outlined text-secondary text-[16px]">verified</span>
+                    <span class="text-xs font-semibold text-on-surface-variant">Sincronizado DIAN</span>
+                </div>
+            @endif
         </div>
 
         <!-- Right Side: Clock & Profile Actions -->
         <div class="flex items-center gap-2 sm:gap-3">
-            <!-- Clock display -->
+            <!-- Clock display (12-hour format) -->
             <div class="hidden sm:flex items-center gap-1.5 rounded-lg bg-surface-container-low px-3 py-1.5 text-xs text-on-surface border border-surface-container-highest font-mono">
                 <span class="material-symbols-outlined text-on-surface-variant text-[16px]">schedule</span>
-                <span x-data="{ time: new Date().toLocaleTimeString('es-CO', { hour12: false }) }" x-init="setInterval(() => time = new Date().toLocaleTimeString('es-CO', { hour12: false }), 1000)" x-text="time"></span>
+                <span x-data="{ time: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }) }" 
+                      x-init="setInterval(() => time = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }), 1000)" 
+                      x-text="time"></span>
                 <span class="text-on-surface-variant text-[10px]">COT</span>
             </div>
 
-            <!-- Notification bell -->
-            <button class="relative p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors" type="button">
-                <span class="material-symbols-outlined text-[22px]">notifications</span>
-                <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full"></span>
-            </button>
+            <!-- Notification Bell & Interactive Dropdown (Aura Gastro Expressive OS) -->
+            <div class="relative" x-data="{ openNotif: false }" wire:poll.10s>
+                <button 
+                    @click="openNotif = !openNotif" 
+                    class="relative p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" 
+                    type="button"
+                    title="Notificaciones operativas"
+                    aria-label="Campana de notificaciones"
+                >
+                    <span class="material-symbols-outlined text-[22px]">notifications</span>
+                    @if(($notificaciones['total'] ?? 0) > 0)
+                        <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-primary text-on-primary text-[10px] font-black rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                            {{ $notificaciones['total'] }}
+                        </span>
+                    @endif
+                </button>
+
+                <!-- Notifications Dropdown Panel -->
+                <div 
+                    x-show="openNotif" 
+                    @click.outside="openNotif = false"
+                    x-transition:enter="transition ease-out duration-200"
+                    x-transition:enter-start="opacity-0 translate-y-2 scale-95"
+                    x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                    x-transition:leave="transition ease-in duration-150"
+                    x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                    x-transition:leave-end="opacity-0 translate-y-2 scale-95"
+                    style="display: none;"
+                    class="absolute right-0 mt-2 w-80 sm:w-96 rounded-3xl bg-surface-container-lowest p-4 shadow-2xl border border-surface-container-highest z-50 space-y-3"
+                >
+                    <!-- Header -->
+                    <div class="flex items-center justify-between pb-2 border-b border-surface-container-high">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-[20px]">notifications_active</span>
+                            <span class="text-xs font-black uppercase tracking-wider text-on-surface">Notificaciones</span>
+                        </div>
+                        <span class="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-extrabold text-primary">
+                            {{ $notificaciones['total'] ?? 0 }} activas
+                        </span>
+                    </div>
+
+                    @if($notificacionFlash)
+                        <div class="p-2.5 rounded-xl text-xs font-bold {{ $tipoNotificacionFlash === 'success' ? 'bg-secondary-container text-on-secondary-container' : 'bg-primary-container/30 text-primary' }}">
+                            {{ $notificacionFlash }}
+                        </div>
+                    @endif
+
+                    <div class="max-h-[360px] overflow-y-auto space-y-2.5 pr-1 text-xs">
+                        <!-- 1. Pedidos QR por Asignar -->
+                        @if(($notificaciones['pedidos_qr'] ?? collect())->isNotEmpty())
+                            <div class="space-y-1.5">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-primary flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">qr_code_2</span>
+                                    Pedidos QR de Mesa (Sin Asignar)
+                                </span>
+                                @foreach($notificaciones['pedidos_qr'] as $pqr)
+                                    <div class="p-2.5 rounded-2xl bg-primary-container/15 border border-primary/25 flex items-center justify-between gap-2 shadow-sm">
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-1.5">
+                                                <span class="font-extrabold text-on-surface text-xs">Mesa #{{ $pqr->mesa?->numero ?? 'S/M' }}</span>
+                                                <span class="text-[10px] text-on-surface-variant truncate">({{ $pqr->nombre_cliente ?? 'Comensal' }})</span>
+                                            </div>
+                                            <p class="text-[10px] text-on-surface-variant font-mono mt-0.5">
+                                                {{ $pqr->items->count() }} platos · ${{ number_format($pqr->total, 0, ',', '.') }} COP
+                                            </p>
+                                        </div>
+                                        <button 
+                                            wire:click="atenderPedidoQr({{ $pqr->id }})"
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary text-on-primary text-[11px] font-black shadow-sm hover:bg-primary/90 active:scale-95 transition cursor-pointer shrink-0"
+                                        >
+                                            <span class="material-symbols-outlined text-[14px]">handshake</span>
+                                            <span>Atender</span>
+                                        </button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <!-- 2. Platos Listos para Servir -->
+                        @if(($notificaciones['platos_listos'] ?? collect())->isNotEmpty())
+                            <div class="space-y-1.5 pt-1">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-secondary flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">room_service</span>
+                                    Listos en Cocina / Barra
+                                </span>
+                                @foreach($notificaciones['platos_listos'] as $pl)
+                                    <div class="p-2 rounded-2xl bg-secondary-container/20 border border-secondary/20 flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <span class="material-symbols-outlined text-secondary text-[16px]">check_circle</span>
+                                            <div>
+                                                <span class="font-bold text-on-surface">Mesa #{{ $pl->pedido?->mesa?->numero }}</span>
+                                                <span class="text-on-surface-variant">· {{ $pl->cantidad }}x {{ $pl->nombre_producto }}</span>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] text-on-surface-variant font-mono">
+                                            {{ $pl->listo_en ? \Carbon\Carbon::parse($pl->listo_en)->diffForHumans(null, true) : 'Listo' }}
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <!-- 3. Stock Crítico -->
+                        @if(($notificaciones['stock_critico'] ?? collect())->isNotEmpty())
+                            <div class="space-y-1.5 pt-1">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-tertiary flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">inventory_2</span>
+                                    Insumos en Stock Bajo
+                                </span>
+                                @foreach($notificaciones['stock_critico'] as $st)
+                                    <div class="p-2 rounded-2xl bg-tertiary-container/15 border border-tertiary/20 flex items-center justify-between">
+                                        <span class="font-bold text-on-surface truncate max-w-[180px]">{{ $st->nombre }}</span>
+                                        <span class="font-mono text-[10px] text-tertiary font-extrabold">{{ $st->stock_actual }} {{ $st->unidad_medida }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <!-- 4. Reservas de Hoy -->
+                        @if(($notificaciones['reservas_hoy'] ?? collect())->isNotEmpty())
+                            <div class="space-y-1.5 pt-1">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-on-surface-variant flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">event_seat</span>
+                                    Reservas de Hoy
+                                </span>
+                                @foreach($notificaciones['reservas_hoy'] as $res)
+                                    <div class="p-2 rounded-2xl bg-surface-container-low border border-surface-container-high flex items-center justify-between">
+                                        <span class="font-bold text-on-surface truncate">{{ substr($res->hora_llegada, 0, 5) }}: {{ $res->nombre_contacto }} ({{ $res->personas }} pax)</span>
+                                        <span class="text-[10px] font-extrabold capitalize text-on-surface-variant">{{ $res->estado }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <!-- Estado vacío -->
+                        @if(($notificaciones['total'] ?? 0) === 0)
+                            <div class="py-6 text-center text-on-surface-variant space-y-1">
+                                <span class="material-symbols-outlined text-[32px] text-secondary">task_alt</span>
+                                <p class="font-bold">Todo al día</p>
+                                <p class="text-[10px]">No hay pedidos ni alertas pendientes.</p>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="pt-2 border-t border-surface-container-high flex items-center justify-between">
+                        <a href="{{ route('mesas') }}" wire:navigate class="text-[11px] font-extrabold text-primary hover:underline">
+                            Ver Salón & Mesas
+                        </a>
+                        <button @click="openNotif = false" class="text-[10px] text-on-surface-variant hover:text-on-surface cursor-pointer">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             @auth
                 <!-- User Profile Badge & Dropdown -->
@@ -94,6 +303,13 @@ new class extends Component
                             <span>Mi Perfil</span>
                         </x-dropdown-link>
 
+                        @if (auth()->user()?->role?->slug === 'admin')
+                            <x-dropdown-link :href="route('trabajadores')" wire:navigate class="flex items-center gap-2 text-xs py-2 text-on-surface">
+                                <span class="material-symbols-outlined text-[18px] text-on-surface-variant">manage_accounts</span>
+                                <span>Configuración de Perfiles</span>
+                            </x-dropdown-link>
+                        @endif
+
                         <div class="border-t border-surface-container-highest"></div>
 
                         <button wire:click="logout" class="w-full text-start flex items-center gap-2 px-4 py-2 text-xs text-error hover:bg-error-container/20 transition">
@@ -111,22 +327,83 @@ new class extends Component
         <div class="flex flex-col flex-1 overflow-y-auto">
             <!-- Brand Logo Header -->
             <div class="h-16 px-4 flex items-center gap-2.5 bg-surface-container-lowest border-b border-surface-container-highest/60">
-                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-on-primary shadow-sm font-bold text-lg">
-                    🍣
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-high border border-outline-variant/30 shadow-xs p-1">
+                    <x-application-logo class="w-full h-full" />
                 </div>
                 <div class="flex flex-col">
-                    <span class="font-bold text-base text-primary leading-none tracking-tight">AURA GASTRO</span>
-                    <span class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">Colombia POS Enterprise</span>
+                    <span class="font-extrabold text-base text-primary leading-none tracking-tight">SUSHI XPRESS</span>
+                    <span class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">Japanese Craft & Gastro POS</span>
                 </div>
             </div>
 
             <!-- Subtitle Section -->
             <div class="px-4 py-2.5">
-                <span class="text-[11px] uppercase font-bold tracking-wider text-on-surface-variant">Módulos de Servicio</span>
+                <span class="text-[11px] uppercase font-bold tracking-wider text-on-surface-variant">
+                    @if(auth()->user()?->role?->slug === 'mesero')
+                        Servicio en Salón
+                    @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+                        Producción & KDS
+                    @else
+                        Módulos de Servicio
+                    @endif
+                </span>
             </div>
 
             <!-- Navigation Links -->
             <nav class="flex flex-col gap-1 px-3">
+                @if(auth()->user()?->role?->slug === 'mesero')
+                    <!-- Card de Terminal Mesero -->
+                    <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20 shadow-xs">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm">
+                                <span class="material-symbols-outlined text-[18px]">room_service</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black text-on-surface leading-tight">Terminal Mesero</span>
+                                <span class="text-[10px] text-primary font-bold uppercase tracking-wider">Comandas & Cobro</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Terminal POS (POS-01) -->
+                    <a 
+                        href="{{ route('pos') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-12 text-sm font-bold transition-all duration-150 bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[22px]">point_of_sale</span>
+                            <span class="font-extrabold">Terminal POS</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                    </a>
+                @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+                    <!-- Card de Cocina KDS -->
+                    <div class="mb-2 p-3 rounded-2xl bg-secondary/15 border border-secondary/30 shadow-xs">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                <span class="material-symbols-outlined text-[18px]">skillet</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black text-on-surface leading-tight">Cocina KDS</span>
+                                <span class="text-[10px] text-secondary font-bold uppercase tracking-wider">Control de Comandas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cocina KDS (COC-01) -->
+                    <a 
+                        href="{{ route('cocina') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-12 text-sm font-bold transition-all duration-150 bg-secondary text-white shadow-[0_2px_8px_rgba(30,140,80,0.25)]"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[22px]">restaurant</span>
+                            <span class="font-extrabold">Pantalla KDS Cocina</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                    </a>
+                @else
                 <!-- Dashboard (DASH-01) -->
                 <a 
                     href="{{ route('dashboard') }}" 
@@ -205,6 +482,21 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">INV</span>
                 </a>
 
+                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Carta & Menú (MEN-01) -->
+                    <a 
+                        href="{{ route('menu') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('menu*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">restaurant_menu</span>
+                            <span>Carta & Menú</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">MEN</span>
+                    </a>
+                @endif
+
                 <!-- Clientes VIP (CLI-01) -->
                 <a 
                     href="{{ route('clientes') }}" 
@@ -257,6 +549,21 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">REP</span>
                 </a>
 
+                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Impresión & Spooler (IMP-01) -->
+                    <a 
+                        href="{{ route('impresion') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('impresion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">print</span>
+                            <span>Impresión & Spooler</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">IMP</span>
+                    </a>
+                @endif
+
                 @if (auth()->user()?->role?->slug === 'admin')
                     <!-- Configuración (CFG-01) -->
                     <a 
@@ -270,6 +577,7 @@ new class extends Component
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">CFG</span>
                     </a>
+                @endif
                 @endif
             </nav>
         </div>
@@ -318,8 +626,10 @@ new class extends Component
         >
             <div class="flex items-center justify-between px-4 border-b border-surface-container-highest pb-3">
                 <div class="flex items-center gap-2.5">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-on-primary font-bold shadow-sm">🍣</div>
-                    <span class="font-bold text-base text-primary">AURA GASTRO</span>
+                    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-high border border-outline-variant/30 shadow-xs p-1">
+                        <x-application-logo class="w-full h-full" />
+                    </div>
+                    <span class="font-extrabold text-base text-primary">SUSHI XPRESS</span>
                 </div>
                 <button 
                     @click="mobileMenuOpen = false"
@@ -331,10 +641,61 @@ new class extends Component
 
             <!-- Mobile Drawer Links -->
             <div class="mt-3 flex-1 space-y-1 overflow-y-auto px-3">
+                @if(auth()->user()?->role?->slug === 'mesero')
+                    <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm">
+                                <span class="material-symbols-outlined text-[18px]">room_service</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black text-on-surface leading-tight">Terminal Mesero</span>
+                                <span class="text-[10px] text-primary font-bold uppercase tracking-wider">Comandas & Cobro</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a 
+                        href="{{ route('pos') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-extrabold bg-primary-container text-on-primary shadow-sm"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[22px]">point_of_sale</span>
+                            <span>Terminal POS</span>
+                        </div>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                    </a>
+                @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+                    <div class="mb-2 p-3 rounded-2xl bg-secondary/15 border border-secondary/30">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                <span class="material-symbols-outlined text-[18px]">skillet</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black text-on-surface leading-tight">Cocina KDS</span>
+                                <span class="text-[10px] text-secondary font-bold uppercase tracking-wider">Control de Comandas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a 
+                        href="{{ route('cocina') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-extrabold bg-secondary text-white shadow-sm"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[22px]">restaurant</span>
+                            <span>Pantalla KDS Cocina</span>
+                        </div>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                    </a>
+                @else
                 <a 
                     href="{{ route('dashboard') }}" 
-                    @click="mobileMenuOpen = false"
-                    wire:navigate
+                    @click="mobileMenuOpen = false" 
+                    wire:navigate 
                     class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('dashboard') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
                 >
                     <div class="flex items-center gap-3">
@@ -409,6 +770,21 @@ new class extends Component
                     <span class="text-[10px] font-bold">INV</span>
                 </a>
 
+                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                    <a 
+                        href="{{ route('menu') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('menu*') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">restaurant_menu</span>
+                            <span>Carta & Menú</span>
+                        </div>
+                        <span class="text-[10px] font-bold">MEN</span>
+                    </a>
+                @endif
+
                 <a 
                     href="{{ route('clientes') }}" 
                     @click="mobileMenuOpen = false" 
@@ -461,6 +837,21 @@ new class extends Component
                     <span class="text-[10px] font-bold">REP</span>
                 </a>
 
+                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                    <a 
+                        href="{{ route('impresion') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('impresion') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">print</span>
+                            <span>Impresión & Spooler</span>
+                        </div>
+                        <span class="text-[10px] font-bold">IMP</span>
+                    </a>
+                @endif
+
                 @if (auth()->user()?->role?->slug === 'admin')
                     <a 
                         href="{{ route('configuracion') }}" 
@@ -474,6 +865,7 @@ new class extends Component
                         </div>
                         <span class="text-[10px] font-bold">CFG</span>
                     </a>
+                @endif
                 @endif
             </div>
 

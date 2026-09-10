@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Role;
+use App\Models\Sucursal;
 use App\Models\User;
 use App\Services\TrabajadorService;
 use Livewire\Volt\Component;
@@ -8,8 +9,16 @@ use Livewire\Volt\Component;
 new class extends Component
 {
     public bool $mostrarModalNuevo = false;
+
     public bool $mostrarModalEditar = false;
+
     public ?int $enEdicion = null;
+
+    public bool $mostrarClaveTemporal = false;
+
+    public ?string $claveTemporal = null;
+
+    public ?string $clavePara = null;
 
     public array $nuevo = [
         'nombre' => '',
@@ -17,6 +26,7 @@ new class extends Component
         'telefono' => '',
         'password' => '',
         'role_id' => null,
+        'sucursal_id' => null,
         'activo' => true,
     ];
 
@@ -26,6 +36,7 @@ new class extends Component
         'telefono' => '',
         'password' => '',
         'role_id' => null,
+        'sucursal_id' => null,
         'activo' => true,
     ];
 
@@ -37,6 +48,7 @@ new class extends Component
             'telefono' => '',
             'password' => '',
             'role_id' => null,
+            'sucursal_id' => null,
             'activo' => true,
         ];
         $this->mostrarModalNuevo = true;
@@ -49,6 +61,7 @@ new class extends Component
             'nuevo.email' => 'required|email',
             'nuevo.password' => 'required|min:6',
             'nuevo.role_id' => 'required|exists:roles,id',
+            'nuevo.sucursal_id' => 'nullable|exists:sucursales,id',
         ]);
 
         app(TrabajadorService::class)->crear($this->nuevo);
@@ -70,6 +83,7 @@ new class extends Component
             'telefono' => $trabajador->telefono ?? '',
             'password' => '',
             'role_id' => $trabajador->role_id,
+            'sucursal_id' => $trabajador->sucursal_id,
             'activo' => (bool) $trabajador->activo,
         ];
         $this->mostrarModalEditar = true;
@@ -81,6 +95,7 @@ new class extends Component
             'edicion.nombre' => 'required|string|min:3',
             'edicion.email' => 'required|email',
             'edicion.role_id' => 'required|exists:roles,id',
+            'edicion.sucursal_id' => 'nullable|exists:sucursales,id',
         ]);
 
         try {
@@ -96,6 +111,7 @@ new class extends Component
             }
         } catch (InvalidArgumentException $e) {
             $this->addError('edicion.email', $e->getMessage());
+
             return;
         }
 
@@ -121,17 +137,34 @@ new class extends Component
         $this->dispatch('notificacion', ['mensaje' => $mensaje, 'tipo' => 'success']);
     }
 
+    public function resetearClave(int $userId): void
+    {
+        $trabajador = User::findOrFail($userId);
+
+        $this->claveTemporal = app(TrabajadorService::class)->resetearPassword($trabajador);
+        $this->clavePara = $trabajador->name;
+        $this->mostrarClaveTemporal = true;
+    }
+
+    public function ocultarClaveTemporal(): void
+    {
+        $this->mostrarClaveTemporal = false;
+        $this->claveTemporal = null;
+        $this->clavePara = null;
+    }
+
     public function with(): array
     {
         return [
-            'trabajadores' => User::with('role')->orderBy('name')->get(),
+            'trabajadores' => User::with('role', 'sucursal')->orderBy('name')->get(),
             'roles' => Role::orderBy('nombre')->get(),
+            'sucursales' => Sucursal::where('activo', true)->orderBy('nombre')->get(),
         ];
     }
 }; ?>
 
-<x-slot name="header">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div class="space-y-6">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[24px] text-primary-container">badge</span>
@@ -153,11 +186,29 @@ new class extends Component
             <span class="material-symbols-outlined text-[18px]">person_add</span>
             <span>Nuevo Trabajador</span>
         </button>
-    </div>
-</x-slot>
+    </header>
 
-<div class="space-y-6">
     <div class="h-1 w-full rounded-full bg-gradient-to-r from-primary via-primary-container to-secondary"></div>
+
+    @if($mostrarClaveTemporal)
+        <div class="rounded-3xl border border-secondary/40 bg-secondary-container/30 p-4 flex items-start justify-between gap-3 shadow-sm">
+            <div class="flex items-start gap-3">
+                <span class="mt-0.5 material-symbols-outlined text-[22px] text-secondary">key</span>
+                <div>
+                    <p class="text-sm font-extrabold text-on-surface">Contraseña temporal de {{ $clavePara }}</p>
+                    <p class="text-[11px] text-on-surface-variant mt-0.5">
+                        Se muestra una sola vez. Entrégala al trabajador; deberá cambiarla en su próximo inicio de sesión.
+                    </p>
+                    <div class="mt-2 inline-flex items-center gap-2 rounded-xl bg-surface-container-lowest border border-outline-variant/30 px-3 py-2">
+                        <span class="font-mono text-sm font-black tracking-widest text-secondary break-all">{{ $claveTemporal }}</span>
+                    </div>
+                </div>
+            </div>
+            <button wire:click="ocultarClaveTemporal" class="rounded-xl p-1 text-on-surface-variant hover:text-on-surface">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+    @endif
 
     <div class="bg-surface-container-lowest rounded-3xl p-6 border border-outline-variant/20 shadow-sm">
         <div class="flex items-center justify-between mb-4">
@@ -176,6 +227,7 @@ new class extends Component
                     <tr class="border-b border-outline-variant/15 text-on-surface-variant uppercase text-[10px] tracking-wider bg-surface-container-low">
                         <th class="py-3 px-3">Trabajador</th>
                         <th class="py-3 px-3">Rol</th>
+                        <th class="py-3 px-3">Sucursal</th>
                         <th class="py-3 px-3">Contacto</th>
                         <th class="py-3 px-3">Estado</th>
                         <th class="py-3 px-3 text-right">Acciones</th>
@@ -201,6 +253,12 @@ new class extends Component
                                 </span>
                             </td>
                             <td class="py-3.5 px-3 text-on-surface-variant">
+                                <span class="inline-flex items-center gap-1 font-medium text-on-surface">
+                                    <span class="material-symbols-outlined text-[14px] text-primary">{{ $trabajador->sucursal ? 'store' : 'storefront' }}</span>
+                                    {{ $trabajador->sucursal?->nombre ?? 'Sin sucursal' }}
+                                </span>
+                            </td>
+                            <td class="py-3.5 px-3 text-on-surface-variant">
                                 <span class="block font-medium text-on-surface">{{ $trabajador->email }}</span>
                                 <span class="text-[10px]">{{ $trabajador->telefono ?? '—' }}</span>
                             </td>
@@ -220,6 +278,16 @@ new class extends Component
                                         Editar
                                     </button>
 
+                                    @if($trabajador->id !== auth()->id())
+                                        <button
+                                            wire:click="resetearClave({{ $trabajador->id }})"
+                                            class="inline-flex items-center gap-1 rounded-xl border border-outline-variant/20 bg-surface-container-low px-3 py-1.5 text-[11px] font-bold text-primary hover:bg-surface-container-high active:scale-95 transition-all"
+                                        >
+                                            <span class="material-symbols-outlined text-[14px]">lock_reset</span>
+                                            Resetear clave
+                                        </button>
+                                    @endif
+
                                     @if(!$trabajador->isAdmin())
                                         <button
                                             wire:click="toggleActivo({{ $trabajador->id }})"
@@ -236,7 +304,7 @@ new class extends Component
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-8 text-center text-on-surface-variant">
+                            <td colspan="6" class="py-8 text-center text-on-surface-variant">
                                 No hay trabajadores registrados todavía.
                             </td>
                         </tr>
@@ -294,6 +362,17 @@ new class extends Component
                             <input type="password" wire:model="nuevo.password" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="••••••••" />
                             @error('nuevo.password') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Sucursal:</label>
+                        <select wire:model="nuevo.sucursal_id" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-2.5 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                            <option value="">Sin sucursal</option>
+                            @foreach($sucursales as $sucursal)
+                                <option value="{{ $sucursal->id }}">{{ $sucursal->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @error('nuevo.sucursal_id') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                     </div>
                 </div>
 
@@ -355,6 +434,17 @@ new class extends Component
                             <label class="text-xs font-bold text-on-surface-variant">Contraseña (opcional):</label>
                             <input type="password" wire:model="edicion.password" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="Dejar en blanco" />
                         </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Sucursal:</label>
+                        <select wire:model="edicion.sucursal_id" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-2.5 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                            <option value="">Sin sucursal</option>
+                            @foreach($sucursales as $sucursal)
+                                <option value="{{ $sucursal->id }}">{{ $sucursal->nombre }}</option>
+                            @endforeach
+                        </select>
+                        @error('edicion.sucursal_id') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="flex items-center justify-between rounded-2xl border border-outline-variant/20 bg-surface-container-low p-3">

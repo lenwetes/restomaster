@@ -113,8 +113,8 @@ new class extends Component
     }
 }; ?>
 
-<x-slot name="header">
-    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+<div class="space-y-6">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[24px] text-primary">account_balance_wallet</span>
@@ -133,10 +133,8 @@ new class extends Component
             <span class="material-symbols-outlined text-[18px]">add</span>
             Nueva cuenta
         </button>
-    </div>
-</x-slot>
+    </header>
 
-<div class="space-y-6">
     <div class="h-1 w-full rounded-full bg-gradient-to-r from-primary via-primary-container to-secondary"></div>
 
     @if (session('status'))
@@ -233,96 +231,111 @@ new class extends Component
             </ul>
         </div>
     @endif
+
+    <!-- Modal registrar pago -->
+    @if ($cuentaPagoId)
+        <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" id="modal-pago" wire:click.self="cerrarModales">
+            <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl" wire:key="modal-pago">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-extrabold text-on-surface">Registrar abono</h3>
+                    <button wire:click="cerrarModales" class="text-on-surface-variant">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                @error('pagoForm.monto')
+                    <p class="mt-3 rounded-xl bg-error/10 px-3 py-2 text-xs font-bold text-error">{{ $message }}</p>
+                @enderror
+
+                <form wire:submit="registrarAbono" class="mt-4 space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Monto del abono</label>
+                        <input type="number" step="0.01" min="0.01" wire:model="pagoForm.monto"
+                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Método de pago</label>
+                        <select wire:model="pagoForm.metodo_pago"
+                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0">
+                            <option value="transferencia">Transferencia</option>
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Comprobante / Referencia</label>
+                        <input type="text" wire:model="pagoForm.comprobante" placeholder="Ej. TRX-12345"
+                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Notas</label>
+                        <textarea wire:model="pagoForm.notas" rows="2"
+                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0"></textarea>
+                    </div>
+                    <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">
+                        Registrar abono
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    <!-- Modal nueva cuenta -->
+    @if ($modalCrear)
+        <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" id="modal-crear" wire:click.self="cerrarModales">
+            <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl" wire:key="modal-crear">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-extrabold text-on-surface">Nueva cuenta por pagar</h3>
+                    <button wire:click="cerrarModales" class="text-on-surface-variant">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <form wire:submit="guardarCuenta" class="mt-4 space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Proveedor</label>
+                        <input type="text" wire:model="crearForm.proveedor_nombre" required
+                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant">NIT / Documento</label>
+                            <input type="text" wire:model="crearForm.proveedor_nit"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant">Factura #</label>
+                            <input type="text" wire:model="crearForm.numero_factura"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Concepto</label>
+                        <input type="text" wire:model="crearForm.concepto" required
+                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant">Monto total</label>
+                            <input type="number" step="0.01" min="0.01" wire:model="crearForm.monto_total" required
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant">Emisión</label>
+                            <input type="date" wire:model="crearForm.fecha_emision"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Fecha de vencimiento</label>
+                        <input type="date" wire:model="crearForm.fecha_vencimiento"
+                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                    </div>
+                    <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">
+                        Guardar cuenta
+                    </button>
+                </form>
+            </div>
+        </div>
+    @endif
 </div>
-
-<!-- Modal registrar pago -->
-@if ($cuentaPagoId)
-    <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" id="modal-pago" wire:click.self="cerrarModales">
-        <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl" wire:key="modal-pago">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-extrabold text-on-surface">Registrar abono</h3>
-                <button wire:click="cerrarModales" class="text-on-surface-variant">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-
-            @error('pagoForm.monto')
-                <p class="mt-3 rounded-xl bg-error/10 px-3 py-2 text-xs font-bold text-error">{{ $message }}</p>
-            @enderror
-
-            <div class="mt-4 space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-on-surface-variant">Monto del abono</label>
-                    <input type="number" step="0.01" min="0.01" wire:model="pagoForm.monto" placeholder="Ej: 200000"
-                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-on-surface-variant">Método de pago</label>
-                    <select wire:model="pagoForm.metodo_pago" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0">
-                        <option value="efectivo">Efectivo</option>
-                        <option value="tarjeta">Tarjeta</option>
-                        <option value="transferencia">Transferencia</option>
-                    </select>
-                </div>
-                <button wire:click="registrarPago" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">
-                    Confirmar abono
-                </button>
-            </div>
-        </div>
-    </div>
-@endif
-
-<!-- Modal nueva cuenta -->
-@if ($modalCrear)
-    <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="cerrarModales">
-        <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-extrabold text-on-surface">Nueva cuenta por pagar</h3>
-                <button wire:click="cerrarModales" class="text-on-surface-variant">
-                    <span class="material-symbols-outlined">close</span>
-                </button>
-            </div>
-
-            <form wire:submit="crearCuenta" class="mt-4 space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-on-surface-variant">Proveedor</label>
-                    <input type="text" wire:model="crearForm.proveedor_nombre" placeholder="Ej: Pesquera El Muelle"
-                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                    @error('crearForm.proveedor_nombre') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-on-surface-variant">NIT</label>
-                    <input type="text" wire:model="crearForm.proveedor_nit" placeholder="Opcional"
-                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-on-surface-variant">Concepto</label>
-                    <input type="text" wire:model="crearForm.concepto" placeholder="Ej: Compra de salmón fresco"
-                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                    @error('crearForm.concepto') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-bold text-on-surface-variant">Monto total</label>
-                        <input type="number" step="0.01" min="0.01" wire:model="crearForm.monto_total"
-                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                        @error('crearForm.monto_total') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-on-surface-variant">Emisión</label>
-                        <input type="date" wire:model="crearForm.fecha_emision"
-                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                    </div>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-on-surface-variant">Fecha de vencimiento</label>
-                    <input type="date" wire:model="crearForm.fecha_vencimiento"
-                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                </div>
-                <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">
-                    Guardar cuenta
-                </button>
-            </form>
-        </div>
-    </div>
-@endif

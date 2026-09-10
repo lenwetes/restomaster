@@ -42,6 +42,7 @@ class Receta extends Model
     {
         $costoBase = (float) $this->cantidad * (float) ($this->insumo->costo_unitario ?? 0);
         $factorMerma = 1 + ((float) $this->merma_esperada_pct / 100);
+
         return round($costoBase * $factorMerma, 2);
     }
 }

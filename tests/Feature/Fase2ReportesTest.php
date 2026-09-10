@@ -14,7 +14,9 @@ class Fase2ReportesTest extends TestCase
     use RefreshDatabase;
 
     private User $gerente;
+
     private User $mesero;
+
     private ReporteService $service;
 
     protected function setUp(): void

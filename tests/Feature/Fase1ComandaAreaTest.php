@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Categoria;
 use App\Models\ItemPedido;
 use App\Models\Pedido;
+use App\Models\Producto;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -15,6 +17,7 @@ class Fase1ComandaAreaTest extends TestCase
     use RefreshDatabase;
 
     private User $cocina;
+
     private User $mesero;
 
     protected function setUp(): void
@@ -30,15 +33,15 @@ class Fase1ComandaAreaTest extends TestCase
 
     private function crearPedidoConDosAreas(): Pedido
     {
-        $categoria = \App\Models\Categoria::create(['nombre' => 'Carta', 'slug' => 'carta']);
-        $nigiri = \App\Models\Producto::create([
+        $categoria = Categoria::create(['nombre' => 'Carta', 'slug' => 'carta']);
+        $nigiri = Producto::create([
             'categoria_id' => $categoria->id,
             'nombre' => 'Nigiri Salmón',
             'slug' => 'nigiri-salmon',
             'precio' => 10000,
             'area_cocina' => 'sushi',
         ]);
-        $sakeBomb = \App\Models\Producto::create([
+        $sakeBomb = Producto::create([
             'categoria_id' => $categoria->id,
             'nombre' => 'Sake Bomb',
             'slug' => 'sake-bomb',

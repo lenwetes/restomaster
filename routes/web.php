@@ -1,37 +1,59 @@
 <?php
 
+use App\Http\Controllers\ReporteExportController;
+use App\Http\Controllers\ReservaPublicaController;
+use App\Http\Controllers\ReservaWebhookController;
 use Illuminate\Support\Facades\Route;
+use Livewire\Volt\Volt;
 
 Route::view('/', 'welcome');
 
-Route::view('dashboard', 'dashboard')
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+Route::get('dashboard', function () {
+    if (auth()->user()?->role?->slug === 'mesero') {
+        return redirect()->route('pos');
+    }
+    if (in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true)) {
+        return redirect()->route('cocina');
+    }
+
+    return view('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
 
-Route::get('reservas/crear', [\App\Http\Controllers\ReservaPublicaController::class, 'create'])->name('reservas.publico');
-Route::post('reservas/crear', [\App\Http\Controllers\ReservaPublicaController::class, 'store'])->middleware('throttle:10,1');
-Route::post('api/reservas', [\App\Http\Controllers\ReservaWebhookController::class, 'crear'])->middleware('throttle:20,1')->name('reservas.webhook');
+Route::get('reservas/crear', [ReservaPublicaController::class, 'create'])->name('reservas.publico');
+Route::post('reservas/crear', [ReservaPublicaController::class, 'store'])->middleware('throttle:10,1');
+Route::post('api/reservas', [ReservaWebhookController::class, 'crear'])->middleware('throttle:20,1')->name('reservas.webhook');
+
+// Menú público interactivo para autoservicio por código QR en mesa
+Route::get('m/{numero}', function ($numero) {
+    return redirect()->route('mesa.menu', ['numero' => $numero]);
+})->name('mesa.qr.short');
+Volt::route('mesa/{numero}/menu', 'mesa.menu-publico')->name('mesa.menu');
+
+// Servicios públicos: Delivery en línea y Carta general
+Volt::route('delivery/pedir', 'delivery.pedido-publico')->name('delivery.publico');
+Volt::route('carta', 'menu.carta-publica')->name('carta.publico');
 
 Route::middleware(['auth'])->group(function () {
-    \Livewire\Volt\Volt::route('mesas', 'mesas.index')->middleware('role:mesero,cajero,gerente')->name('mesas');
-    \Livewire\Volt\Volt::route('pos', 'pos.terminal')->middleware('role:mesero,cajero,gerente')->name('pos');
-    \Livewire\Volt\Volt::route('cocina', 'cocina.kds')->middleware('role:cocina,barra,gerente')->name('cocina');
-    \Livewire\Volt\Volt::route('caja', 'caja.control')->middleware('role:cajero,gerente')->name('caja');
-    \Livewire\Volt\Volt::route('inventario', 'inventario.index')->middleware('role:gerente')->name('inventario');
-    \Livewire\Volt\Volt::route('clientes', 'clientes.index')->middleware('role:cajero,gerente')->name('clientes');
-    \Livewire\Volt\Volt::route('delivery', 'delivery.index')->middleware('role:cajero,delivery,repartidor,gerente')->name('delivery');
-    \Livewire\Volt\Volt::route('trabajadores', 'trabajadores.index')->middleware('role:admin')->name('trabajadores');
-    \Livewire\Volt\Volt::route('menu', 'menu.index')->middleware('role:gerente')->name('menu');
-    \Livewire\Volt\Volt::route('reportes', 'reportes.index')->middleware('role:gerente')->name('reportes');
-    Route::get('reportes/exportar-pdf', [\App\Http\Controllers\ReporteExportController::class, 'pdf'])->middleware('role:gerente')->name('reportes.pdf');
-    Route::get('reportes/exportar-csv', [\App\Http\Controllers\ReporteExportController::class, 'csv'])->middleware('role:gerente')->name('reportes.csv');
-    \Livewire\Volt\Volt::route('cxp', 'cxp.index')->middleware('role:gerente')->name('cxp');
-    \Livewire\Volt\Volt::route('reservas', 'reservas.index')->middleware('role:mesero,cajero,gerente')->name('reservas');
-    \Livewire\Volt\Volt::route('configuracion', 'configuracion.index')->middleware('role:admin')->name('configuracion');
+    Volt::route('mesas', 'mesas.index')->middleware('role:mesero,cajero,gerente')->name('mesas');
+    Volt::route('pos', 'pos.terminal')->middleware('role:mesero,cajero,gerente')->name('pos');
+    Volt::route('cocina', 'cocina.kds')->middleware('role:cocina,barra,gerente')->name('cocina');
+    Volt::route('caja', 'caja.control')->middleware('role:cajero,gerente')->name('caja');
+    Volt::route('inventario', 'inventario.index')->middleware('role:gerente')->name('inventario');
+    Volt::route('clientes', 'clientes.index')->middleware('role:cajero,gerente')->name('clientes');
+    Volt::route('delivery', 'delivery.index')->middleware('role:cajero,delivery,repartidor,gerente')->name('delivery');
+    Volt::route('trabajadores', 'trabajadores.index')->middleware('role:admin')->name('trabajadores');
+    Volt::route('menu', 'menu.index')->middleware('role:gerente,admin')->name('menu');
+    Volt::route('reportes', 'reportes.index')->middleware('role:gerente')->name('reportes');
+    Route::get('reportes/exportar-pdf', [ReporteExportController::class, 'pdf'])->middleware('role:gerente')->name('reportes.pdf');
+    Route::get('reportes/exportar-csv', [ReporteExportController::class, 'csv'])->middleware('role:gerente')->name('reportes.csv');
+    Volt::route('cxp', 'cxp.index')->middleware('role:gerente')->name('cxp');
+    Volt::route('reservas', 'reservas.index')->middleware('role:mesero,cajero,gerente')->name('reservas');
+    Volt::route('configuracion', 'configuracion.index')->middleware('role:admin')->name('configuracion');
+    Volt::route('impresion', 'impresion.index')->middleware('role:gerente,admin')->name('impresion');
 });
 
 require __DIR__.'/auth.php';

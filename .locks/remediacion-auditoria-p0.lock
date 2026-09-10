@@ -1,0 +1,7 @@
+{
+  "modulo": "remediacion-auditoria-p0",
+  "agente": "antigravity",
+  "desde": "2026-09-10T20:30:00",
+  "tarea": "Ejecutar remediación de auditoría P0/P1/P2 según docs/auditoria/remediacion-antigravity.md (iniciar por P0-02 cascades de histórico, luego P0-01 Policies/authorize). No tocar C1/C5/H5/M2/H9/H10/L1/L3 (ya FIXED). Suite 213 tests debe quedar verde.",
+  "estado": "asignado"
+}

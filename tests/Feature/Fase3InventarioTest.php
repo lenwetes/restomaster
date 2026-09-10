@@ -23,10 +23,15 @@ class Fase3InventarioTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Sucursal $sucursal;
+
     protected Mesa $mesa;
+
     protected Insumo $salmon;
+
     protected Insumo $arroz;
+
     protected Producto $philadelphiaRoll;
 
     protected function setUp(): void

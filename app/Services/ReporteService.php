@@ -8,6 +8,7 @@ use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Reserva;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
 class ReporteService
@@ -82,7 +83,7 @@ class ReporteService
     /**
      * Movimientos contables recientes (hasta 100, más recientes primero).
      */
-    public function movimientosRecientes(int $limite = 100): \Illuminate\Database\Eloquent\Collection
+    public function movimientosRecientes(int $limite = 100): Collection
     {
         return AsientoContable::with('usuario')
             ->orderByDesc('id')
@@ -148,7 +149,7 @@ class ReporteService
     {
         return Pedido::query()
             ->where('estado', 'pagado')
-            ->whereBetween('pagado_en', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
             ->get(['id', 'total', 'pagado_en'])
             ->groupBy(fn ($p) => Carbon::parse($p->pagado_en)->toDateString())
             ->map(fn ($grupo) => [
@@ -166,7 +167,7 @@ class ReporteService
     {
         return Pedido::query()
             ->where('estado', 'pagado')
-            ->whereBetween('pagado_en', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
             ->get(['id', 'tipo', 'total'])
             ->groupBy('tipo')
             ->map(fn ($grupo) => [
@@ -183,7 +184,7 @@ class ReporteService
     {
         return ItemPedido::query()
             ->with('producto')
-            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereBetween('pagado_en', [$desde . ' 00:00:00', $hasta . ' 23:59:59']))
+            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59']))
             ->get()
             ->groupBy('producto_id')
             ->map(fn ($items) => [
@@ -203,7 +204,7 @@ class ReporteService
     {
         return Pedido::with('usuario')
             ->where('estado', 'pagado')
-            ->whereBetween('pagado_en', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
             ->get()
             ->groupBy('usuario_id')
             ->map(fn ($grupo) => [
@@ -240,7 +241,7 @@ class ReporteService
         return Pedido::with('cliente')
             ->where('estado', 'pagado')
             ->whereNotNull('cliente_id')
-            ->whereBetween('pagado_en', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
             ->get()
             ->groupBy('cliente_id')
             ->map(fn ($grupo) => [
@@ -259,7 +260,7 @@ class ReporteService
         $pedidos = Pedido::query()
             ->where('tipo', 'delivery')
             ->whereNotNull('hora_entrega')
-            ->whereBetween('created_at', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
+            ->whereBetween('created_at', [$desde.' 00:00:00', $hasta.' 23:59:59'])
             ->get();
 
         if ($pedidos->isEmpty()) {
@@ -296,7 +297,7 @@ class ReporteService
     private function resumenPeriodo(string $desde, string $hasta): array
     {
         $pedidos = Pedido::where('estado', 'pagado')
-            ->whereBetween('pagado_en', [$desde . ' 00:00:00', $hasta . ' 23:59:59'])
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
             ->get(['total']);
 
         $ventas = (float) $pedidos->sum('total');

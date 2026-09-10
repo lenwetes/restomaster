@@ -45,7 +45,7 @@ class ReservaService
         if ($personas < 1) {
             throw new InvalidArgumentException('La reserva debe ser para al menos una persona.');
         }
-        if (!$fecha || $fecha < now()->toDateString()) {
+        if (! $fecha || $fecha < now()->toDateString()) {
             throw new InvalidArgumentException('Debe elegirse una fecha igual o posterior a hoy.');
         }
 
@@ -67,7 +67,7 @@ class ReservaService
             'created_by' => $datos['created_by'] ?? auth()->id(),
         ]);
 
-        if (!empty($datos['mesa_ids'])) {
+        if (! empty($datos['mesa_ids'])) {
             $reserva->mesas()->sync($datos['mesa_ids']);
         }
 
@@ -196,7 +196,7 @@ class ReservaService
 
     private function nombreMesa(Mesa $mesa): string
     {
-        return $mesa->nombre ?? 'Mesa #' . $mesa->numero;
+        return $mesa->nombre ?? 'Mesa #'.$mesa->numero;
     }
 
     private function seSolapan(string $aIni, string $aFin, string $bIni, string $bFin): bool

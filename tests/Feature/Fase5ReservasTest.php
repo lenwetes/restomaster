@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\ReservaService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use InvalidArgumentException;
+use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class Fase5ReservasTest extends TestCase
@@ -17,6 +18,7 @@ class Fase5ReservasTest extends TestCase
     use RefreshDatabase;
 
     private ReservaService $service;
+
     private Sucursal $sucursal;
 
     protected function setUp(): void
@@ -189,7 +191,7 @@ class Fase5ReservasTest extends TestCase
 
         $admin = User::create(['name' => 'Ad', 'email' => 'ad2@test.com', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'admin')->value('id'), 'activo' => true]);
 
-        \Livewire\Volt\Volt::actingAs($admin)
+        Volt::actingAs($admin)
             ->test('reservas.index')
             ->set('fecha', '2026-09-20')
             ->assertSee('Clara Estrada');
@@ -201,7 +203,7 @@ class Fase5ReservasTest extends TestCase
         $reserva = $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'Ana', 'telefono_contacto' => '300', 'fecha' => '2026-09-20', 'hora_llegada' => '13:00', 'personas' => 2, 'mesa_ids' => [$m1->id]]);
         $admin = User::create(['name' => 'Ad', 'email' => 'ad3@test.com', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'admin')->value('id'), 'activo' => true]);
 
-        \Livewire\Volt\Volt::actingAs($admin)
+        Volt::actingAs($admin)
             ->test('reservas.index')
             ->set('fecha', '2026-09-20')
             ->set('reservaSeleccionada', $reserva->id)
@@ -210,5 +212,19 @@ class Fase5ReservasTest extends TestCase
 
         $this->assertSame('confirmada', $reserva->fresh()->estado);
         $this->assertSame(MesaEstado::RESERVADA->value, $m1->fresh()->estado);
+    }
+
+    public function test_boton_abrir_crear_despliega_modal_en_ui(): void
+    {
+        $this->crearMesas();
+        $admin = User::create(['name' => 'Ad', 'email' => 'ad4@test.com', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'admin')->value('id'), 'activo' => true]);
+
+        Volt::actingAs($admin)
+            ->test('reservas.index')
+            ->assertDontSee('Nombre del cliente')
+            ->call('abrirCrear')
+            ->assertSet('modalCrear', true)
+            ->assertSee('Nombre del cliente')
+            ->assertSee('Crear reserva');
     }
 }

@@ -11,15 +11,9 @@ new class extends Component
     /**
      * Delete the currently authenticated user.
      */
-    public function deleteUser(Logout $logout): void
+    public function deleteUser(): void
     {
-        $this->validate([
-            'password' => ['required', 'string', 'current_password'],
-        ]);
-
-        tap(Auth::user(), $logout(...))->delete();
-
-        $this->redirect('/', navigate: true);
+        abort(403, 'La auto-eliminación de cuentas está deshabilitada en el sistema POS para preservar la trazabilidad de turnos y auditorías.');
     }
 }; ?>
 

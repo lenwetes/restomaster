@@ -40,19 +40,19 @@ class ReporteExportController extends Controller
         $csv = "\xEF\xBB\xBF";
 
         foreach ($filas as $fila) {
-            $csv .= implode(';', array_map(fn ($v) => '"' . str_replace('"', '""', (string) $v) . '"', $fila)) . "\r\n";
+            $csv .= implode(';', array_map(fn ($v) => '"'.str_replace('"', '""', (string) $v).'"', $fila))."\r\n";
         }
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="reporte-' . $reporte . '-' . $desde . '-' . $hasta . '.csv"',
+            'Content-Disposition' => 'attachment; filename="reporte-'.$reporte.'-'.$desde.'-'.$hasta.'.csv"',
         ]);
     }
 
     private function datos(Request $request): array
     {
         $validated = $request->validate([
-            'reporte' => ['required', 'in:' . implode(',', self::REPORTES_VALIDOS)],
+            'reporte' => ['required', 'in:'.implode(',', self::REPORTES_VALIDOS)],
             'desde' => ['required', 'date'],
             'hasta' => ['required', 'date', 'after_or_equal:desde'],
         ]);
@@ -87,7 +87,7 @@ class ReporteExportController extends Controller
         return match ($reporte) {
             'ventas' => collect($datos['por_producto'])->map(fn ($fila) => [$fila['producto'], $fila['cantidad'], $fila['ventas'], $fila['costo'], $fila['margen']])->all(),
             'clientes' => collect($datos['top_clientes'])->map(fn ($fila) => [$fila['cliente'], $fila['visitas'], $fila['gastado']])->all(),
-            'reservas' => [["{$datos['resumen']['total']} total reservas", ''], ["{$datos['resumen']['confirmadas']} confirmadas", $datos['resumen']['cumplimiento_porcentaje'] . '%'], ["{$datos['resumen']['canceladas']} canceladas", ''], ["{$datos['resumen']['no_shows']} no-shows", '']],
+            'reservas' => [["{$datos['resumen']['total']} total reservas", ''], ["{$datos['resumen']['confirmadas']} confirmadas", $datos['resumen']['cumplimiento_porcentaje'].'%'], ["{$datos['resumen']['canceladas']} canceladas", ''], ["{$datos['resumen']['no_shows']} no-shows", '']],
             default => collect($datos['resultado']['detalle']['ingresos'])->map(fn ($fila) => [$fila['cuenta'], $fila['total'], $fila['movimientos']])->all(),
         };
     }

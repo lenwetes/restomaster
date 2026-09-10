@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Auditoria;
-use App\Models\Categoria;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditoriaService;
@@ -17,6 +16,7 @@ class Fase2AuditoriaTest extends TestCase
     use RefreshDatabase;
 
     private User $gerente;
+
     private AuditoriaService $service;
 
     protected function setUp(): void
