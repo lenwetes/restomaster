@@ -37,8 +37,12 @@ new class extends Component
             'resumen_reservas' => $this->pestana === 'reservas'
                 ? $service->resumenReservas($this->desde, $this->hasta)
                 : null,
-            'resultado' => $service->estadoResultados($this->desde, $this->hasta),
-            'movimientos' => $service->movimientosRecientes($this->pestana === 'estado' ? 50 : 20),
+            'resultado' => $this->pestana === 'estado'
+                ? $service->estadoResultados($this->desde, $this->hasta)
+                : null,
+            'movimientos' => $this->pestana === 'estado'
+                ? $service->movimientosRecientes(50)
+                : collect(),
         ];
     }
 }; ?>

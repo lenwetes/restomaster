@@ -7,6 +7,7 @@ use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AdminUserSeeder extends Seeder
 {
@@ -25,7 +26,13 @@ class AdminUserSeeder extends Seeder
 
         $sucursal = Sucursal::first();
 
-        $unifiedPassword = Hash::make('123456');
+        $rawPassword = env('DEMO_USERS_PASSWORD') ?: Str::password(12);
+
+        if ($this->command) {
+            $this->command->info("Contraseña asignada para usuarios demo: {$rawPassword}");
+        }
+
+        $unifiedPassword = Hash::make($rawPassword);
 
         $users = [
             [

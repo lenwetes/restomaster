@@ -181,14 +181,19 @@ new class extends Component
 
     public function canjearPuntos(int $puntos): void
     {
+        $this->authorize('canjearPuntos', Pedido::class);
+
         if ($puntos > $this->puntosDisponibles) {
             $puntos = $this->puntosDisponibles;
         }
 
-        $descuento = app(\App\Services\FidelizacionService::class)->calcularDescuentoPorPuntos($puntos);
-        if ($descuento > $this->subtotal) {
-            $descuento = $this->subtotal;
+        $remanente = max(0.0, (float) $this->subtotal - (float) $this->descuento);
+        $descuentoCalculado = app(\App\Services\FidelizacionService::class)->calcularDescuentoPorPuntos($puntos);
+        if ($descuentoCalculado > $remanente) {
+            $descuento = $remanente;
             $puntos = (int) ceil($descuento / 10);
+        } else {
+            $descuento = $descuentoCalculado;
         }
 
         $this->puntosCanjeados = $puntos;
@@ -212,8 +217,21 @@ new class extends Component
         return max(0.0, $this->montoPagado - $this->total);
     }
 
+    public function updatedDescuento($value): void
+    {
+        if ((float) $value > 0) {
+            $this->authorize('aplicarDescuento', Pedido::class);
+        }
+    }
+
     public function enviarACocina(): void
     {
+        $this->authorize('enviarCocina', Pedido::class);
+
+        if ($this->descuento > 0) {
+            $this->authorize('aplicarDescuento', Pedido::class);
+        }
+
         if (empty($this->carrito)) {
             return;
         }
@@ -278,6 +296,12 @@ new class extends Component
 
     public function procesarCobro(): void
     {
+        $this->authorize('cobrar', Pedido::class);
+
+        if ($this->descuento > 0) {
+            $this->authorize('aplicarDescuento', Pedido::class);
+        }
+
         if ($this->montoPagado < $this->total) {
             return;
         }
@@ -385,11 +409,21 @@ new class extends Component
                 ->first()
             : null;
 
+        $clientesQuery = \App\Models\Cliente::where('activo', true);
+        if (! empty(trim($this->busquedaCliente))) {
+            $term = '%' . trim($this->busquedaCliente) . '%';
+            $clientesQuery->where(function ($q) use ($term) {
+                $q->where('nombre', 'ilike', $term)
+                  ->orWhere('telefono', 'ilike', $term);
+            });
+        }
+        $clientesDisponibles = $clientesQuery->orderByDesc('puntos_fidelidad')->limit(50)->get();
+
         return [
             'categorias' => Categoria::where('activo', true)->orderBy('orden')->get(),
             'productos' => $query->get(),
             'mesas' => Mesa::orderBy('numero')->get(),
-            'clientesDisponibles' => \App\Models\Cliente::where('activo', true)->orderBy('nombre')->get(),
+            'clientesDisponibles' => $clientesDisponibles,
             'pedidoQrPendiente' => $pedidoQrPendiente,
         ];
     }

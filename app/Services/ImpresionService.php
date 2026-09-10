@@ -183,11 +183,16 @@ class ImpresionService
             return true;
         }
 
-        // 4. Si es impresora por red TCP (Ethernet / Wi-Fi)
         if ($impresora->tipo_conexion === 'red_ip' && ! empty($impresora->ip_address)) {
             $errno = 0;
             $errstr = '';
-            $socket = @fsockopen($impresora->ip_address, $impresora->puerto, $errno, $errstr, 2.0);
+            $socket = false;
+            try {
+                set_error_handler(static fn () => true);
+                $socket = fsockopen($impresora->ip_address, $impresora->puerto, $errno, $errstr, 2.0);
+            } finally {
+                restore_error_handler();
+            }
 
             if ($socket) {
                 try {
@@ -324,7 +329,11 @@ class ImpresionService
             return false;
         } finally {
             if (file_exists($tempPath)) {
-                @unlink($tempPath);
+                try {
+                    unlink($tempPath);
+                } catch (Throwable) {
+                    // Archivo temporal ya liberado o eliminado
+                }
             }
         }
     }

@@ -58,6 +58,8 @@ new class extends Component
 
     public function crearReserva(): void
     {
+        $this->authorize('create', Reserva::class);
+
         $validated = $this->validate([
             'crearForm.nombre_contacto' => ['required', 'string', 'max:255'],
             'crearForm.telefono_contacto' => ['required', 'string', 'max:30'],
@@ -84,6 +86,8 @@ new class extends Component
 
     public function confirmar(): void
     {
+        $this->authorize('confirmar', Reserva::class);
+
         $reserva = Reserva::findOrFail($this->reservaSeleccionada);
         app(ReservaService::class)->confirmar($reserva);
         session()->flash('status', 'Reserva confirmada.');
@@ -91,6 +95,8 @@ new class extends Component
 
     public function marcarLlego(): void
     {
+        $this->authorize('update', Reserva::class);
+
         $reserva = Reserva::findOrFail($this->reservaSeleccionada);
         app(ReservaService::class)->marcarLlego($reserva);
         session()->flash('status', 'Cliente en la mesa.');
@@ -98,6 +104,8 @@ new class extends Component
 
     public function finalizar(): void
     {
+        $this->authorize('update', Reserva::class);
+
         $reserva = Reserva::findOrFail($this->reservaSeleccionada);
         app(ReservaService::class)->finalizar($reserva);
         session()->flash('status', 'Reserva finalizada.');
@@ -105,6 +113,8 @@ new class extends Component
 
     public function cancelarReserva(): void
     {
+        $this->authorize('cancelar', Reserva::class);
+
         $reserva = Reserva::findOrFail($this->reservaSeleccionada);
         app(ReservaService::class)->cancelar($reserva);
         session()->flash('status', 'Reserva cancelada.');
@@ -112,6 +122,8 @@ new class extends Component
 
     public function noShow(): void
     {
+        $this->authorize('update', Reserva::class);
+
         $reserva = Reserva::findOrFail($this->reservaSeleccionada);
         app(ReservaService::class)->marcarNoShow($reserva);
         session()->flash('status', 'Sin presentarse.');

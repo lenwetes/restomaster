@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MesaEstado;
+use App\Models\Cliente;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
@@ -40,6 +41,15 @@ class PedidoService
             $descuentoSolicitado = max(0, (float) ($datos['descuento'] ?? 0));
             $costoEnvio = max(0, (float) ($datos['costo_envio'] ?? 0));
             $descuentoPuntos = max(0, (float) ($datos['descuento_puntos'] ?? 0));
+            $clienteId = $datos['cliente_id'] ?? null;
+            $puntosCanjeados = (int) ($datos['puntos_canjeados'] ?? 0);
+
+            if ($clienteId && $puntosCanjeados > 0) {
+                $cliente = Cliente::find($clienteId);
+                if ($cliente && $cliente->puntos_fidelidad < $puntosCanjeados) {
+                    throw new \InvalidArgumentException("El comensal solo dispone de {$cliente->puntos_fidelidad} puntos (se intentaron canjear {$puntosCanjeados}).");
+                }
+            }
 
             foreach ($items as $itemData) {
                 $producto = Producto::findOrFail($itemData['producto_id']);
@@ -63,15 +73,17 @@ class PedidoService
                 $subtotal += $itemSubtotal;
             }
 
-            // C2 & M2 FIX: Descuento acotado al subtotal y fórmula unificada con envío y puntos
+            // C2 & M2 & P0-06 FIX: Descuento acotado al subtotal, puntos acotados al remanente y fórmula unificada
             $descuentoAplicado = min($subtotal, $descuentoSolicitado);
-            $total = max(0, $subtotal + $costoEnvio - $descuentoAplicado - $descuentoPuntos);
+            $remanente = max(0, $subtotal - $descuentoAplicado);
+            $descuentoPuntosAplicado = min($remanente, $descuentoPuntos);
+            $total = max(0, $subtotal + $costoEnvio - $descuentoAplicado - $descuentoPuntosAplicado);
 
             $pedido->update([
                 'subtotal' => $subtotal,
                 'descuento' => $descuentoAplicado,
                 'costo_envio' => $costoEnvio,
-                'descuento_puntos' => $descuentoPuntos,
+                'descuento_puntos' => $descuentoPuntosAplicado,
                 'total' => $total,
             ]);
 

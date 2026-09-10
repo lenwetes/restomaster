@@ -47,7 +47,7 @@ new #[Layout('layouts.menu-cliente')] class extends Component
 
     public function agregarProducto(int $productoId): void
     {
-        $producto = Producto::findOrFail($productoId);
+        $producto = Producto::where('activo', true)->findOrFail($productoId);
 
         if (isset($this->carrito[$productoId])) {
             $this->carrito[$productoId]['cantidad']++;
@@ -163,25 +163,32 @@ new #[Layout('layouts.menu-cliente')] class extends Component
     public function with(): array
     {
         $mesa = $this->mesaId ? Mesa::find($this->mesaId) : null;
-        $categorias = Categoria::orderBy('orden')->get();
-
-        $query = Producto::where('activo', true);
-
-        if ($this->categoriaSeleccionada) {
-            $query->where('categoria_id', $this->categoriaSeleccionada);
-        }
-
-        if (!empty(trim($this->busqueda))) {
-            $term = '%' . trim($this->busqueda) . '%';
-            $query->where(function ($q) use ($term) {
-                $q->where('nombre', 'ilike', $term)
-                  ->orWhere('descripcion', 'ilike', $term);
-            });
-        }
-
-        $productos = $query->orderBy('categoria_id')->orderBy('nombre')->get();
-
         $pedidoActual = $this->pedidoId ? Pedido::with(['items', 'usuario', 'mesa'])->find($this->pedidoId) : null;
+
+        $esModoSeguimiento = $pedidoActual && ! $this->modoAgregarMas;
+
+        $categorias = $esModoSeguimiento
+            ? collect()
+            : Categoria::where('activo', true)->orderBy('orden')->get();
+
+        $productos = collect();
+        if (! $esModoSeguimiento) {
+            $query = Producto::where('activo', true);
+
+            if ($this->categoriaSeleccionada) {
+                $query->where('categoria_id', $this->categoriaSeleccionada);
+            }
+
+            if (! empty(trim($this->busqueda))) {
+                $term = '%' . trim($this->busqueda) . '%';
+                $query->where(function ($q) use ($term) {
+                    $q->where('nombre', 'ilike', $term)
+                        ->orWhere('descripcion', 'ilike', $term);
+                });
+            }
+
+            $productos = $query->orderBy('categoria_id')->orderBy('nombre')->get();
+        }
 
         return [
             'mesa' => $mesa,
@@ -211,7 +218,7 @@ new #[Layout('layouts.menu-cliente')] class extends Component
         <!-- ========================================== -->
         <!-- PANTALLA 1: SEGUIMIENTO EN VIVO DEL PEDIDO -->
         <!-- ========================================== -->
-        <div class="flex-1 flex flex-col p-4 sm:p-6 space-y-5" wire:poll.4s="refrescarEstado">
+        <div class="flex-1 flex flex-col p-4 sm:p-6 space-y-5" wire:poll.6s="refrescarEstado">
             <!-- Header Mesa & Restaurante -->
             <div class="flex items-center justify-between bg-stone-900 text-white p-4 rounded-3xl shadow-lg">
                 <div class="flex items-center gap-3">

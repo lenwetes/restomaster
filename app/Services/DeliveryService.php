@@ -224,6 +224,17 @@ class DeliveryService
     {
         return User::whereHas('role', function ($q) {
             $q->whereIn('slug', ['repartidor', 'mesero', 'cajero', 'admin']);
-        })->where('activo', true)->get();
+        })
+            ->where('activo', true)
+            ->withCount([
+                'pedidosRepartidor as pedidos_en_ruta_count' => fn ($q) => $q->where('estado_delivery', 'en_ruta'),
+            ])
+            ->withSum([
+                'pedidosRepartidor as efectivo_pendiente_sum' => fn ($q) => $q->where('tipo', 'delivery')
+                    ->where('metodo_pago', 'efectivo')
+                    ->where('estado_delivery', 'entregado')
+                    ->where('recaudo_liquidado', false),
+            ], 'total')
+            ->get();
     }
 }

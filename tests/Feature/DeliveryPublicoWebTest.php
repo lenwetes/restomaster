@@ -150,4 +150,28 @@ class DeliveryPublicoWebTest extends TestCase
         $deliveryView->assertSee($pedido->codigo);
         $deliveryView->assertSee('Andrés Giraldo');
     }
+
+    public function test_pedido_delivery_con_honeypot_ignora_creacion(): void
+    {
+        Volt::test('delivery.pedido-publico')
+            ->call('agregarAlCarrito', $this->producto1->id)
+            ->call('irADatosEntrega')
+            ->set('empresa', 'Soy un bot spammer')
+            ->set('nombreCliente', 'Bot Spam')
+            ->set('telefonoCliente', '3000000000')
+            ->set('direccionDelivery', 'Dirección Fake 123')
+            ->set('metodoPago', 'efectivo')
+            ->call('enviarPedidoDelivery');
+
+        $this->assertDatabaseMissing('pedidos', ['telefono_cliente' => '3000000000']);
+    }
+
+    public function test_rutas_publicas_tienen_throttle_middleware(): void
+    {
+        $response = $this->get('/delivery/pedir');
+        $response->assertStatus(200);
+
+        $responseCarta = $this->get('/carta');
+        $responseCarta->assertStatus(200);
+    }
 }

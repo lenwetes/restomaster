@@ -102,6 +102,8 @@ class extends Component {
 
     public function registrarMerma(InventarioService $service): void
     {
+        $this->authorize('registrarMerma', Insumo::class);
+
         if (!$this->selectedInsumoId || $this->mermaCantidad <= 0) return;
 
         $service->registrarMerma(
@@ -117,6 +119,8 @@ class extends Component {
 
     public function registrarCompra(InventarioService $service): void
     {
+        $this->authorize('registrarCompra', Insumo::class);
+
         if (!$this->selectedInsumoId || $this->compraCantidad <= 0) return;
 
         $service->registrarCompra(
@@ -134,6 +138,8 @@ class extends Component {
 
     public function registrarAjuste(InventarioService $service): void
     {
+        $this->authorize('ajusteFisico', Insumo::class);
+
         if (!$this->selectedInsumoId || $this->ajusteNuevoStock < 0) return;
 
         $service->registrarAjuste(
@@ -149,6 +155,8 @@ class extends Component {
 
     public function guardarNuevoInsumo(): void
     {
+        $this->authorize('create', Insumo::class);
+
         $this->validate([
             'nuevoNombre' => 'required|min:3',
             'nuevoCodigo' => 'required|unique:insumos,codigo',

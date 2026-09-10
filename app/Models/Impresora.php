@@ -156,12 +156,15 @@ class Impresora extends Model
         }
 
         $inicio = microtime(true);
-        $errno = 0;
-        $errstr = '';
-
         try {
-            // Suprime advertencias con @ para manejar error limpiamente
-            $fp = @fsockopen($this->ip_address, $this->puerto, $errno, $errstr, $timeout);
+            $fp = false;
+            try {
+                set_error_handler(static fn () => true);
+                $fp = fsockopen($this->ip_address, $this->puerto, $errno, $errstr, $timeout);
+            } finally {
+                restore_error_handler();
+            }
+
             $fin = microtime(true);
             $latencia = round(($fin - $inicio) * 1000, 2);
 

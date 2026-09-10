@@ -33,6 +33,7 @@ class TrabajadorService
         }
 
         $name = $datos['name'] ?? $datos['nombre'] ?? '';
+        $rawPassword = ! empty($datos['password']) ? $datos['password'] : Str::password(12);
 
         $user = User::create([
             'name' => $name,
@@ -41,7 +42,7 @@ class TrabajadorService
             'role_id' => $roleId,
             'sucursal_id' => $sucursalId,
             'activo' => $datos['activo'] ?? true,
-            'password' => Hash::make($datos['password'] ?? 'secret'),
+            'password' => Hash::make($rawPassword),
         ]);
 
         app(AuditoriaService::class)->registrar(

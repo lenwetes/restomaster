@@ -97,6 +97,19 @@ class CajaService
         ?string $autorizadoPor = null,
         ?User $user = null
     ): MovimientoCaja {
+        if (! in_array($tipo, ['ingreso', 'egreso', 'retiro'], true)) {
+            throw new InvalidArgumentException("Tipo de movimiento inválido: {$tipo}. Permitidos: ingreso, egreso, retiro.");
+        }
+
+        if (in_array($tipo, ['egreso', 'retiro'], true)) {
+            if (empty(trim((string) $autorizadoPor))) {
+                throw new InvalidArgumentException("Los movimientos de {$tipo} requieren autorización explícita.");
+            }
+            if ($user && strcasecmp(trim((string) $autorizadoPor), trim((string) $user->name)) === 0 && ! in_array($user->role?->slug, ['admin', 'gerente'])) {
+                throw new InvalidArgumentException("Un cajero no puede auto-autorizarse un {$tipo}. Requiere autorización de un superior.");
+            }
+        }
+
         return DB::transaction(function () use ($turno, $tipo, $monto, $concepto, $metodoPago, $comprobante, $autorizadoPor, $user) {
             if ($turno->estado !== 'abierto') {
                 throw new InvalidArgumentException('No se pueden registrar movimientos en un turno cerrado o cancelado.');

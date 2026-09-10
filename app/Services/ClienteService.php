@@ -31,7 +31,7 @@ class ClienteService
                 'email' => ! empty($datos['email']) ? trim($datos['email']) : null,
                 'documento' => ! empty($datos['documento']) ? trim($datos['documento']) : null,
                 'tier' => $datos['tier'] ?? 'regular',
-                'puntos_fidelidad' => (int) ($datos['puntos_fidelidad'] ?? 0),
+                'puntos_fidelidad' => max(0, (int) ($datos['puntos_fidelidad'] ?? 0)),
                 'alergias' => $datos['alergias'] ?? null,
                 'preferencias' => $datos['preferencias'] ?? null,
                 'notas' => $datos['notas'] ?? null,

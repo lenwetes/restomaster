@@ -191,6 +191,8 @@ new class extends Component
 
     public function guardarConexionDb(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $svc = app(ConfiguracionService::class);
         foreach ($this->dbForm as $k => $v) {
             $svc->guardar('database_external', $k, $v);
@@ -217,9 +219,18 @@ new class extends Component
 
     public function restaurarBackup(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $this->validate([
-            'archivoBackup' => ['required', 'file', 'max:51200'], // max 50MB
+            'archivoBackup' => ['required', 'file', 'max:51200', 'mimes:sql,txt'], // max 50MB
         ]);
+
+        $extension = strtolower($this->archivoBackup->getClientOriginalExtension());
+        if (! in_array($extension, ['sql', 'txt'])) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'archivoBackup' => 'El archivo de respaldo debe tener extensión .sql o .txt',
+            ]);
+        }
 
         try {
             $contenido = file_get_contents($this->archivoBackup->getRealPath());

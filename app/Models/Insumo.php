@@ -32,13 +32,16 @@ class Insumo extends Model
         'activo',
     ];
 
-    protected $casts = [
-        'stock_actual' => 'decimal:3',
-        'stock_minimo' => 'decimal:3',
-        'capacidad_maxima' => 'decimal:3',
-        'costo_unitario' => 'decimal:2',
-        'activo' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'stock_actual' => 'decimal:3',
+            'stock_minimo' => 'decimal:3',
+            'capacidad_maxima' => 'decimal:3',
+            'costo_unitario' => 'decimal:2',
+            'activo' => 'boolean',
+        ];
+    }
 
     /**
      * Recetas en las que participa este insumo.

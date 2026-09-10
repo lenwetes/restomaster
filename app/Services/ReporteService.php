@@ -18,28 +18,20 @@ class ReporteService
      */
     public function estadoResultados(string $desde, string $hasta): array
     {
-        $asientos = AsientoContable::query()
+        $totales = AsientoContable::query()
             ->whereBetween('fecha', [$desde, $hasta])
+            ->selectRaw('tipo, cuenta, sum(monto) as total, count(*) as movimientos')
+            ->groupBy('tipo', 'cuenta')
             ->get();
 
-        $ingresos = $asientos->where('tipo', 'ingreso');
-        $gastos = $asientos->where('tipo', 'gasto');
+        $ingresos = $totales->where('tipo', 'ingreso');
+        $gastos = $totales->where('tipo', 'gasto');
 
-        $ventasNetas = (float) $ingresos
-            ->where('cuenta', 'ventas_restaurante')
-            ->sum('monto');
+        $ventasNetas = (float) ($ingresos->firstWhere('cuenta', 'ventas_restaurante')?->total ?? 0);
+        $otrosIngresos = (float) $ingresos->reject(fn ($r) => $r->cuenta === 'ventas_restaurante')->sum('total');
 
-        $otrosIngresos = (float) $ingresos
-            ->reject(fn ($asiento) => $asiento->cuenta === 'ventas_restaurante')
-            ->sum('monto');
-
-        $gastosOperativos = (float) $gastos
-            ->where('cuenta', 'gastos_operativos')
-            ->sum('monto');
-
-        $otrosGastos = (float) $gastos
-            ->reject(fn ($asiento) => $asiento->cuenta === 'gastos_operativos')
-            ->sum('monto');
+        $gastosOperativos = (float) ($gastos->firstWhere('cuenta', 'gastos_operativos')?->total ?? 0);
+        $otrosGastos = (float) $gastos->reject(fn ($r) => $r->cuenta === 'gastos_operativos')->sum('total');
 
         return [
             'ingresos' => [
@@ -55,24 +47,20 @@ class ReporteService
             'resultado_neto' => round(($ventasNetas + $otrosIngresos) - ($gastosOperativos + $otrosGastos), 2),
             'detalle' => [
                 'ingresos' => $ingresos
-                    ->groupBy('cuenta')
-                    ->map(fn ($grupo) => [
-                        'cuenta' => $grupo->first()->cuenta,
-                        'total' => (float) $grupo->sum('monto'),
-                        'movimientos' => $grupo->count(),
+                    ->map(fn ($r) => [
+                        'cuenta' => $r->cuenta,
+                        'total' => (float) $r->total,
+                        'movimientos' => (int) $r->movimientos,
                     ])
-                    ->values()
                     ->sortByDesc('total')
                     ->values()
                     ->all(),
                 'gastos' => $gastos
-                    ->groupBy('cuenta')
-                    ->map(fn ($grupo) => [
-                        'cuenta' => $grupo->first()->cuenta,
-                        'total' => (float) $grupo->sum('monto'),
-                        'movimientos' => $grupo->count(),
+                    ->map(fn ($r) => [
+                        'cuenta' => $r->cuenta,
+                        'total' => (float) $r->total,
+                        'movimientos' => (int) $r->movimientos,
                     ])
-                    ->values()
                     ->sortByDesc('total')
                     ->values()
                     ->all(),

@@ -66,17 +66,21 @@ new class extends Component
     public function with(): array
     {
         $query = Pedido::query()
+            ->whereIn('estado', ['en_cocina', 'creado', 'listo'])
+            ->whereHas('items', function ($q) {
+                $q->whereIn('estado_cocina', ['pendiente', 'en_preparacion', 'listo']);
+                if ($this->areaSeleccionada !== 'todas') {
+                    $q->where('area_cocina', $this->areaSeleccionada);
+                }
+            })
             ->with(['mesa', 'items' => function ($q) {
                 if ($this->areaSeleccionada !== 'todas') {
                     $q->where('area_cocina', $this->areaSeleccionada);
                 }
             }])
-            ->whereIn('estado', ['en_cocina', 'creado', 'listo'])
             ->orderBy('created_at', 'asc');
 
-        $pedidos = $query->get()->filter(function ($p) {
-            return $p->items->isNotEmpty();
-        });
+        $pedidos = $query->get();
 
         // Contadores por área optimizados en SQL
         $conteosArea = ItemPedido::query()

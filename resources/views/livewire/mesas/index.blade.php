@@ -57,6 +57,8 @@ new class extends Component
 
     public function guardarMesa(): void
     {
+        $this->authorize($this->mesaEditandoId ? 'update' : 'create', Mesa::class);
+
         $this->validate([
             'formMesa.numero' => 'required|string|max:10',
             'formMesa.zona' => 'required|string|in:salon,barra,terraza,vip',
@@ -86,6 +88,8 @@ new class extends Component
 
     public function eliminarMesa(int $id): void
     {
+        $this->authorize('delete', Mesa::class);
+
         $mesa = Mesa::findOrFail($id);
         $mesaService = app(MesaService::class);
 
@@ -102,6 +106,13 @@ new class extends Component
 
     public function cambiarEstado(int $mesaId, string $nuevoEstado): void
     {
+        $this->authorize('cambiarEstado', Mesa::class);
+
+        $estadosValidos = array_map(fn ($case) => $case->value, \App\Enums\MesaEstado::cases());
+        if (! in_array($nuevoEstado, $estadosValidos, true)) {
+            abort(422, "Estado de mesa inválido: {$nuevoEstado}");
+        }
+
         $mesa = Mesa::findOrFail($mesaId);
         $mesa->update(['estado' => $nuevoEstado]);
 

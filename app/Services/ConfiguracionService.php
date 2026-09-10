@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Configuracion;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
@@ -12,11 +13,31 @@ class ConfiguracionService
     {
         $config = Configuracion::where('grupo', $grupo)->where('clave', $clave)->first();
 
-        return $config?->valor ?? $default;
+        if (! $config) {
+            return $default;
+        }
+
+        if ($clave === 'password' && ! empty($config->valor)) {
+            try {
+                return Crypt::decryptString($config->valor);
+            } catch (\Throwable $e) {
+                return $config->valor;
+            }
+        }
+
+        return $config->valor;
     }
 
     public function guardar(string $grupo, string $clave, mixed $valor): void
     {
+        if ($clave === 'password' && ! empty($valor)) {
+            try {
+                Crypt::decryptString($valor);
+            } catch (\Throwable $e) {
+                $valor = Crypt::encryptString($valor);
+            }
+        }
+
         Configuracion::updateOrCreate(
             ['grupo' => $grupo, 'clave' => $clave],
             ['valor' => $valor],

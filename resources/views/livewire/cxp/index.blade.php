@@ -59,6 +59,8 @@ new class extends Component
 
     public function registrarPago(): void
     {
+        $this->authorize('registrarPago', CuentaPorPagar::class);
+
         $validated = $this->validate([
             'cuentaPagoId' => ['required', 'integer'],
             'pagoForm.monto' => ['required', 'numeric', 'min:0.01'],
@@ -93,6 +95,8 @@ new class extends Component
 
     public function crearCuenta(): void
     {
+        $this->authorize('create', CuentaPorPagar::class);
+
         $validated = $this->validate([
             'crearForm.proveedor_nombre' => ['required', 'string', 'max:255'],
             'crearForm.concepto' => ['required', 'string', 'max:255'],

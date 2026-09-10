@@ -26,7 +26,15 @@ new #[Layout('layouts.publico')] class extends Component
     public float $costoEnvio = 8000.0;
     public bool $mostrarCheckout = false;
     public bool $pedidoExitoso = false;
+    public string $paso = 'catalogo';
+    public string $empresa = ''; // honeypot
     public ?Pedido $pedidoCreado = null;
+
+    public function irADatosEntrega(): void
+    {
+        $this->abrirCheckout();
+        $this->paso = 'datos_entrega';
+    }
 
     public function seleccionarCategoria(string $slug): void
     {
@@ -89,6 +97,7 @@ new #[Layout('layouts.publico')] class extends Component
     public function nuevoPedido(): void
     {
         $this->pedidoExitoso = false;
+        $this->paso = 'catalogo';
         $this->pedidoCreado = null;
         $this->carrito = [];
         $this->mostrarCheckout = false;
@@ -102,6 +111,18 @@ new #[Layout('layouts.publico')] class extends Component
 
     public function enviarPedidoDelivery(): void
     {
+        if (! empty($this->empresa)) {
+            $this->mostrarCheckout = false;
+            return;
+        }
+
+        $rateKey = 'pedido-delivery:' . request()->ip();
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($rateKey, 10)) {
+            $this->addError('nombreCliente', 'Demasiadas solicitudes de pedido. Por favor espera un minuto antes de reintentar.');
+            return;
+        }
+        \Illuminate\Support\Facades\RateLimiter::hit($rateKey, 60);
+
         $this->validate([
             'nombreCliente' => ['required', 'string', 'min:3', 'max:100'],
             'telefonoCliente' => ['required', 'string', 'min:7', 'max:25'],
@@ -123,7 +144,7 @@ new #[Layout('layouts.publico')] class extends Component
         $itemsProcesados = [];
 
         foreach ($this->carrito as $item) {
-            $producto = Producto::findOrFail($item['producto_id']);
+            $producto = Producto::where('activo', true)->findOrFail($item['producto_id']);
             $cantidad = max(1, (int) $item['cantidad']);
             $precioUnitario = (float) $producto->precio;
             $itemSubtotal = $precioUnitario * $cantidad;
@@ -189,6 +210,7 @@ new #[Layout('layouts.publico')] class extends Component
 
         $this->pedidoCreado = $pedido->fresh(['items']);
         $this->pedidoExitoso = true;
+        $this->paso = 'confirmacion_exitosa';
         $this->mostrarCheckout = false;
         $this->carrito = [];
     }

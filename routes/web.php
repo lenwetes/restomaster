@@ -31,11 +31,11 @@ Route::post('api/reservas', [ReservaWebhookController::class, 'crear'])->middlew
 Route::get('m/{numero}', function ($numero) {
     return redirect()->route('mesa.menu', ['numero' => $numero]);
 })->name('mesa.qr.short');
-Volt::route('mesa/{numero}/menu', 'mesa.menu-publico')->name('mesa.menu');
+Volt::route('mesa/{numero}/menu', 'mesa.menu-publico')->middleware('throttle:30,1')->name('mesa.menu');
 
 // Servicios públicos: Delivery en línea y Carta general
-Volt::route('delivery/pedir', 'delivery.pedido-publico')->name('delivery.publico');
-Volt::route('carta', 'menu.carta-publica')->name('carta.publico');
+Volt::route('delivery/pedir', 'delivery.pedido-publico')->middleware('throttle:30,1')->name('delivery.publico');
+Volt::route('carta', 'menu.carta-publica')->middleware('throttle:60,1')->name('carta.publico');
 
 Route::middleware(['auth'])->group(function () {
     Volt::route('mesas', 'mesas.index')->middleware('role:mesero,cajero,gerente')->name('mesas');

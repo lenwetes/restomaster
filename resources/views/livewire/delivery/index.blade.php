@@ -8,12 +8,25 @@ use App\Models\User;
 use App\Services\DeliveryService;
 use App\Services\PedidoService;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new class extends Component
 {
+    use WithPagination;
+
     public string $filtroEstado = 'todos'; // 'todos', 'en_cocina', 'listo', 'en_ruta', 'entregado'
     public string $filtroCanal = 'todos'; // 'todos', 'web', 'whatsapp', 'telefono'
     public ?int $pedidoSeleccionadoId = null;
+
+    public function updatedFiltroEstado(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFiltroCanal(): void
+    {
+        $this->resetPage();
+    }
 
     // Modales
     public bool $mostrarModalAsignar = false;
@@ -181,7 +194,7 @@ new class extends Component
             $query->where('canal_origen', $this->filtroCanal);
         }
 
-        $pedidos = $query->latest()->get();
+        $pedidos = $query->latest()->paginate(30);
         $metricas = app(DeliveryService::class)->obtenerMetricasDelivery();
         $flota = app(DeliveryService::class)->obtenerFlotaMotorizados();
         $productos = Producto::where('activo', true)->orderBy('nombre')->get();
@@ -323,7 +336,7 @@ new class extends Component
                     wire:click="$set('filtroEstado', 'todos')"
                     class="h-9 px-3.5 rounded-full text-xs font-bold transition-all {{ $filtroEstado === 'todos' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}"
                 >
-                    Todos los envíos ({{ $pedidos->count() }})
+                    Todos los envíos ({{ $pedidos->total() }})
                 </button>
                 <button
                     wire:click="$set('filtroEstado', 'en_cocina')"
@@ -547,6 +560,12 @@ new class extends Component
                     <p class="text-[11px] text-on-surface-variant mt-0.5">Los nuevos pedidos de delivery aparecerán automáticamente aquí.</p>
                 </div>
             @endforelse
+
+            @if($pedidos->hasPages())
+                <div class="pt-4">
+                    {{ $pedidos->links() }}
+                </div>
+            @endif
         </div>
 
         <!-- Columna Lateral: Flota de Motorizados (4 Cols) -->
@@ -565,13 +584,8 @@ new class extends Component
                 <div class="space-y-3">
                     @forelse($flota as $moto)
                         @php
-                            $pedidosEnRuta = Pedido::where('repartidor_id', $moto->id)->where('estado_delivery', 'en_ruta')->count();
-                            $efectivoPendiente = (float) Pedido::where('repartidor_id', $moto->id)
-                                ->where('tipo', 'delivery')
-                                ->where('metodo_pago', 'efectivo')
-                                ->where('estado_delivery', 'entregado')
-                                ->where('recaudo_liquidado', false)
-                                ->sum('total');
+                            $pedidosEnRuta = $moto->pedidos_en_ruta_count ?? 0;
+                            $efectivoPendiente = (float) ($moto->efectivo_pendiente_sum ?? 0);
                         @endphp
                         <div class="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20 space-y-3">
                             <div class="flex items-start justify-between">

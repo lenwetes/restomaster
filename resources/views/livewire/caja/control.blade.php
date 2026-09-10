@@ -64,6 +64,8 @@ new class extends Component
 
     public function guardarNuevaCaja(): void
     {
+        $this->authorize('create', Caja::class);
+
         $this->validate([
             'formCaja.nombre' => 'required|string|max:60',
             'formCaja.codigo' => 'required|string|max:20|unique:cajas,codigo',
@@ -100,6 +102,8 @@ new class extends Component
 
     public function abrirTurno(): void
     {
+        $this->authorize('abrir', TurnoCaja::class);
+
         $this->validate([
             'cajaSeleccionadaId' => 'required|exists:cajas,id',
             'fondoInicial' => 'required|numeric|min:0',
@@ -125,20 +129,37 @@ new class extends Component
 
     public function abrirModalMovimiento(string $tipo): void
     {
-        $this->tipoMovimiento = $tipo;
+        $this->tipoMovimiento = in_array($tipo, ['ingreso', 'egreso', 'retiro']) ? $tipo : 'ingreso';
         $this->montoMovimiento = 0.0;
         $this->conceptoMovimiento = '';
         $this->comprobanteMovimiento = '';
-        $this->autorizadoPor = auth()->user()->name;
+        $this->autorizadoPor = '';
         $this->mostrarModalMovimiento = true;
     }
 
     public function registrarMovimiento(): void
     {
-        $this->validate([
+        $this->authorize('guardarMovimiento', TurnoCaja::class);
+
+        $rules = [
+            'tipoMovimiento' => 'required|in:ingreso,egreso,retiro',
             'montoMovimiento' => 'required|numeric|min:1',
             'conceptoMovimiento' => 'required|string|min:3',
-        ]);
+        ];
+
+        if (in_array($this->tipoMovimiento, ['egreso', 'retiro'])) {
+            $rules['autorizadoPor'] = 'required|string|min:3';
+        }
+
+        $this->validate($rules);
+
+        $usuarioActual = auth()->user();
+        if (in_array($this->tipoMovimiento, ['egreso', 'retiro'])
+            && strcasecmp(trim($this->autorizadoPor), trim($usuarioActual?->name ?? '')) === 0
+            && ! in_array($usuarioActual?->role?->slug, ['admin', 'gerente'])) {
+            $this->addError('autorizadoPor', 'Un cajero no puede auto-autorizarse un egreso o retiro. Requiere autorización de un superior.');
+            return;
+        }
 
         $turno = TurnoCaja::findOrFail($this->turnoId);
         $cajaService = app(CajaService::class);
@@ -152,7 +173,7 @@ new class extends Component
                 'efectivo',
                 $this->comprobanteMovimiento,
                 $this->autorizadoPor,
-                auth()->user()
+                $usuarioActual
             );
 
             $this->mostrarModalMovimiento = false;
@@ -176,6 +197,8 @@ new class extends Component
 
     public function ejecutarCierreTurno(): void
     {
+        $this->authorize('cerrar', TurnoCaja::class);
+
         $this->validate([
             'montoContado' => 'required|numeric|min:0',
         ]);

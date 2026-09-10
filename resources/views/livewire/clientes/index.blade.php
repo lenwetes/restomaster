@@ -100,6 +100,8 @@ new class extends Component
 
     public function guardarNuevo(): void
     {
+        $this->authorize('create', Cliente::class);
+
         $this->validate([
             'nuevo.nombre' => 'required|string|min:3',
             'nuevo.telefono' => 'required|string|min:7',
@@ -139,6 +141,9 @@ new class extends Component
 
     public function guardarEdicion(): void
     {
+        $cliente = Cliente::findOrFail($this->clienteSeleccionadoId);
+        $this->authorize('update', $cliente);
+
         $this->validate([
             'edicion.nombre' => 'required|string|min:3',
             'edicion.telefono' => 'required|string|min:7',
@@ -147,7 +152,6 @@ new class extends Component
         ]);
 
         try {
-            $cliente = Cliente::findOrFail($this->clienteSeleccionadoId);
             app(ClienteService::class)->actualizar($cliente, $this->edicion);
             $this->mostrarModalEditar = false;
             $this->dispatch('notificacion', ['mensaje' => 'Cliente actualizado.', 'tipo' => 'success']);
@@ -166,8 +170,11 @@ new class extends Component
 
     public function ejecutarAjustePuntos(): void
     {
+        $this->authorize('ajustarPuntos', Cliente::class);
+
         $this->validate([
-            'puntosAjuste' => 'required|integer|min:1',
+            'puntosAjuste' => 'required|integer|min:1|max:100000',
+            'tipoAjuste' => 'required|in:suma,resta',
             'motivoAjuste' => 'required|string|min:4',
         ]);
 

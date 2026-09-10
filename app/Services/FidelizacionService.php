@@ -104,10 +104,13 @@ class FidelizacionService
             throw new InvalidArgumentException("El cliente solo dispone de {$cliente->puntos_fidelidad} puntos.");
         }
 
-        $descuento = $this->calcularDescuentoPorPuntos($puntos);
-        if ($descuento > (float) $pedido->subtotal) {
-            $descuento = (float) $pedido->subtotal;
+        $remanente = max(0.0, (float) $pedido->subtotal - (float) ($pedido->descuento ?? 0));
+        $descuentoCalculado = $this->calcularDescuentoPorPuntos($puntos);
+        if ($descuentoCalculado > $remanente) {
+            $descuento = $remanente;
             $puntos = (int) ceil($descuento / self::VALOR_PUNTO_COP);
+        } else {
+            $descuento = $descuentoCalculado;
         }
 
         return DB::transaction(function () use ($cliente, $puntos, $descuento, $pedido) {

@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Categoria;
+use App\Models\Cliente;
 use App\Models\Mesa;
 use App\Models\Producto;
 use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\User;
+use App\Services\FidelizacionService;
 use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -140,5 +142,90 @@ class SeguridadDineroAuditoriaTest extends TestCase
         // Segundo intento de cobro (ej. doble click o race condition) debe arrojar excepción 400
         $this->expectException(HttpException::class);
         $this->pedidoService->cobrarPedido($cobrado, 'efectivo', 50000);
+    }
+
+    public function test_p0_06_descuento_puntos_excedente_se_acota_al_remanente_del_subtotal(): void
+    {
+        $itemsPayload = [
+            [
+                'producto_id' => $this->producto->id,
+                'cantidad' => 1,
+            ],
+        ];
+
+        // Subtotal = 45000, Descuento = 40000, Descuento Puntos = 15000 (excede remanente de 5000)
+        $pedido = $this->pedidoService->crearPedido([
+            'tipo' => 'mesa',
+            'mesa_id' => $this->mesa->id,
+            'descuento' => 40000,
+            'descuento_puntos' => 15000,
+        ], $itemsPayload, $this->mesero);
+
+        $this->assertEquals(45000.0, (float) $pedido->subtotal);
+        $this->assertEquals(40000.0, (float) $pedido->descuento);
+        $this->assertEquals(5000.0, (float) $pedido->descuento_puntos);
+        $this->assertEquals(0.0, (float) $pedido->total);
+    }
+
+    public function test_p0_06_intento_canjear_mas_puntos_de_los_que_tiene_cliente_lanza_excepcion(): void
+    {
+        $cliente = Cliente::create([
+            'nombre' => 'Test Points Customer',
+            'telefono' => '3009998877',
+            'puntos_fidelidad' => 100,
+            'activo' => true,
+        ]);
+
+        $itemsPayload = [
+            [
+                'producto_id' => $this->producto->id,
+                'cantidad' => 1,
+            ],
+        ];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('El comensal solo dispone de 100 puntos');
+
+        $this->pedidoService->crearPedido([
+            'tipo' => 'mesa',
+            'mesa_id' => $this->mesa->id,
+            'cliente_id' => $cliente->id,
+            'puntos_canjeados' => 500,
+        ], $itemsPayload, $this->mesero);
+    }
+
+    public function test_p0_06_fidelizacion_service_canjear_puntos_acota_descuento_y_puntos_al_remanente(): void
+    {
+        $cliente = Cliente::create([
+            'nombre' => 'Test Points Customer Remanente',
+            'telefono' => '3009998876',
+            'puntos_fidelidad' => 5000,
+            'activo' => true,
+        ]);
+
+        $itemsPayload = [
+            [
+                'producto_id' => $this->producto->id,
+                'cantidad' => 1,
+            ],
+        ];
+
+        // Subtotal = 45000, Descuento = 35000 -> Remanente = 10000
+        $pedido = $this->pedidoService->crearPedido([
+            'tipo' => 'mesa',
+            'mesa_id' => $this->mesa->id,
+            'descuento' => 35000,
+        ], $itemsPayload, $this->mesero);
+
+        $fidelizacionService = app(FidelizacionService::class);
+        // Canjear 3000 pts (30.000 COP), pero solo debe gastar 1000 pts (10.000 COP)
+        $fidelizacionService->canjearPuntos($cliente, 3000, $pedido);
+
+        $pedido->refresh();
+        $cliente->refresh();
+
+        $this->assertEquals(10000.0, (float) $pedido->descuento_puntos);
+        $this->assertEquals(0.0, (float) $pedido->total);
+        $this->assertEquals(4000, $cliente->puntos_fidelidad); // Solo gastó 1000 puntos
     }
 }

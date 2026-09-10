@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PedidoEstado;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -107,12 +108,16 @@ class Pedido extends Model
 
     public function scopeActivos(Builder $query): Builder
     {
-        return $query->whereNotIn('estado', ['pagado', 'cancelado']);
+        return $query->whereNotIn('estado', [PedidoEstado::PAGADO->value, PedidoEstado::CANCELADO->value]);
     }
 
     public function scopeEnCocina(Builder $query): Builder
     {
-        return $query->whereIn('estado', ['en_cocina', 'en_proceso', 'listo']);
+        return $query->whereIn('estado', [
+            PedidoEstado::EN_COCINA->value,
+            PedidoEstado::EN_PROCESO->value,
+            PedidoEstado::LISTO->value,
+        ]);
     }
 
     public function scopeDelivery(Builder $query): Builder
@@ -128,11 +133,17 @@ class Pedido extends Model
 
     public function recalcularTotales(): void
     {
-        $subtotal = $this->items()->sum('subtotal');
-        $total = max(0, $subtotal + (float) ($this->costo_envio ?? 0) - (float) $this->descuento - (float) ($this->descuento_puntos ?? 0));
+        $subtotal = (float) $this->items()->sum('subtotal');
+        $descuento = min($subtotal, (float) ($this->descuento ?? 0));
+        $remanente = max(0, $subtotal - $descuento);
+        $descuentoPuntos = min($remanente, (float) ($this->descuento_puntos ?? 0));
+        $envio = (float) ($this->costo_envio ?? 0);
+        $total = max(0, $subtotal + $envio - $descuento - $descuentoPuntos);
 
         $this->update([
             'subtotal' => $subtotal,
+            'descuento' => $descuento,
+            'descuento_puntos' => $descuentoPuntos,
             'total' => $total,
         ]);
     }
