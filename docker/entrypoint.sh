@@ -45,6 +45,12 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
 
     echo "==> Running php artisan migrate --force..."
     php /var/www/html/artisan migrate --force || true
+
+    # Run database seeds if AUTO_SEED is enabled
+    if [ "${AUTO_SEED:-false}" = "true" ]; then
+        echo "==> AUTO_SEED is enabled. Seeding demo and essential data (php artisan db:seed --force)..."
+        php /var/www/html/artisan db:seed --force || true
+    fi
 fi
 
 # Optimize Laravel for production if enabled

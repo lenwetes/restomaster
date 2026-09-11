@@ -33,6 +33,8 @@ services:
 
       # Automation on container boot
       AUTO_MIGRATE: "${AUTO_MIGRATE:-true}"
+      AUTO_SEED: "${AUTO_SEED:-true}"
+      DEMO_USERS_PASSWORD: "${DEMO_USERS_PASSWORD:-sushixpress2026}"
       OPTIMIZE_CACHE: "${OPTIMIZE_CACHE:-true}"
     volumes:
       - storage_app:/var/www/html/storage/app
