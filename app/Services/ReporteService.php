@@ -156,15 +156,15 @@ class ReporteService
         return Pedido::query()
             ->where('estado', 'pagado')
             ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
-            ->get(['id', 'tipo', 'total'])
+            ->selectRaw('tipo, sum(total) as ventas, count(*) as transacciones')
             ->groupBy('tipo')
-            ->map(fn ($grupo) => [
-                'tipo' => $grupo->first()->tipo,
-                'ventas' => (float) $grupo->sum('total'),
-                'transacciones' => $grupo->count(),
+            ->orderByDesc('ventas')
+            ->get()
+            ->map(fn ($r) => [
+                'tipo' => (string) $r->tipo,
+                'ventas' => (float) $r->ventas,
+                'transacciones' => (int) $r->transacciones,
             ])
-            ->sortByDesc('ventas')
-            ->values()
             ->all();
     }
 
@@ -226,20 +226,21 @@ class ReporteService
 
     public function topClientes(string $desde, string $hasta, int $limite = 10): array
     {
-        return Pedido::with('cliente')
-            ->where('estado', 'pagado')
-            ->whereNotNull('cliente_id')
-            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
-            ->get()
-            ->groupBy('cliente_id')
-            ->map(fn ($grupo) => [
-                'cliente' => $grupo->first()->cliente?->nombre ?? 'Anónimo',
-                'visitas' => $grupo->count(),
-                'gastado' => (float) $grupo->sum('total'),
-            ])
-            ->sortByDesc('gastado')
+        return Pedido::query()
+            ->join('clientes', 'pedidos.cliente_id', '=', 'clientes.id')
+            ->where('pedidos.estado', 'pagado')
+            ->whereNotNull('pedidos.cliente_id')
+            ->whereBetween('pedidos.pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
+            ->selectRaw('clientes.nombre as cliente, count(*) as visitas, sum(pedidos.total) as gastado')
+            ->groupBy('clientes.id', 'clientes.nombre')
+            ->orderByDesc('gastado')
             ->take($limite)
-            ->values()
+            ->get()
+            ->map(fn ($r) => [
+                'cliente' => $r->cliente ?? 'Anónimo',
+                'visitas' => (int) $r->visitas,
+                'gastado' => (float) $r->gastado,
+            ])
             ->all();
     }
 

@@ -6,13 +6,26 @@ use App\Models\MovimientoPuntos;
 use App\Services\ClienteService;
 use App\Services\FidelizacionService;
 use Livewire\Volt\Component;
+use Livewire\WithPagination;
 
 new class extends Component
 {
+    use WithPagination;
+
     public string $busqueda = '';
     public string $filtroTier = 'todos';
     public bool $filtroAlergias = false;
     public ?int $clienteSeleccionadoId = null;
+
+    public function updatedBusqueda(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedFiltroTier(): void
+    {
+        $this->resetPage();
+    }
 
     // Modales
     public bool $mostrarModalNuevo = false;
@@ -234,7 +247,7 @@ new class extends Component
             $query->whereNotNull('alergias')->where('alergias', '!=', '');
         }
 
-        $clientes = $query->orderByDesc('total_gastado')->get();
+        $clientes = $query->orderByDesc('total_gastado')->paginate(25);
 
         $clienteSeleccionado = null;
         $historialPuntos = collect();
@@ -539,6 +552,12 @@ new class extends Component
                         <p class="text-[11px] text-on-surface-variant mt-0.5">Prueba con otro número telefónico o agrega un nuevo comensal.</p>
                     </div>
                 @endforelse
+
+                @if($clientes->hasPages())
+                    <div class="pt-4">
+                        {{ $clientes->links() }}
+                    </div>
+                @endif
             </div>
         </section>
 

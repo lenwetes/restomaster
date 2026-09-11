@@ -6,6 +6,7 @@ use App\Models\Caja;
 use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\CuentaPorPagar;
+use App\Models\DireccionCliente;
 use App\Models\Impresora;
 use App\Models\Insumo;
 use App\Models\ItemPedido;
@@ -15,6 +16,7 @@ use App\Models\MovimientoPuntos;
 use App\Models\PagoCxp;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\Receta;
 use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\TrabajoImpresion;
@@ -300,5 +302,81 @@ class IntegridadHistoricoFkTest extends TestCase
 
         $this->expectException(QueryException::class);
         DB::table('productos')->where('id', $producto->id)->delete();
+    }
+
+    public function test_no_se_puede_eliminar_cliente_con_direcciones_historicas(): void
+    {
+        $cliente = Cliente::create([
+            'nombre' => 'Comensal Test Direccion',
+            'telefono' => '3001239999',
+            'activo' => true,
+        ]);
+
+        DireccionCliente::create([
+            'cliente_id' => $cliente->id,
+            'etiqueta' => 'Casa',
+            'direccion' => 'Calle 10 # 40-20',
+        ]);
+
+        $this->expectException(QueryException::class);
+        DB::table('clientes')->where('id', $cliente->id)->delete();
+    }
+
+    public function test_no_se_puede_eliminar_producto_con_recetas_activas(): void
+    {
+        $producto = Producto::create([
+            'nombre' => 'Uramaki Roll',
+            'slug' => 'uramaki-test-fk',
+            'precio' => 35000,
+            'area_cocina' => 'sushi',
+            'activo' => true,
+        ]);
+
+        $insumo = Insumo::create([
+            'nombre' => 'Arroz Koshihikari',
+            'codigo' => 'INS-TEST-01',
+            'categoria' => 'granos',
+            'unidad_medida' => 'kg',
+            'costo_unitario' => 12000,
+            'activo' => true,
+        ]);
+
+        Receta::create([
+            'producto_id' => $producto->id,
+            'insumo_id' => $insumo->id,
+            'cantidad' => 0.150,
+        ]);
+
+        $this->expectException(QueryException::class);
+        DB::table('productos')->where('id', $producto->id)->delete();
+    }
+
+    public function test_no_se_puede_eliminar_insumo_con_recetas_activas(): void
+    {
+        $producto = Producto::create([
+            'nombre' => 'Uramaki Roll 2',
+            'slug' => 'uramaki-test-fk-2',
+            'precio' => 35000,
+            'area_cocina' => 'sushi',
+            'activo' => true,
+        ]);
+
+        $insumo = Insumo::create([
+            'nombre' => 'Alga Nori Premium',
+            'codigo' => 'INS-TEST-02',
+            'categoria' => 'secos',
+            'unidad_medida' => 'unidad',
+            'costo_unitario' => 1500,
+            'activo' => true,
+        ]);
+
+        Receta::create([
+            'producto_id' => $producto->id,
+            'insumo_id' => $insumo->id,
+            'cantidad' => 1,
+        ]);
+
+        $this->expectException(QueryException::class);
+        DB::table('insumos')->where('id', $insumo->id)->delete();
     }
 }

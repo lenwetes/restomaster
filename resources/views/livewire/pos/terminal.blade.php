@@ -420,7 +420,10 @@ new class extends Component
         $clientesDisponibles = $clientesQuery->orderByDesc('puntos_fidelidad')->limit(50)->get();
 
         return [
-            'categorias' => Categoria::where('activo', true)->orderBy('orden')->get(),
+            'categorias' => Categoria::where('activo', true)
+                ->withCount(['productos' => fn ($q) => $q->where('activo', true)])
+                ->orderBy('orden')
+                ->get(),
             'productos' => $query->get(),
             'mesas' => Mesa::orderBy('numero')->get(),
             'clientesDisponibles' => $clientesDisponibles,
@@ -946,7 +949,7 @@ new class extends Component
                                         <div class="flex items-start justify-between">
                                             <span class="text-2xl mb-1 block">{{ $cat->icono }}</span>
                                             <span class="text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold {{ $categoriaSeleccionada === $cat->id ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container-highest text-on-surface-variant' }}">
-                                                {{ $cat->productos_count ?? $cat->productos()->count() }}
+                                                {{ $cat->productos_count ?? 0 }}
                                             </span>
                                         </div>
                                         <p class="text-xs font-black truncate leading-tight">{{ $cat->nombre }}</p>
@@ -1269,7 +1272,7 @@ new class extends Component
                             <span class="text-sm">{{ $cat->icono }}</span>
                             <span>{{ $cat->nombre }}</span>
                             <span class="ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-mono {{ $categoriaSeleccionada === $cat->id ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant' }}">
-                                {{ $cat->productos->where('activo', true)->count() }}
+                                {{ $cat->productos_count ?? 0 }}
                             </span>
                         </button>
                     @endforeach

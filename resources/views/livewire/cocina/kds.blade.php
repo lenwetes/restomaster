@@ -24,6 +24,8 @@ new class extends Component
     public function tomarItem(int $itemId): void
     {
         $item = ItemPedido::findOrFail($itemId);
+        $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
+
         $item->update([
             'estado_cocina' => 'en_preparacion',
             'iniciado_en' => now(),
@@ -37,6 +39,8 @@ new class extends Component
     public function marcarListo(int $itemId): void
     {
         $item = ItemPedido::findOrFail($itemId);
+        $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
+
         $pedidoService = app(PedidoService::class);
         $pedidoService->marcarItemListo($item);
     }
@@ -48,6 +52,7 @@ new class extends Component
 
         foreach ($pedido->items as $item) {
             if ($this->areaSeleccionada === 'todas' || $item->area_cocina === $this->areaSeleccionada) {
+                $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
                 $pedidoService->marcarItemListo($item);
             }
         }
@@ -59,6 +64,7 @@ new class extends Component
         $pedidoService = app(PedidoService::class);
 
         foreach ($pedido->items as $item) {
+            $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
             $pedidoService->marcarItemEntregado($item);
         }
     }

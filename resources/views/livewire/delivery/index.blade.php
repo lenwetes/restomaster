@@ -54,6 +54,7 @@ new class extends Component
 
     public function abrirModalAsignar(int $pedidoId): void
     {
+        $this->authorize('gestionarDelivery', Pedido::class);
         $this->pedidoSeleccionadoId = $pedidoId;
         $pedido = Pedido::findOrFail($pedidoId);
         $this->repartidorIdSeleccionado = $pedido->repartidor_id;
@@ -62,6 +63,7 @@ new class extends Component
 
     public function asignarRepartidor(): void
     {
+        $this->authorize('gestionarDelivery', Pedido::class);
         $this->validate([
             'repartidorIdSeleccionado' => 'required|exists:users,id',
         ]);
@@ -76,6 +78,7 @@ new class extends Component
 
     public function marcarSalida(int $pedidoId): void
     {
+        $this->authorize('gestionarDelivery', Pedido::class);
         $pedido = Pedido::findOrFail($pedidoId);
         try {
             app(DeliveryService::class)->marcarSalida($pedido);
@@ -87,6 +90,7 @@ new class extends Component
 
     public function abrirModalEntrega(int $pedidoId): void
     {
+        $this->authorize('gestionarDelivery', Pedido::class);
         $this->pedidoSeleccionadoId = $pedidoId;
         $pedido = Pedido::findOrFail($pedidoId);
         $this->montoRecibido = (float) $pedido->total;
@@ -103,6 +107,7 @@ new class extends Component
 
     public function confirmarEntregaYCobro(): void
     {
+        $this->authorize('gestionarDelivery', Pedido::class);
         $pedido = Pedido::findOrFail($this->pedidoSeleccionadoId);
         app(DeliveryService::class)->marcarEntregado($pedido, $this->metodoCobro, $this->montoRecibido);
         $this->mostrarModalCobroEntrega = false;
@@ -111,6 +116,7 @@ new class extends Component
 
     public function liquidarRepartidor(int $repartidorId): void
     {
+        $this->authorize('liquidarRepartidor', [Pedido::class, $repartidorId]);
         $repartidor = User::findOrFail($repartidorId);
         $turnoActivo = TurnoCaja::where('estado', 'abierto')->latest()->first();
 
@@ -132,6 +138,7 @@ new class extends Component
 
     public function abrirModalNuevo(): void
     {
+        $this->authorize('gestionarDelivery', Pedido::class);
         $primerProd = Producto::where('activo', true)->first();
         $this->nuevoPedido = [
             'nombre_cliente' => '',
@@ -148,6 +155,7 @@ new class extends Component
 
     public function guardarNuevoPedido(): void
     {
+        $this->authorize('gestionarDelivery', Pedido::class);
         $this->validate([
             'nuevoPedido.nombre_cliente' => 'required|string|min:3',
             'nuevoPedido.telefono_cliente' => 'required|string|min:7',

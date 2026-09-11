@@ -180,7 +180,8 @@ class Fase5ReportesTest extends TestCase
     public function test_resumen_reservas_por_estado(): void
     {
         $svcReservas = app(ReservaService::class);
-        $base = ['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'X', 'telefono_contacto' => '1', 'hora_llegada' => '13:00', 'personas' => 2, 'fecha' => '2026-09-10'];
+        $fecha = now()->toDateString();
+        $base = ['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'X', 'telefono_contacto' => '1', 'hora_llegada' => '13:00', 'personas' => 2, 'fecha' => $fecha];
         $r1 = $svcReservas->crear($base);
         $svcReservas->confirmar($r1);
         $r2 = $svcReservas->crear($base);
@@ -188,7 +189,7 @@ class Fase5ReportesTest extends TestCase
         $r3 = $svcReservas->crear($base);
         $svcReservas->marcarNoShow($r3);
 
-        $resumen = $this->service->resumenReservas('2026-09-01', '2026-09-30');
+        $resumen = $this->service->resumenReservas(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString());
 
         $this->assertSame(3, $resumen['total']);
         $this->assertSame(1, $resumen['confirmadas']);

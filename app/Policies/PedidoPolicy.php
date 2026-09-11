@@ -51,4 +51,39 @@ class PedidoPolicy
     {
         return in_array($user->role?->slug, ['cajero', 'gerente', 'admin']);
     }
+
+    public function gestionarDelivery(User $user, ?Pedido $pedido = null): bool
+    {
+        return in_array($user->role?->slug, ['cajero', 'delivery', 'gerente', 'admin', 'repartidor']);
+    }
+
+    public function liquidarRepartidor(User $user, ?int $repartidorId = null): bool
+    {
+        if (in_array($user->role?->slug, ['cajero', 'gerente', 'admin'])) {
+            return true;
+        }
+
+        if ($user->role?->slug === 'repartidor' && $repartidorId !== null && $user->id === $repartidorId) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function cocinar(User $user, ?string $areaCocina = null): bool
+    {
+        if (in_array($user->role?->slug, ['admin', 'gerente'])) {
+            return true;
+        }
+
+        if ($user->role?->slug === 'cocina') {
+            return $areaCocina === null || in_array($areaCocina, ['sushi', 'cocina', 'caliente', 'calientes', 'postres']);
+        }
+
+        if ($user->role?->slug === 'barra') {
+            return $areaCocina === null || in_array($areaCocina, ['barra', 'bebidas']);
+        }
+
+        return false;
+    }
 }

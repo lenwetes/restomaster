@@ -243,7 +243,7 @@ new class extends Component
 
     public function with(): array
     {
-        $turnoActivo = $this->turnoId ? TurnoCaja::with(['caja.sucursal', 'cajero', 'movimientos.usuario', 'pedidos'])->find($this->turnoId) : null;
+        $turnoActivo = $this->turnoId ? TurnoCaja::with(['caja.sucursal', 'cajero', 'movimientos.usuario'])->withCount('pedidos')->find($this->turnoId) : null;
         $cajas = Caja::where('activa', true)->get();
         $ultimosTurnos = TurnoCaja::with(['caja', 'cajero'])->latest()->take(5)->get();
 
@@ -405,7 +405,7 @@ new class extends Component
                 </div>
                 <div class="mt-4 pt-2 border-t border-surface-container-high flex flex-col gap-1 text-[11px] text-on-surface-variant">
                     <div class="flex justify-between items-center font-bold">
-                        <span>{{ $turno->pedidos->count() }} comandas cobradas</span>
+                        <span>{{ $turno->pedidos_count ?? 0 }} comandas cobradas</span>
                         <span class="text-secondary">En vivo</span>
                     </div>
                     <div class="flex items-center gap-1 font-mono text-[10px]">
