@@ -6,7 +6,20 @@
 ---
 
 ## Última Actualización
-2026-09-11 00:40 | Antigravity | REPARACIÓN EVALUATIVO FINAL COMPLETADA Y LOCK LIBERADO:
+2026-09-11 01:50 | Antigravity | CORRECCIÓN DE RESERVAS PÚBLICAS Y ASIGNACIÓN/CONFIRMACIÓN POR PERSONAL:
+  - **Timezone:** `config/app.php` corregido a `env('APP_TIMEZONE', 'America/Bogota')` para evitar desfases donde reservas de la noche del mismo día eran rechazadas como fechas pasadas por desfase UTC.
+  - **Reservas Públicas (`ReservaPublicaController` & `reservas/crear.blade.php`):** Filtradas franjas horarias que ya transcurrieron para el día de hoy, pre-selección del primer horario disponible y validación en hora local.
+  - **`ReservaService`:**
+    * `verificarDisponibilidad()`: ya no bloquea mesas para fechas futuras si en este instante están ocupadas en el salón físico; soporte para grupos grandes combinando mesas (`sum('capacidad') >= $personas`); desbloqueo de mesas marcadas `MesaEstado::RESERVADA` en horarios no solapados.
+    * `validarMesasParaConfirmar()`: verificación de salón en tiempo real acotada exclusivamente a reservas de hoy con llegada inminente (<= 60 min).
+    * `confirmar()`: auto-asignación robusta de mesa individual óptima o combinación de mesas para banquetes/grupos grandes.
+  - **Dashboard Staff (`livewire/reservas/index.blade.php`):**
+    * Alerta tipo banner con botón directo para "Solicitudes Web pendientes de todas las fechas" (clientes no registrados).
+    * Modal de confirmación con selección multi-mesa (checkboxes) y auto-sugerencia para tomar reservas fácilmente.
+    * Manejo amigable de excepciones en modal (`$this->errorModal`).
+  - **Pruebas y Calidad:** 252/252 tests pasando al 100% verde (805 assertions, 9/9 en `Fase5PublicoReservasTest`), código formateado con Pint (0 errores), ramas `master` y `main` sincronizadas.
+
+
   - **B1 (FIXED):** Implementado `PedidoService::agregarItem(Pedido, Producto, int, ?string): ItemPedido` con recálculo transaccional de totales y precio seguro desde DB. Añadido test dedicado `test_cajero_puede_crear_nuevo_pedido_manual_en_delivery` en `DeliveryKdsAuthorizationTest` (verde).
   - **A1 (FIXED):** En `MesaService::eliminarMesa`, validación explícita de reservas históricas (`$mesa->reservas()->count()`) antes de delete con mensaje descriptivo, y registro de auditoría ejecutado estrictamente POST-delete exitoso.
   - **A2 (FIXED):** Creada y ejecutada migración `2026_09_10_250000_harden_items_pedido_fk.php` que endurece `items_pedido.pedido_id` a `restrictOnDelete()`. 100% de foreign keys históricas protegidas contra cascades. Añadido test `test_no_se_puede_eliminar_pedido_con_items_asociados` en `IntegridadHistoricoFkTest` (13/13 verde).
