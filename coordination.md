@@ -6,6 +6,12 @@
 ---
 
 ## Última Actualización
+2026-09-11 02:00 | Antigravity | CORRECCIÓN DE IDIOMA DE FECHA EN DASHBOARD (ESPAÑOL):
+  - **Locale Global:** En `config/app.php` se configuró `'locale' => env('APP_LOCALE', 'es')`, `'fallback_locale' => env('APP_FALLBACK_LOCALE', 'es')` y `'faker_locale' => env('APP_FAKER_LOCALE', 'es_CO')`.
+  - **Carbon Locale:** En `AppServiceProvider::boot()` se añadió `Carbon::setLocale(config('app.locale', 'es'))`.
+  - **Dashboard:** En `resources/views/dashboard.blade.php`, se formateó la fecha como `ucfirst(now()->locale('es')->translatedFormat('l, d \d\e F \d\e Y'))` para garantizar "Jueves, 10 de septiembre de 2026" (capitalizado y en español).
+  - **Pruebas y Calidad:** Test añadido en `Fase5DashboardTest`, 253/253 tests pasando al 100% verde (807 assertions), Pint 0 errores, ramas `master` y `main` sincronizadas.
+
 2026-09-11 01:50 | Antigravity | CORRECCIÓN DE RESERVAS PÚBLICAS Y ASIGNACIÓN/CONFIRMACIÓN POR PERSONAL:
   - **Timezone:** `config/app.php` corregido a `env('APP_TIMEZONE', 'America/Bogota')` para evitar desfases donde reservas de la noche del mismo día eran rechazadas como fechas pasadas por desfase UTC.
   - **Reservas Públicas (`ReservaPublicaController` & `reservas/crear.blade.php`):** Filtradas franjas horarias que ya transcurrieron para el día de hoy, pre-selección del primer horario disponible y validación en hora local.
