@@ -262,4 +262,34 @@ class PedidoService
             return $pedido->fresh(['usuario', 'mesa', 'items']);
         });
     }
+
+    /**
+     * Agregar un ítem a un pedido existente y recalcular sus totales.
+     */
+    public function agregarItem(Pedido $pedido, Producto $producto, int $cantidad = 1, ?string $notas = null): ItemPedido
+    {
+        return DB::transaction(function () use ($pedido, $producto, $cantidad, $notas) {
+            $cantidad = max(1, $cantidad);
+            $precioUnitario = (float) $producto->precio;
+            $itemSubtotal = $precioUnitario * $cantidad;
+
+            $item = ItemPedido::create([
+                'pedido_id' => $pedido->id,
+                'producto_id' => $producto->id,
+                'nombre_producto' => $producto->nombre,
+                'cantidad' => $cantidad,
+                'precio_unitario' => $precioUnitario,
+                'subtotal' => $itemSubtotal,
+                'area_cocina' => $producto->area_cocina ?? 'sushi',
+                'estado_cocina' => 'pendiente',
+                'notas' => $notas,
+            ]);
+
+            $pedido->subtotal = (float) $pedido->items()->sum('subtotal');
+            $pedido->recalcularTotales();
+            $pedido->save();
+
+            return $item;
+        });
+    }
 }

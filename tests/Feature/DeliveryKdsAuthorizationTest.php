@@ -294,4 +294,27 @@ class DeliveryKdsAuthorizationTest extends TestCase
 
         $this->assertEquals('listo', $itemSushi->fresh()->estado_cocina);
     }
+
+    public function test_cajero_puede_crear_nuevo_pedido_manual_en_delivery(): void
+    {
+        Volt::actingAs($this->cajero)
+            ->test('delivery.index')
+            ->set('nuevoPedido.nombre_cliente', 'Carlos Manuel')
+            ->set('nuevoPedido.telefono_cliente', '3001234567')
+            ->set('nuevoPedido.direccion_delivery', 'Calle 10 # 43E-20')
+            ->set('nuevoPedido.producto_id', $this->productoSushi->id)
+            ->set('nuevoPedido.cantidad', 2)
+            ->set('nuevoPedido.costo_envio', 8000)
+            ->call('guardarNuevoPedido')
+            ->assertHasNoErrors();
+
+        $pedido = Pedido::where('tipo', 'delivery')->latest()->first();
+        $this->assertNotNull($pedido);
+        $this->assertEquals('Carlos Manuel', $pedido->nombre_cliente);
+        $this->assertEquals('listo', $pedido->estado);
+        $this->assertEquals(84000, $pedido->subtotal);
+        $this->assertEquals(92000, $pedido->total); // 84000 + 8000
+        $this->assertCount(1, $pedido->items);
+        $this->assertEquals(2, $pedido->items->first()->cantidad);
+    }
 }
