@@ -71,35 +71,38 @@ new class extends Component
             </button>
 
             <!-- Branch Selector Pill -->
-            <div class="flex items-center gap-1.5 bg-surface-container px-3 py-1.5 rounded-full cursor-pointer hover:bg-surface-container-high transition-colors">
+            <div class="flex items-center gap-1 sm:gap-1.5 bg-surface-container px-2.5 sm:px-3 py-1.5 rounded-full cursor-pointer hover:bg-surface-container-high transition-colors shrink-0">
                 <span class="material-symbols-outlined text-primary text-[18px]">store</span>
-                <span class="font-bold text-xs sm:text-sm text-on-surface">El Poblado MDE-01</span>
+                <span class="font-bold text-xs sm:text-sm text-on-surface truncate max-w-[85px] sm:max-w-none">El Poblado</span>
+                <span class="font-bold text-xs text-on-surface hidden sm:inline">MDE-01</span>
                 <span class="material-symbols-outlined text-on-surface-variant text-[16px]">expand_more</span>
             </div>
 
             @if(auth()->user()?->role?->slug === 'mesero')
                 <!-- Mesero Active Badge -->
-                <div class="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+                <div class="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2 sm:px-3 py-1 rounded-full border border-primary/20 shrink-0">
                     <span class="material-symbols-outlined text-[16px]">room_service</span>
-                    <span class="text-xs font-black">Mesero: {{ auth()->user()->name }}</span>
+                    <span class="text-xs font-black hidden sm:inline">Mesero: {{ auth()->user()->name }}</span>
+                    <span class="text-xs font-black sm:hidden">Mesero</span>
                     <span class="w-2 h-2 rounded-full bg-secondary animate-pulse ml-0.5" title="En servicio"></span>
                 </div>
             @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
                 <!-- Cocina Active Badge -->
-                <div class="inline-flex items-center gap-1.5 bg-secondary/15 text-secondary px-3 py-1 rounded-full border border-secondary/30">
+                <div class="inline-flex items-center gap-1.5 bg-secondary/15 text-secondary px-2 sm:px-3 py-1 rounded-full border border-secondary/30 shrink-0">
                     <span class="material-symbols-outlined text-[16px]">restaurant</span>
-                    <span class="text-xs font-black">Cocina KDS: {{ auth()->user()->name }}</span>
+                    <span class="text-xs font-black hidden sm:inline">Cocina KDS: {{ auth()->user()->name }}</span>
+                    <span class="text-xs font-black sm:hidden">Cocina</span>
                     <span class="w-2 h-2 rounded-full bg-secondary animate-pulse ml-0.5" title="En preparación"></span>
                 </div>
             @else
                 <!-- Shift / Cash Status Pill -->
-                <div class="hidden sm:inline-flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1 rounded-full border border-secondary/20">
+                <div class="hidden sm:inline-flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1 rounded-full border border-secondary/20 shrink-0">
                     <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
                     <span class="text-xs font-bold text-on-secondary-container">Caja #01: Abierta</span>
                 </div>
 
                 <!-- DIAN Sync Badge -->
-                <div class="hidden md:inline-flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-full">
+                <div class="hidden md:inline-flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-full shrink-0">
                     <span class="material-symbols-outlined text-secondary text-[16px]">verified</span>
                     <span class="text-xs font-semibold text-on-surface-variant">Sincronizado DIAN</span>
                 </div>
@@ -121,7 +124,7 @@ new class extends Component
             <div class="relative" x-data="{ openNotif: false }" wire:poll.10s>
                 <button 
                     @click="openNotif = !openNotif" 
-                    class="relative p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" 
+                    class="relative p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0" 
                     type="button"
                     title="Notificaciones operativas"
                     aria-label="Campana de notificaciones"
@@ -134,21 +137,35 @@ new class extends Component
                     @endif
                 </button>
 
+                <!-- Mobile Backdrop -->
+                <div 
+                    x-show="openNotif" 
+                    @click="openNotif = false"
+                    x-transition:enter="transition-opacity ease-out duration-200"
+                    x-transition:enter-start="opacity-0"
+                    x-transition:enter-end="opacity-100"
+                    x-transition:leave="transition-opacity ease-in duration-150"
+                    x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0"
+                    class="fixed inset-0 bg-stone-900/30 backdrop-blur-xs z-40 sm:hidden"
+                    style="display: none;"
+                ></div>
+
                 <!-- Notifications Dropdown Panel -->
                 <div 
                     x-show="openNotif" 
                     @click.outside="openNotif = false"
                     x-transition:enter="transition ease-out duration-200"
-                    x-transition:enter-start="opacity-0 translate-y-2 scale-95"
-                    x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                    x-transition:enter-start="opacity-0 translate-y-2 sm:translate-y-0 sm:scale-95"
+                    x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
                     x-transition:leave="transition ease-in duration-150"
-                    x-transition:leave-start="opacity-100 translate-y-0 scale-100"
-                    x-transition:leave-end="opacity-0 translate-y-2 scale-95"
+                    x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave-end="opacity-0 translate-y-2 sm:translate-y-0 sm:scale-95"
                     style="display: none;"
-                    class="absolute right-0 mt-2 w-80 sm:w-96 rounded-3xl bg-surface-container-lowest p-4 shadow-2xl border border-surface-container-highest z-50 space-y-3"
+                    class="fixed sm:absolute inset-x-3 sm:inset-x-auto top-18 sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-96 rounded-3xl bg-surface-container-lowest p-4 shadow-2xl border border-surface-container-highest z-50 space-y-3 max-h-[calc(100vh-5.5rem)] sm:max-h-[550px] flex flex-col"
                 >
                     <!-- Header -->
-                    <div class="flex items-center justify-between pb-2 border-b border-surface-container-high">
+                    <div class="flex items-center justify-between pb-2 border-b border-surface-container-high shrink-0">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary text-[20px]">notifications_active</span>
                             <span class="text-xs font-black uppercase tracking-wider text-on-surface">Notificaciones</span>
@@ -159,12 +176,12 @@ new class extends Component
                     </div>
 
                     @if($notificacionFlash)
-                        <div class="p-2.5 rounded-xl text-xs font-bold {{ $tipoNotificacionFlash === 'success' ? 'bg-secondary-container text-on-secondary-container' : 'bg-primary-container/30 text-primary' }}">
+                        <div class="p-2.5 rounded-xl text-xs font-bold shrink-0 {{ $tipoNotificacionFlash === 'success' ? 'bg-secondary-container text-on-secondary-container' : 'bg-primary-container/30 text-primary' }}">
                             {{ $notificacionFlash }}
                         </div>
                     @endif
 
-                    <div class="max-h-[360px] overflow-y-auto space-y-2.5 pr-1 text-xs">
+                    <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 text-xs overscroll-contain">
                         <!-- 1. Pedidos QR por Asignar -->
                         @if(($notificaciones['pedidos_qr'] ?? collect())->isNotEmpty())
                             <div class="space-y-1.5">
@@ -175,9 +192,11 @@ new class extends Component
                                 @foreach($notificaciones['pedidos_qr'] as $pqr)
                                     <div class="p-2.5 rounded-2xl bg-primary-container/15 border border-primary/25 flex items-center justify-between gap-2 shadow-sm">
                                         <div class="min-w-0">
-                                            <div class="flex items-center gap-1.5">
-                                                <span class="font-extrabold text-on-surface text-xs">Mesa #{{ $pqr->mesa?->numero ?? 'S/M' }}</span>
-                                                <span class="text-[10px] text-on-surface-variant truncate">({{ $pqr->nombre_cliente ?? 'Comensal' }})</span>
+                                            <div class="flex items-center gap-1.5 flex-wrap">
+                                                <span class="font-extrabold text-on-surface text-xs">
+                                                    {{ $pqr->mesa?->numero ? 'Mesa #'.$pqr->mesa->numero : 'Autoservicio' }}
+                                                </span>
+                                                <span class="text-[10px] text-on-surface-variant truncate max-w-[120px]">({{ $pqr->nombre_cliente ?? 'Comensal' }})</span>
                                             </div>
                                             <p class="text-[10px] text-on-surface-variant font-mono mt-0.5">
                                                 {{ $pqr->items->count() }} platos · ${{ number_format($pqr->total, 0, ',', '.') }} COP
@@ -203,15 +222,27 @@ new class extends Component
                                     Listos en Cocina / Barra
                                 </span>
                                 @foreach($notificaciones['platos_listos'] as $pl)
-                                    <div class="p-2 rounded-2xl bg-secondary-container/20 border border-secondary/20 flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <span class="material-symbols-outlined text-secondary text-[16px]">check_circle</span>
-                                            <div>
-                                                <span class="font-bold text-on-surface">Mesa #{{ $pl->pedido?->mesa?->numero }}</span>
-                                                <span class="text-on-surface-variant">· {{ $pl->cantidad }}x {{ $pl->nombre_producto }}</span>
+                                    <div class="p-2.5 rounded-2xl bg-secondary-container/20 border border-secondary/20 flex items-center justify-between gap-2">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check_circle</span>
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-on-surface text-xs truncate">
+                                                    @if($pl->pedido?->mesa?->numero)
+                                                        Mesa #{{ $pl->pedido->mesa->numero }}
+                                                    @elseif($pl->pedido?->tipo === 'barra')
+                                                        Barra
+                                                    @elseif($pl->pedido?->tipo === 'delivery')
+                                                        Delivery
+                                                    @else
+                                                        Pedido #{{ $pl->pedido?->codigo ?? $pl->pedido_id }}
+                                                    @endif
+                                                </div>
+                                                <p class="text-[11px] text-on-surface-variant truncate">
+                                                    {{ $pl->cantidad }}x {{ $pl->nombre_producto }}
+                                                </p>
                                             </div>
                                         </div>
-                                        <span class="text-[10px] text-on-surface-variant font-mono">
+                                        <span class="text-[10px] text-on-surface-variant font-mono whitespace-nowrap shrink-0">
                                             {{ $pl->listo_en ? \Carbon\Carbon::parse($pl->listo_en)->diffForHumans(null, true) : 'Listo' }}
                                         </span>
                                     </div>
@@ -227,9 +258,9 @@ new class extends Component
                                     Insumos en Stock Bajo
                                 </span>
                                 @foreach($notificaciones['stock_critico'] as $st)
-                                    <div class="p-2 rounded-2xl bg-tertiary-container/15 border border-tertiary/20 flex items-center justify-between">
-                                        <span class="font-bold text-on-surface truncate max-w-[180px]">{{ $st->nombre }}</span>
-                                        <span class="font-mono text-[10px] text-tertiary font-extrabold">{{ $st->stock_actual }} {{ $st->unidad_medida }}</span>
+                                    <div class="p-2 rounded-2xl bg-tertiary-container/15 border border-tertiary/20 flex items-center justify-between gap-2">
+                                        <span class="font-bold text-on-surface truncate min-w-0">{{ $st->nombre }}</span>
+                                        <span class="font-mono text-[10px] text-tertiary font-extrabold shrink-0">{{ $st->stock_actual }} {{ $st->unidad_medida }}</span>
                                     </div>
                                 @endforeach
                             </div>
@@ -243,9 +274,11 @@ new class extends Component
                                     Reservas de Hoy
                                 </span>
                                 @foreach($notificaciones['reservas_hoy'] as $res)
-                                    <div class="p-2 rounded-2xl bg-surface-container-low border border-surface-container-high flex items-center justify-between">
-                                        <span class="font-bold text-on-surface truncate">{{ substr($res->hora_llegada, 0, 5) }}: {{ $res->nombre_contacto }} ({{ $res->personas }} pax)</span>
-                                        <span class="text-[10px] font-extrabold capitalize text-on-surface-variant">{{ $res->estado }}</span>
+                                    <div class="p-2 rounded-2xl bg-surface-container-low border border-surface-container-high flex items-center justify-between gap-2">
+                                        <span class="font-bold text-on-surface truncate min-w-0 text-[11px]">
+                                            {{ substr($res->hora_llegada, 0, 5) }}: {{ $res->nombre_contacto }} ({{ $res->personas }}p)
+                                        </span>
+                                        <span class="text-[10px] font-extrabold capitalize text-on-surface-variant shrink-0">{{ $res->estado }}</span>
                                     </div>
                                 @endforeach
                             </div>
@@ -262,11 +295,11 @@ new class extends Component
                     </div>
 
                     <!-- Footer -->
-                    <div class="pt-2 border-t border-surface-container-high flex items-center justify-between">
+                    <div class="pt-2 border-t border-surface-container-high flex items-center justify-between shrink-0">
                         <a href="{{ route('mesas') }}" wire:navigate class="text-[11px] font-extrabold text-primary hover:underline">
                             Ver Salón & Mesas
                         </a>
-                        <button @click="openNotif = false" class="text-[10px] text-on-surface-variant hover:text-on-surface cursor-pointer">
+                        <button @click="openNotif = false" class="text-[11px] font-bold text-on-surface-variant hover:text-on-surface cursor-pointer px-2 py-1 rounded-lg hover:bg-surface-container">
                             Cerrar
                         </button>
                     </div>
