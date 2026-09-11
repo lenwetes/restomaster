@@ -38,23 +38,19 @@ FROM php:8.3-fpm-alpine
 LABEL maintainer="Sushixpress <soporte@sushixpress.com>"
 LABEL description="Sushixpress Enterprise POS & Management Container for Coolify"
 
+# Copy install-php-extensions helper
+COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
+
 # Install system dependencies
 RUN apk add --no-cache \
     nginx \
     supervisor \
     curl \
-    libpq-dev \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    libzip-dev \
-    icu-dev \
-    oniguruma-dev \
     postgresql-client
 
-# Configure and install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install -j$(nproc) \
+# Configure and install PHP extensions via install-php-extensions
+RUN chmod +x /usr/local/bin/install-php-extensions && \
+    install-php-extensions \
         pdo_pgsql \
         pgsql \
         bcmath \
@@ -63,8 +59,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
         intl \
         opcache \
         sockets \
-        pcntl \
-        mbstring
+        pcntl
 
 # Copy composer binary from composer stage for maintenance tasks
 COPY --from=composer-builder /usr/bin/composer /usr/bin/composer
