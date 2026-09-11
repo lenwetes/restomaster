@@ -12,7 +12,7 @@ new #[Layout('layouts.guest')] class extends Component
     public function rellenarCredencial(string $email, ?string $password = null): void
     {
         $this->form->email = $email;
-        $this->form->password = $password ?? (string) env('DEMO_USERS_PASSWORD', 'sushixpress2026');
+        $this->form->password = $password ?? (string) config('auth.demo_password', 'sushixpress2026');
     }
 
     /**
@@ -179,7 +179,7 @@ new #[Layout('layouts.guest')] class extends Component
         <div class="mt-8 pt-6 border-t border-stone-100 space-y-3">
             <div class="flex items-center justify-between">
                 <span class="text-[11px] font-black uppercase tracking-wider text-stone-400">Acceso Rápido por Rol</span>
-                <span class="text-[10px] text-stone-500 font-mono">Clave: {{ env('DEMO_USERS_PASSWORD', 'sushixpress2026') }}</span>
+                <span class="text-[10px] text-stone-500 font-mono">Clave: {{ config('auth.demo_password', 'sushixpress2026') }}</span>
             </div>
 
             <div class="grid grid-cols-2 gap-2">

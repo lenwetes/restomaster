@@ -3,12 +3,13 @@ set -e
 
 echo "==> Sushixpress Production Container Starting..."
 
-# Ensure proper directory permissions for storage and bootstrap/cache
+# Ensure proper directory permissions for storage, cache, and bootstrap
 mkdir -p /var/www/html/storage/framework/sessions \
          /var/www/html/storage/framework/views \
-         /var/www/html/storage/framework/cache \
+         /var/www/html/storage/framework/cache/data \
          /var/www/html/storage/logs \
          /var/www/html/storage/app/backups \
+         /var/www/html/storage/app/public \
          /var/www/html/bootstrap/cache
 
 touch /var/www/html/storage/logs/laravel.log
@@ -23,31 +24,54 @@ if [ -z "$APP_KEY" ] || [ "$APP_KEY" = '""' ] || [ "$APP_KEY" = "''" ]; then
     echo "==> Generated APP_KEY: $APP_KEY"
 fi
 
-# Ensure .env exists with APP_KEY so all worker/FPM processes inherit it
-if [ ! -f /var/www/html/.env ]; then
-    echo "APP_KEY=${APP_KEY}" > /var/www/html/.env
-else
-    if ! grep -q "APP_KEY=" /var/www/html/.env; then
-        echo "APP_KEY=${APP_KEY}" >> /var/www/html/.env
-    else
-        sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" /var/www/html/.env
+# 2. Write runtime environment variables to /var/www/html/.env so PHP-FPM workers and Dotenv always have them
+echo "==> Writing runtime configuration to /var/www/html/.env..."
+cat <<EOF > /var/www/html/.env
+APP_NAME="${APP_NAME:-SushiXpress}"
+APP_ENV="${APP_ENV:-production}"
+APP_KEY="${APP_KEY}"
+APP_DEBUG="${APP_DEBUG:-true}"
+APP_URL="${APP_URL:-http://localhost:8004}"
+LOG_CHANNEL="${LOG_CHANNEL:-stderr}"
+LOG_LEVEL="${LOG_LEVEL:-debug}"
+
+DB_CONNECTION="${DB_CONNECTION:-pgsql}"
+DB_HOST="${DB_HOST:-postgres}"
+DB_PORT="${DB_PORT:-5432}"
+DB_DATABASE="${DB_DATABASE:-sushixpress}"
+DB_USERNAME="${DB_USERNAME:-sushixpress_user}"
+DB_PASSWORD="${DB_PASSWORD:-sushixpress_secure_password}"
+
+SESSION_DRIVER="${SESSION_DRIVER:-file}"
+SESSION_LIFETIME="${SESSION_LIFETIME:-120}"
+QUEUE_CONNECTION="${QUEUE_CONNECTION:-database}"
+CACHE_STORE="${CACHE_STORE:-file}"
+
+DEMO_USERS_PASSWORD="${DEMO_USERS_PASSWORD:-sushixpress2026}"
+EOF
+
+chown www-data:www-data /var/www/html/.env
+chmod 644 /var/www/html/.env
+
+# Ensure PHP-FPM passes environment variables to workers
+if [ -d /usr/local/etc/php-fpm.d ]; then
+    if ! grep -q "clear_env = no" /usr/local/etc/php-fpm.d/* 2>/dev/null; then
+        echo "clear_env = no" >> /usr/local/etc/php-fpm.d/zz-docker.conf
     fi
 fi
-chown www-data:www-data /var/www/html/.env
-chmod 640 /var/www/html/.env
 
-# 2. Clear old cached config before migration
+# 3. Clear old cached config before migration
 echo "==> Clearing stale configuration caches..."
 php /var/www/html/artisan config:clear || true
 php /var/www/html/artisan cache:clear || true
 
-# 3. Ensure storage link exists
+# 4. Ensure storage link exists
 if [ ! -L /var/www/html/public/storage ]; then
     echo "==> Creating storage link..."
     php /var/www/html/artisan storage:link || true
 fi
 
-# 4. Run database migrations if AUTO_MIGRATE is enabled
+# 5. Run database migrations if AUTO_MIGRATE is enabled
 if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
     echo "==> Checking database connection and running migrations..."
     max_retries=30
@@ -83,19 +107,23 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
     # Run database seeds if AUTO_SEED is enabled
     if [ "${AUTO_SEED:-false}" = "true" ]; then
         echo "==> AUTO_SEED is enabled. Seeding demo and essential data (php artisan db:seed --force)..."
-        php /var/www/html/artisan db:seed --force || echo "==> Seed failed or already seeded"
+        php /var/www/html/artisan db:seed --force || echo "==> Seed finished or partially seeded"
     fi
 fi
 
-# 5. Optimize Laravel for production if enabled
+# 6. Publish Livewire assets to ensure they are physically present on disk
+echo "==> Publishing Livewire assets..."
+php /var/www/html/artisan livewire:publish --assets || true
+
+# 7. Optimize Laravel for production
 if [ "${OPTIMIZE_CACHE:-true}" = "true" ]; then
     echo "==> Caching routes and views..."
     php /var/www/html/artisan route:cache || true
     php /var/www/html/artisan view:cache || true
 fi
 
-# Re-ensure permissions after artisan commands
-chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+# Final permission check
+chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public/vendor
 
 echo "==> Starting Supervisord (Nginx + PHP-FPM + Queue Worker + Scheduler)..."
 exec "$@"

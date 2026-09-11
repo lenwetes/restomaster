@@ -20,6 +20,8 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
+    'demo_password' => env('DEMO_USERS_PASSWORD', 'sushixpress2026'),
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards

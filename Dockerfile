@@ -71,7 +71,8 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    echo "clear_env = no" >> /usr/local/etc/php-fpm.d/zz-docker.conf
 
 WORKDIR /var/www/html
 
@@ -84,18 +85,20 @@ COPY . /var/www/html
 # Copy compiled frontend assets from frontend-builder
 COPY --from=frontend-builder /app/public/build /var/www/html/public/build
 
-# Run package discovery
-RUN php artisan package:discover --ansi
+# Run package discovery and publish Livewire assets
+RUN php artisan package:discover --ansi && \
+    php artisan livewire:publish --assets
 
 # Setup permissions and log folders
 RUN mkdir -p /var/log/supervisor /var/log/nginx /var/run \
              /var/www/html/storage/framework/sessions \
              /var/www/html/storage/framework/views \
-             /var/www/html/storage/framework/cache \
+             /var/www/html/storage/framework/cache/data \
              /var/www/html/storage/logs \
              /var/www/html/storage/app/backups \
+             /var/www/html/storage/app/public \
              /var/www/html/bootstrap/cache && \
-    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
+    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/public/vendor && \
     chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
 # Port 80 exposed internally (Coolify maps this to host port 8004)

@@ -25,7 +25,7 @@ class DemoOperacionesSeeder extends Seeder
         $admin = User::where('email', 'admin@sushixpress.com')->first();
         $sucursal = Sucursal::first();
 
-        if (! $cajero || ! $mesero) {
+        if (! $cajero || ! $mesero || Pedido::where('codigo', 'ORD-101')->exists()) {
             return;
         }
 
