@@ -103,17 +103,28 @@ class MesaService
             throw new \InvalidArgumentException("No se puede eliminar la Mesa #{$mesa->numero} porque tiene pedidos activos en curso.");
         }
 
-        if ($usuario) {
+        $reservasAsociadas = $mesa->reservas()->count();
+        if ($reservasAsociadas > 0) {
+            throw new \InvalidArgumentException("No se puede eliminar la Mesa #{$mesa->numero} porque tiene {$reservasAsociadas} reserva(s) asociadas en el historial.");
+        }
+
+        $numero = $mesa->numero;
+        $zona = $mesa->zona;
+        $id = $mesa->id;
+
+        $deleted = (bool) $mesa->delete();
+
+        if ($deleted && $usuario) {
             app(AuditoriaService::class)->registrar(
                 usuario: $usuario,
                 accion: 'mesas.eliminada',
                 entidad: 'mesa',
-                entidadId: $mesa->id,
-                descripcion: "Mesa #{$mesa->numero} eliminada del sistema.",
-                datos: ['numero' => $mesa->numero, 'zona' => $mesa->zona]
+                entidadId: $id,
+                descripcion: "Mesa #{$numero} eliminada del sistema.",
+                datos: ['numero' => $numero, 'zona' => $zona]
             );
         }
 
-        return (bool) $mesa->delete();
+        return $deleted;
     }
 }

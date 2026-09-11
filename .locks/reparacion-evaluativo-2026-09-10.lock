@@ -1,8 +1,0 @@
-{
-  "modulo": "reparacion-evaluativo-2026-09-10",
-  "agente": "antigravity",
-  "desde": "2026-09-11T00:10:00",
-  "asignado_por": "opencode",
-  "tarea": "Reparar hallazgos del evaluativo final (docs/auditoria/evaluativo-2026-09-10.md): B1 agregarItem inexistente (500 en Nuevo Pedido Manual), A1 eliminarMesa vs reservas históricas, A2 items_pedido.pedido_id sigue CASCADE, A3 N+1 POS movil :711 + medios M1-M9",
-  "estado": "asignado"
-}

@@ -45,7 +45,7 @@ class DeliveryService
             }
 
             $codigo = 'DLV-'.strtoupper(substr(uniqid(), -5));
-            $costoEnvio = (float) ($datos['costo_envio'] ?? 0);
+            $costoEnvio = max(0, (float) ($datos['costo_envio'] ?? 0));
 
             $pedido = Pedido::create([
                 'codigo' => $codigo,
@@ -119,10 +119,16 @@ class DeliveryService
 
             // Si se cobró contra entrega y el pedido aún no estaba pagado
             if ($metodoPago && $pedido->estado !== 'pagado') {
+                if ($montoRecibido !== null && (float) $montoRecibido < (float) $pedido->total) {
+                    throw new InvalidArgumentException("El monto recibido ({$montoRecibido}) no puede ser inferior al total del pedido ({$pedido->total}).");
+                }
+
+                $montoFinal = $montoRecibido ?? (float) $pedido->total;
+
                 $pedido->update([
                     'metodo_pago' => $metodoPago,
-                    'monto_pagado' => $montoRecibido ?? $pedido->total,
-                    'cambio' => $montoRecibido ? max(0, $montoRecibido - (float) $pedido->total) : 0,
+                    'monto_pagado' => $montoFinal,
+                    'cambio' => max(0, $montoFinal - (float) $pedido->total),
                     'estado' => 'pagado',
                     'pagado_en' => now(),
                 ]);

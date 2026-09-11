@@ -171,6 +171,10 @@ class PedidoService
             $pedido = Pedido::where('id', $pedido->id)->lockForUpdate()->firstOrFail();
             abort_if($pedido->estado === 'pagado', 400, 'El pedido ya se encuentra pagado.');
 
+            if ($montoPagado < (float) $pedido->total) {
+                throw new \InvalidArgumentException("El monto pagado ({$montoPagado}) no puede ser inferior al total del pedido ({$pedido->total}).");
+            }
+
             $cambio = max(0, $montoPagado - (float) $pedido->total);
 
             $pedido->update([

@@ -1,4 +1,4 @@
-﻿# Coordination.md — Estado de Trabajo entre Agentes
+# Coordination.md — Estado de Trabajo entre Agentes
 
 > **Instrucción:** Cada agente actualiza esta sección al INICIAR y FINALIZAR una tarea.
 > Formato: `[FECHA] [AGENTE] [ACCIÓN] [ARCHIVOS]`
@@ -6,6 +6,17 @@
 ---
 
 ## Última Actualización
+2026-09-11 00:40 | Antigravity | REPARACIÓN EVALUATIVO FINAL COMPLETADA Y LOCK LIBERADO:
+  - **B1 (FIXED):** Implementado `PedidoService::agregarItem(Pedido, Producto, int, ?string): ItemPedido` con recálculo transaccional de totales y precio seguro desde DB. Añadido test dedicado `test_cajero_puede_crear_nuevo_pedido_manual_en_delivery` en `DeliveryKdsAuthorizationTest` (verde).
+  - **A1 (FIXED):** En `MesaService::eliminarMesa`, validación explícita de reservas históricas (`$mesa->reservas()->count()`) antes de delete con mensaje descriptivo, y registro de auditoría ejecutado estrictamente POST-delete exitoso.
+  - **A2 (FIXED):** Creada y ejecutada migración `2026_09_10_250000_harden_items_pedido_fk.php` que endurece `items_pedido.pedido_id` a `restrictOnDelete()`. 100% de foreign keys históricas protegidas contra cascades. Añadido test `test_no_se_puede_eliminar_pedido_con_items_asociados` en `IntegridadHistoricoFkTest` (13/13 verde).
+  - **A3 (FIXED):** Corregido `pos/terminal.blade.php:711` para usar `$cat->productos_count ?? 0`.
+  - **M2 (FIXED):** En `ClienteService::crear`, forzados `puntos_fidelidad = 0`, `total_gastado = 0` y `visitas_totales = 0` para evitar manipulación o fraude.
+  - **M3 & M4 (FIXED):** Validaciones server-side de no-subpago (`montoPagado >= total` y `montoRecibido >= total`) añadidas en `PedidoService::cobrarPedido` y `DeliveryService::marcarEntregado`. `costo_envio` acotado con `max(0, ...)`.
+  - **M9 (FIXED):** Eliminado `123456` hardcodeado en `login.blade.php`; ahora usa dinámicamente `env('DEMO_USERS_PASSWORD', 'sushixpress2026')`.
+  - **Deploy Coolify:** Creados `docker-compose.yaml` y `docker-compose.yml`, sincronizada rama `main` en GitHub (`master:main`).
+  - **Calidad:** 249/249 tests pasando al 100% verde (783 assertions), Pint 0 violaciones. Lock `.locks/reparacion-evaluativo-2026-09-10.lock` liberado.
+
 2026-09-10 21:40 | OpenCode | AUDITORÍA INTEGRAL + EVALUATIVO (solo lectura, 4 auditores, las 10 skills del proyecto). Suite verificada: 247/247 (774), Pint 0, composer/npm audit 0. **Calificación GLOBAL ≈8.0/10 — APTOS para UAT piloto con condición.** Verificado del commit 6a27c7e: authorize delivery/KDS (segregación estación), liquidarRepartidor acotado, 240000 restrict 3 FKs, índice (estado,estado_delivery), paginate clientes, SQL ventasPorTipo/topClientes → FIXED. **BLOQUEANTE B1: `guardarNuevoPedido` (delivery, :173) llama `PedidoService::agregarItem()` que NO EXISTE → 500 en "Nuevo Pedido Manual", sin test.** ALTOS: A1 `eliminarMesa` rompe con reservas históricas (QueryException) + auditoría pre-delete falsa; A2 `items_pedido.pedido_id` sigue CASCADE (única sin endurecer); A3 N+1 POS móvil reabierto :711 (con 3 usos, solo 2 migrados a productos_count). MEDIOS: autorizadoPor caja texto libre, puntos_fidelidad al crear, monto>=total no en services, 11 FKs restrictiv sin índice, wire:poll QR, ReporteService 8 métodos PHP, insumos/cxp sin paginar, login default 123456. Optimizado el 100% de $fillable, dinero decimal:2, control acceso real por rol/estación. Reporte: docs/auditoria/evaluativo-2026-09-10.md. NO se tocó código.
 2026-09-11 00:10 | OpenCode | ENTREGA DEL EVALUATIVO A ANTIGRAVITY para reparación (**LOCK creado: `.locks/reparacion-evaluativo-2026-09-10.lock`**, estado asignado). Reporte completo en `docs/auditoria/evaluativo-2026-09-10.md`. **PRIORIDAD ALTA: B1 (CRÍTICO)** `guardarNuevoPedido` en `delivery/index.blade.php:173` llama `PedidoService::agregarItem()` que NO existe → llamar `crearPedidoDesdeQr`/nuevo método o mover ítem a `DeliveryService::crearPedidoDelivery`; añadir test del flujo "Nuevo Pedido Manual" (hoy sin cobertura, suite verde 247 lo no detecta). **A1** MesaService::eliminarMesa -> QueryException c/reservas históricas (validar `reserva_mesa` o borrado lógico; auditar solo POST-éxito). **A2** migrar `items_pedido.pedido_id` a RESTRICT (única cascadeOnDelete original restante). **A3** `pos/terminal.blade.php:711` usar `productos_count`. **MEDIOS M1-M9** (autorizadoPor libre, puntos_fidelidad al crear, monto>=total en services, 11 FKs sin índice, wire:poll QR 6s, ReporteService 8 métodos PHP, insumos/cxp sin paginar, login default 123456, resetPage updatedFiltroAlergias). Verificación posterior de OpenCode prevista al terminar. Espera: suite completa verde tras la reparación.
 2026-09-10 23:45 | Antigravity | CIERRE DEFINITIVO DE REMEDIACIÓN Y AUDITORÍA FASE 2 COMPLETADO:

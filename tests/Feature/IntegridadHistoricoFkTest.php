@@ -379,4 +379,36 @@ class IntegridadHistoricoFkTest extends TestCase
         $this->expectException(QueryException::class);
         DB::table('insumos')->where('id', $insumo->id)->delete();
     }
+
+    public function test_no_se_puede_eliminar_pedido_con_items_asociados(): void
+    {
+        $pedido = Pedido::create([
+            'codigo' => 'ORD-FK-ITEM-01',
+            'tipo' => 'mesa',
+            'estado' => 'creado',
+            'subtotal' => 30000,
+            'total' => 30000,
+        ]);
+
+        $producto = Producto::create([
+            'nombre' => 'Maki Tempura FK',
+            'slug' => 'maki-tempura-fk',
+            'precio' => 30000,
+            'activo' => true,
+        ]);
+
+        ItemPedido::create([
+            'pedido_id' => $pedido->id,
+            'producto_id' => $producto->id,
+            'nombre_producto' => $producto->nombre,
+            'cantidad' => 1,
+            'precio_unitario' => 30000,
+            'subtotal' => 30000,
+            'area_cocina' => 'sushi',
+            'estado_cocina' => 'pendiente',
+        ]);
+
+        $this->expectException(QueryException::class);
+        DB::table('pedidos')->where('id', $pedido->id)->delete();
+    }
 }

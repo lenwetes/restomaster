@@ -708,7 +708,7 @@ new class extends Component
                                     <span>{{ $cat->icono }}</span>
                                     <span>{{ $cat->nombre }}</span>
                                     <span class="rounded-full px-1 text-[9px] font-mono {{ $categoriaSeleccionada === $cat->id ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant' }}">
-                                        {{ $cat->productos->where('activo', true)->count() }}
+                                        {{ $cat->productos_count ?? 0 }}
                                     </span>
                                 </button>
                             @endforeach
