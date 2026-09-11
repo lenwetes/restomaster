@@ -19,6 +19,7 @@ use App\Policies\MesaPolicy;
 use App\Policies\PedidoPolicy;
 use App\Policies\ReservaPolicy;
 use App\Policies\TurnoCajaPolicy;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Volt\Volt;
@@ -38,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Carbon::setLocale(config('app.locale', 'es'));
+
         Volt::mount([
             resource_path('views/livewire'),
         ]);

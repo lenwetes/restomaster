@@ -85,4 +85,13 @@ class Fase5DashboardTest extends TestCase
         $this->assertStringContainsString(route('reportes'), $html);
         $this->assertStringContainsString(route('configuracion'), $html);
     }
+
+    public function test_dashboard_muestra_fecha_en_espanol(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('dashboard'));
+        $response->assertOk();
+
+        $fechaEsperada = ucfirst(now()->locale('es')->translatedFormat('l, d \d\e F \d\e Y'));
+        $response->assertSee($fechaEsperada);
+    }
 }

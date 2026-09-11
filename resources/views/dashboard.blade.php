@@ -20,7 +20,7 @@
                     <span class="material-symbols-outlined text-[18px] text-tertiary">wb_sunny</span>
                     <span>Turno Almuerzo / Tarde (Activo)</span>
                     <span class="text-outline-variant">•</span>
-                    <span class="font-bold text-on-surface">{{ now()->translatedFormat('l, d \d\e F \d\e Y') }}</span>
+                    <span class="font-bold text-on-surface">{{ ucfirst(now()->locale('es')->translatedFormat('l, d \d\e F \d\e Y')) }}</span>
                 </div>
             </div>
 
