@@ -46,7 +46,8 @@ RUN apk add --no-cache \
     nginx \
     supervisor \
     curl \
-    postgresql-client
+    postgresql-client && \
+    adduser nginx www-data
 
 # Configure and install PHP extensions via install-php-extensions
 RUN chmod +x /usr/local/bin/install-php-extensions && \
