@@ -295,6 +295,37 @@ class DeliveryKdsAuthorizationTest extends TestCase
         $this->assertEquals('listo', $itemSushi->fresh()->estado_cocina);
     }
 
+    public function test_cocina_puede_tomar_y_marcar_listo_bebida_de_barra(): void
+    {
+        $pedido = Pedido::create([
+            'codigo' => 'PED-KDS-05',
+            'tipo' => 'mesa',
+            'estado' => 'en_cocina',
+            'subtotal' => 15000,
+            'total' => 15000,
+        ]);
+
+        $itemBarra = ItemPedido::create([
+            'pedido_id' => $pedido->id,
+            'producto_id' => $this->productoBarra->id,
+            'nombre_producto' => 'Té Verde Matcha',
+            'cantidad' => 1,
+            'precio_unitario' => 15000,
+            'subtotal' => 15000,
+            'area_cocina' => 'barra',
+            'estado_cocina' => 'pendiente',
+        ]);
+
+        Volt::actingAs($this->cocinero)
+            ->test('cocina.kds')
+            ->call('tomarItem', $itemBarra->id)
+            ->assertHasNoErrors()
+            ->call('marcarListo', $itemBarra->id)
+            ->assertHasNoErrors();
+
+        $this->assertEquals('listo', $itemBarra->fresh()->estado_cocina);
+    }
+
     public function test_cajero_puede_crear_nuevo_pedido_manual_en_delivery(): void
     {
         Volt::actingAs($this->cajero)

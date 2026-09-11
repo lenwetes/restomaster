@@ -52,8 +52,9 @@ new class extends Component
 
         foreach ($pedido->items as $item) {
             if ($this->areaSeleccionada === 'todas' || $item->area_cocina === $this->areaSeleccionada) {
-                $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
-                $pedidoService->marcarItemListo($item);
+                if (auth()->user()->can('cocinar', [Pedido::class, $item->area_cocina])) {
+                    $pedidoService->marcarItemListo($item);
+                }
             }
         }
     }
@@ -64,8 +65,9 @@ new class extends Component
         $pedidoService = app(PedidoService::class);
 
         foreach ($pedido->items as $item) {
-            $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
-            $pedidoService->marcarItemEntregado($item);
+            if (auth()->user()->can('cocinar', [Pedido::class, $item->area_cocina])) {
+                $pedidoService->marcarItemEntregado($item);
+            }
         }
     }
 
@@ -231,7 +233,7 @@ new class extends Component
                                 </span>
                                 @if($pedido->mesa)
                                     <span class="rounded-xl bg-primary px-2 py-0.5 text-xs font-black text-on-primary shadow-sm">
-                                        Mesa {{ $pedido->mesa->numero }}
+                                        {{ str_starts_with(strtolower($pedido->mesa->numero), 'mesa') ? $pedido->mesa->numero : 'Mesa '.$pedido->mesa->numero }}
                                     </span>
                                 @else
                                     <span class="rounded-xl bg-surface-container px-2 py-0.5 text-xs font-bold text-on-surface capitalize border border-surface-container-high">
@@ -273,19 +275,32 @@ new class extends Component
                                     <!-- Item Action Button -->
                                     <div class="shrink-0">
                                         @if($item->estado_cocina === 'pendiente')
-                                            <button 
-                                                wire:click="tomarItem({{ $item->id }})"
-                                                class="rounded-xl bg-surface-container px-2.5 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container-high active:scale-95 transition-all"
-                                            >
-                                                Tomar
-                                            </button>
+                                            @can('cocinar', [\App\Models\Pedido::class, $item->area_cocina])
+                                                <button 
+                                                    wire:click="tomarItem({{ $item->id }})"
+                                                    class="rounded-xl bg-surface-container px-2.5 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container-high active:scale-95 transition-all cursor-pointer"
+                                                >
+                                                    Tomar
+                                                </button>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 rounded-xl bg-surface-container/50 px-2 py-1 text-[11px] font-bold text-on-surface-variant/70 border border-outline-variant/20" title="Asignado a estación {{ ucfirst($item->area_cocina) }}">
+                                                    <span class="material-symbols-outlined text-[12px]">lock</span>
+                                                    <span>{{ ucfirst($item->area_cocina) }}</span>
+                                                </span>
+                                            @endcan
                                         @elseif($item->estado_cocina === 'en_preparacion')
-                                            <button 
-                                                wire:click="marcarListo({{ $item->id }})"
-                                                class="rounded-xl bg-primary px-2.5 py-1.5 text-xs font-bold text-on-primary shadow-sm hover:bg-primary-container active:scale-95 transition-all"
-                                            >
-                                                Prep → Listo
-                                            </button>
+                                            @can('cocinar', [\App\Models\Pedido::class, $item->area_cocina])
+                                                <button 
+                                                    wire:click="marcarListo({{ $item->id }})"
+                                                    class="rounded-xl bg-primary px-2.5 py-1.5 text-xs font-bold text-on-primary shadow-sm hover:bg-primary-container active:scale-95 transition-all cursor-pointer"
+                                                >
+                                                    Prep → Listo
+                                                </button>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 rounded-xl bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-700 border border-amber-500/20">
+                                                    <span>En {{ ucfirst($item->area_cocina) }}</span>
+                                                </span>
+                                            @endcan
                                         @else
                                             <span class="inline-flex items-center gap-1 rounded-xl bg-secondary-container/60 px-2.5 py-1.5 text-xs font-bold text-on-secondary-container border border-secondary/30">
                                                 <span class="material-symbols-outlined text-[14px]">check</span>

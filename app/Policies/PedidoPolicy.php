@@ -77,7 +77,7 @@ class PedidoPolicy
         }
 
         if ($user->role?->slug === 'cocina') {
-            return $areaCocina === null || in_array($areaCocina, ['sushi', 'cocina', 'caliente', 'calientes', 'postres']);
+            return $areaCocina === null || in_array($areaCocina, ['sushi', 'cocina', 'caliente', 'calientes', 'postres', 'barra', 'bebidas']);
         }
 
         if ($user->role?->slug === 'barra') {
