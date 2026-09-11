@@ -12,6 +12,10 @@ new class extends Component
 
     public ?int $reservaSeleccionada = null;
 
+    public array $mesaSeleccionadaIds = [];
+
+    public ?string $errorModal = null;
+
     public bool $modalCrear = false;
 
     public array $crearForm = [
@@ -39,15 +43,38 @@ new class extends Component
         $service = app(ReservaService::class);
         $delDia = $service->reservasDelDia($this->fecha);
 
+        if ($this->filtrarEstado === 'solicitadas_pendientes') {
+            $reservas = Reserva::with(['mesas', 'cliente', 'confirmadoPor'])
+                ->where('estado', 'solicitada')
+                ->orderBy('fecha')
+                ->orderBy('hora_llegada')
+                ->get();
+        } else {
+            $reservas = $delDia
+                ->when($this->filtrarEstado !== 'todas', fn ($col) => $col->where('estado', $this->filtrarEstado));
+        }
+
+        $reservaActiva = $this->reservaSeleccionada ? Reserva::with(['mesas', 'confirmadoPor'])->find($this->reservaSeleccionada) : null;
+        $mesasDisponiblesModal = collect();
+        if ($reservaActiva) {
+            $mesasDisponiblesModal = $service->verificarDisponibilidad(
+                $reservaActiva->fecha->toDateString(),
+                $reservaActiva->hora_llegada,
+                $reservaActiva->personas,
+                $reservaActiva->duracion_min
+            );
+        }
+
         return [
-            'reservas' => $delDia
-                ->when($this->filtrarEstado !== 'todas', fn ($col) => $col->where('estado', $this->filtrarEstado)),
+            'reservas' => $reservas,
             'conteo' => [
                 'solicitadas' => $delDia->where('estado', 'solicitada')->count(),
                 'confirmadas' => $delDia->where('estado', 'confirmada')->count(),
                 'canceladas' => $delDia->where('estado', 'cancelada')->count(),
             ],
+            'solicitudesPendientesGlobales' => Reserva::where('estado', 'solicitada')->count(),
             'disponibles' => $service->verificarDisponibilidad($this->fecha, $this->crearForm['hora_llegada'], (int) $this->crearForm['personas']),
+            'mesasDisponiblesModal' => $mesasDisponiblesModal,
         ];
     }
 
@@ -82,15 +109,51 @@ new class extends Component
     public function abrirDetalle(int $id): void
     {
         $this->reservaSeleccionada = $id;
+        $this->errorModal = null;
+        $res = Reserva::with('mesas')->find($id);
+        $this->mesaSeleccionadaIds = $res?->mesas->pluck('id')->map(fn ($i) => (int) $i)->toArray() ?? [];
+
+        if (empty($this->mesaSeleccionadaIds) && $res) {
+            $disp = app(ReservaService::class)->verificarDisponibilidad(
+                $res->fecha->toDateString(),
+                $res->hora_llegada,
+                $res->personas,
+                $res->duracion_min
+            );
+            $mejor = $disp->filter(fn ($m) => $m->capacidad >= $res->personas)->sortBy('capacidad')->first();
+            if ($mejor) {
+                $this->mesaSeleccionadaIds = [(int) $mejor->id];
+            } else {
+                $acum = 0;
+                $asignadas = [];
+                foreach ($disp->sortByDesc('capacidad') as $m) {
+                    $asignadas[] = (int) $m->id;
+                    $acum += $m->capacidad;
+                    if ($acum >= $res->personas) {
+                        break;
+                    }
+                }
+                $this->mesaSeleccionadaIds = $asignadas;
+            }
+        }
     }
 
     public function confirmar(): void
     {
         $this->authorize('confirmar', Reserva::class);
+        $this->errorModal = null;
 
-        $reserva = Reserva::findOrFail($this->reservaSeleccionada);
-        app(ReservaService::class)->confirmar($reserva);
-        session()->flash('status', 'Reserva confirmada.');
+        try {
+            $reserva = Reserva::findOrFail($this->reservaSeleccionada);
+            $mesaIds = ! empty($this->mesaSeleccionadaIds)
+                ? array_map('intval', (array) $this->mesaSeleccionadaIds)
+                : null;
+            app(ReservaService::class)->confirmar($reserva, auth()->user(), $mesaIds);
+            session()->flash('status', "Reserva de {$reserva->nombre_contacto} confirmada.");
+            $this->cerrarDetalle();
+        } catch (\Throwable $e) {
+            $this->errorModal = $e->getMessage();
+        }
     }
 
     public function marcarLlego(): void
@@ -131,7 +194,7 @@ new class extends Component
 
     public function cerrarDetalle(): void
     {
-        $this->reset('reservaSeleccionada');
+        $this->reset('reservaSeleccionada', 'mesaSeleccionadaIds', 'errorModal');
     }
 }; ?>
 
@@ -145,7 +208,7 @@ new class extends Component
             </div>
             <p class="text-xs text-on-surface-variant mt-0.5">Agenda del día, confirmación y bloqueo de mesas</p>
         </div>
-        <button wire:click="abrirCrear" class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary">
+        <button wire:click="abrirCrear" class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-on-primary cursor-pointer">
             <span class="material-symbols-outlined text-[18px]">add</span> Nueva reserva
         </button>
     </header>
@@ -156,13 +219,29 @@ new class extends Component
         <div class="rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-2 text-xs font-bold text-secondary">{{ session('status') }}</div>
     @endif
 
+    @if ($solicitudesPendientesGlobales > 0 && $filtrarEstado !== 'solicitadas_pendientes')
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-4">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary text-2xl animate-pulse">notifications_active</span>
+                <div>
+                    <p class="text-xs font-black text-on-surface">Tienes {{ $solicitudesPendientesGlobales }} {{ $solicitudesPendientesGlobales === 1 ? 'solicitud' : 'solicitudes' }} de reserva web pendiente(s) por tomar/confirmar.</p>
+                    <p class="text-[11px] text-on-surface-variant">Clientes no registrados o reservas en línea esperando confirmación.</p>
+                </div>
+            </div>
+            <button wire:click="$set('filtrarEstado', 'solicitadas_pendientes')" class="px-3.5 py-1.5 rounded-xl bg-primary text-white text-xs font-black hover:bg-primary/90 transition-all cursor-pointer whitespace-nowrap">
+                Ver solicitudes pendientes
+            </button>
+        </div>
+    @endif
+
     <div class="flex flex-wrap items-center gap-3">
         <input type="date" wire:model.live="fecha" wire:change="cambiarFecha"
             class="rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
         <select wire:model.live="filtrarEstado" class="rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
-            <option value="todas">Todos los estados</option>
-            <option value="solicitada">Solicitadas</option>
-            <option value="confirmada">Confirmadas</option>
+            <option value="todas">Todos los estados (fecha)</option>
+            <option value="solicitadas_pendientes">🔔 Solicitudes Web pendientes (todas las fechas: {{ $solicitudesPendientesGlobales }})</option>
+            <option value="solicitada">Solicitadas (fecha actual)</option>
+            <option value="confirmada">Confirmadas (fecha actual)</option>
             <option value="llego">Llegó</option>
             <option value="cancelada">Canceladas</option>
             <option value="no_mostro">No se mostró</option>
@@ -179,15 +258,27 @@ new class extends Component
     </div>
 
     @if ($reservas->isEmpty())
-        <p class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 text-xs text-on-surface-variant">Sin reservas para esta fecha.</p>
+        <p class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 text-xs text-on-surface-variant">Sin reservas para este criterio de búsqueda.</p>
     @else
         <div class="space-y-3">
             @foreach ($reservas as $reserva)
-                <button wire:click="abrirDetalle({{ $reserva->id }})" class="w-full rounded-2xl border border-outline-variant/10 bg-surface-container-low p-4 text-left">
+                <button wire:click="abrirDetalle({{ $reserva->id }})" class="w-full rounded-2xl border border-outline-variant/10 bg-surface-container-low p-4 text-left cursor-pointer hover:border-primary/30 transition-colors">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                            <p class="text-sm font-extrabold text-on-surface">{{ $reserva->nombre_contacto }} · {{ \Illuminate\Support\Carbon::parse($reserva->hora_llegada)->format('H:i') }}</p>
-                            <p class="text-xs text-on-surface-variant">{{ $reserva->personas }} personas · {{ $reserva->mesas->pluck('nombre')->join(', ') ?: $reserva->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }}</p>
+                            <p class="text-sm font-extrabold text-on-surface">
+                                {{ $reserva->nombre_contacto }} · {{ $reserva->fecha->format('d/m') }} {{ \Illuminate\Support\Carbon::parse($reserva->hora_llegada)->format('H:i') }}
+                                @if ($reserva->origen === 'publico')
+                                    <span class="ml-2 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 border border-amber-500/20">Web</span>
+                                @endif
+                            </p>
+                            <p class="text-xs text-on-surface-variant">
+                                {{ $reserva->personas }} personas · 
+                                @if ($reserva->mesas->isNotEmpty())
+                                    {{ $reserva->mesas->pluck('nombre')->join(', ') ?: $reserva->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }}
+                                @else
+                                    <span class="text-amber-500 font-bold">Sin mesa asignada</span>
+                                @endif
+                            </p>
                         </div>
                         <span class="rounded-full px-3 py-1 text-[11px] font-bold
                             {{ match($reserva->estado) {
@@ -227,7 +318,7 @@ new class extends Component
                     <div><label class="text-xs font-bold text-on-surface-variant">Personas</label>
                         <input type="number" min="1" wire:model.live="crearForm.personas" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
                     <p class="text-[11px] text-on-surface-variant">Mesas disponibles: {{ $disponibles->map(fn ($m) => $m->numero . 'PK' . $m->capacidad)->join(' · ') ?: 'ninguna para este horario' }}</p>
-                    <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">Crear reserva</button>
+                    <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary cursor-pointer">Crear reserva</button>
                 </form>
             </div>
         </div>
@@ -239,31 +330,75 @@ new class extends Component
             <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl">
                 <div class="flex items-center justify-between">
                     <h3 class="text-base font-extrabold text-on-surface">{{ $detalle->nombre_contacto }}</h3>
-                    <button wire:click="cerrarDetalle" class="text-on-surface-variant"><span class="material-symbols-outlined">close</span></button>
+                    <button wire:click="cerrarDetalle" class="text-on-surface-variant cursor-pointer"><span class="material-symbols-outlined">close</span></button>
                 </div>
+
+                @if ($errorModal)
+                    <div class="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-rose-600 text-base">error</span>
+                        <span>{{ $errorModal }}</span>
+                    </div>
+                @endif
+
                 <dl class="mt-4 space-y-2 text-xs">
                     <div class="flex justify-between"><dt class="text-on-surface-variant">Teléfono</dt><dd class="font-bold">{{ $detalle->telefono_contacto }}</dd></div>
                     <div class="flex justify-between"><dt class="text-on-surface-variant">Fecha y hora</dt><dd class="font-bold">{{ $detalle->fecha->format('d/m/Y') }} {{ \Illuminate\Support\Carbon::parse($detalle->hora_llegada)->format('H:i') }}</dd></div>
                     <div class="flex justify-between"><dt class="text-on-surface-variant">Personas</dt><dd class="font-bold">{{ $detalle->personas }}</dd></div>
+                    @if ($detalle->mesas->isNotEmpty())
+                        <div class="flex justify-between">
+                            <dt class="text-on-surface-variant">Mesa(s) asignada(s)</dt>
+                            <dd class="font-bold text-primary">
+                                {{ $detalle->mesas->pluck('nombre')->filter()->join(', ') ?: $detalle->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }} ({{ $detalle->mesas->sum('capacidad') }} pax)
+                            </dd>
+                        </div>
+                    @endif
                     <div class="flex justify-between"><dt class="text-on-surface-variant">Estado</dt><dd class="font-bold">{{ $detalle->estado }}</dd></div>
-                    <div class="flex justify-between"><dt class="text-on-surface-variant">Origen</dt><dd class="font-bold">{{ $detalle->origen }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-on-surface-variant">Origen</dt><dd class="font-bold uppercase font-mono text-[11px]">{{ $detalle->origen }}</dd></div>
                     @if ($detalle->notas)<div class="flex justify-between"><dt class="text-on-surface-variant">Notas</dt><dd class="font-bold">{{ $detalle->notas }}</dd></div>@endif
                 </dl>
+
+                @if ($detalle->estado === 'solicitada')
+                    <div class="mt-4 p-3.5 rounded-2xl border border-outline-variant/20 bg-surface-container-low space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-on-surface">Asignar Mesa(s)</label>
+                            <span class="text-[10px] text-on-surface-variant font-mono">{{ $detalle->personas }} pax requeridos</span>
+                        </div>
+                        <div class="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+                            @forelse ($mesasDisponiblesModal as $m)
+                                <label class="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/20 hover:border-primary/40 cursor-pointer text-xs transition-colors">
+                                    <div class="flex items-center gap-2">
+                                        <input type="checkbox" wire:model.live="mesaSeleccionadaIds" value="{{ $m->id }}"
+                                            class="rounded border-outline-variant/40 text-primary focus:ring-0">
+                                        <span class="font-bold text-on-surface">Mesa {{ $m->numero }}</span>
+                                        <span class="text-[10px] text-on-surface-variant uppercase font-mono">({{ ucfirst($m->zona) }})</span>
+                                    </div>
+                                    <span class="text-[11px] font-bold text-primary">{{ $m->capacidad }} pax</span>
+                                </label>
+                            @empty
+                                <p class="text-xs text-amber-600 font-bold p-2 bg-amber-500/10 rounded-xl">No hay mesas libres para este horario</p>
+                            @endforelse
+                        </div>
+                        <p class="text-[11px] text-on-surface-variant">Marca una o varias mesas si es un grupo grande. Se auto-asigna si lo dejas vacío.</p>
+                    </div>
+                @endif
+
                 <div class="mt-5 flex flex-wrap gap-2">
                     @if (in_array($detalle->estado, ['solicitada', 'confirmada']) && $detalle->estado !== 'confirmada')
-                        <button wire:click="confirmar" class="rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-white">Confirmar</button>
+                        <button wire:click="confirmar" class="rounded-xl bg-secondary px-4 py-2 text-xs font-bold text-white flex items-center gap-1 cursor-pointer">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            <span>Confirmar / Tomar</span>
+                        </button>
                     @endif
                     @if ($detalle->estado === 'confirmada')
-                        <button wire:click="marcarLlego" class="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary">Llegó</button>
+                        <button wire:click="marcarLlego" class="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-on-primary cursor-pointer">Llegó</button>
                     @endif
                     @if ($detalle->estado === 'llego')
-                        <button wire:click="finalizar" class="rounded-xl bg-surface-container-high px-4 py-2 text-xs font-bold text-white">Finalizar</button>
+                        <button wire:click="finalizar" class="rounded-xl bg-surface-container-high px-4 py-2 text-xs font-bold text-white cursor-pointer">Finalizar</button>
                     @endif
                     @if (in_array($detalle->estado, ['solicitada', 'confirmada']))
-                        <button wire:click="cancelarReserva" class="rounded-xl bg-error px-4 py-2 text-xs font-bold text-white">Cancelar</button>
-                        <button wire:click="noShow" class="rounded-xl border border-error px-4 py-2 text-xs font-bold text-error">No se mostró</button>
+                        <button wire:click="cancelarReserva" class="rounded-xl bg-error px-4 py-2 text-xs font-bold text-white cursor-pointer">Cancelar</button>
+                        <button wire:click="noShow" class="rounded-xl border border-error px-4 py-2 text-xs font-bold text-error cursor-pointer">No se mostró</button>
                     @endif
-                </div>
             </div>
         </div>
     @endif

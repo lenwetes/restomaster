@@ -12,9 +12,9 @@ class ReservaPublicaController extends Controller
 {
     public function create(Request $request): View
     {
-        $fecha = $request->query('fecha', now()->addDay()->toDateString());
+        $fecha = $request->query('fecha', now()->toDateString());
         if ($fecha < now()->toDateString()) {
-            $fecha = now()->addDay()->toDateString();
+            $fecha = now()->toDateString();
         }
 
         $franjas = collect();
@@ -23,9 +23,14 @@ class ReservaPublicaController extends Controller
         $personas = max(1, (int) $request->query('personas', 2));
         $service = app(ReservaService::class);
 
+        $esHoy = ($fecha === now()->toDateString());
+        $horaLimiteHoy = now()->addMinutes(15)->format('H:i');
+
         for ($t = $inicio->copy(); $t->lte($fin); $t->addMinutes(30)) {
-            $disponible = $service->verificarDisponibilidad($fecha, $t->format('H:i'), $personas)->isNotEmpty();
-            $franjas->push(['hora' => $t->format('H:i'), 'disponible' => $disponible]);
+            $horaStr = $t->format('H:i');
+            $esPasado = $esHoy && ($horaStr <= $horaLimiteHoy);
+            $disponible = ! $esPasado && $service->verificarDisponibilidad($fecha, $horaStr, $personas)->isNotEmpty();
+            $franjas->push(['hora' => $horaStr, 'disponible' => $disponible]);
         }
 
         return view('reservas.crear', [

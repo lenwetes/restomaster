@@ -21,7 +21,8 @@ class Fase5PublicoReservasTest extends TestCase
 
         Role::create(['nombre' => 'Administrador', 'slug' => 'admin']);
         $this->sucursal = Sucursal::create(['nombre' => 'Sede Medellín', 'codigo' => 'MDE-01', 'direccion' => 'Calle 10', 'activa' => true]);
-        Mesa::create(['sucursal_id' => $this->sucursal->id, 'numero' => 1, 'zona' => 'salon', 'capacidad' => 4, 'estado' => 'libre', 'activa' => true]);
+        Mesa::create(['sucursal_id' => $this->sucursal->id, 'numero' => 1, 'zona' => 'salon', 'capacidad' => 4, 'estado' => 'libre']);
+        Mesa::create(['sucursal_id' => $this->sucursal->id, 'numero' => 2, 'zona' => 'salon', 'capacidad' => 4, 'estado' => 'libre']);
 
         app(ConfiguracionService::class)->guardar('reservas', 'webhook_token', 'token-secreto-test');
         app(ConfiguracionService::class)->guardar('reservas', 'webhook_activo', true);
@@ -33,6 +34,85 @@ class Fase5PublicoReservasTest extends TestCase
         $response->assertOk();
         $response->assertSee('Reserva');
         $response->assertSee('Disponible');
+    }
+
+    public function test_personal_puede_tomar_y_confirmar_reserva_publica_de_usuario_no_registrado(): void
+    {
+        // Mesa 1 está ocupada en el salón hoy, Mesa 2 disponible
+        Mesa::where('numero', 1)->update(['estado' => 'ocupada']);
+
+        // 1. Usuario no registrado solicita reserva desde la web pública
+        $response = $this->post(route('reservas.publico'), [
+            'nombre' => 'Casimiro García',
+            'telefono' => '3001112222',
+            'personas' => 2,
+            'fecha' => '2026-09-25',
+            'hora' => '13:00',
+            'notas' => 'Preferencia cerca al jardín',
+        ]);
+        $response->assertSessionHasNoErrors();
+        $reserva = \App\Models\Reserva::where('nombre_contacto', 'Casimiro García')->first();
+        $this->assertNotNull($reserva);
+        $this->assertSame('solicitada', $reserva->estado);
+        $this->assertSame('publico', $reserva->origen);
+        $this->assertTrue($reserva->mesas->isEmpty());
+
+        // 2. Personal (cajero/mesero/admin) abre la vista de reservas y confirma la reserva asignando mesa
+        $admin = \App\Models\User::create([
+            'name' => 'Admin Staff',
+            'email' => 'admin_test@sushixpress.com',
+            'password' => bcrypt('secret'),
+            'role_id' => \App\Models\Role::where('slug', 'admin')->value('id'),
+            'activo' => true,
+        ]);
+
+        \Livewire\Volt\Volt::actingAs($admin)
+            ->test('reservas.index')
+            ->set('filtrarEstado', 'solicitadas_pendientes')
+            ->assertSee('Casimiro García')
+            ->call('abrirDetalle', $reserva->id)
+            ->assertSet('reservaSeleccionada', $reserva->id)
+            ->call('confirmar')
+            ->assertHasNoErrors();
+
+        $reserva->refresh();
+        $this->assertSame('confirmada', $reserva->estado);
+        $this->assertCount(1, $reserva->mesas);
+        $this->assertSame('2', (string) $reserva->mesas->first()->numero);
+    }
+
+    public function test_reserva_publica_permite_grupo_grande_con_mesas_combinadas(): void
+    {
+        // 1. Solicitud para 6 personas cuando cada mesa individual es de 4
+        $response = $this->post(route('reservas.publico'), [
+            'nombre' => 'Familia Restrepo',
+            'telefono' => '3109998877',
+            'personas' => 6,
+            'fecha' => '2026-09-26',
+            'hora' => '20:00',
+        ]);
+        $response->assertSessionHasNoErrors();
+        $reserva = \App\Models\Reserva::where('nombre_contacto', 'Familia Restrepo')->first();
+        $this->assertNotNull($reserva);
+
+        // 2. Staff confirma y combina mesas para cubrir los 6 comensales
+        $admin = \App\Models\User::firstOrCreate(
+            ['email' => 'admin_test2@sushixpress.com'],
+            ['name' => 'Admin Staff 2', 'password' => bcrypt('secret'), 'role_id' => \App\Models\Role::where('slug', 'admin')->value('id'), 'activo' => true]
+        );
+
+        \Livewire\Volt\Volt::actingAs($admin)
+            ->test('reservas.index')
+            ->set('filtrarEstado', 'solicitadas_pendientes')
+            ->call('abrirDetalle', $reserva->id)
+            ->call('confirmar')
+            ->assertHasNoErrors();
+
+        $reserva->refresh();
+        $this->assertSame('confirmada', $reserva->estado);
+        $this->assertGreaterThanOrEqual(1, $reserva->mesas->count());
+        $capacidadTotal = $reserva->mesas->sum('capacidad');
+        $this->assertGreaterThanOrEqual(6, $capacidadTotal);
     }
 
     public function test_store_publico_crea_reserva_solicitada(): void

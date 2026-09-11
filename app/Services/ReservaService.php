@@ -28,13 +28,20 @@ class ReservaService
             ->whereIn('reserva_id', $bloqueadas)
             ->pluck('mesa_id');
 
-        return Mesa::query()
-            ->where('capacidad', '>=', $personas)
-            ->where('estado', MesaEstado::LIBRE->value)
+        $query = Mesa::query()
             ->whereNotIn('id', $mesasBloqueadas)
-            ->orderBy('zona')
-            ->orderBy('numero')
-            ->get();
+            ->whereNotIn('estado', [MesaEstado::OCUPADA->value, MesaEstado::POR_LIMPIAR->value]);
+
+        $conCapacidad = (clone $query)->where('capacidad', '>=', $personas)->orderBy('capacidad')->get();
+        if ($conCapacidad->isNotEmpty()) {
+            return $conCapacidad;
+        }
+
+        if ($query->sum('capacidad') >= $personas) {
+            return $query->orderBy('zona')->orderBy('numero')->get();
+        }
+
+        return collect();
     }
 
     public function crear(array $datos, string $origen = 'sistema'): Reserva
@@ -84,7 +91,7 @@ class ReservaService
 
     public function confirmar(Reserva $reserva, ?User $usuario = null, ?array $mesaIds = null): Reserva
     {
-        if ($mesaIds !== null) {
+        if ($mesaIds !== null && count($mesaIds) > 0) {
             $reserva->mesas()->sync($mesaIds);
             $reserva->refresh();
         }
@@ -96,7 +103,23 @@ class ReservaService
                 throw new InvalidArgumentException('No hay mesas disponibles para esta reserva.');
             }
 
-            $reserva->mesas()->attach($disponibles->sortByDesc('capacidad')->first()->id);
+            $mejor = $disponibles->filter(fn ($m) => $m->capacidad >= $reserva->personas)->sortBy('capacidad')->first();
+
+            if ($mejor) {
+                $reserva->mesas()->attach($mejor->id);
+            } else {
+                $acum = 0;
+                $asignadas = [];
+                foreach ($disponibles->sortByDesc('capacidad') as $m) {
+                    $asignadas[] = $m->id;
+                    $acum += $m->capacidad;
+                    if ($acum >= $reserva->personas) {
+                        break;
+                    }
+                }
+                $reserva->mesas()->sync($asignadas);
+            }
+
             $reserva->refresh();
         }
 
@@ -161,8 +184,13 @@ class ReservaService
     private function validarMesasParaConfirmar(Reserva $reserva): void
     {
         $reserva->mesas->each(function (Mesa $mesa) use ($reserva) {
-            if (in_array($mesa->estado, [MesaEstado::OCUPADA->value, MesaEstado::POR_LIMPIAR->value])) {
-                throw new InvalidArgumentException("La mesa {$this->nombreMesa($mesa)} no está disponible.");
+            if ($reserva->fecha->isToday()) {
+                $minutosHastaLlegada = now()->diffInMinutes(Carbon::parse($reserva->hora_llegada), false);
+                if ($minutosHastaLlegada <= 60 && $minutosHastaLlegada >= -120) {
+                    if (in_array($mesa->estado, [MesaEstado::OCUPADA->value, MesaEstado::POR_LIMPIAR->value])) {
+                        throw new InvalidArgumentException("La mesa {$this->nombreMesa($mesa)} no está disponible en este momento.");
+                    }
+                }
             }
 
             $solapada = Reserva::query()

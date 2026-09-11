@@ -107,15 +107,23 @@
                             <span class="text-[11px] text-stone-400 font-mono">Turnos de 2 horas</span>
                         </div>
 
+                        @php $firstAvailableChecked = false; @endphp
                         <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                             @foreach ($franjas as $franja)
+                                @php
+                                    $checkMe = false;
+                                    if (!$firstAvailableChecked && $franja['disponible']) {
+                                        $checkMe = true;
+                                        $firstAvailableChecked = true;
+                                    }
+                                @endphp
                                 <label class="relative flex flex-col p-3 rounded-2xl border text-center transition-all {{ $franja['disponible'] ? 'border-stone-200 bg-stone-50 hover:border-[#ff5436] hover:bg-[#ff5436]/5 cursor-pointer has-[:checked]:bg-[#ff5436]/10 has-[:checked]:border-[#ff5436] has-[:checked]:shadow-md' : 'border-stone-100 bg-stone-50/50 opacity-40 cursor-not-allowed' }}">
                                     <input 
                                         type="radio" 
                                         name="hora" 
                                         value="{{ $franja['hora'] }}" 
                                         {{ $franja['disponible'] ? '' : 'disabled' }} 
-                                        {{ $loop->first && $franja['disponible'] ? 'checked' : ''}}
+                                        {{ $checkMe ? 'checked' : '' }}
                                         class="sr-only"
                                     />
                                     <span class="font-mono font-black text-sm text-stone-900">{{ $franja['hora'] }}</span>
@@ -125,6 +133,12 @@
                                 </label>
                             @endforeach
                         </div>
+                        @if ($franjas->where('disponible', true)->isEmpty())
+                            <div class="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-2">
+                                <span class="material-symbols-outlined text-amber-600 text-base">info</span>
+                                <span>No hay franjas con capacidad disponible para este día. Por favor prueba con otra fecha u horario.</span>
+                            </div>
+                        @endif
                         @error('hora')
                             <p class="text-xs text-rose-500 font-bold">{{ $message }}</p>
                         @enderror
