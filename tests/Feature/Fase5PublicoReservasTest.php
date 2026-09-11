@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Mesa;
+use App\Models\Reserva;
 use App\Models\Role;
 use App\Models\Sucursal;
+use App\Models\User;
 use App\Services\ConfiguracionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Volt\Volt;
 use Tests\TestCase;
 
 class Fase5PublicoReservasTest extends TestCase
@@ -51,22 +54,22 @@ class Fase5PublicoReservasTest extends TestCase
             'notas' => 'Preferencia cerca al jardín',
         ]);
         $response->assertSessionHasNoErrors();
-        $reserva = \App\Models\Reserva::where('nombre_contacto', 'Casimiro García')->first();
+        $reserva = Reserva::where('nombre_contacto', 'Casimiro García')->first();
         $this->assertNotNull($reserva);
         $this->assertSame('solicitada', $reserva->estado);
         $this->assertSame('publico', $reserva->origen);
         $this->assertTrue($reserva->mesas->isEmpty());
 
         // 2. Personal (cajero/mesero/admin) abre la vista de reservas y confirma la reserva asignando mesa
-        $admin = \App\Models\User::create([
+        $admin = User::create([
             'name' => 'Admin Staff',
             'email' => 'admin_test@sushixpress.com',
             'password' => bcrypt('secret'),
-            'role_id' => \App\Models\Role::where('slug', 'admin')->value('id'),
+            'role_id' => Role::where('slug', 'admin')->value('id'),
             'activo' => true,
         ]);
 
-        \Livewire\Volt\Volt::actingAs($admin)
+        Volt::actingAs($admin)
             ->test('reservas.index')
             ->set('filtrarEstado', 'solicitadas_pendientes')
             ->assertSee('Casimiro García')
@@ -92,16 +95,16 @@ class Fase5PublicoReservasTest extends TestCase
             'hora' => '20:00',
         ]);
         $response->assertSessionHasNoErrors();
-        $reserva = \App\Models\Reserva::where('nombre_contacto', 'Familia Restrepo')->first();
+        $reserva = Reserva::where('nombre_contacto', 'Familia Restrepo')->first();
         $this->assertNotNull($reserva);
 
         // 2. Staff confirma y combina mesas para cubrir los 6 comensales
-        $admin = \App\Models\User::firstOrCreate(
+        $admin = User::firstOrCreate(
             ['email' => 'admin_test2@sushixpress.com'],
-            ['name' => 'Admin Staff 2', 'password' => bcrypt('secret'), 'role_id' => \App\Models\Role::where('slug', 'admin')->value('id'), 'activo' => true]
+            ['name' => 'Admin Staff 2', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'admin')->value('id'), 'activo' => true]
         );
 
-        \Livewire\Volt\Volt::actingAs($admin)
+        Volt::actingAs($admin)
             ->test('reservas.index')
             ->set('filtrarEstado', 'solicitadas_pendientes')
             ->call('abrirDetalle', $reserva->id)
