@@ -186,8 +186,8 @@ class Fase1MenuCrudTest extends TestCase
 
     public function test_componente_puede_crear_categoria_desde_ui_solo_admin(): void
     {
-        // Gerente no puede guardar categoría
-        Volt::actingAs($this->gerente)
+        // Mesero no puede guardar categoría
+        Volt::actingAs($this->mesero)
             ->test('menu.index')
             ->set('categoriaForm.nombre', 'Combos')
             ->call('guardarCategoria')
@@ -210,8 +210,8 @@ class Fase1MenuCrudTest extends TestCase
     {
         $categoria = Categoria::create(['nombre' => 'Rolls Especiales', 'slug' => 'rolls-especiales']);
 
-        // Gerente no puede guardar producto
-        Volt::actingAs($this->gerente)
+        // Mesero no puede guardar producto
+        Volt::actingAs($this->mesero)
             ->test('menu.index')
             ->set('productoForm.categoria_id', $categoria->id)
             ->set('productoForm.nombre', 'Dragon Roll Imperial')
@@ -272,13 +272,13 @@ class Fase1MenuCrudTest extends TestCase
             ->assertSee('id="btnCatNavRight"', false)
             ->assertSee('id="btnPosCrearProductoAdmin"', false);
 
-        // Gerente ve la barra de categorías pero el botón de crear producto es INVISIBLE
+        // Gerente ve la barra de categorías y el botón de crear producto (ahora habilitado)
         $this->actingAs($this->gerente)
             ->get(route('pos'))
             ->assertOk()
             ->assertSee('id="btnCatNavLeft"', false)
             ->assertSee('id="btnCatNavRight"', false)
-            ->assertDontSee('id="btnPosCrearProductoAdmin"', false);
+            ->assertSee('id="btnPosCrearProductoAdmin"', false);
 
         // Mesero ve la barra de categorías pero el botón de crear producto es INVISIBLE
         $this->actingAs($this->mesero)
@@ -296,7 +296,7 @@ class Fase1MenuCrudTest extends TestCase
             ->call('abrirNuevaCategoria')
             ->assertSet('mostrarModalCategoria', true)
             ->assertSee('Frecuentes:')
-            ->assertSee('Sushi & Rolls', false)
+            ->assertSee('Parrilla & Carnes', false)
             ->assertSee('Wok & Ramen', false)
             ->assertSee('Bebidas & Bar', false)
             ->assertSee('Postres & Dulces', false)

@@ -5,38 +5,87 @@ use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Services\PedidoService;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Volt\Component;
 
 new class extends Component
 {
     public string $tipo = 'mesa'; // 'mesa', 'mostrador', 'delivery'
+
     public ?int $mesaId = null;
+
     public string $nombreCliente = '';
+
     public string $telefonoCliente = '';
+
     public string $direccionDelivery = '';
+
     public ?int $clienteId = null;
+
     public ?int $direccionId = null;
+
     public int $puntosDisponibles = 0;
+
     public int $puntosCanjeados = 0;
+
     public float $descuentoPuntos = 0.0;
+
     public string $busquedaCliente = '';
+
+    public array $sugerenciasClientes = [];
+
+    public bool $mostrarSugerencias = false;
+
+    public bool $mostrarModalHabeasData = false;
+
+    public string $habeasNombre = '';
+
+    public string $habeasTelefono = '';
+
+    public string $habeasEmail = '';
+
+    public string $habeasDireccion = '';
+
+    public bool $habeasAcepta = false;
+
+    public bool $habeasWhatsapp = true;
+
+    public bool $habeasEmailPromos = true;
+
     public float $costoEnvio = 8000.0;
+
     public ?int $categoriaSeleccionada = null;
+
     public string $busqueda = '';
 
     // Shopping cart
     public array $carrito = [];
+
     public float $descuento = 0.0;
 
     // Checkout modal and ticket
     public bool $mostrarModalCobro = false;
+
     public string $metodoPago = 'efectivo';
+
     public float $montoPagado = 0.0;
+
+    public float $montoEfectivoMixto = 0.0;
+
     public ?Pedido $pedidoCompletado = null;
+
     public bool $mostrarTicket = false;
+
+    // Propina voluntaria
+    public string $tipoPropina = 'cero'; // 'cero', 'diez_porciento', 'personalizada'
+
+    public float $montoPropina = 0.0;
+
+    public float $porcentajePropina = 0.0;
 
     // Tres vistas ergonómicas para rol mesero: 'pc', 'tablet', 'movil'
     public string $vistaMesero = 'pc';
+
     public bool $mostrarComandaMovil = false;
 
     public function cambiarVista(string $vista): void
@@ -54,7 +103,7 @@ new class extends Component
 
         $mesaIdParam = request()->query('mesa_id');
         if ($mesaIdParam) {
-            $this->mesaId = (int)$mesaIdParam;
+            $this->mesaId = (int) $mesaIdParam;
             $this->tipo = 'mesa';
 
             // If table has an active order, load it
@@ -64,8 +113,8 @@ new class extends Component
                     $this->carrito[$item->producto_id] = [
                         'producto_id' => $item->producto_id,
                         'nombre' => $item->nombre_producto,
-                        'precio' => (float)$item->precio_unitario,
-                        'cantidad' => (int)$item->cantidad,
+                        'precio' => (float) $item->precio_unitario,
+                        'cantidad' => (int) $item->cantidad,
                         'notas' => $item->notas ?? '',
                         'area_cocina' => $item->area_cocina,
                     ];
@@ -78,14 +127,14 @@ new class extends Component
     {
         $this->limpiarCarrito();
         if ($value) {
-            $pedidoExistente = Pedido::where('mesa_id', (int)$value)->activos()->latest()->first();
+            $pedidoExistente = Pedido::where('mesa_id', (int) $value)->activos()->latest()->first();
             if ($pedidoExistente) {
                 foreach ($pedidoExistente->items as $item) {
                     $this->carrito[$item->producto_id] = [
                         'producto_id' => $item->producto_id,
                         'nombre' => $item->nombre_producto,
-                        'precio' => (float)$item->precio_unitario,
-                        'cantidad' => (int)$item->cantidad,
+                        'precio' => (float) $item->precio_unitario,
+                        'cantidad' => (int) $item->cantidad,
                         'notas' => $item->notas ?? '',
                         'area_cocina' => $item->area_cocina,
                     ];
@@ -104,7 +153,7 @@ new class extends Component
             $this->carrito[$productoId] = [
                 'producto_id' => $producto->id,
                 'nombre' => $producto->nombre,
-                'precio' => (float)$producto->precio,
+                'precio' => (float) $producto->precio,
                 'cantidad' => 1,
                 'notas' => '',
                 'area_cocina' => $producto->area_cocina,
@@ -147,6 +196,7 @@ new class extends Component
         foreach ($this->carrito as $item) {
             $subtotal += $item['precio'] * $item['cantidad'];
         }
+
         return $subtotal;
     }
 
@@ -177,6 +227,117 @@ new class extends Component
         $this->puntosDisponibles = 0;
         $this->puntosCanjeados = 0;
         $this->descuentoPuntos = 0.0;
+        $this->sugerenciasClientes = [];
+        $this->mostrarSugerencias = false;
+    }
+
+    public function updatedNombreCliente(string $valor): void
+    {
+        $termino = trim($valor);
+        if (mb_strlen($termino) >= 4) {
+            $clienteService = app(\App\Services\ClienteService::class);
+            $this->sugerenciasClientes = $clienteService->buscarPredictivo($termino, 6)
+                ->map(fn (\App\Models\Cliente $c) => [
+                    'id' => $c->id,
+                    'nombre' => $c->nombre,
+                    'telefono' => $c->telefono,
+                    'email' => $c->email,
+                    'tier' => $c->tier,
+                    'badge_class' => $c->badgeTier()['color'] ?? '',
+                    'badge_label' => $c->badgeTier()['label'] ?? strtoupper($c->tier ?? 'OCASIONAL'),
+                    'puntos' => $c->puntos_fidelidad,
+                ])
+                ->all();
+            $this->mostrarSugerencias = count($this->sugerenciasClientes) > 0;
+        } else {
+            $this->sugerenciasClientes = [];
+            $this->mostrarSugerencias = false;
+        }
+    }
+
+    public function seleccionarClientePredictivo(int $id): void
+    {
+        $this->seleccionarCliente($id);
+        $this->mostrarSugerencias = false;
+        $this->sugerenciasClientes = [];
+    }
+
+    public function cerrarSugerencias(): void
+    {
+        $this->mostrarSugerencias = false;
+        $this->sugerenciasClientes = [];
+    }
+
+    public function abrirModalHabeasData(): void
+    {
+        if ($this->clienteId) {
+            $cliente = \App\Models\Cliente::find($this->clienteId);
+            if ($cliente) {
+                $this->habeasNombre = $cliente->nombre;
+                $this->habeasTelefono = $cliente->telefono ?? '';
+                $this->habeasEmail = $cliente->email ?? '';
+                $this->habeasAcepta = (bool) $cliente->acepta_tratamiento_datos;
+                $this->habeasWhatsapp = $cliente->autoriza_whatsapp ?? true;
+                $this->habeasEmailPromos = $cliente->autoriza_email ?? true;
+                $this->habeasDireccion = $this->direccionDelivery;
+            }
+        } else {
+            $this->habeasNombre = $this->nombreCliente;
+            $this->habeasTelefono = $this->telefonoCliente;
+            $this->habeasEmail = '';
+            $this->habeasAcepta = false;
+            $this->habeasWhatsapp = true;
+            $this->habeasEmailPromos = true;
+            $this->habeasDireccion = $this->direccionDelivery;
+        }
+
+        $this->mostrarModalHabeasData = true;
+    }
+
+    public function guardarHabeasData(): void
+    {
+        $this->validate([
+            'habeasNombre' => 'required|string|min:3|max:100',
+            'habeasAcepta' => 'accepted',
+            'habeasTelefono' => 'nullable|string|max:20',
+            'habeasEmail' => 'nullable|email|max:100',
+            'habeasDireccion' => 'nullable|string|max:255',
+        ], [
+            'habeasNombre.required' => 'El nombre del cliente es obligatorio.',
+            'habeasNombre.min' => 'El nombre debe tener al menos 3 letras.',
+            'habeasAcepta.accepted' => 'Debe aceptar la política de tratamiento de datos personales (Habeas Data).',
+            'habeasEmail.email' => 'Ingrese un correo electrónico válido.',
+        ]);
+
+        $clienteService = app(\App\Services\ClienteService::class);
+
+        if (! $this->clienteId) {
+            $cliente = $clienteService->buscarOcrearOcasional($this->habeasNombre);
+            $this->clienteId = $cliente->id;
+            $this->nombreCliente = $cliente->nombre;
+        } else {
+            $cliente = \App\Models\Cliente::findOrFail($this->clienteId);
+            $cliente->update(['nombre' => trim($this->habeasNombre)]);
+            $this->nombreCliente = $cliente->nombre;
+        }
+
+        $clienteService->registrarConsentimientoHabeasData($cliente, [
+            'telefono' => $this->habeasTelefono ?: null,
+            'email' => $this->habeasEmail ?: null,
+            'direccion' => $this->habeasDireccion ?: null,
+            'acepta_tratamiento_datos' => $this->habeasAcepta,
+            'canal_autorizacion_datos' => 'pos_terminal',
+            'autoriza_whatsapp' => $this->habeasWhatsapp,
+            'autoriza_email' => $this->habeasEmailPromos,
+        ]);
+
+        $this->telefonoCliente = $cliente->fresh()->telefono ?? '';
+        if (! empty($this->habeasDireccion)) {
+            $this->direccionDelivery = $this->habeasDireccion;
+        }
+
+        $this->mostrarModalHabeasData = false;
+        session()->flash('notificacion', "¡Cliente {$cliente->nombre} registrado y autorizado con éxito!");
     }
 
     public function canjearPuntos(int $puntos): void
@@ -209,18 +370,68 @@ new class extends Component
     public function getTotalProperty(): float
     {
         $envio = $this->tipo === 'delivery' ? $this->costoEnvio : 0.0;
+
         return max(0.0, $this->subtotal + $envio - $this->descuento - $this->descuentoPuntos);
+    }
+
+    public function getTotalConPropinaProperty(): float
+    {
+        return max(0.0, $this->total + $this->montoPropina);
     }
 
     public function getCambioProperty(): float
     {
-        return max(0.0, $this->montoPagado - $this->total);
+        return max(0.0, $this->montoPagado - $this->totalConPropina);
+    }
+
+    public function seleccionarPropina(string $tipo): void
+    {
+        $this->tipoPropina = $tipo;
+        if ($tipo === 'diez_porciento') {
+            $this->porcentajePropina = 10.0;
+            $this->montoPropina = round($this->total * 0.10);
+        } elseif ($tipo === 'cero') {
+            $this->porcentajePropina = 0.0;
+            $this->montoPropina = 0.0;
+        }
+        $this->actualizarMontoPagadoConPropina();
+    }
+
+    public function updatedMontoPropina($value): void
+    {
+        $this->montoPropina = max(0.0, (float) $value);
+        $this->porcentajePropina = $this->total > 0 ? round(($this->montoPropina / $this->total) * 100, 1) : 0.0;
+        $this->actualizarMontoPagadoConPropina();
+    }
+
+    public function actualizarMontoPagadoConPropina(): void
+    {
+        if (in_array(strtolower((string) $this->metodoPago), ['tarjeta', 'transferencia', 'datafono', 'datáfono', 'mixto'], true)) {
+            $this->montoPagado = $this->totalConPropina;
+        } elseif ($this->metodoPago === 'efectivo' && $this->montoPagado < $this->totalConPropina) {
+            $this->montoPagado = $this->totalConPropina;
+        }
     }
 
     public function updatedDescuento($value): void
     {
         if ((float) $value > 0) {
             $this->authorize('aplicarDescuento', Pedido::class);
+        }
+        if ($this->tipoPropina === 'diez_porciento') {
+            $this->montoPropina = round($this->total * 0.10);
+        }
+        $this->actualizarMontoPagadoConPropina();
+    }
+
+    public function updatedMetodoPago($value): void
+    {
+        if (in_array(strtolower((string) $value), ['tarjeta', 'transferencia', 'datafono', 'datáfono', 'mixto'], true)) {
+            $this->montoPagado = $this->totalConPropina;
+        }
+
+        if (strtolower((string) $value) !== 'mixto') {
+            $this->montoEfectivoMixto = 0.0;
         }
     }
 
@@ -239,86 +450,57 @@ new class extends Component
         $pedidoService = app(PedidoService::class);
         $costoEnvio = $this->tipo === 'delivery' ? $this->costoEnvio : 0.0;
 
-        $pedido = $pedidoService->crearPedido([
-            'tipo' => $this->tipo,
-            'estado' => 'en_cocina',
-            'estado_delivery' => $this->tipo === 'delivery' ? 'pendiente' : null,
-            'mesa_id' => $this->tipo === 'mesa' ? $this->mesaId : null,
-            'cliente_id' => $this->clienteId,
-            'direccion_id' => $this->direccionId,
-            'nombre_cliente' => $this->nombreCliente,
-            'telefono_cliente' => $this->telefonoCliente,
-            'direccion_delivery' => $this->direccionDelivery,
-            'costo_envio' => $costoEnvio,
-            'descuento' => $this->descuento,
-            'descuento_puntos' => $this->descuentoPuntos,
-            'puntos_canjeados' => $this->puntosCanjeados,
-        ], array_values($this->carrito), auth()->user());
-
-        if ($this->puntosCanjeados > 0 && $this->clienteId) {
-            $cliente = \App\Models\Cliente::find($this->clienteId);
-            if ($cliente) {
-                app(\App\Services\FidelizacionService::class)->canjearPuntos($cliente, $this->puntosCanjeados, $pedido);
-            }
+        if (! $this->clienteId && trim($this->nombreCliente) !== '') {
+            $cliente = app(\App\Services\ClienteService::class)->buscarOcrearOcasional($this->nombreCliente);
+            $this->clienteId = $cliente->id;
+            $this->nombreCliente = $cliente->nombre;
         }
 
-        $this->limpiarCarrito();
-
-        session()->flash('notificacion', "¡Comanda {$pedido->codigo} enviada a cocina con éxito!");
-
-        if (auth()->user()?->role?->slug === 'mesero') {
-            $this->mesaId = null;
-            $this->redirect(route('pos'), navigate: true);
-            return;
+        if ($this->tipo === 'mesa' && $this->mesaId) {
+            $mesa = Mesa::find($this->mesaId);
+            abort_if($mesa && auth()->user()?->sucursal_id && $mesa->sucursal_id !== auth()->user()->sucursal_id, 403, 'Mesa no pertenece a su sucursal.');
         }
-
-        $this->redirect($this->tipo === 'delivery' ? route('delivery') : route('mesas'), navigate: true);
-    }
-
-    public function abrirModalCobro(): void
-    {
-        if (empty($this->carrito)) {
-            return;
-        }
-        $this->montoPagado = $this->total;
-        $this->mostrarModalCobro = true;
-    }
-
-    public function setMontoExacto(): void
-    {
-        $this->montoPagado = $this->total;
-    }
-
-    public function sumarMonto(float $cantidad): void
-    {
-        $this->montoPagado = $cantidad;
-    }
-
-    public function procesarCobro(): void
-    {
-        $this->authorize('cobrar', Pedido::class);
-
-        if ($this->descuento > 0) {
-            $this->authorize('aplicarDescuento', Pedido::class);
-        }
-
-        if ($this->montoPagado < $this->total) {
-            return;
-        }
-
-        $pedidoService = app(PedidoService::class);
-        $costoEnvio = $this->tipo === 'delivery' ? $this->costoEnvio : 0.0;
 
         $pedidoExistente = ($this->tipo === 'mesa' && $this->mesaId)
             ? Pedido::where('mesa_id', $this->mesaId)->activos()->latest()->first()
             : null;
 
         if ($pedidoExistente) {
-            $pedido = $pedidoExistente;
+            abort_if(auth()->user()?->sucursal_id && $pedidoExistente->sucursal_id && $pedidoExistente->sucursal_id !== auth()->user()->sucursal_id, 403, 'No autorizado para modificar pedidos de otra sucursal.');
+            if (! $pedidoExistente->cliente_id && $this->clienteId) {
+                $pedidoExistente->update([
+                    'cliente_id' => $this->clienteId,
+                    'nombre_cliente' => $this->nombreCliente,
+                ]);
+            }
+            $itemsExistentes = $pedidoExistente->items()->get()->keyBy('producto_id');
+
+            foreach ($this->carrito as $productoId => $itemCarrito) {
+                $cantidadCarrito = (int) $itemCarrito['cantidad'];
+                if ($itemsExistentes->has($productoId)) {
+                    $itemDb = $itemsExistentes->get($productoId);
+                    $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
+                    if ($diferencia > 0) {
+                        $producto = Producto::find($productoId);
+                        if ($producto) {
+                            $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
+                        }
+                    }
+                } else {
+                    $producto = Producto::find($productoId);
+                    if ($producto) {
+                        $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
+                    }
+                }
+            }
+
+            $pedido = $pedidoService->enviarACocina($pedidoExistente);
         } else {
+            $mesaObj = ($this->tipo === 'mesa' && $this->mesaId) ? Mesa::find($this->mesaId) : null;
             $pedido = $pedidoService->crearPedido([
                 'tipo' => $this->tipo,
-                'estado' => 'creado',
+                'estado' => 'en_cocina',
+                'sucursal_id' => auth()->user()?->sucursal_id ?? $mesaObj?->sucursal_id ?? 1,
                 'estado_delivery' => $this->tipo === 'delivery' ? 'pendiente' : null,
                 'mesa_id' => $this->tipo === 'mesa' ? $this->mesaId : null,
                 'cliente_id' => $this->clienteId,
@@ -340,7 +522,150 @@ new class extends Component
             }
         }
 
-        $this->pedidoCompletado = $pedidoService->cobrarPedido($pedido, $this->metodoPago, $this->montoPagado);
+        $this->limpiarCarrito();
+
+        session()->flash('notificacion', "¡Comanda {$pedido->codigo} enviada a cocina con éxito!");
+
+        if (auth()->user()?->role?->slug === 'mesero') {
+            $this->mesaId = null;
+            $this->redirect(route('pos'), navigate: true);
+
+            return;
+        }
+
+        $this->redirect($this->tipo === 'delivery' ? route('delivery') : route('mesas'), navigate: true);
+    }
+
+    public function abrirModalCobro(): void
+    {
+        if (empty($this->carrito)) {
+            return;
+        }
+        $this->tipoPropina = 'cero';
+        $this->montoPropina = 0.0;
+        $this->porcentajePropina = 0.0;
+        $this->montoPagado = $this->total;
+        $this->mostrarModalCobro = true;
+    }
+
+    public function setMontoExacto(): void
+    {
+        $this->montoPagado = $this->totalConPropina;
+    }
+
+    public function sumarMonto(float $cantidad): void
+    {
+        $this->montoPagado = $cantidad;
+    }
+
+    public function procesarCobro(): void
+    {
+        $this->authorize('cobrar', Pedido::class);
+
+        if ($this->descuento > 0) {
+            $this->authorize('aplicarDescuento', Pedido::class);
+        }
+
+        $pedidoService = app(PedidoService::class);
+        $costoEnvio = $this->tipo === 'delivery' ? $this->costoEnvio : 0.0;
+
+        if (! $this->clienteId && trim($this->nombreCliente) !== '') {
+            $cliente = app(\App\Services\ClienteService::class)->buscarOcrearOcasional($this->nombreCliente);
+            $this->clienteId = $cliente->id;
+            $this->nombreCliente = $cliente->nombre;
+        }
+
+        if ($this->tipo === 'mesa' && $this->mesaId) {
+            $mesa = Mesa::find($this->mesaId);
+            abort_if($mesa && auth()->user()?->sucursal_id && $mesa->sucursal_id !== auth()->user()->sucursal_id, 403, 'Mesa no pertenece a su sucursal.');
+        }
+
+        $pedidoExistente = ($this->tipo === 'mesa' && $this->mesaId)
+            ? Pedido::where('mesa_id', $this->mesaId)->activos()->latest()->first()
+            : null;
+
+        if ($pedidoExistente) {
+            abort_if(auth()->user()?->sucursal_id && $pedidoExistente->sucursal_id && $pedidoExistente->sucursal_id !== auth()->user()->sucursal_id, 403, 'No autorizado para cobrar pedidos de otra sucursal.');
+            if (! $pedidoExistente->cliente_id && $this->clienteId) {
+                $pedidoExistente->update([
+                    'cliente_id' => $this->clienteId,
+                    'nombre_cliente' => $this->nombreCliente,
+                ]);
+            }
+            $itemsExistentes = $pedidoExistente->items()->get()->keyBy('producto_id');
+
+            foreach ($this->carrito as $productoId => $itemCarrito) {
+                $cantidadCarrito = (int) $itemCarrito['cantidad'];
+                if ($itemsExistentes->has($productoId)) {
+                    $itemDb = $itemsExistentes->get($productoId);
+                    $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
+                    if ($diferencia > 0) {
+                        $producto = Producto::find($productoId);
+                        if ($producto) {
+                            $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
+                        }
+                    }
+                } else {
+                    $producto = Producto::find($productoId);
+                    if ($producto) {
+                        $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
+                    }
+                }
+            }
+            $pedido = $pedidoExistente->fresh(['items', 'mesa']);
+        } else {
+            $mesaObj = ($this->tipo === 'mesa' && $this->mesaId) ? Mesa::find($this->mesaId) : null;
+            $pedido = $pedidoService->crearPedido([
+                'tipo' => $this->tipo,
+                'estado' => 'creado',
+                'sucursal_id' => auth()->user()?->sucursal_id ?? $mesaObj?->sucursal_id ?? 1,
+                'estado_delivery' => $this->tipo === 'delivery' ? 'pendiente' : null,
+                'mesa_id' => $this->tipo === 'mesa' ? $this->mesaId : null,
+                'cliente_id' => $this->clienteId,
+                'direccion_id' => $this->direccionId,
+                'nombre_cliente' => $this->nombreCliente,
+                'telefono_cliente' => $this->telefonoCliente,
+                'direccion_delivery' => $this->direccionDelivery,
+                'costo_envio' => $costoEnvio,
+                'descuento' => $this->descuento,
+                'descuento_puntos' => $this->descuentoPuntos,
+                'puntos_canjeados' => $this->puntosCanjeados,
+            ], array_values($this->carrito), auth()->user());
+        }
+
+        $propina = max(0.0, (float) $this->montoPropina);
+        $totalConPropina = (float) $pedido->total + $propina;
+
+        if (in_array(strtolower((string) $this->metodoPago), ['tarjeta', 'transferencia', 'datafono', 'datáfono'], true)) {
+            $this->montoPagado = $totalConPropina;
+        }
+
+        if (strtolower((string) $this->metodoPago) === 'mixto') {
+            $this->montoPagado = $totalConPropina;
+            $this->montoEfectivoMixto = min(max(0, (float) $this->montoEfectivoMixto), $totalConPropina);
+        }
+
+        if ($this->montoPagado < $totalConPropina) {
+            $this->addError('montoPagado', 'El monto pagado no puede ser menor al total.');
+
+            return;
+        }
+
+        if ($this->puntosCanjeados > 0 && $this->clienteId) {
+            $cliente = \App\Models\Cliente::find($this->clienteId);
+            if ($cliente) {
+                app(\App\Services\FidelizacionService::class)->canjearPuntos($cliente, $this->puntosCanjeados, $pedido);
+            }
+        }
+
+        $this->pedidoCompletado = $pedidoService->cobrarPedido(
+            $pedido,
+            $this->metodoPago,
+            $this->montoPagado,
+            strtolower((string) $this->metodoPago) === 'mixto' ? (float) $this->montoEfectivoMixto : null,
+            $propina,
+            $this->porcentajePropina
+        );
 
         $this->mostrarModalCobro = false;
         $this->mostrarTicket = true;
@@ -356,6 +681,7 @@ new class extends Component
             $this->mesaId = null;
             $this->limpiarCarrito();
             $this->redirect(route('pos'), navigate: true);
+
             return;
         }
 
@@ -364,7 +690,7 @@ new class extends Component
 
     public function atenderPedidoQrActual(): void
     {
-        if (!$this->mesaId) {
+        if (! $this->mesaId) {
             return;
         }
 
@@ -383,7 +709,7 @@ new class extends Component
             } catch (\DomainException $e) {
                 session()->flash('error', $e->getMessage());
             } catch (\Throwable $e) {
-                session()->flash('error', 'Error al asignar pedido: ' . $e->getMessage());
+                session()->flash('error', 'Error al asignar pedido: '.$e->getMessage());
             }
         }
     }
@@ -396,8 +722,8 @@ new class extends Component
             $query->where('categoria_id', $this->categoriaSeleccionada);
         }
 
-        if (!empty($this->busqueda)) {
-            $query->where('nombre', 'ilike', '%' . $this->busqueda . '%');
+        if (! empty($this->busqueda)) {
+            $query->where('nombre', 'ilike', '%'.$this->busqueda.'%');
         }
 
         $pedidoQrPendiente = ($this->tipo === 'mesa' && $this->mesaId)
@@ -411,21 +737,59 @@ new class extends Component
 
         $clientesQuery = \App\Models\Cliente::where('activo', true);
         if (! empty(trim($this->busquedaCliente))) {
-            $term = '%' . trim($this->busquedaCliente) . '%';
+            $term = '%'.trim($this->busquedaCliente).'%';
             $clientesQuery->where(function ($q) use ($term) {
                 $q->where('nombre', 'ilike', $term)
-                  ->orWhere('telefono', 'ilike', $term);
+                    ->orWhere('telefono', 'ilike', $term);
             });
         }
         $clientesDisponibles = $clientesQuery->orderByDesc('puntos_fidelidad')->limit(50)->get();
 
+        $categorias = new \Illuminate\Database\Eloquent\Collection(
+            collect(Cache::remember('pos.terminal.categorias', 60, function (): array {
+                return Categoria::where('activo', true)
+                    ->withCount(['productos' => fn ($q) => $q->where('activo', true)])
+                    ->orderBy('orden')
+                    ->get()
+                    ->map(fn (Categoria $c) => [
+                        'id' => $c->id,
+                        'icono' => $c->icono,
+                        'nombre' => $c->nombre,
+                        'productos_count' => (int) $c->productos_count,
+                    ])
+                    ->all();
+            }))->map(fn (array $c) => (new Categoria)->forceFill($c))->all()
+        );
+
+        $mesasCache = Cache::remember('pos.terminal.mesas', 60, function (): array {
+            return Mesa::orderBy('numero')
+                ->get()
+                ->map(fn (Mesa $m) => [
+                    'id' => $m->id,
+                    'sucursal_id' => $m->sucursal_id,
+                    'numero' => $m->numero,
+                    'capacidad' => $m->capacidad,
+                    'estado' => $m->estado,
+                    'ubicacion' => $m->ubicacion,
+                    'activa' => (bool) $m->activa,
+                ])
+                ->all();
+        });
+
+        $userSucursalId = auth()->user()?->sucursal_id;
+        $mesasColeccion = collect($mesasCache);
+        if ($userSucursalId) {
+            $mesasColeccion = $mesasColeccion->filter(fn ($m) => ($m['sucursal_id'] ?? null) == $userSucursalId);
+        }
+
+        $mesas = new \Illuminate\Database\Eloquent\Collection(
+            $mesasColeccion->map(fn (array $m) => (new Mesa)->forceFill($m))->all()
+        );
+
         return [
-            'categorias' => Categoria::where('activo', true)
-                ->withCount(['productos' => fn ($q) => $q->where('activo', true)])
-                ->orderBy('orden')
-                ->get(),
+            'categorias' => $categorias,
             'productos' => $query->get(),
-            'mesas' => Mesa::orderBy('numero')->get(),
+            'mesas' => $mesas,
             'clientesDisponibles' => $clientesDisponibles,
             'pedidoQrPendiente' => $pedidoQrPendiente,
         ];
@@ -487,8 +851,8 @@ new class extends Component
                 <!-- Barra Superior de Estado / Dispositivo Móvil -->
                 <div class="bg-surface-container-low px-4 py-2 border-b border-surface-container-high/60 flex items-center justify-between text-[11px] font-bold text-on-surface-variant">
                     <div class="flex items-center gap-2">
-                        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px]">🍣</span>
-                        <span class="font-black text-on-surface">SushiXpress Pocket</span>
+                        <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px]">🍽️</span>
+                        <span class="font-black text-on-surface">RestoMaster Pocket</span>
                     </div>
                     <div class="flex items-center gap-1.5">
                         <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
@@ -1117,7 +1481,7 @@ new class extends Component
                 <select 
                     wire:model.live="mesaId" 
                     id="mesaId" 
-                    class="rounded-xl border bg-surface-container-low px-3 py-1.5 text-xs font-bold text-on-surface focus:border-primary focus:ring-0 {{ !$mesaId && auth()->user()?->role?->slug === 'mesero' ? 'border-primary/60 ring-2 ring-primary/20' : 'border-surface-container-high' }}"
+                    class="h-9 rounded-xl border bg-surface-container-low px-3 text-xs font-bold text-on-surface focus:border-primary focus:ring-0 {{ !$mesaId && auth()->user()?->role?->slug === 'mesero' ? 'border-primary/60 ring-2 ring-primary/20' : 'border-surface-container-high' }}"
                 >
                     <option value="">Seleccionar mesa del salón...</option>
                     @foreach($mesas as $m)
@@ -1130,13 +1494,22 @@ new class extends Component
                     <span class="text-[11px] text-primary font-bold animate-pulse hidden sm:inline">← Elige una mesa</span>
                 @endif
             </div>
-        @else
-            <div class="flex items-center gap-2 flex-wrap">
-                @if($clienteId)
-                    @php $cli = \App\Models\Cliente::with('direcciones')->find($clienteId); @endphp
-                    <div class="inline-flex items-center gap-2 rounded-xl bg-surface-container-low border border-primary/40 px-3 py-1.5 text-xs">
-                        <span class="material-symbols-outlined text-[16px] text-primary">stars</span>
+        @endif
+
+        <!-- Customer Selector (Disponible en todas las modalidades: Mesa, Mostrador, Delivery) -->
+        <div class="relative flex items-center gap-2 flex-wrap" x-data="{ openDropdown: @entangle('mostrarSugerencias') }" @click.outside="openDropdown = false; $wire.cerrarSugerencias()">
+            @if($clienteId)
+                @php 
+                    $cli = \App\Models\Cliente::with('direcciones')->find($clienteId); 
+                    $badgeCli = $cli?->badgeTier();
+                @endphp
+                @if($cli)
+                    <div class="inline-flex items-center gap-2 rounded-xl bg-surface-container-low border border-primary/40 px-3 py-1.5 text-xs shadow-xs">
+                        <span class="material-symbols-outlined text-[16px] text-primary">person</span>
                         <span class="font-extrabold text-on-surface">{{ $cli->nombre }}</span>
+                        <span class="px-1.5 py-0.5 rounded-full text-[10px] font-black {{ $badgeCli['color'] ?? '' }}">
+                            {{ $badgeCli['label'] ?? strtoupper($cli->tier) }}
+                        </span>
                         <span class="px-1.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed text-[10px] font-black">
                             {{ number_format($cli->puntos_fidelidad) }} pts
                         </span>
@@ -1147,34 +1520,102 @@ new class extends Component
                                 @endforeach
                             </select>
                         @endif
-                        <button wire:click="desvincularCliente" class="text-error hover:text-error/80 text-[11px] font-bold ml-1" title="Desvincular">✕</button>
+                        <button 
+                            type="button"
+                            wire:click="abrirModalHabeasData" 
+                            class="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline px-1 py-0.5 rounded hover:bg-primary/10 cursor-pointer"
+                            title="Actualizar datos / Habeas Data"
+                        >
+                            <span class="material-symbols-outlined text-[14px]">edit_note</span>
+                            <span class="hidden sm:inline">Habeas Data</span>
+                        </button>
+                        <button wire:click="desvincularCliente" class="text-error hover:text-error/80 text-[11px] font-bold ml-1 cursor-pointer" title="Desvincular">✕</button>
                     </div>
-                @else
-                    <select wire:change="seleccionarCliente($event.target.value)" class="rounded-xl border border-surface-container-high bg-surface-container-low px-3 py-1.5 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
-                        <option value="">Vincular Comensal VIP...</option>
-                        @foreach($clientesDisponibles as $c)
-                            <option value="{{ $c->id }}">{{ $c->nombre }} ({{ $c->telefono }} · {{ $c->puntos_fidelidad }} pts)</option>
-                        @endforeach
-                    </select>
-                    <input 
-                        type="text" 
-                        wire:model.live="nombreCliente" 
-                        placeholder="O nombre comensal manual..." 
-                        class="rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-1.5 text-xs font-medium text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:ring-0 w-48"
-                    />
                 @endif
-            </div>
-        @endif
+            @else
+                <div class="flex items-center gap-1.5">
+                    <div class="relative w-64 sm:w-80 lg:w-96">
+                        <div class="relative flex items-center">
+                            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant/70 pointer-events-none">person_search</span>
+                            <input 
+                                type="text" 
+                                wire:model.live.debounce.300ms="nombreCliente" 
+                                placeholder="Comensal (≥4 letras)..." 
+                                autocomplete="off"
+                                class="w-full h-9 rounded-xl border border-surface-container-high bg-surface-container-low pl-10 pr-8 text-xs font-medium text-on-surface placeholder:text-on-surface-variant/70 focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                            />
+                            @if(!empty(trim($nombreCliente)))
+                                <button 
+                                    type="button" 
+                                    wire:click="$set('nombreCliente', ''); $wire.cerrarSugerencias()"
+                                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/60 hover:text-on-surface text-xs p-1 cursor-pointer"
+                                    title="Limpiar"
+                                >✕</button>
+                            @endif
+                        </div>
+
+                        <!-- Dropdown flotante predictivo -->
+                        @if($mostrarSugerencias && count($sugerenciasClientes) > 0)
+                            <div class="absolute left-0 top-full mt-1.5 w-full min-w-[320px] max-h-64 overflow-y-auto rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-2xl z-50 p-1.5 divide-y divide-surface-container-high/40">
+                                <div class="px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant bg-surface-container-low rounded-t-xl flex items-center justify-between">
+                                    <span>Coincidencias ({{ count($sugerenciasClientes) }})</span>
+                                    <span class="text-[9px] text-on-surface-variant/70">Click para vincular</span>
+                                </div>
+                                @foreach($sugerenciasClientes as $sug)
+                                    <button 
+                                        type="button"
+                                        wire:click="seleccionarClientePredictivo({{ $sug['id'] }})"
+                                        class="w-full text-left p-2.5 hover:bg-surface-container-high transition rounded-xl flex items-center justify-between gap-2.5 cursor-pointer group"
+                                    >
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-bold text-on-surface group-hover:text-primary truncate">{{ $sug['nombre'] }}</p>
+                                            <p class="text-[11px] text-on-surface-variant truncate">
+                                                {{ $sug['telefono'] ?: 'Sin teléfono' }} 
+                                                @if(!empty($sug['email'])) · {{ $sug['email'] }} @endif
+                                            </p>
+                                        </div>
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $sug['badge_class'] ?? '' }}">
+                                                {{ $sug['badge_label'] ?? strtoupper($sug['tier']) }}
+                                            </span>
+                                            <span class="text-xs font-mono font-bold text-tertiary">
+                                                {{ $sug['puntos'] }} pts
+                                            </span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @elseif(mb_strlen(trim($nombreCliente)) >= 4 && empty($sugerenciasClientes) && !$clienteId)
+                            <div class="absolute left-0 top-full mt-1.5 w-full min-w-[280px] rounded-xl bg-surface-container-lowest border border-surface-container-high shadow-lg z-50 p-2.5 text-center text-xs text-on-surface-variant">
+                                <span class="material-symbols-outlined text-amber-500 text-[18px] align-middle mr-1">person_add</span>
+                                Nuevo: Se registrará como <span class="font-bold text-on-surface">Ocasional</span>.
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Botón para registrar comensal -->
+                    <button 
+                        type="button"
+                        wire:click="abrirModalHabeasData"
+                        class="h-9 px-2.5 sm:px-3 rounded-xl bg-primary text-on-primary hover:bg-primary-container text-xs font-bold flex items-center gap-1 shadow-sm transition-all cursor-pointer shrink-0 active:scale-95"
+                        title="Registrar nuevo cliente con datos y consentimiento"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">person_add</span>
+                        <span class="hidden sm:inline">Nuevo</span>
+                    </button>
+                </div>
+            @endif
+        </div>
 
         <!-- Search input & View Switcher -->
         <div class="flex items-center gap-2 w-full lg:w-auto">
-            <div class="relative flex-1 lg:w-60">
-                <span class="material-symbols-outlined absolute left-3 top-2 text-[18px] text-on-surface-variant">search</span>
+            <div class="relative flex-1 sm:w-60 lg:w-64">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
                 <input 
                     type="text" 
                     wire:model.live.debounce.250ms="busqueda" 
                     placeholder="Buscar producto..." 
-                    class="w-full rounded-xl border border-surface-container-high bg-surface-container-low pl-9 pr-3 py-1.5 text-xs font-medium text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:ring-0"
+                    class="w-full h-9 rounded-xl border border-surface-container-high bg-surface-container-low pl-9.5 pr-3 text-xs font-medium text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:ring-0"
                 />
             </div>
 
@@ -1290,15 +1731,15 @@ new class extends Component
                     <span class="material-symbols-outlined text-[20px]">chevron_right</span>
                 </button>
 
-                <!-- Botón Crear Producto: EXCLUSIVO para Administrador (Invisible para el resto de usuarios) -->
-                @if(auth()->user()?->role?->slug === 'admin')
+                <!-- Botón Crear Producto: Para Administrador y Gerente (Invisible para el resto de usuarios) -->
+                @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
                     <div class="shrink-0 border-l border-surface-container-highest pl-2">
                         <a 
                             href="{{ route('menu') }}"
                             wire:navigate
                             id="btnPosCrearProductoAdmin"
                             class="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black text-on-primary bg-primary hover:bg-primary-container border border-primary shadow-sm transition-all active:scale-95"
-                            title="Solo Administrador: Crear o personalizar nuevo producto en la carta"
+                            title="Administrador y Gerente: Crear o personalizar nuevo producto en la carta"
                         >
                             <span class="material-symbols-outlined text-[16px]">add_circle</span>
                             <span class="hidden sm:inline">+ Nuevo Producto</span>
@@ -1347,7 +1788,7 @@ new class extends Component
                     <div class="col-span-full rounded-2xl border border-dashed border-surface-container-highest p-12 text-center text-on-surface-variant flex flex-col items-center justify-center gap-3">
                         <span class="material-symbols-outlined text-[36px] text-on-surface-variant/40">ramen_dining</span>
                         <p class="text-xs font-semibold">No hay productos o servicios en esta categoría.</p>
-                        @if(auth()->user()?->role?->slug === 'admin')
+                        @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
                             <a href="{{ route('menu') }}" wire:navigate class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow hover:bg-primary/90 transition">
                                 <span class="material-symbols-outlined text-[16px]">add_circle</span>
                                 <span>Crear Producto para esta Categoría</span>
@@ -1559,10 +2000,61 @@ new class extends Component
                 </div>
 
                 <div class="mt-4 space-y-4">
+                    <!-- Propina del Servicio (Ley 1935 de 2018 - Voluntaria) -->
+                    <div class="rounded-2xl border border-surface-container-high bg-surface-container-low p-3 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-on-surface flex items-center gap-1">
+                                <span class="material-symbols-outlined text-primary text-[16px]">volunteer_activism</span>
+                                Propina del Servicio (Voluntaria)
+                            </span>
+                            <span class="text-xs font-black text-primary font-mono">+ ${{ number_format($montoPropina, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-1.5">
+                            <button 
+                                type="button"
+                                wire:click="seleccionarPropina('cero')" 
+                                class="py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer {{ $tipoPropina === 'cero' ? 'border-primary bg-primary text-on-primary shadow-xs' : 'border-surface-container-high bg-surface-container text-on-surface-variant hover:text-on-surface' }}"
+                            >
+                                Sin Propina ($0)
+                            </button>
+                            <button 
+                                type="button"
+                                wire:click="seleccionarPropina('diez_porciento')" 
+                                class="py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer {{ $tipoPropina === 'diez_porciento' ? 'border-primary bg-primary text-on-primary shadow-xs' : 'border-surface-container-high bg-surface-container text-on-surface-variant hover:text-on-surface' }}"
+                            >
+                                10% (${{ number_format(round($this->total * 0.10), 0, ',', '.') }})
+                            </button>
+                            <button 
+                                type="button"
+                                wire:click="seleccionarPropina('personalizada')" 
+                                class="py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer {{ $tipoPropina === 'personalizada' ? 'border-primary bg-primary text-on-primary shadow-xs' : 'border-surface-container-high bg-surface-container text-on-surface-variant hover:text-on-surface' }}"
+                            >
+                                Valor Libre
+                            </button>
+                        </div>
+                        @if($tipoPropina === 'personalizada')
+                            <div class="pt-1 flex items-center gap-2">
+                                <span class="text-xs text-on-surface-variant font-bold">$</span>
+                                <input 
+                                    type="number" 
+                                    step="500" 
+                                    min="0"
+                                    wire:model.live.debounce.300ms="montoPropina" 
+                                    placeholder="Monto voluntario comensal..."
+                                    class="w-full rounded-xl border border-surface-container-high bg-surface-container px-3 py-1.5 text-xs font-bold font-mono text-on-surface focus:border-primary focus:ring-0"
+                                />
+                            </div>
+                        @endif
+                    </div>
+
                     <!-- Total to pay banner -->
-                    <div class="rounded-2xl bg-surface-container-low border border-surface-container-high p-4 text-center">
-                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">Monto Total a Cancelar</span>
-                        <p class="font-mono text-3xl font-black text-primary mt-0.5">${{ number_format($this->total, 0, ',', '.') }}</p>
+                    <div class="rounded-2xl bg-surface-container-low border border-surface-container-high p-3.5 text-center">
+                        <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-semibold px-1">
+                            <span>Consumo: ${{ number_format($this->total, 0, ',', '.') }}</span>
+                            <span>Propina: ${{ number_format($montoPropina, 0, ',', '.') }}</span>
+                        </div>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant block mt-1">Total a Cancelar</span>
+                        <p class="font-mono text-3xl font-black text-primary mt-0.5">${{ number_format($this->totalConPropina, 0, ',', '.') }}</p>
                     </div>
 
                     <!-- Payment Method Picker -->
@@ -1592,6 +2084,24 @@ new class extends Component
                             </button>
                         </div>
                     </div>
+
+                    <!-- Mixed Payment Input -->
+                    @if($metodoPago === 'mixto')
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant">Efectivo (pago mixto):</label>
+                            <input
+                                type="number"
+                                step="1000"
+                                min="0"
+                                max="{{ (int) $this->total }}"
+                                wire:model.live="montoEfectivoMixto"
+                                class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
+                            />
+                            <p class="mt-1 text-[10px] font-semibold text-on-surface-variant">
+                                El resto (${{ number_format(max(0, (float) $this->total - (float) $this->montoEfectivoMixto), 0, ',', '.') }}) se registra como tarjeta.
+                            </p>
+                        </div>
+                    @endif
 
                     <!-- Cash Input & Quick Bills -->
                     @if($metodoPago === 'efectivo')
@@ -1654,7 +2164,7 @@ new class extends Component
             <div class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
                 <!-- Thermal Receipt Header -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
-                    <p class="text-base font-black tracking-tight text-primary">🍣 SUSHIXPRESS 🍣</p>
+                    <p class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
                     <p class="text-[11px] text-on-surface-variant">AURA GASTRO Enterprise POS</p>
                     <p class="text-[10px] text-on-surface-variant/70">El Poblado MDE-01 • Medellín</p>
                     <p class="text-[10px] text-on-surface-variant/70">NIT: 901.884.200-1 · Res. DIAN 18764022</p>
@@ -1675,9 +2185,15 @@ new class extends Component
                         <span class="font-bold uppercase text-secondary">{{ $pedidoCompletado->tipo }} {{ $pedidoCompletado->mesa ? "- Mesa {$pedidoCompletado->mesa->numero}" : '' }}</span>
                     </div>
                     <div class="flex justify-between">
-                        <span>ATENDIÓ:</span>
+                        <span>CAJERO:</span>
                         <span>{{ auth()->user()->name }}</span>
                     </div>
+                    @if($pedidoCompletado->mesero)
+                        <div class="flex justify-between font-bold text-primary">
+                            <span>MESERO:</span>
+                            <span>{{ $pedidoCompletado->mesero->name }}</span>
+                        </div>
+                    @endif
                 </div>
 
                 <!-- Ticket Line Items -->
@@ -1702,9 +2218,15 @@ new class extends Component
                             <span>-${{ number_format($pedidoCompletado->descuento, 0, ',', '.') }}</span>
                         </div>
                     @endif
+                    @if((float) ($pedidoCompletado->propina ?? 0) > 0)
+                        <div class="flex justify-between font-bold text-primary">
+                            <span>PROPINA VOLUNTARIA:</span>
+                            <span>+${{ number_format($pedidoCompletado->propina, 0, ',', '.') }}</span>
+                        </div>
+                    @endif
                     <div class="flex justify-between text-sm font-black pt-1 text-on-surface">
-                        <span>TOTAL:</span>
-                        <span class="text-primary">${{ number_format($pedidoCompletado->total, 0, ',', '.') }}</span>
+                        <span>TOTAL A PAGAR:</span>
+                        <span class="text-primary">${{ number_format((float) $pedidoCompletado->total + (float) ($pedidoCompletado->propina ?? 0), 0, ',', '.') }}</span>
                     </div>
                     <div class="flex justify-between text-on-surface-variant pt-1">
                         <span>PAGADO ({{ strtoupper($pedidoCompletado->metodo_pago) }}):</span>
@@ -1738,6 +2260,144 @@ new class extends Component
                     >
                         ✓ Finalizar
                     </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Modal Ley 1581 Habeas Data y Consentimiento -->
+    @if($mostrarModalHabeasData)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4">
+            <div class="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[20px]">verified_user</span>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-on-surface">Habeas Data & Datos de Contacto</h3>
+                            <p class="text-[11px] text-on-surface-variant">Ley 1581 de 2012 · Fidelización y Facturación</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('mostrarModalHabeasData', false)" class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <div class="mt-4 space-y-4">
+                    <!-- Resumen Legal Informativo -->
+                    <div class="rounded-2xl bg-surface-container-low border border-surface-container-high p-3.5 text-[11px] text-on-surface-variant space-y-1.5">
+                        <p class="font-bold text-on-surface flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[16px] text-primary">policy</span>
+                            Autorización para Tratamiento de Datos Personales
+                        </p>
+                        <p class="leading-relaxed">
+                            En cumplimiento de la Ley Estatutaria 1581 de 2012, el comensal autoriza el tratamiento de sus datos de contacto para la prestación del servicio gastronómico, emisión de facturas electrónicas, acumulación de puntos de fidelidad y notificaciones vía WhatsApp o correo electrónico.
+                        </p>
+                    </div>
+
+                    <!-- Campos de Contacto -->
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Nombre Completo del Comensal *:</label>
+                            <input 
+                                type="text" 
+                                wire:model="habeasNombre" 
+                                placeholder="Ej: Valentina Gómez" 
+                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
+                            />
+                            @error('habeasNombre') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Teléfono Móvil (WhatsApp / Pedidos):</label>
+                            <input 
+                                type="tel" 
+                                wire:model="habeasTelefono" 
+                                placeholder="Ej: 3001234567" 
+                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
+                            />
+                            @error('habeasTelefono') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Correo Electrónico (Facturación & Promos):</label>
+                            <input 
+                                type="email" 
+                                wire:model="habeasEmail" 
+                                placeholder="comensal@ejemplo.com" 
+                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
+                            />
+                            @error('habeasEmail') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Dirección para Domicilios (Opcional):</label>
+                            <input 
+                                type="text" 
+                                wire:model="habeasDireccion" 
+                                placeholder="Calle 123 #45-67, Apto 101" 
+                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
+                            />
+                            @error('habeasDireccion') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <!-- Checkboxes de Consentimiento -->
+                    <div class="space-y-2.5 pt-2 border-t border-surface-container-high">
+                        <label class="flex items-start gap-2.5 cursor-pointer">
+                            <input 
+                                type="checkbox" 
+                                wire:model="habeasAcepta" 
+                                class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4"
+                            />
+                            <span class="text-xs font-bold text-on-surface leading-tight">
+                                Acepto expresamente los términos y autorizo el tratamiento de mis datos personales (Habeas Data).
+                            </span>
+                        </label>
+                        @error('habeasAcepta') <span class="text-error text-[11px] block">{{ $message }}</span> @enderror
+
+                        <label class="flex items-center gap-2.5 cursor-pointer pl-6">
+                            <input 
+                                type="checkbox" 
+                                wire:model="habeasWhatsapp" 
+                                class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4"
+                            />
+                            <span class="text-xs text-on-surface-variant">
+                                Autorizo envío de promociones, estado de pedidos y cupones por WhatsApp.
+                            </span>
+                        </label>
+
+                        <label class="flex items-center gap-2.5 cursor-pointer pl-6">
+                            <input 
+                                type="checkbox" 
+                                wire:model="habeasEmailPromos" 
+                                class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4"
+                            />
+                            <span class="text-xs text-on-surface-variant">
+                                Autorizo envío de boletines de ofertas y facturación por correo electrónico.
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Botones de Acción -->
+                    <div class="pt-3 grid grid-cols-2 gap-2 border-t border-surface-container-high">
+                        <button 
+                            type="button" 
+                            wire:click="$set('mostrarModalHabeasData', false)" 
+                            class="rounded-xl border border-surface-container-high bg-surface-container py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high cursor-pointer"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="button" 
+                            wire:click="guardarHabeasData" 
+                            class="rounded-xl bg-primary py-2.5 text-xs font-black text-on-primary shadow-md hover:bg-primary-container cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">save</span>
+                            <span>Guardar Consentimiento</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

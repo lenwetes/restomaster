@@ -51,11 +51,12 @@ class FidelizacionService
         }
 
         return DB::transaction(function () use ($pedido, $cliente, $puntosAGanar) {
-            $saldoAnterior = $cliente->puntos_fidelidad;
+            $clienteLocked = Cliente::whereKey($cliente->id)->lockForUpdate()->firstOrFail();
+            $saldoAnterior = $clienteLocked->puntos_fidelidad;
             $saldoNuevo = $saldoAnterior + $puntosAGanar;
 
             $movimiento = MovimientoPuntos::create([
-                'cliente_id' => $cliente->id,
+                'cliente_id' => $clienteLocked->id,
                 'pedido_id' => $pedido->id,
                 'tipo' => 'acumulacion',
                 'puntos' => $puntosAGanar,
@@ -65,20 +66,18 @@ class FidelizacionService
                 'usuario_id' => $pedido->usuario_id,
             ]);
 
-            $nuevoTotalGastado = (float) $cliente->total_gastado + (float) $pedido->total;
-            $visitas = $cliente->visitas_count + 1;
+            $nuevoTotalGastado = (float) $clienteLocked->total_gastado + (float) $pedido->total;
+            $visitas = $clienteLocked->visitas_count + 1;
 
-            // Actualización de Tier automática
-            $nuevoTier = $cliente->tier;
-            if ($nuevoTotalGastado >= 5000000) {
-                $nuevoTier = 'black';
-            } elseif ($nuevoTotalGastado >= 2000000) {
-                $nuevoTier = 'vip';
-            } elseif ($nuevoTotalGastado >= 800000) {
-                $nuevoTier = 'gold';
+            // Actualización de Tier automática (Ocasional -> Frecuente -> VIP)
+            $nuevoTier = $clienteLocked->tier;
+            if ($nuevoTotalGastado >= 2000000) {
+                $nuevoTier = Cliente::TIER_VIP;
+            } elseif ($visitas >= 2 && ($nuevoTier === Cliente::TIER_OCASIONAL || empty($nuevoTier))) {
+                $nuevoTier = Cliente::TIER_FRECUENTE;
             }
 
-            $cliente->update([
+            $clienteLocked->update([
                 'puntos_fidelidad' => $saldoNuevo,
                 'total_gastado' => $nuevoTotalGastado,
                 'visitas_count' => $visitas,
@@ -92,51 +91,74 @@ class FidelizacionService
     }
 
     /**
+     * Registra una visita y acumula puntos para el comensal.
+     */
+    public function registrarVisita(Cliente $cliente, Pedido $pedido): ?MovimientoPuntos
+    {
+        return $this->acumularPuntosPorPedido($pedido);
+    }
+
+    /**
      * Canjea puntos del cliente para aplicar un descuento directo al pedido.
      */
-    public function canjearPuntos(Cliente $cliente, int $puntos, Pedido $pedido): MovimientoPuntos
+    public function canjearPuntos(Cliente $cliente, int $puntos, ?Pedido $pedido = null): MovimientoPuntos
     {
         if ($puntos <= 0) {
             throw new InvalidArgumentException('La cantidad de puntos a canjear debe ser mayor a cero.');
         }
 
-        if ($cliente->puntos_fidelidad < $puntos) {
-            throw new InvalidArgumentException("El cliente solo dispone de {$cliente->puntos_fidelidad} puntos.");
-        }
+        return DB::transaction(function () use ($cliente, $puntos, $pedido) {
+            $clienteLocked = Cliente::whereKey($cliente->id)->lockForUpdate()->firstOrFail();
 
-        $remanente = max(0.0, (float) $pedido->subtotal - (float) ($pedido->descuento ?? 0));
-        $descuentoCalculado = $this->calcularDescuentoPorPuntos($puntos);
-        if ($descuentoCalculado > $remanente) {
-            $descuento = $remanente;
-            $puntos = (int) ceil($descuento / self::VALOR_PUNTO_COP);
-        } else {
-            $descuento = $descuentoCalculado;
-        }
+            if ($clienteLocked->puntos_fidelidad < $puntos) {
+                throw new InvalidArgumentException("El cliente solo dispone de {$clienteLocked->puntos_fidelidad} puntos.");
+            }
 
-        return DB::transaction(function () use ($cliente, $puntos, $descuento, $pedido) {
-            $saldoAnterior = $cliente->puntos_fidelidad;
-            $saldoNuevo = $saldoAnterior - $puntos;
+            $puntosACanjear = $puntos;
+            $descuento = 0.0;
+
+            if ($pedido) {
+                $pedidoLocked = Pedido::whereKey($pedido->id)->lockForUpdate()->firstOrFail();
+                if ($pedidoLocked->estado === 'pagado') {
+                    throw new InvalidArgumentException('No se pueden canjear puntos en un pedido ya pagado.');
+                }
+                $remanente = max(0.0, (float) $pedidoLocked->subtotal - (float) ($pedidoLocked->descuento ?? 0));
+                $descuentoCalculado = $this->calcularDescuentoPorPuntos($puntosACanjear);
+                if ($descuentoCalculado > $remanente) {
+                    $descuento = $remanente;
+                    $puntosACanjear = (int) ceil($descuento / self::VALOR_PUNTO_COP);
+                } else {
+                    $descuento = $descuentoCalculado;
+                }
+            } else {
+                $descuento = $this->calcularDescuentoPorPuntos($puntosACanjear);
+            }
+
+            $saldoAnterior = $clienteLocked->puntos_fidelidad;
+            $saldoNuevo = max(0, $saldoAnterior - $puntosACanjear);
 
             $movimiento = MovimientoPuntos::create([
-                'cliente_id' => $cliente->id,
-                'pedido_id' => $pedido->id,
+                'cliente_id' => $clienteLocked->id,
+                'pedido_id' => $pedido?->id,
                 'tipo' => 'canje',
-                'puntos' => -$puntos,
+                'puntos' => -$puntosACanjear,
                 'saldo_anterior' => $saldoAnterior,
                 'saldo_nuevo' => $saldoNuevo,
-                'concepto' => "Canje de descuento en pedido #{$pedido->codigo}",
-                'usuario_id' => auth()->id() ?? $pedido->usuario_id,
+                'concepto' => $pedido ? "Canje de descuento en pedido #{$pedido->codigo}" : 'Canje de puntos',
+                'usuario_id' => auth()->id() ?? $pedido?->usuario_id,
             ]);
 
-            $cliente->update(['puntos_fidelidad' => $saldoNuevo]);
+            $clienteLocked->update(['puntos_fidelidad' => $saldoNuevo]);
 
-            $pedido->update([
-                'cliente_id' => $cliente->id,
-                'puntos_canjeados' => $puntos,
-                'descuento_puntos' => $descuento,
-            ]);
+            if ($pedido) {
+                $pedidoLocked->update([
+                    'cliente_id' => $clienteLocked->id,
+                    'puntos_canjeados' => $puntosACanjear,
+                    'descuento_puntos' => $descuento,
+                ]);
 
-            $pedido->recalcularTotales();
+                $pedidoLocked->recalcularTotales();
+            }
 
             return $movimiento;
         });

@@ -4,13 +4,14 @@ namespace App\Services;
 
 use App\Models\Cliente;
 use App\Models\DireccionCliente;
-use App\Models\MovimientoCaja;
 use App\Models\Pedido;
+use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class DeliveryService
@@ -44,15 +45,26 @@ class DeliveryService
                 }
             }
 
-            $codigo = 'DLV-'.strtoupper(substr(uniqid(), -5));
-            $costoEnvio = max(0, (float) ($datos['costo_envio'] ?? 0));
+            do {
+                $codigo = 'DLV-'.date('Ymd-His').'-'.strtoupper(Str::random(6));
+            } while (Pedido::where('codigo', $codigo)->exists());
+            $canalOrigen = $datos['canal_origen'] ?? 'pos';
+            $costoEnvio = $canalOrigen === 'web_delivery'
+                ? (float) app(ConfiguracionService::class)->obtener('general', 'costo_envio_base', 8000.0)
+                : max(0, (float) ($datos['costo_envio'] ?? 0));
+
+            $sucursalId = $datos['sucursal_id']
+                ?? auth()->user()?->sucursal_id
+                ?? Sucursal::value('id')
+                ?? 1;
 
             $pedido = Pedido::create([
                 'codigo' => $codigo,
                 'tipo' => 'delivery',
                 'estado' => 'creado',
+                'sucursal_id' => $sucursalId,
                 'estado_delivery' => 'pendiente',
-                'canal_origen' => $datos['canal_origen'] ?? 'pos',
+                'canal_origen' => $canalOrigen,
                 'cliente_id' => $cliente?->id,
                 'direccion_id' => $direccionId,
                 'nombre_cliente' => $cliente?->nombre ?? ($datos['nombre_cliente'] ?? 'Cliente Delivery'),
@@ -111,14 +123,19 @@ class DeliveryService
     public function marcarEntregado(Pedido $pedido, ?string $metodoPago = null, ?float $montoRecibido = null): Pedido
     {
         return DB::transaction(function () use ($pedido, $metodoPago, $montoRecibido) {
-            $pedido->update([
+            $yaPagado = $pedido->estado === 'pagado';
+
+            $actualizacion = [
                 'estado_delivery' => 'entregado',
-                'estado' => 'entregado',
                 'hora_entrega' => now(),
-            ]);
+            ];
+            if (! $yaPagado && ! $metodoPago) {
+                $actualizacion['estado'] = 'entregado';
+            }
+            $pedido->update($actualizacion);
 
             // Si se cobró contra entrega y el pedido aún no estaba pagado
-            if ($metodoPago && $pedido->estado !== 'pagado') {
+            if ($metodoPago && ! $yaPagado) {
                 if ($montoRecibido !== null && (float) $montoRecibido < (float) $pedido->total) {
                     throw new InvalidArgumentException("El monto recibido ({$montoRecibido}) no puede ser inferior al total del pedido ({$pedido->total}).");
                 }
@@ -126,12 +143,21 @@ class DeliveryService
                 $montoFinal = $montoRecibido ?? (float) $pedido->total;
 
                 $pedido->update([
+                    'estado' => 'pagado',
                     'metodo_pago' => $metodoPago,
                     'monto_pagado' => $montoFinal,
                     'cambio' => max(0, $montoFinal - (float) $pedido->total),
-                    'estado' => 'pagado',
                     'pagado_en' => now(),
                 ]);
+
+                // Vincular el ingreso al turno abierto de caja de la sucursal del pedido
+                $turnoActivo = TurnoCaja::where('estado', 'abierto')
+                    ->when($pedido->sucursal_id, fn ($q) => $q->whereHas('caja', fn ($cq) => $cq->where('sucursal_id', $pedido->sucursal_id)))
+                    ->latest()
+                    ->first();
+                if ($turnoActivo) {
+                    app(CajaService::class)->vincularCobroPedido($turnoActivo, $pedido);
+                }
 
                 // Acumular puntos automáticamente
                 app(FidelizacionService::class)->acumularPuntosPorPedido($pedido);
@@ -155,23 +181,35 @@ class DeliveryService
                 ->where('metodo_pago', 'efectivo')
                 ->where('estado_delivery', 'entregado')
                 ->where('recaudo_liquidado', false)
+                ->lockForUpdate()
                 ->get();
+
+            if ($pedidosALiquidar->isEmpty()) {
+                return 0.0;
+            }
+
+            $pedidoIds = $pedidosALiquidar->pluck('id')->toArray();
+            $updatedCount = Pedido::whereIn('id', $pedidoIds)
+                ->where('recaudo_liquidado', false)
+                ->update(['recaudo_liquidado' => true]);
+
+            if ($updatedCount === 0) {
+                return 0.0;
+            }
 
             $totalRecaudado = (float) $pedidosALiquidar->sum('total');
 
             if ($totalRecaudado > 0) {
-                // Registrar ingreso en caja
-                MovimientoCaja::create([
-                    'turno_caja_id' => $turno->id,
-                    'tipo' => 'ingreso',
-                    'monto' => $totalRecaudado,
-                    'concepto' => "Liquidación recaudo delivery motorizado: {$repartidor->name} ({$pedidosALiquidar->count()} pedidos)",
-                    'user_id' => auth()->id() ?? $turno->user_id,
-                ]);
-
-                // Marcar pedidos como liquidados
-                Pedido::whereIn('id', $pedidosALiquidar->pluck('id'))
-                    ->update(['recaudo_liquidado' => true]);
+                app(CajaService::class)->registrarMovimiento(
+                    $turno,
+                    'ingreso',
+                    $totalRecaudado,
+                    "Liquidación recaudo delivery motorizado: {$repartidor->name} ({$updatedCount} pedidos)",
+                    'efectivo',
+                    null,
+                    auth()->user()?->name ?? 'Sistema',
+                    auth()->user()
+                );
             }
 
             return $totalRecaudado;
@@ -229,7 +267,7 @@ class DeliveryService
     public function obtenerFlotaMotorizados(): Collection
     {
         return User::whereHas('role', function ($q) {
-            $q->whereIn('slug', ['repartidor', 'mesero', 'cajero', 'admin']);
+            $q->whereIn('slug', ['delivery', 'repartidor', 'mesero', 'cajero', 'admin']);
         })
             ->where('activo', true)
             ->withCount([

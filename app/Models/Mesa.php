@@ -23,6 +23,7 @@ class Mesa extends Model
         'capacidad',
         'zona',
         'estado',
+        'mesero_id',
     ];
 
     /**
@@ -35,6 +36,14 @@ class Mesa extends Model
         return [
             'capacidad' => 'integer',
         ];
+    }
+
+    /**
+     * Get the waiter assigned to this table.
+     */
+    public function mesero(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mesero_id');
     }
 
     /**

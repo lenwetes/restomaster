@@ -9,10 +9,10 @@ services:
     ports:
       - "8004:80"
     environment:
-      APP_NAME: "${APP_NAME:-SushiXpress}"
+      APP_NAME: "${APP_NAME:-RestoMaster}"
       APP_ENV: "${APP_ENV:-production}"
-      APP_KEY: "${APP_KEY:-base64:ryJ8oRftsst90c9Gqv5rvnDy8x6dc2Z4IS0PEJ+4yoA=}"
-      APP_DEBUG: "${APP_DEBUG:-true}"
+      APP_KEY: "${APP_KEY}"
+      APP_DEBUG: "${APP_DEBUG:-false}"
       APP_URL: "${APP_URL:-http://localhost:8004}"
       LOG_CHANNEL: stderr
       LOG_LEVEL: debug
@@ -21,20 +21,20 @@ services:
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_DATABASE: "${DB_DATABASE:-sushixpress}"
-      DB_USERNAME: "${DB_USERNAME:-sushixpress_user}"
-      DB_PASSWORD: "${DB_PASSWORD:-sushixpress_secure_password}"
+      DB_DATABASE: "${DB_DATABASE:-restomaster}"
+      DB_USERNAME: "${DB_USERNAME:-adminresto}"
+      DB_PASSWORD: "${DB_PASSWORD}"
 
       # Drivers
-      SESSION_DRIVER: "${SESSION_DRIVER:-file}"
+      SESSION_DRIVER: "${SESSION_DRIVER:-database}"
       SESSION_LIFETIME: 120
       QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
       CACHE_STORE: "${CACHE_STORE:-file}"
 
       # Automation on container boot
       AUTO_MIGRATE: "${AUTO_MIGRATE:-true}"
-      AUTO_SEED: "${AUTO_SEED:-true}"
-      DEMO_USERS_PASSWORD: "${DEMO_USERS_PASSWORD:-sushixpress2026}"
+      AUTO_SEED: "${AUTO_SEED:-false}"
+      DEMO_USERS_PASSWORD: "${DEMO_USERS_PASSWORD}"
       OPTIMIZE_CACHE: "${OPTIMIZE_CACHE:-true}"
     volumes:
       - storage_app:/var/www/html/storage/app
@@ -43,30 +43,30 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - sushixpress_net
+      - restomaster_net
     labels:
       - "coolify.managed=true"
 
   postgres:
     image: postgres:17-alpine
-    container_name: sushixpress_postgres
+    container_name: restomaster_postgres
     restart: unless-stopped
     ports:
-      - "${POSTGRES_EXTERNAL_PORT:-5434}:5432"
+      - "${POSTGRES_EXTERNAL_PORT:-127.0.0.1:5434}:5432"
     environment:
-      POSTGRES_DB: "${DB_DATABASE:-sushixpress}"
-      POSTGRES_USER: "${DB_USERNAME:-sushixpress_user}"
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-sushixpress_secure_password}"
+      POSTGRES_DB: "${DB_DATABASE:-restomaster}"
+      POSTGRES_USER: "${DB_USERNAME:-adminresto}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-sushixpress_user} -d ${DB_DATABASE:-sushixpress}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-adminresto} -d ${DB_DATABASE:-restomaster}"]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 5s
     networks:
-      - sushixpress_net
+      - restomaster_net
 
 volumes:
   postgres_data:
@@ -77,5 +77,5 @@ volumes:
     driver: local
 
 networks:
-  sushixpress_net:
+  restomaster_net:
     driver: bridge

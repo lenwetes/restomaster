@@ -58,7 +58,7 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                 'precio' => (float)$producto->precio,
                 'cantidad' => 1,
                 'notas' => '',
-                'area_cocina' => $producto->area_cocina ?? 'sushi',
+                'area_cocina' => $producto->area_cocina ?? 'caliente',
             ];
         }
 
@@ -173,7 +173,7 @@ new #[Layout('layouts.menu-cliente')] class extends Component
 
         $productos = collect();
         if (! $esModoSeguimiento) {
-            $query = Producto::where('activo', true);
+            $query = Producto::with('categoria')->where('activo', true);
 
             if ($this->categoriaSeleccionada) {
                 $query->where('categoria_id', $this->categoriaSeleccionada);
@@ -211,22 +211,22 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                 El código QR escaneado no corresponde a ninguna mesa activa del restaurante. Por favor solicita asistencia al personal.
             </p>
             <a href="/" class="px-5 py-2.5 rounded-2xl bg-stone-900 text-white text-xs font-bold shadow-md hover:bg-stone-800">
-                Ir a Sushixpress
+                Ir a RestoMaster
             </a>
         </div>
     @elseif ($pedidoActual && !$modoAgregarMas)
         <!-- ========================================== -->
         <!-- PANTALLA 1: SEGUIMIENTO EN VIVO DEL PEDIDO -->
         <!-- ========================================== -->
-        <div class="flex-1 flex flex-col p-4 sm:p-6 space-y-5" wire:poll.6s="refrescarEstado">
+        <div class="flex-1 flex flex-col p-4 sm:p-6 space-y-5" wire:poll.15s="refrescarEstado">
             <!-- Header Mesa & Restaurante -->
             <div class="flex items-center justify-between bg-stone-900 text-white p-4 rounded-3xl shadow-lg">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center font-black text-white text-base shadow-md">
-                        🍣
+                        🍽️
                     </div>
                     <div>
-                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest block">Sushixpress Gastro</span>
+                        <span class="text-[10px] font-bold text-stone-400 uppercase tracking-widest block">RestoMaster Gourmet</span>
                         <h1 class="text-lg font-extrabold tracking-tight">Mesa #{{ $mesa->numero }}</h1>
                     </div>
                 </div>
@@ -304,7 +304,7 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                             </div>
                             <div class="min-w-0">
                                 <p class="font-bold text-xs text-stone-900">3. En Preparación en Cocina</p>
-                                <p class="text-[11px] text-stone-500">Nuestros sushimen preparan tus rolls al momento.</p>
+                                <p class="text-[11px] text-stone-500">Nuestros chefs preparan tus platos al momento.</p>
                             </div>
                         @else
                             <div class="w-7 h-7 rounded-full bg-stone-200 text-stone-400 flex items-center justify-center text-xs font-black shrink-0">
@@ -389,10 +389,10 @@ new #[Layout('layouts.menu-cliente')] class extends Component
             <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center text-sm font-black shadow-xs">
-                        🍣
+                        🍽️
                     </div>
                     <div>
-                        <span class="text-[9px] font-bold text-stone-400 uppercase tracking-wider block">Sushixpress</span>
+                        <span class="text-[9px] font-bold text-stone-400 uppercase tracking-wider block">RestoMaster</span>
                         <h2 class="text-xs font-extrabold text-stone-900 leading-none">Carta Digital</h2>
                     </div>
                 </div>
@@ -419,7 +419,7 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                 <span class="material-symbols-outlined absolute left-3 top-2.5 text-stone-400 text-[18px]">search</span>
                 <input 
                     type="text" 
-                    wire:model.live.debounce.250ms="busqueda"
+                    wire:model.live.debounce.300ms="busqueda"
                     placeholder="Buscar rolls, entradas, bebidas..."
                     class="w-full pl-9 pr-4 py-2 rounded-2xl bg-stone-100 border-none text-xs text-stone-900 placeholder:text-stone-400 focus:ring-2 focus:ring-primary/40"
                 >
@@ -479,7 +479,7 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                                     {{ $producto->nombre }}
                                 </h3>
                                 <span class="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-stone-100 text-stone-500 shrink-0">
-                                    {{ $producto->area_cocina ?? 'sushi' }}
+                                    {{ in_array($producto->area_cocina, ['barra', 'bebidas']) ? 'Barra' : (in_array($producto->area_cocina, ['fria', 'sushi']) ? 'Cocina Fría' : 'Cocina / Parrilla') }}
                                 </span>
                             </div>
                             @if ($producto->descripcion)

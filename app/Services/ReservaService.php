@@ -8,6 +8,8 @@ use App\Models\Reserva;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -91,56 +93,67 @@ class ReservaService
 
     public function confirmar(Reserva $reserva, ?User $usuario = null, ?array $mesaIds = null): Reserva
     {
-        if ($mesaIds !== null && count($mesaIds) > 0) {
-            $reserva->mesas()->sync($mesaIds);
-            $reserva->refresh();
-        }
+        return DB::transaction(function () use ($reserva, $usuario, $mesaIds) {
+            $reservaLocked = Reserva::whereKey($reserva->id)->lockForUpdate()->firstOrFail();
 
-        if ($reserva->mesas->isEmpty()) {
-            $disponibles = $this->verificarDisponibilidad($reserva->fecha->toDateString(), $reserva->hora_llegada, $reserva->personas, $reserva->duracion_min);
-
-            if ($disponibles->isEmpty()) {
-                throw new InvalidArgumentException('No hay mesas disponibles para esta reserva.');
-            }
-
-            $mejor = $disponibles->filter(fn ($m) => $m->capacidad >= $reserva->personas)->sortBy('capacidad')->first();
-
-            if ($mejor) {
-                $reserva->mesas()->attach($mejor->id);
-            } else {
-                $acum = 0;
-                $asignadas = [];
-                foreach ($disponibles->sortByDesc('capacidad') as $m) {
-                    $asignadas[] = $m->id;
-                    $acum += $m->capacidad;
-                    if ($acum >= $reserva->personas) {
-                        break;
-                    }
+            if ($mesaIds !== null && count($mesaIds) > 0) {
+                $capacidadTotal = Mesa::whereIn('id', $mesaIds)->sum('capacidad');
+                if ($capacidadTotal < $reservaLocked->personas) {
+                    throw new InvalidArgumentException("La capacidad total de las mesas seleccionadas ({$capacidadTotal}) es insuficiente para {$reservaLocked->personas} personas.");
                 }
-                $reserva->mesas()->sync($asignadas);
+
+                $reservaLocked->mesas()->sync($mesaIds);
+                $reservaLocked->refresh();
             }
 
-            $reserva->refresh();
-        }
+            if ($reservaLocked->mesas->isEmpty()) {
+                $disponibles = $this->verificarDisponibilidad($reservaLocked->fecha->toDateString(), $reservaLocked->hora_llegada, $reservaLocked->personas, $reservaLocked->duracion_min);
 
-        $this->validarMesasParaConfirmar($reserva);
+                if ($disponibles->isEmpty()) {
+                    throw new InvalidArgumentException('No hay mesas disponibles para esta reserva.');
+                }
 
-        $reserva->update([
-            'estado' => 'confirmada',
-            'confirmado_por' => $usuario?->id ?? auth()->id(),
-        ]);
+                $mejor = $disponibles->filter(fn ($m) => $m->capacidad >= $reservaLocked->personas)->sortBy('capacidad')->first();
 
-        $reserva->mesas->each(fn (Mesa $mesa) => $mesa->update(['estado' => MesaEstado::RESERVADA->value]));
+                if ($mejor) {
+                    $reservaLocked->mesas()->attach($mejor->id);
+                } else {
+                    $acum = 0;
+                    $asignadas = [];
+                    foreach ($disponibles->sortByDesc('capacidad') as $m) {
+                        $asignadas[] = $m->id;
+                        $acum += $m->capacidad;
+                        if ($acum >= $reservaLocked->personas) {
+                            break;
+                        }
+                    }
+                    $reservaLocked->mesas()->sync($asignadas);
+                }
 
-        $this->auditar('reserva.confirmada', $reserva);
+                $reservaLocked->refresh();
+            }
 
-        return $reserva;
+            $this->validarMesasParaConfirmar($reservaLocked);
+
+            $reservaLocked->update([
+                'estado' => 'confirmada',
+                'confirmado_por' => $usuario?->id ?? auth()->id(),
+            ]);
+
+            $reservaLocked->mesas->each(fn (Mesa $mesa) => $mesa->update(['estado' => MesaEstado::RESERVADA->value]));
+            Cache::forget('pos.terminal.mesas');
+
+            $this->auditar('reserva.confirmada', $reservaLocked);
+
+            return $reservaLocked;
+        });
     }
 
     public function marcarLlego(Reserva $reserva): Reserva
     {
         $reserva->update(['estado' => 'llego']);
         $reserva->mesas->each(fn (Mesa $mesa) => $mesa->update(['estado' => MesaEstado::OCUPADA->value]));
+        Cache::forget('pos.terminal.mesas');
         $this->auditar('reserva.llego', $reserva);
 
         return $reserva;
@@ -216,15 +229,21 @@ class ReservaService
     private function liberarMesas(Reserva $reserva): void
     {
         $reserva->mesas->each(function (Mesa $mesa) {
+            if ($mesa->pedidos()->activos()->exists()) {
+                return;
+            }
+
             if ($mesa->estado === MesaEstado::RESERVADA->value || $mesa->estado === MesaEstado::OCUPADA->value) {
                 $mesa->update(['estado' => MesaEstado::LIBRE->value]);
             }
         });
+
+        Cache::forget('pos.terminal.mesas');
     }
 
     private function nombreMesa(Mesa $mesa): string
     {
-        return $mesa->nombre ?? 'Mesa #'.$mesa->numero;
+        return 'Mesa #'.$mesa->numero;
     }
 
     private function seSolapan(string $aIni, string $aFin, string $bIni, string $bFin): bool

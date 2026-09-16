@@ -4,8 +4,11 @@ use App\Models\Categoria;
 use App\Models\ItemPedido;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\Sucursal;
+use App\Services\ConfiguracionService;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 
 new #[Layout('layouts.publico')] class extends Component
@@ -23,12 +26,18 @@ new #[Layout('layouts.publico')] class extends Component
     public string $metodoPago = 'nequi_bancolombia'; // 'nequi_bancolombia', 'efectivo', 'datafono'
     public string $pagaCon = '';
 
+    #[Locked]
     public float $costoEnvio = 8000.0;
     public bool $mostrarCheckout = false;
     public bool $pedidoExitoso = false;
     public string $paso = 'catalogo';
     public string $empresa = ''; // honeypot
     public ?Pedido $pedidoCreado = null;
+
+    public function mount(): void
+    {
+        $this->costoEnvio = (float) app(ConfiguracionService::class)->obtener('general', 'costo_envio_base', 8000.0);
+    }
 
     public function irADatosEntrega(): void
     {
@@ -56,7 +65,7 @@ new #[Layout('layouts.publico')] class extends Component
                 'precio' => $precio,
                 'cantidad' => 1,
                 'subtotal' => $precio,
-                'area_cocina' => $producto->area_cocina ?? 'sushi',
+                'area_cocina' => $producto->area_cocina ?? 'caliente',
             ];
         }
     }
@@ -161,7 +170,8 @@ new #[Layout('layouts.publico')] class extends Component
             $subtotal += $itemSubtotal;
         }
 
-        $total = $subtotal + $this->costoEnvio;
+        $costoEnvioOficial = (float) app(ConfiguracionService::class)->obtener('general', 'costo_envio_base', 8000.0);
+        $total = $subtotal + $costoEnvioOficial;
 
         $detallePago = match ($this->metodoPago) {
             'nequi_bancolombia' => 'Pago por Transferencia Nequi/Bancolombia.',
@@ -174,17 +184,20 @@ new #[Layout('layouts.publico')] class extends Component
 
         $codigo = 'DLV-' . strtoupper(substr(uniqid(), -5));
 
-        $pedido = DB::transaction(function () use ($codigo, $subtotal, $total, $itemsProcesados, $direccionCompleta, $notasFinales) {
+        $pedido = DB::transaction(function () use ($codigo, $subtotal, $total, $costoEnvioOficial, $itemsProcesados, $direccionCompleta, $notasFinales) {
+            $sucursalId = Sucursal::where('activa', true)->value('id') ?? Sucursal::value('id') ?? 1;
+
             $pedido = Pedido::create([
                 'codigo' => $codigo,
                 'tipo' => 'delivery',
                 'estado' => 'creado',
+                'sucursal_id' => $sucursalId,
                 'estado_delivery' => 'pendiente',
                 'canal_origen' => 'web_delivery',
                 'nombre_cliente' => $this->nombreCliente,
                 'telefono_cliente' => $this->telefonoCliente,
                 'direccion_delivery' => $direccionCompleta,
-                'costo_envio' => $this->costoEnvio,
+                'costo_envio' => $costoEnvioOficial,
                 'subtotal' => $subtotal,
                 'descuento' => 0,
                 'total' => $total,
@@ -271,7 +284,7 @@ new #[Layout('layouts.publico')] class extends Component
                     ¡Pedido Recibido en Cocina!
                 </span>
                 <h1 class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
-                    Tu sushi ya está en marcha
+                    Tu pedido ya está en marcha
                 </h1>
                 <p class="text-xs sm:text-sm text-stone-500 max-w-md mx-auto">
                     Hemos registrado tu orden en nuestro sistema de cocina y despacho. Nuestro asesor confirmará los detalles de entrega.
@@ -309,7 +322,7 @@ new #[Layout('layouts.publico')] class extends Component
 
             <!-- WhatsApp Action Button -->
             @php
-                $mensajeWp = urlencode("¡Hola SushiXpress! Acabo de hacer el pedido #{$pedidoCreado->codigo} a nombre de {$pedidoCreado->nombre_cliente} por $ " . number_format($pedidoCreado->total, 0, ',', '.') . " COP. Mi dirección es: {$pedidoCreado->direccion_delivery}.");
+                $mensajeWp = urlencode("¡Hola RestoMaster! Acabo de hacer el pedido #{$pedidoCreado->codigo} a nombre de {$pedidoCreado->nombre_cliente} por $ " . number_format($pedidoCreado->total, 0, ',', '.') . " COP. Mi dirección es: {$pedidoCreado->direccion_delivery}.");
             @endphp
 
             <div class="space-y-3 pt-2">
@@ -343,10 +356,10 @@ new #[Layout('layouts.publico')] class extends Component
                     🛵 Pedidos Online · Despacho Inmediato
                 </span>
                 <h1 class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
-                    Delivery de Autor SushiXpress
+                    Delivery Gastronómico RestoMaster
                 </h1>
                 <p class="text-xs sm:text-sm text-stone-600 max-w-xl leading-relaxed">
-                    Pesca fresca de Medellín, rolls artesanales y cocina caliente empacada al vacío para conservar frescura y temperatura.
+                    Nuestra carta completa a tu puerta: cortes a la parrilla, pastas artesanales, hamburguesas gourmet y entradas de autor empacadas para conservar temperatura y sabor.
                 </p>
             </div>
 
@@ -421,7 +434,7 @@ new #[Layout('layouts.publico')] class extends Component
                                         {{ $cat->productos->count() }}
                                     </span>
                                 </div>
-                                <span class="text-[10px] font-bold uppercase tracking-widest text-stone-500">SushiXpress Provenza</span>
+                                <span class="text-[10px] font-bold uppercase tracking-widest text-stone-500">RestoMaster Gourmet</span>
                             </div>
 
                             <!-- Product Cards Grid -->
@@ -436,12 +449,12 @@ new #[Layout('layouts.publico')] class extends Component
                                             <div class="flex items-start justify-between gap-2">
                                                 <h3 class="font-extrabold text-stone-900 text-sm leading-snug">{{ $producto->nombre }}</h3>
                                                 <span class="px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200 text-[9px] font-bold text-stone-500 uppercase tracking-wider shrink-0">
-                                                    {{ $producto->area_cocina === 'sushi' ? 'Barra Fría' : 'Cocina Wok' }}
+                                                    {{ in_array($producto->area_cocina, ['barra', 'bebidas']) ? 'Barra' : (in_array($producto->area_cocina, ['fria', 'sushi']) ? 'Cocina Fría' : 'Cocina / Parrilla') }}
                                                 </span>
                                             </div>
 
                                             <p class="text-xs text-stone-500 leading-relaxed">
-                                                {{ $producto->descripcion ?? 'Elaborado artesanalmente con ingredientes frescos y arroz shari sazonado.' }}
+                                                {{ $producto->descripcion ?? 'Elaborado artesanalmente con ingredientes frescos y altos estándares de calidad.' }}
                                             </p>
                                         </div>
 

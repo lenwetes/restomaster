@@ -9,12 +9,12 @@ class ClientePolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role?->slug, ['mesero', 'cajero', 'gerente', 'admin', 'delivery']);
+        return in_array($user->role?->slug, ['cajero', 'gerente', 'admin']);
     }
 
     public function view(User $user, Cliente $cliente): bool
     {
-        return in_array($user->role?->slug, ['mesero', 'cajero', 'gerente', 'admin', 'delivery']);
+        return in_array($user->role?->slug, ['cajero', 'gerente', 'admin']);
     }
 
     public function create(User $user): bool

@@ -83,15 +83,24 @@ new class extends Component
 
     public function mount(): void
     {
-        $caja = Caja::first();
+        $userSucursalId = auth()->user()?->sucursal_id;
+        $cajasQuery = Caja::query();
+        if ($userSucursalId) {
+            $cajasQuery->where('sucursal_id', $userSucursalId);
+        }
+        $caja = $cajasQuery->first() ?? Caja::first();
         if ($caja) {
             $this->cajaSeleccionadaId = $caja->id;
         }
 
-        $turnoActivo = TurnoCaja::where('estado', 'abierto')->latest()->first();
+        $turnosQuery = TurnoCaja::where('estado', 'abierto');
+        if ($userSucursalId) {
+            $turnosQuery->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
+        }
+        $turnoActivo = $turnosQuery->latest()->first();
         if ($turnoActivo) {
             $this->turnoId = $turnoActivo->id;
-            $this->montoContado = (float) $turnoActivo->monto_esperado_efectivo;
+            $this->montoContado = 0.0;
         }
     }
 
@@ -190,7 +199,7 @@ new class extends Component
     {
         $turno = TurnoCaja::findOrFail($this->turnoId);
         app(CajaService::class)->recalcularEsperado($turno);
-        $this->montoContado = (float) $turno->monto_esperado_efectivo;
+        $this->montoContado = 0.0;
         $this->notasCierre = '';
         $this->mostrarModalCierre = true;
     }
@@ -851,7 +860,7 @@ new class extends Component
             <div class="w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
                 <!-- Header -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
-                    <p class="text-base font-black tracking-tight text-primary">🍣 SUSHIXPRESS 🍣</p>
+                    <p class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
                     <p class="text-[11px] font-bold text-on-surface">CORTE DE CAJA — REPORTE FISCAL Z</p>
                     <p class="text-[10px] text-on-surface-variant">{{ $reporteZ['sucursal'] }} • {{ $reporteZ['caja_nombre'] }}</p>
                     <p class="text-[9px] text-on-surface-variant/60">NIT: 901.884.200-1 · Res. DIAN 18764022</p>

@@ -105,8 +105,16 @@ class CajaService
             if (empty(trim((string) $autorizadoPor))) {
                 throw new InvalidArgumentException("Los movimientos de {$tipo} requieren autorización explícita.");
             }
-            if ($user && strcasecmp(trim((string) $autorizadoPor), trim((string) $user->name)) === 0 && ! in_array($user->role?->slug, ['admin', 'gerente'])) {
-                throw new InvalidArgumentException("Un cajero no puede auto-autorizarse un {$tipo}. Requiere autorización de un superior.");
+
+            if ($user && ! in_array($user->role?->slug, ['admin', 'gerente'], true)) {
+                if (strcasecmp(trim((string) $autorizadoPor), trim((string) $user->name)) === 0) {
+                    throw new InvalidArgumentException("Un cajero no puede auto-autorizarse un {$tipo}. Requiere autorización de un superior.");
+                }
+
+                $autorizador = User::with('role')->where('name', trim((string) $autorizadoPor))->first();
+                if ($autorizador && ! in_array($autorizador->role?->slug, ['admin', 'gerente'], true)) {
+                    throw new InvalidArgumentException("El usuario '{$autorizadoPor}' no tiene permisos administrativos para autorizar movimientos.");
+                }
             }
         }
 
@@ -137,6 +145,8 @@ class CajaService
                 $turno->total_egresos = (float) $turno->total_egresos + $monto;
             } elseif ($tipo === 'retiro') {
                 $turno->total_retiros = (float) $turno->total_retiros + $monto;
+            } elseif ($tipo === 'ingreso') {
+                $turno->total_ingresos = (float) ($turno->total_ingresos ?? 0) + $monto;
             }
 
             $this->recalcularEsperado($turno);
@@ -171,16 +181,29 @@ class CajaService
     public function vincularCobroPedido(TurnoCaja $turno, Pedido $pedido): void
     {
         DB::transaction(function () use ($turno, $pedido) {
+            $turno = TurnoCaja::whereKey($turno->id)->lockForUpdate()->firstOrFail();
             $pedido->update(['turno_caja_id' => $turno->id]);
 
             $metodo = strtolower($pedido->metodo_pago ?? 'efectivo');
+            $montoEfectivo = 0.0;
+            $montoTarjeta = 0.0;
 
             if ($metodo === 'efectivo') {
-                $turno->total_ventas_efectivo = (float) $turno->total_ventas_efectivo + (float) $pedido->total;
-            } elseif (in_array($metodo, ['tarjeta', 'tarjeta_credito', 'tarjeta_debito'])) {
-                $turno->total_ventas_tarjeta = (float) $turno->total_ventas_tarjeta + (float) $pedido->total;
+                $montoEfectivo = (float) $pedido->total;
+            } elseif ($metodo === 'mixto') {
+                $montoEfectivo = max(0.0, (float) ($pedido->monto_pago_efectivo ?? 0));
+                $montoTarjeta = max(0.0, (float) ($pedido->monto_pago_tarjeta ?? 0));
+            } elseif (in_array($metodo, ['tarjeta', 'tarjeta_credito', 'tarjeta_debito', 'datafono', 'datáfono', 'datfono'], true)) {
+                $montoTarjeta = (float) $pedido->total;
             } else {
                 $turno->total_ventas_transferencia = (float) $turno->total_ventas_transferencia + (float) $pedido->total;
+            }
+
+            if ($montoEfectivo > 0) {
+                $turno->total_ventas_efectivo = (float) $turno->total_ventas_efectivo + $montoEfectivo;
+            }
+            if ($montoTarjeta > 0) {
+                $turno->total_ventas_tarjeta = (float) $turno->total_ventas_tarjeta + $montoTarjeta;
             }
 
             $this->recalcularEsperado($turno);
@@ -207,6 +230,7 @@ class CajaService
     {
         $montoEsperado = (float) $turno->monto_inicial
             + (float) $turno->total_ventas_efectivo
+            + (float) ($turno->total_ingresos ?? 0)
             - (float) $turno->total_egresos
             - (float) $turno->total_retiros;
 

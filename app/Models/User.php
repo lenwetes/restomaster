@@ -97,6 +97,22 @@ class User extends Authenticatable
 
     public function isDelivery(): bool
     {
-        return $this->hasRole('delivery');
+        return in_array($this->role?->slug, ['delivery', 'repartidor'], true);
+    }
+
+    /**
+     * Mesas actualmente asignadas a este mesero.
+     */
+    public function mesasAsignadas(): HasMany
+    {
+        return $this->hasMany(Mesa::class, 'mesero_id');
+    }
+
+    /**
+     * Pedidos atendidos por este mesero.
+     */
+    public function pedidosAtendidos(): HasMany
+    {
+        return $this->hasMany(Pedido::class, 'mesero_id');
     }
 }

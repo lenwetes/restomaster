@@ -28,4 +28,24 @@ enum MesaEstado: string
             self::RESERVADA => 'bg-blue-500/10 text-blue-500 border-blue-500/20',
         };
     }
+
+    public function transicionesValidas(): array
+    {
+        return match ($this) {
+            self::LIBRE => [self::OCUPADA, self::RESERVADA],
+            self::OCUPADA => [self::POR_LIMPIAR, self::LIBRE],
+            self::POR_LIMPIAR => [self::LIBRE],
+            self::RESERVADA => [self::LIBRE, self::OCUPADA],
+        };
+    }
+
+    public function puedeTransicionarA(MesaEstado|string $nuevo): bool
+    {
+        $target = $nuevo instanceof self ? $nuevo : self::tryFrom((string) $nuevo);
+        if (! $target) {
+            return false;
+        }
+
+        return in_array($target, $this->transicionesValidas(), true);
+    }
 }

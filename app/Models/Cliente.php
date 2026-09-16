@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,6 +11,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Cliente extends Model
 {
     use HasFactory, SoftDeletes;
+
+    public const TIER_OCASIONAL = 'ocasional';
+
+    public const TIER_FRECUENTE = 'frecuente';
+
+    public const TIER_VIP = 'vip';
 
     protected $table = 'clientes';
 
@@ -26,6 +33,11 @@ class Cliente extends Model
         'preferencias',
         'notas',
         'activo',
+        'acepta_tratamiento_datos',
+        'fecha_autorizacion_datos',
+        'canal_autorizacion_datos',
+        'autoriza_whatsapp',
+        'autoriza_email',
     ];
 
     protected $casts = [
@@ -33,6 +45,10 @@ class Cliente extends Model
         'total_gastado' => 'decimal:2',
         'visitas_count' => 'integer',
         'activo' => 'boolean',
+        'acepta_tratamiento_datos' => 'boolean',
+        'fecha_autorizacion_datos' => 'datetime',
+        'autoriza_whatsapp' => 'boolean',
+        'autoriza_email' => 'boolean',
     ];
 
     public function direcciones(): HasMany
@@ -55,18 +71,70 @@ class Cliente extends Model
         return $this->hasMany(MovimientoPuntos::class, 'cliente_id');
     }
 
+    public function isOcasional(): bool
+    {
+        return strtolower($this->tier ?? '') === self::TIER_OCASIONAL || empty($this->tier);
+    }
+
+    public function isFrecuente(): bool
+    {
+        return in_array(strtolower($this->tier ?? ''), [self::TIER_FRECUENTE, 'regular'], true);
+    }
+
+    public function isVip(): bool
+    {
+        return in_array(strtolower($this->tier ?? ''), [self::TIER_VIP, 'black', 'imperial', 'gold', 'oro'], true);
+    }
+
     public function esVip(): bool
     {
-        return in_array(strtolower($this->tier), ['vip', 'black', 'imperial']);
+        return $this->isVip();
+    }
+
+    public function tieneHabeasData(): bool
+    {
+        return (bool) $this->acepta_tratamiento_datos;
     }
 
     public function badgeTier(): array
     {
-        return match (strtolower($this->tier)) {
-            'black', 'imperial' => ['label' => 'Imperial VIP', 'color' => 'bg-primary-container text-on-primary-container border-primary'],
-            'vip' => ['label' => 'VIP Club', 'color' => 'bg-primary-fixed text-on-primary-fixed border-primary-fixed-dim'],
-            'gold' => ['label' => 'Gourmet Gold', 'color' => 'bg-tertiary-fixed text-on-tertiary-fixed border-tertiary'],
-            default => ['label' => 'Comensal Regular', 'color' => 'bg-surface-container-high text-on-surface border-outline-variant/30'],
-        };
+        $t = strtolower($this->tier ?? '');
+
+        if ($this->isVip()) {
+            return [
+                'label' => 'VIP Club',
+                'color' => 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30',
+                'icono' => 'stars',
+            ];
+        }
+
+        if ($this->isFrecuente()) {
+            return [
+                'label' => 'Frecuente',
+                'color' => 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30',
+                'icono' => 'repeat',
+            ];
+        }
+
+        return [
+            'label' => 'Ocasional',
+            'color' => 'bg-stone-500/15 text-stone-700 dark:text-stone-400 border border-stone-500/30',
+            'icono' => 'person',
+        ];
+    }
+
+    public function scopeOcasionales(Builder $query): Builder
+    {
+        return $query->where('tier', self::TIER_OCASIONAL);
+    }
+
+    public function scopeFrecuentes(Builder $query): Builder
+    {
+        return $query->whereIn('tier', [self::TIER_FRECUENTE, 'regular']);
+    }
+
+    public function scopeVip(Builder $query): Builder
+    {
+        return $query->whereIn('tier', [self::TIER_VIP, 'black', 'imperial', 'gold', 'oro']);
     }
 }

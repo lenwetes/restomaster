@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>Bienvenidos a SushiXpress — Barra Nikkei & Restaurante</title>
-    <meta name="description" content="Restaurante japonés y barra de sushi artesanal en Provenza, Medellín. Haz tu pedido a domicilio, consulta nuestro menú o reserva tu mesa en línea.">
+    <title>Bienvenidos a RestoMaster — Restaurante & Bar</title>
+    <meta name="description" content="Restaurante gourmet y cocina artesanal en Provenza, Medellín. Haz tu pedido a domicilio, consulta nuestro menú o reserva tu mesa en línea.">
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
@@ -49,7 +49,7 @@
                 </div>
                 <div>
                     <div class="flex items-center gap-1.5">
-                        <span class="text-xl font-black tracking-tight text-stone-900">SUSHI<span class="text-[#ff5436]">XPRESS</span></span>
+                        <span class="text-xl font-black tracking-tight text-stone-900">RESTO<span class="text-[#ff5436]">MASTER</span></span>
                     </div>
                     <p class="text-[10px] text-stone-400 font-mono tracking-wider">PROVENZA · MEDELLÍN</p>
                 </div>
@@ -87,8 +87,8 @@
             
             <!-- Restaurant Badge -->
             <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-stone-200 shadow-sm text-xs font-bold text-stone-600">
-                <span class="text-base">🍣</span>
-                <span>Barra Nikkei & Cocina Japonesa Artesanal</span>
+                <span class="text-base">🍽️</span>
+                <span>Restaurante & Bar · Cocina Artesanal y Parrilla</span>
                 <span class="text-stone-300">•</span>
                 <span class="text-emerald-600 font-bold">Abierto Hoy</span>
             </div>
@@ -96,10 +96,10 @@
             <!-- Title & Welcome Message -->
             <div class="space-y-4">
                 <h1 class="text-4xl sm:text-6xl font-black text-stone-900 tracking-tight leading-tight">
-                    Bienvenidos a <span class="text-[#ff5436]">SushiXpress</span>
+                    Bienvenidos a <span class="text-[#ff5436]">RestoMaster</span>
                 </h1>
                 <p class="text-base sm:text-lg text-stone-500 max-w-2xl mx-auto leading-relaxed">
-                    Pesca fresca seleccionada, rolls de autor y alta gastronomía japonesa en el corazón de Provenza. Elige cómo deseas disfrutar tu experiencia hoy:
+                    Cortes a la parrilla, pastas artesanales, hamburguesas gourmet y coctelería de autor en el corazón de Provenza. Elige cómo deseas disfrutar tu experiencia hoy:
                 </p>
             </div>
 
@@ -135,7 +135,7 @@
                     </div>
                     <div>
                         <h3 class="text-lg font-black tracking-tight leading-none mb-1 text-stone-900">Menú en Línea</h3>
-                        <p class="text-xs text-stone-500 font-medium">Explora la carta de rolls, nigiris y entradas</p>
+                        <p class="text-xs text-stone-500 font-medium">Explora la carta de parrilla, pastas, burgers y cócteles</p>
                     </div>
                     <span class="mt-3 text-[11px] font-black uppercase tracking-wider bg-stone-100 text-stone-500 px-3 py-1 rounded-full group-hover:text-[#ff5436] group-hover:bg-[#ff5436]/10 transition-all">
                         Ver Carta Digital →
@@ -152,7 +152,7 @@
                     </div>
                     <div>
                         <h3 class="text-lg font-black tracking-tight leading-none mb-1 text-stone-900">Reserva en Línea</h3>
-                        <p class="text-xs text-stone-500 font-medium">Asegura tu mesa en salón o barra omakase</p>
+                        <p class="text-xs text-stone-500 font-medium">Asegura tu mesa en salón principal o terraza</p>
                     </div>
                     <span class="mt-3 text-[11px] font-black uppercase tracking-wider bg-stone-100 text-stone-500 px-3 py-1 rounded-full group-hover:text-amber-600 group-hover:bg-amber-50 transition-all">
                         Reservar Mesa →
@@ -164,15 +164,15 @@
             <!-- Featured Image Preview Card -->
             <div class="max-w-xl mx-auto rounded-3xl overflow-hidden border border-stone-200 shadow-xl relative group mt-8">
                 <img 
-                    src="{{ asset('images/sushi-hero.jpg') }}" 
-                    alt="SushiXpress Selección de Sushi" 
+                    src="{{ asset('images/restomaster-hero.jpg') }}" 
+                    alt="RestoMaster Selección Gastronómica" 
                     class="w-full h-56 sm:h-64 object-cover group-hover:scale-105 transition-transform duration-700"
                 />
                 <div class="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/20 to-transparent"></div>
                 <div class="absolute bottom-4 left-4 right-4 flex items-center justify-between text-left">
                     <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 font-mono">Gastronomía Japonesa</span>
-                        <h4 class="text-sm font-extrabold text-white">Salmón de Exportación & Pesca del Pacífico</h4>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300 font-mono">Gastronomía de Autor</span>
+                        <h4 class="text-sm font-extrabold text-white">Cortes Angus, Pastas & Platos de la Casa</h4>
                     </div>
                     <span class="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold text-white border border-white/20">
                         El Poblado
@@ -207,7 +207,7 @@
 
                 <!-- WhatsApp -->
                 <a 
-                    href="https://wa.me/573001234567?text=Hola%20SushiXpress!%20Deseo%20informaci%C3%B3n%20sobre%20el%20restaurante" 
+                    href="https://wa.me/573001234567?text=Hola%20RestoMaster!%20Deseo%20informaci%C3%B3n%20sobre%20el%20restaurante" 
                     target="_blank" 
                     class="p-4 rounded-2xl bg-white border border-stone-200 hover:border-emerald-300 shadow-sm hover:shadow-md transition-all flex items-start gap-3 group"
                 >
@@ -229,7 +229,7 @@
     <!-- ================================================================= -->
     <footer class="w-full border-t border-stone-200 bg-white py-6">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-stone-400">
-            <p>© {{ date('Y') }} SushiXpress S.A.S. • NIT 901.458.789-3 • Todos los derechos reservados.</p>
+            <p>© {{ date('Y') }} RestoMaster S.A.S. • NIT 901.458.789-3 • Todos los derechos reservados.</p>
             <div class="flex items-center gap-4">
                 <a href="{{ route('login') }}" class="hover:text-stone-700 transition-colors text-stone-400 font-bold">
                     Terminal POS & Personal →

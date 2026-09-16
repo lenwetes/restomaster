@@ -64,6 +64,8 @@ class Producto extends Model
      */
     public function getCostoRecetaAttribute(): float
     {
+        $this->loadMissing('recetas.insumo');
+
         return round($this->recetas->sum(fn ($receta) => $receta->costo_teorico), 2);
     }
 }

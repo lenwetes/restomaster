@@ -4,6 +4,7 @@ use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Services\TrabajadorService;
+use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -56,15 +57,27 @@ new class extends Component
 
     public function guardarNuevo(): void
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $this->validate([
             'nuevo.nombre' => 'required|string|min:3',
-            'nuevo.email' => 'required|email',
+            'nuevo.email' => 'required|email|unique:users,email',
+            'nuevo.telefono' => 'required|string|min:7|max:20',
             'nuevo.password' => 'required|min:6',
             'nuevo.role_id' => 'required|exists:roles,id',
             'nuevo.sucursal_id' => 'nullable|exists:sucursales,id',
+        ], [
+            'nuevo.telefono.required' => 'El número de móvil o teléfono es obligatorio.',
+            'nuevo.email.unique' => 'Ya existe un trabajador registrado con este correo.',
         ]);
 
-        app(TrabajadorService::class)->crear($this->nuevo);
+        try {
+            app(TrabajadorService::class)->crear($this->nuevo);
+        } catch (InvalidArgumentException $e) {
+            $this->addError('nuevo.email', $e->getMessage());
+
+            return;
+        }
 
         $this->mostrarModalNuevo = false;
         $this->dispatch('notificacion', [
@@ -75,6 +88,8 @@ new class extends Component
 
     public function abrirModalEditar(int $userId): void
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $trabajador = User::findOrFail($userId);
         $this->enEdicion = $trabajador->id;
         $this->edicion = [
@@ -91,11 +106,17 @@ new class extends Component
 
     public function guardarEdicion(): void
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $this->validate([
             'edicion.nombre' => 'required|string|min:3',
-            'edicion.email' => 'required|email',
+            'edicion.email' => ['required', 'email', Rule::unique('users', 'email')->ignore($this->enEdicion)],
+            'edicion.telefono' => 'required|string|min:7|max:20',
             'edicion.role_id' => 'required|exists:roles,id',
             'edicion.sucursal_id' => 'nullable|exists:sucursales,id',
+        ], [
+            'edicion.telefono.required' => 'El número de móvil o teléfono es obligatorio.',
+            'edicion.email.unique' => 'Ya existe otro trabajador registrado con este correo.',
         ]);
 
         try {
@@ -124,6 +145,8 @@ new class extends Component
 
     public function toggleActivo(int $userId): void
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $trabajador = User::findOrFail($userId);
 
         if ($trabajador->activo) {
@@ -139,6 +162,8 @@ new class extends Component
 
     public function resetearClave(int $userId): void
     {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
         $trabajador = User::findOrFail($userId);
 
         $this->claveTemporal = app(TrabajadorService::class)->resetearPassword($trabajador);
@@ -337,12 +362,13 @@ new class extends Component
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="text-xs font-bold text-on-surface-variant">Email:</label>
-                            <input type="email" wire:model="nuevo.email" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="trabajador@sushixpress.co" />
+                            <input type="email" wire:model="nuevo.email" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="trabajador@restomaster.com" />
                             @error('nuevo.email') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-on-surface-variant">Teléfono:</label>
+                            <label class="text-xs font-bold text-on-surface-variant">Teléfono / Móvil <span class="text-primary">*</span>:</label>
                             <input type="text" wire:model="nuevo.telefono" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="300 000 0000" />
+                            @error('nuevo.telefono') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
 
@@ -415,8 +441,9 @@ new class extends Component
                             @error('edicion.email') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-on-surface-variant">Teléfono:</label>
+                            <label class="text-xs font-bold text-on-surface-variant">Teléfono / Móvil <span class="text-primary">*</span>:</label>
                             <input type="text" wire:model="edicion.telefono" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0" />
+                            @error('edicion.telefono') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                         </div>
                     </div>
 

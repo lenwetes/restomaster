@@ -17,6 +17,32 @@ new #[Layout('layouts.publico')] class extends Component
 
     public function with(): array
     {
+        $menuService = app(\App\Services\MenuService::class);
+
+        if (empty($this->busqueda) && $this->categoriaSeleccionada === 'todas') {
+            $menu = $menuService->obtenerMenuPublico();
+
+            $categorias = $menu->map(fn (array $c) => (object) [
+                'id' => $c['id'],
+                'nombre' => $c['nombre'],
+                'slug' => $c['slug'],
+                'icono' => $c['icono'],
+                'productos' => collect($c['productos'])->map(fn ($p) => (object) $p),
+            ]);
+
+            $todasCategorias = $menu->map(fn (array $c) => (object) [
+                'id' => $c['id'],
+                'nombre' => $c['nombre'],
+                'slug' => $c['slug'],
+                'icono' => $c['icono'],
+            ]);
+
+            return [
+                'categorias' => $categorias,
+                'todasCategorias' => $todasCategorias,
+            ];
+        }
+
         $query = Categoria::where('activo', true)
             ->with(['productos' => function ($q) {
                 $q->where('activo', true);
@@ -49,13 +75,13 @@ new #[Layout('layouts.publico')] class extends Component
     <!-- Hero Header Title & Subtitle -->
     <div class="text-center max-w-2xl mx-auto space-y-4">
         <span class="px-3.5 py-1 rounded-full bg-[#ff5436]/10 text-[#ff5436] text-xs font-black uppercase tracking-wider border border-[#ff5436]/25">
-            Sushi Nikkei Contemporáneo · Medellín
+            Gastronomía de Autor & Parrilla · Medellín
         </span>
         <h1 class="text-3xl sm:text-5xl font-black text-stone-900 tracking-tight">
             Carta de Autor & Menú
         </h1>
         <p class="text-xs sm:text-sm text-stone-500 leading-relaxed">
-            Explora nuestras creaciones culinarias: pesca de temporada, rolls insignia, nigiris y cocina caliente con técnicas japonesas tradicionales.
+            Explora nuestras creaciones culinarias: cortes selectos a la parrilla, pastas artesanales, hamburguesas gourmet, entradas de autor y coctelería clásica.
         </p>
 
         <!-- Quick CTAs -->
@@ -109,7 +135,7 @@ new #[Layout('layouts.publico')] class extends Component
                 </span>
                 <input 
                     type="text" 
-                    wire:model.live.debounce.250ms="busqueda"
+                    wire:model.live.debounce.300ms="busqueda"
                     placeholder="Buscar por plato o ingrediente..."
                     class="w-full pl-10 pr-4 py-2 rounded-2xl border border-stone-200 bg-white text-xs text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-0 outline-none shadow-sm"
                 />
@@ -144,7 +170,7 @@ new #[Layout('layouts.publico')] class extends Component
                                             {{ $producto->nombre }}
                                         </h3>
                                         <span class="px-2 py-0.5 rounded-md bg-stone-100 border border-stone-200 text-[9px] font-bold text-stone-500 uppercase tracking-wider shrink-0">
-                                            {{ $producto->area_cocina === 'sushi' ? 'Barra Fría' : 'Cocina Wok' }}
+                                            {{ in_array($producto->area_cocina, ['barra', 'bebidas']) ? 'Barra' : (in_array($producto->area_cocina, ['fria', 'sushi']) ? 'Cocina Fría' : 'Cocina / Parrilla') }}
                                         </span>
                                     </div>
 

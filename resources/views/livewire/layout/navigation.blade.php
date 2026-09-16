@@ -121,7 +121,7 @@ new class extends Component
             </div>
 
             <!-- Notification Bell & Interactive Dropdown (Aura Gastro Expressive OS) -->
-            <div class="relative" x-data="{ openNotif: false }" wire:poll.10s>
+            <div class="relative" x-data="{ openNotif: false }" wire:poll.15s>
                 <button 
                     @click="openNotif = !openNotif" 
                     class="relative p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0" 
@@ -364,8 +364,8 @@ new class extends Component
                     <x-application-logo class="w-full h-full" />
                 </div>
                 <div class="flex flex-col">
-                    <span class="font-extrabold text-base text-primary leading-none tracking-tight">SUSHI XPRESS</span>
-                    <span class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">Japanese Craft & Gastro POS</span>
+                    <span class="font-extrabold text-base text-primary leading-none tracking-tight">RESTOMASTER</span>
+                    <span class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">Gourmet Restaurant POS & Ops</span>
                 </div>
             </div>
 
@@ -398,17 +398,43 @@ new class extends Component
                         </div>
                     </div>
 
+                    <!-- Salón & Mesas (MES-01) -->
+                    <a 
+                        href="{{ route('mesas') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('mesas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)] font-extrabold' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">table_restaurant</span>
+                            <span>Salón & Mesas</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">MES</span>
+                    </a>
+
                     <!-- Terminal POS (POS-01) -->
                     <a 
                         href="{{ route('pos') }}" 
                         wire:navigate
-                        class="flex items-center justify-between rounded-xl px-3 h-12 text-sm font-bold transition-all duration-150 bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]"
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('pos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)] font-extrabold' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
                         <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[22px]">point_of_sale</span>
-                            <span class="font-extrabold">Terminal POS</span>
+                            <span class="material-symbols-outlined text-[20px]">point_of_sale</span>
+                            <span>Terminal POS</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">POS</span>
+                    </a>
+
+                    <!-- Reservas de Salón (RES-01) -->
+                    <a 
+                        href="{{ route('reservas') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)] font-extrabold' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+                            <span>Reservas</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
                     </a>
                 @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
                     <!-- Card de Cocina KDS -->
@@ -662,7 +688,7 @@ new class extends Component
                     <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-high border border-outline-variant/30 shadow-xs p-1">
                         <x-application-logo class="w-full h-full" />
                     </div>
-                    <span class="font-extrabold text-base text-primary">SUSHI XPRESS</span>
+                    <span class="font-extrabold text-base text-primary">RESTOMASTER</span>
                 </div>
                 <button 
                     @click="mobileMenuOpen = false"
@@ -688,16 +714,42 @@ new class extends Component
                     </div>
 
                     <a 
+                        href="{{ route('mesas') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-bold transition-all {{ request()->routeIs('mesas') ? 'bg-primary-container text-on-primary shadow-sm font-extrabold' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[22px]">table_restaurant</span>
+                            <span>Salón & Mesas</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">MES</span>
+                    </a>
+
+                    <a 
                         href="{{ route('pos') }}" 
                         @click="mobileMenuOpen = false" 
                         wire:navigate 
-                        class="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-extrabold bg-primary-container text-on-primary shadow-sm"
+                        class="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-bold transition-all {{ request()->routeIs('pos') ? 'bg-primary-container text-on-primary shadow-sm font-extrabold' : 'text-on-surface-variant hover:bg-surface-container' }}"
                     >
                         <div class="flex items-center gap-3">
                             <span class="material-symbols-outlined text-[22px]">point_of_sale</span>
                             <span>Terminal POS</span>
                         </div>
-                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">POS</span>
+                    </a>
+
+                    <a 
+                        href="{{ route('reservas') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-bold transition-all {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-sm font-extrabold' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[22px]">calendar_month</span>
+                            <span>Reservas de Salón</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
                     </a>
                 @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
                     <div class="mb-2 p-3 rounded-2xl bg-secondary/15 border border-secondary/30">

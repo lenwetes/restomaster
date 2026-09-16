@@ -39,7 +39,7 @@ new class extends Component
         'telefono' => '',
         'email' => '',
         'documento' => '',
-        'tier' => 'regular',
+        'tier' => 'ocasional',
         'puntos_fidelidad' => 0,
         'alergias' => '',
         'preferencias' => '',
@@ -48,6 +48,9 @@ new class extends Component
         'referencia_apto' => '',
         'barrio_ciudad' => 'Medellín',
         'notas_entrega' => '',
+        'acepta_tratamiento_datos' => false,
+        'autoriza_whatsapp' => true,
+        'autoriza_email' => true,
     ];
 
     // Form Edición
@@ -56,10 +59,13 @@ new class extends Component
         'telefono' => '',
         'email' => '',
         'documento' => '',
-        'tier' => 'regular',
+        'tier' => 'ocasional',
         'alergias' => '',
         'preferencias' => '',
         'notas' => '',
+        'acepta_tratamiento_datos' => false,
+        'autoriza_whatsapp' => true,
+        'autoriza_email' => true,
     ];
 
     // Form Ajuste Puntos
@@ -98,7 +104,7 @@ new class extends Component
             'telefono' => '',
             'email' => '',
             'documento' => '',
-            'tier' => 'regular',
+            'tier' => 'ocasional',
             'puntos_fidelidad' => 0,
             'alergias' => '',
             'preferencias' => '',
@@ -107,6 +113,9 @@ new class extends Component
             'referencia_apto' => '',
             'barrio_ciudad' => 'Medellín',
             'notas_entrega' => '',
+            'acepta_tratamiento_datos' => false,
+            'autoriza_whatsapp' => true,
+            'autoriza_email' => true,
         ];
         $this->mostrarModalNuevo = true;
     }
@@ -117,10 +126,18 @@ new class extends Component
 
         $this->validate([
             'nuevo.nombre' => 'required|string|min:3',
-            'nuevo.telefono' => 'required|string|min:7',
+            'nuevo.telefono' => 'nullable|string|max:20',
             'nuevo.email' => 'nullable|email',
-            'nuevo.tier' => 'required|in:regular,gold,vip,black',
+            'nuevo.tier' => 'required|in:ocasional,frecuente,vip,regular,gold,black',
+            'nuevo.acepta_tratamiento_datos' => 'nullable|boolean',
+            'nuevo.autoriza_whatsapp' => 'nullable|boolean',
+            'nuevo.autoriza_email' => 'nullable|boolean',
         ]);
+
+        if (! empty($this->nuevo['acepta_tratamiento_datos'])) {
+            $this->nuevo['fecha_autorizacion_datos'] = now();
+            $this->nuevo['canal_autorizacion_datos'] = 'crm_admin';
+        }
 
         try {
             $cliente = app(ClienteService::class)->crear($this->nuevo);
@@ -141,13 +158,16 @@ new class extends Component
         $cliente = Cliente::findOrFail($this->clienteSeleccionadoId);
         $this->edicion = [
             'nombre' => $cliente->nombre,
-            'telefono' => $cliente->telefono,
+            'telefono' => $cliente->telefono ?? '',
             'email' => $cliente->email ?? '',
             'documento' => $cliente->documento ?? '',
             'tier' => $cliente->tier,
             'alergias' => $cliente->alergias ?? '',
             'preferencias' => $cliente->preferencias ?? '',
             'notas' => $cliente->notas ?? '',
+            'acepta_tratamiento_datos' => (bool) $cliente->acepta_tratamiento_datos,
+            'autoriza_whatsapp' => $cliente->autoriza_whatsapp ?? true,
+            'autoriza_email' => $cliente->autoriza_email ?? true,
         ];
         $this->mostrarModalEditar = true;
     }
@@ -159,10 +179,18 @@ new class extends Component
 
         $this->validate([
             'edicion.nombre' => 'required|string|min:3',
-            'edicion.telefono' => 'required|string|min:7',
+            'edicion.telefono' => 'nullable|string|max:20',
             'edicion.email' => 'nullable|email',
-            'edicion.tier' => 'required|in:regular,gold,vip,black',
+            'edicion.tier' => 'required|in:ocasional,frecuente,vip,regular,gold,black',
+            'edicion.acepta_tratamiento_datos' => 'nullable|boolean',
+            'edicion.autoriza_whatsapp' => 'nullable|boolean',
+            'edicion.autoriza_email' => 'nullable|boolean',
         ]);
+
+        if (! empty($this->edicion['acepta_tratamiento_datos']) && ! $cliente->acepta_tratamiento_datos) {
+            $this->edicion['fecha_autorizacion_datos'] = now();
+            $this->edicion['canal_autorizacion_datos'] = 'crm_admin';
+        }
 
         try {
             app(ClienteService::class)->actualizar($cliente, $this->edicion);
@@ -221,6 +249,8 @@ new class extends Component
         ]);
 
         $cliente = Cliente::findOrFail($this->clienteSeleccionadoId);
+        $this->authorize('update', $cliente);
+
         app(ClienteService::class)->agregarDireccion($cliente, $this->nuevaDireccion);
         $this->mostrarModalDireccion = false;
         $this->dispatch('notificacion', ['mensaje' => 'Dirección agregada exitosamente.', 'tipo' => 'success']);
@@ -431,30 +461,24 @@ new class extends Component
                 Todos ({{ $totalRegistrados }})
             </button>
             <button
-                wire:click="$set('filtroTier', 'black')"
-                class="h-8 px-3 rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors {{ $filtroTier === 'black' ? 'bg-primary-container text-on-primary-container shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}"
-            >
-                <span class="material-symbols-outlined text-[14px]">workspace_premium</span>
-                Imperial VIP
-            </button>
-            <button
                 wire:click="$set('filtroTier', 'vip')"
                 class="h-8 px-3 rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors {{ $filtroTier === 'vip' ? 'bg-primary-fixed text-on-primary-fixed shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}"
             >
                 <span class="material-symbols-outlined text-[14px]">stars</span>
-                VIP Club
+                VIP Club ({{ $totalVip }})
             </button>
             <button
-                wire:click="$set('filtroTier', 'gold')"
-                class="h-8 px-3 rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors {{ $filtroTier === 'gold' ? 'bg-tertiary text-on-tertiary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}"
+                wire:click="$set('filtroTier', 'frecuente')"
+                class="h-8 px-3 rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors {{ $filtroTier === 'frecuente' ? 'bg-secondary text-on-secondary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}"
             >
-                Gourmet Gold
+                <span class="material-symbols-outlined text-[14px]">repeat</span>
+                Frecuentes
             </button>
             <button
-                wire:click="$set('filtroTier', 'regular')"
-                class="h-8 px-3 rounded-full text-xs font-bold transition-colors {{ $filtroTier === 'regular' ? 'bg-surface-container-high text-on-surface border border-outline-variant/40' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}"
+                wire:click="$set('filtroTier', 'ocasional')"
+                class="h-8 px-3 rounded-full text-xs font-bold transition-colors {{ $filtroTier === 'ocasional' ? 'bg-surface-container-high text-on-surface border border-outline-variant/40 font-black' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container-high' }}"
             >
-                Comensal Regular
+                Ocasionales
             </button>
         </div>
     </div>
@@ -771,10 +795,9 @@ new class extends Component
                         <div>
                             <label class="text-xs font-bold text-on-surface-variant">Nivel / Tier VIP:</label>
                             <select wire:model="nuevo.tier" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-2.5 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
-                                <option value="regular">Comensal Regular</option>
-                                <option value="gold">Gourmet Gold</option>
-                                <option value="vip">VIP Club</option>
-                                <option value="black">Imperial VIP</option>
+                                <option value="ocasional">Ocasional (1 visita / sin registrar)</option>
+                                <option value="frecuente">Frecuente (Visitas recurrentes)</option>
+                                <option value="vip">VIP Club (Fidelizado / Créditos)</option>
                             </select>
                         </div>
                     </div>
@@ -800,6 +823,28 @@ new class extends Component
                             <div>
                                 <input type="text" wire:model="nuevo.referencia_apto" class="w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="Apto / Torre" />
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Habeas Data / Tratamiento de Datos (Ley 1581) -->
+                    <div class="pt-2 border-t border-outline-variant/15 space-y-2">
+                        <span class="text-xs font-bold text-on-surface flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[16px] text-primary">verified_user</span>
+                            Consentimiento Habeas Data (Ley 1581)
+                        </span>
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="nuevo.acepta_tratamiento_datos" class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
+                            <span class="text-[11px] text-on-surface font-semibold">Autoriza tratamiento de datos personales</span>
+                        </label>
+                        <div class="pl-6 space-y-1">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="nuevo.autoriza_whatsapp" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
+                                <span class="text-[10px] text-on-surface-variant">Promociones y pedidos vía WhatsApp</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="nuevo.autoriza_email" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
+                                <span class="text-[10px] text-on-surface-variant">Facturación electrónica y promociones vía Email</span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -843,10 +888,9 @@ new class extends Component
                         <div>
                             <label class="text-xs font-bold text-on-surface-variant">Nivel VIP:</label>
                             <select wire:model="edicion.tier" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-2 py-2 text-xs font-bold text-on-surface">
-                                <option value="regular">Comensal Regular</option>
-                                <option value="gold">Gourmet Gold</option>
+                                <option value="ocasional">Ocasional</option>
+                                <option value="frecuente">Frecuente</option>
                                 <option value="vip">VIP Club</option>
-                                <option value="black">Imperial VIP</option>
                             </select>
                         </div>
                     </div>
@@ -857,6 +901,28 @@ new class extends Component
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Preferencias:</label>
                         <input type="text" wire:model="edicion.preferencias" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface" />
+                    </div>
+
+                    <!-- Habeas Data / Tratamiento de Datos (Ley 1581) -->
+                    <div class="pt-2 border-t border-outline-variant/15 space-y-2">
+                        <span class="text-xs font-bold text-on-surface flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[16px] text-primary">verified_user</span>
+                            Consentimiento Habeas Data (Ley 1581)
+                        </span>
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input type="checkbox" wire:model="edicion.acepta_tratamiento_datos" class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
+                            <span class="text-[11px] text-on-surface font-semibold">Autoriza tratamiento de datos personales</span>
+                        </label>
+                        <div class="pl-6 space-y-1">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="edicion.autoriza_whatsapp" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
+                                <span class="text-[10px] text-on-surface-variant">Promociones y pedidos vía WhatsApp</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="edicion.autoriza_email" class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4" />
+                                <span class="text-[10px] text-on-surface-variant">Facturación electrónica y promociones vía Email</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Caja;
 use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\Mesa;
@@ -9,6 +10,7 @@ use App\Models\Producto;
 use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\User;
+use App\Services\CajaService;
 use App\Services\FidelizacionService;
 use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -68,6 +70,15 @@ class SeguridadDineroAuditoriaTest extends TestCase
             'precio' => 45000,
             'activo' => true,
         ]);
+
+        $caja = Caja::create([
+            'sucursal_id' => $this->sucursal->id,
+            'nombre' => 'Caja Principal',
+            'codigo' => 'CAJA-SD',
+            'activa' => true,
+        ]);
+
+        app(CajaService::class)->abrirTurno($caja, $this->mesero, 100000.00, 'Apertura');
     }
 
     public function test_c1_precio_unitario_siempre_se_obtiene_de_la_base_de_datos(): void

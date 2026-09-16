@@ -17,18 +17,26 @@ class InventarioService
      */
     public function descontarPorItemPedido(ItemPedido $item): bool
     {
-        if ($item->inventario_descontado) {
-            return false;
-        }
+        return DB::transaction(function () use ($item) {
+            $updated = ItemPedido::whereKey($item->id)
+                ->where('inventario_descontado', false)
+                ->update(['inventario_descontado' => true]);
 
-        $producto = $item->producto()->with('recetas.insumo')->first();
-        if (! $producto || $producto->recetas->isEmpty()) {
-            $item->update(['inventario_descontado' => true]);
+            if ($updated !== 1) {
+                return false;
+            }
 
-            return false;
-        }
+            $producto = $item->relationLoaded('producto')
+                ? $item->producto
+                : $item->producto()->with('recetas.insumo')->first();
+            if ($producto) {
+                $producto->loadMissing('recetas.insumo');
+            }
 
-        return DB::transaction(function () use ($item, $producto) {
+            if (! $producto || $producto->recetas->isEmpty()) {
+                return false;
+            }
+
             foreach ($producto->recetas as $receta) {
                 $insumo = Insumo::where('id', $receta->insumo_id)->lockForUpdate()->first();
                 if (! $insumo) {
@@ -53,13 +61,11 @@ class InventarioService
                     'costo_unitario' => $insumo->costo_unitario,
                     'costo_total' => round($cantidadConsumo * (float) $insumo->costo_unitario, 2),
                     'pedido_id' => $item->pedido_id,
-                    'user_id' => auth()->id() ?? $item->pedido->usuario_id,
+                    'user_id' => auth()->id() ?? $item->pedido?->usuario_id,
                     'motivo' => "Consumo COC-01 #{$item->pedido_id}: {$item->cantidad}x {$item->nombre_producto}",
                     'referencia_documento' => "KDS-ITM-{$item->id}",
                 ]);
             }
-
-            $item->update(['inventario_descontado' => true]);
 
             return true;
         });
@@ -70,6 +76,7 @@ class InventarioService
      */
     public function descontarPorPedido(Pedido $pedido): int
     {
+        $pedido->loadMissing('items.producto.recetas.insumo');
         $descontados = 0;
         foreach ($pedido->items as $item) {
             if (! $item->inventario_descontado) {
@@ -93,6 +100,14 @@ class InventarioService
         ?string $factura = null,
         ?int $userId = null
     ): MovimientoInventario {
+        if ($cantidad <= 0) {
+            throw new \InvalidArgumentException('La cantidad comprada debe ser mayor a cero.');
+        }
+
+        if ($costoUnitario < 0) {
+            throw new \InvalidArgumentException('El costo unitario no puede ser negativo.');
+        }
+
         return DB::transaction(function () use ($insumoId, $cantidad, $costoUnitario, $proveedor, $factura, $userId) {
             $insumo = Insumo::where('id', $insumoId)->lockForUpdate()->firstOrFail();
 
@@ -135,11 +150,20 @@ class InventarioService
         ?int $userId = null,
         ?string $referencia = null
     ): MovimientoInventario {
+        if ($cantidad <= 0) {
+            throw new \InvalidArgumentException('La cantidad de merma debe ser mayor a cero.');
+        }
+
         return DB::transaction(function () use ($insumoId, $cantidad, $motivo, $userId, $referencia) {
             $insumo = Insumo::where('id', $insumoId)->lockForUpdate()->firstOrFail();
 
             $saldoAnterior = (float) $insumo->stock_actual;
-            $saldoPosterior = max(0, round($saldoAnterior - $cantidad, 3));
+
+            if ($cantidad > $saldoAnterior) {
+                throw new \DomainException("La cantidad de merma ({$cantidad}) no puede superar el stock actual disponible ({$saldoAnterior}).");
+            }
+
+            $saldoPosterior = round($saldoAnterior - $cantidad, 3);
 
             $insumo->update(['stock_actual' => $saldoPosterior]);
 
@@ -167,6 +191,10 @@ class InventarioService
         string $motivo,
         ?int $userId = null
     ): MovimientoInventario {
+        if ($nuevoStock < 0) {
+            throw new \InvalidArgumentException('El nuevo stock no puede ser negativo.');
+        }
+
         return DB::transaction(function () use ($insumoId, $nuevoStock, $motivo, $userId) {
             $insumo = Insumo::where('id', $insumoId)->lockForUpdate()->firstOrFail();
 

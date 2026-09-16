@@ -104,24 +104,38 @@ class extends Component {
     {
         $this->authorize('registrarMerma', Insumo::class);
 
-        if (!$this->selectedInsumoId || $this->mermaCantidad <= 0) return;
+        $this->validate([
+            'selectedInsumoId' => 'required|exists:insumos,id',
+            'mermaCantidad' => 'required|numeric|min:0.01',
+            'mermaMotivo' => 'nullable|string|max:255',
+        ]);
 
-        $service->registrarMerma(
-            $this->selectedInsumoId,
-            $this->mermaCantidad,
-            $this->mermaMotivo,
-            auth()->id()
-        );
+        try {
+            $service->registrarMerma(
+                $this->selectedInsumoId,
+                $this->mermaCantidad,
+                $this->mermaMotivo,
+                auth()->id()
+            );
 
-        $this->modalMermaOpen = false;
-        $this->mensajeExito = "Merma de {$this->mermaCantidad} registrada correctamente.";
+            $this->modalMermaOpen = false;
+            $this->mensajeExito = "Merma de {$this->mermaCantidad} registrada correctamente.";
+        } catch (\DomainException $e) {
+            $this->addError('mermaCantidad', $e->getMessage());
+        }
     }
 
     public function registrarCompra(InventarioService $service): void
     {
         $this->authorize('registrarCompra', Insumo::class);
 
-        if (!$this->selectedInsumoId || $this->compraCantidad <= 0) return;
+        $this->validate([
+            'selectedInsumoId' => 'required|exists:insumos,id',
+            'compraCantidad' => 'required|numeric|min:0.01',
+            'compraCostoUnitario' => 'required|numeric|min:0',
+            'compraProveedor' => 'nullable|string|max:255',
+            'compraFactura' => 'nullable|string|max:255',
+        ]);
 
         $service->registrarCompra(
             $this->selectedInsumoId,
@@ -140,7 +154,11 @@ class extends Component {
     {
         $this->authorize('ajusteFisico', Insumo::class);
 
-        if (!$this->selectedInsumoId || $this->ajusteNuevoStock < 0) return;
+        $this->validate([
+            'selectedInsumoId' => 'required|exists:insumos,id',
+            'ajusteNuevoStock' => 'required|numeric|min:0',
+            'ajusteMotivo' => 'nullable|string|max:255',
+        ]);
 
         $service->registrarAjuste(
             $this->selectedInsumoId,

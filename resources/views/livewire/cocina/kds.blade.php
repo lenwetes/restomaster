@@ -39,6 +39,7 @@ new class extends Component
     public function marcarListo(int $itemId): void
     {
         $item = ItemPedido::findOrFail($itemId);
+        abort_if(auth()->user()?->sucursal_id && $item->pedido?->sucursal_id && $item->pedido->sucursal_id !== auth()->user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
 
         $pedidoService = app(PedidoService::class);
@@ -48,6 +49,7 @@ new class extends Component
     public function marcarTodaComandaLista(int $pedidoId): void
     {
         $pedido = Pedido::findOrFail($pedidoId);
+        abort_if(auth()->user()?->sucursal_id && $pedido->sucursal_id && $pedido->sucursal_id !== auth()->user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $pedidoService = app(PedidoService::class);
 
         foreach ($pedido->items as $item) {
@@ -62,6 +64,7 @@ new class extends Component
     public function marcarComandaEntregada(int $pedidoId): void
     {
         $pedido = Pedido::findOrFail($pedidoId);
+        abort_if(auth()->user()?->sucursal_id && $pedido->sucursal_id && $pedido->sucursal_id !== auth()->user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $pedidoService = app(PedidoService::class);
 
         foreach ($pedido->items as $item) {
@@ -80,8 +83,13 @@ new class extends Component
                 if ($this->areaSeleccionada !== 'todas') {
                     $q->where('area_cocina', $this->areaSeleccionada);
                 }
-            })
-            ->with(['mesa', 'items' => function ($q) {
+            });
+
+        if (auth()->user()?->sucursal_id) {
+            $query->where('sucursal_id', auth()->user()->sucursal_id);
+        }
+
+        $query->with(['mesa', 'items' => function ($q) {
                 if ($this->areaSeleccionada !== 'todas') {
                     $q->where('area_cocina', $this->areaSeleccionada);
                 }
@@ -118,7 +126,7 @@ new class extends Component
     }
 }; ?>
 
-<div wire:poll.10s class="space-y-5">
+<div wire:poll.15s class="space-y-5">
     <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2">
@@ -148,15 +156,15 @@ new class extends Component
                 wire:click="$set('areaSeleccionada', 'sushi')"
                 class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $areaSeleccionada === 'sushi' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
             >
-                <span>🍣</span>
-                <span>Barra Sushi ({{ $conteo['sushi'] }})</span>
+                <span>🥗</span>
+                <span>Cocina Fría ({{ $conteo['sushi'] }})</span>
             </button>
             <button
                 wire:click="$set('areaSeleccionada', 'caliente')"
                 class="flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $areaSeleccionada === 'caliente' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
             >
-                <span class="material-symbols-outlined text-[16px] text-primary">soup_kitchen</span>
-                <span>Wok & Caliente ({{ $conteo['caliente'] }})</span>
+                <span class="material-symbols-outlined text-[16px] text-primary">outdoor_grill</span>
+                <span>Parrilla & Caliente ({{ $conteo['caliente'] }})</span>
             </button>
             <button
                 wire:click="$set('areaSeleccionada', 'barra')"
@@ -363,7 +371,7 @@ new class extends Component
             <div class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
                 <!-- Comanda Ticket Header -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
-                    <p class="text-base font-black tracking-tight text-primary">🍣 SUSHIXPRESS 🍣</p>
+                    <p class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
                     <p class="text-[11px] text-on-surface-variant">COMANDA DE COCINA</p>
                     <p class="text-[10px] text-on-surface-variant/70">Estación: <strong class="uppercase text-secondary">{{ $areaSeleccionada === 'todas' ? 'Todas' : $areaSeleccionada }}</strong></p>
                 </div>

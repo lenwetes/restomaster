@@ -8,6 +8,7 @@ use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Reserva;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 
@@ -138,15 +139,16 @@ class ReporteService
         return Pedido::query()
             ->where('estado', 'pagado')
             ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
-            ->get(['id', 'total', 'pagado_en'])
-            ->groupBy(fn ($p) => Carbon::parse($p->pagado_en)->toDateString())
-            ->map(fn ($grupo) => [
-                'fecha' => $grupo->first()->pagado_en->toDateString(),
-                'ventas' => (float) $grupo->sum('total'),
-                'transacciones' => $grupo->count(),
-                'ticket_promedio' => round((float) $grupo->sum('total') / $grupo->count(), 2),
+            ->selectRaw('date(pagado_en) as dia, sum(total) as ventas, count(*) as transacciones')
+            ->groupByRaw('date(pagado_en)')
+            ->orderByDesc('dia')
+            ->get()
+            ->map(fn ($r) => [
+                'fecha' => (string) $r->dia,
+                'ventas' => (float) $r->ventas,
+                'transacciones' => (int) $r->transacciones,
+                'ticket_promedio' => $r->transacciones > 0 ? round((float) $r->ventas / (int) $r->transacciones, 2) : 0.0,
             ])
-            ->sortKeysDesc()
             ->values()
             ->all();
     }
@@ -171,38 +173,149 @@ class ReporteService
     public function ventasPorProducto(string $desde, string $hasta, int $limite = 10): array
     {
         return ItemPedido::query()
+            ->selectRaw('items_pedido.producto_id, max(items_pedido.nombre_producto) as nombre_producto, sum(items_pedido.cantidad) as cantidad, sum(items_pedido.subtotal) as ventas')
+            ->join('pedidos', 'items_pedido.pedido_id', '=', 'pedidos.id')
+            ->where('pedidos.estado', 'pagado')
+            ->whereBetween('pedidos.pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
+            ->groupBy('items_pedido.producto_id')
+            ->orderByDesc('ventas')
             ->with('producto')
-            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59']))
-            ->get()
-            ->groupBy('producto_id')
-            ->map(fn ($items) => [
-                'producto' => $items->first()->nombre_producto,
-                'cantidad' => $items->sum('cantidad'),
-                'ventas' => (float) $items->sum('subtotal'),
-                'costo' => (float) $items->sum(fn ($i) => (float) ($i->producto?->costo ?? 0) * $i->cantidad),
-            ])
-            ->map(fn ($fila) => $fila + ['margen' => round($fila['ventas'] - $fila['costo'], 2)])
-            ->sortByDesc('ventas')
             ->take($limite)
+            ->get()
+            ->map(function ($r) {
+                $ventas = (float) $r->ventas;
+                $costoUnitario = (float) ($r->producto?->costo ?? 0);
+                $costoTotal = round($costoUnitario * (float) $r->cantidad, 2);
+
+                return [
+                    'producto' => $r->nombre_producto,
+                    'cantidad' => (int) $r->cantidad,
+                    'ventas' => $ventas,
+                    'costo' => $costoTotal,
+                    'margen' => round($ventas - $costoTotal, 2),
+                ];
+            })
             ->values()
             ->all();
     }
 
     public function ventasPorTrabajador(string $desde, string $hasta): array
     {
-        return Pedido::with('usuario')
+        return Pedido::query()
+            ->selectRaw('usuario_id, sum(total) as ventas, count(*) as transacciones')
             ->where('estado', 'pagado')
             ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
-            ->get()
             ->groupBy('usuario_id')
-            ->map(fn ($grupo) => [
-                'trabajador' => $grupo->first()->usuario?->name ?? 'Sin asignar',
-                'ventas' => (float) $grupo->sum('total'),
-                'transacciones' => $grupo->count(),
+            ->orderByDesc('ventas')
+            ->with('usuario')
+            ->get()
+            ->map(fn ($r) => [
+                'trabajador' => $r->usuario?->name ?? 'Sin asignar',
+                'ventas' => (float) $r->ventas,
+                'transacciones' => (int) $r->transacciones,
             ])
-            ->sortByDesc('ventas')
             ->values()
             ->all();
+    }
+
+    /**
+     * Reporte detallado de rendimiento, propinas y facturación por mesero.
+     */
+    public function rendimientoMeseros(string $desde, string $hasta, ?int $meseroId = null): array
+    {
+        // 1. Obtener todos los meseros (rol mesero o con pedidos/mesas asignadas)
+        $meserosQuery = User::whereHas('role', fn ($q) => $q->where('slug', 'mesero'))
+            ->orWhereHas('pedidosAtendidos');
+
+        if ($meseroId) {
+            $meserosQuery->where('id', $meseroId);
+        }
+
+        $meseros = $meserosQuery->with(['mesasAsignadas'])->get();
+
+        // 2. Pedidos cerrados (pagados) en el rango de fechas
+        $pedidosPagados = Pedido::query()
+            ->where('estado', 'pagado')
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
+            ->where(function ($q) use ($meseroId) {
+                if ($meseroId) {
+                    $q->where('mesero_id', $meseroId);
+                } else {
+                    $q->whereNotNull('mesero_id');
+                }
+            })
+            ->with(['mesero', 'mesa'])
+            ->get();
+
+        // 3. Comandas actualmente activas (en curso) por mesero
+        $comandasActivas = Pedido::query()
+            ->activos()
+            ->whereNotNull('mesero_id')
+            ->when($meseroId, fn ($q) => $q->where('mesero_id', $meseroId))
+            ->get();
+
+        $totalesGenerales = [
+            'total_ventas_netas' => 0.0,
+            'total_propinas' => 0.0,
+            'total_con_propinas' => 0.0,
+            'total_comandas' => 0,
+            'total_mesas_activas' => Mesa::whereNotNull('mesero_id')->where('estado', MesaEstado::OCUPADA->value)->count(),
+        ];
+
+        $ranking = [];
+
+        foreach ($meseros as $mesero) {
+            $pedidosM = $pedidosPagados->where('mesero_id', $mesero->id);
+            $activasM = $comandasActivas->where('mesero_id', $mesero->id);
+
+            $ventasNetas = (float) $pedidosM->sum('total');
+            $propinasRecaudadas = (float) $pedidosM->sum('propina');
+            $propinasSugeridas = round($ventasNetas * 0.10, 2);
+            $comandasCerradas = $pedidosM->count();
+            $ticketPromedio = $comandasCerradas > 0 ? round($ventasNetas / $comandasCerradas, 2) : 0.0;
+            $mesasActivas = $mesero->mesasAsignadas->where('estado', MesaEstado::OCUPADA->value)->count();
+            $ventasEnCurso = (float) $activasM->sum('total');
+
+            $efectividadPropina = $propinasSugeridas > 0 ? round(($propinasRecaudadas / $propinasSugeridas) * 100, 1) : 0.0;
+
+            $totalesGenerales['total_ventas_netas'] += $ventasNetas;
+            $totalesGenerales['total_propinas'] += $propinasRecaudadas;
+            $totalesGenerales['total_con_propinas'] += ($ventasNetas + $propinasRecaudadas);
+            $totalesGenerales['total_comandas'] += $comandasCerradas;
+
+            $ranking[] = [
+                'id' => $mesero->id,
+                'nombre' => $mesero->name,
+                'email' => $mesero->email,
+                'activo' => (bool) $mesero->activo,
+                'ventas_netas' => $ventasNetas,
+                'propinas_recaudadas' => $propinasRecaudadas,
+                'propinas_sugeridas' => $propinasSugeridas,
+                'efectividad_propina' => $efectividadPropina,
+                'total_con_propina' => round($ventasNetas + $propinasRecaudadas, 2),
+                'comandas_cerradas' => $comandasCerradas,
+                'ticket_promedio' => $ticketPromedio,
+                'mesas_activas' => $mesasActivas,
+                'ventas_en_curso' => $ventasEnCurso,
+                'comandas_en_curso_conteo' => $activasM->count(),
+            ];
+        }
+
+        // Ordenar ranking por ventas netas descendente
+        usort($ranking, fn ($a, $b) => $b['ventas_netas'] <=> $a['ventas_netas']);
+
+        $ticketPromedioGeneral = $totalesGenerales['total_comandas'] > 0
+            ? round($totalesGenerales['total_ventas_netas'] / $totalesGenerales['total_comandas'], 2)
+            : 0.0;
+
+        return [
+            'periodo' => ['desde' => $desde, 'hasta' => $hasta],
+            'totales' => array_merge($totalesGenerales, [
+                'ticket_promedio_general' => $ticketPromedioGeneral,
+                'mesero_estrella' => $ranking[0]['nombre'] ?? 'Ninguno',
+            ]),
+            'meseros' => $ranking,
+        ];
     }
 
     public function comparativaPeriodos(string $desde, string $hasta): array
@@ -268,14 +381,15 @@ class ReporteService
 
     public function resumenReservas(string $desde, string $hasta): array
     {
-        $reservas = Reserva::whereDate('fecha', '>=', $desde)->whereDate('fecha', '<=', $hasta)->get();
-        $confirmadas = $reservas->whereIn('estado', ['confirmada', 'llego', 'finalizada'])->count();
-        $canceladas = $reservas->where('estado', 'cancelada')->count();
-        $noShows = $reservas->where('estado', 'no_mostro')->count();
+        $base = Reserva::whereBetween('fecha', [$desde, $hasta]);
+        $total = (int) $base->count();
+        $confirmadas = (int) (clone $base)->whereIn('estado', ['confirmada', 'llego', 'finalizada'])->count();
+        $canceladas = (int) (clone $base)->where('estado', 'cancelada')->count();
+        $noShows = (int) (clone $base)->where('estado', 'no_mostro')->count();
         $cuentas = $confirmadas + $canceladas + $noShows;
 
         return [
-            'total' => $reservas->count(),
+            'total' => $total,
             'confirmadas' => $confirmadas,
             'canceladas' => $canceladas,
             'no_shows' => $noShows,
@@ -285,17 +399,17 @@ class ReporteService
 
     private function resumenPeriodo(string $desde, string $hasta): array
     {
-        $pedidos = Pedido::where('estado', 'pagado')
-            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
-            ->get(['total']);
+        $query = Pedido::where('estado', 'pagado')
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59']);
 
-        $ventas = (float) $pedidos->sum('total');
+        $ventas = (float) $query->sum('total');
+        $transacciones = (int) $query->count();
 
         return [
             'desde' => $desde,
             'hasta' => $hasta,
             'ventas' => round($ventas, 2),
-            'transacciones' => $pedidos->count(),
+            'transacciones' => $transacciones,
         ];
     }
 }

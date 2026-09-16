@@ -11,14 +11,16 @@ use Illuminate\Support\Facades\DB;
 
 class HealthCheckCommand extends Command
 {
-    protected $signature = 'sushixpress:health';
+    protected $signature = 'restomaster:health';
 
-    protected $description = 'Verifica el estado operativo y salud integral de los servicios de SushiXpress';
+    protected $aliases = ['sushixpress:health'];
+
+    protected $description = 'Verifica el estado operativo y salud integral de los servicios de RestoMaster';
 
     public function handle(): int
     {
         $this->info('========================================================');
-        $this->info('  SUSHIEXPRESS ENTERPRISE — DIAGNÓSTICO DE SALUD');
+        $this->info('  RESTOMASTER ENTERPRISE — DIAGNÓSTICO DE SALUD');
         $this->info('  Fecha: '.Carbon::now()->format('Y-m-d H:i:s'));
         $this->info('========================================================');
         $this->newLine();

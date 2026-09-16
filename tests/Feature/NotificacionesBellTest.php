@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\NotificacionService;
 use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -82,6 +83,21 @@ class NotificacionesBellTest extends TestCase
     {
         $navigationContent = file_get_contents(resource_path('views/livewire/layout/navigation.blade.php'));
         $this->assertStringContainsString('hour12: true', $navigationContent);
+    }
+
+    public function test_servicio_no_cachea_colecciones_eloquent_en_el_resumen(): void
+    {
+        $notificacionService = app(NotificacionService::class);
+        $notificacionService->obtenerResumen($this->meseroA);
+
+        $cacheKey = 'notif.resumen.'.$this->meseroA->id.'.'.$this->meseroA->role_id;
+        $cached = Cache::get($cacheKey);
+
+        $this->assertNull(
+            $cached,
+            'El resumen no debe persistirse en caché: serializar colecciones Eloquent '
+            .'en el store de base de datos produce objetos incompletos (__PHP_Incomplete_Class) al hidratarse.'
+        );
     }
 
     public function test_servicio_notificaciones_detecta_pedidos_qr_pendientes(): void

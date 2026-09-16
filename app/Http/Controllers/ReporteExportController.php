@@ -5,12 +5,13 @@ namespace App\Http\Controllers;
 use App\Services\ConfiguracionService;
 use App\Services\ReporteService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class ReporteExportController extends Controller
 {
-    private const REPORTES_VALIDOS = ['estado', 'ventas', 'clientes', 'reservas'];
+    private const REPORTES_VALIDOS = ['estado', 'ventas', 'meseros', 'clientes', 'reservas'];
 
     public function pdf(Request $request): Response
     {
@@ -40,7 +41,14 @@ class ReporteExportController extends Controller
         $csv = "\xEF\xBB\xBF";
 
         foreach ($filas as $fila) {
-            $csv .= implode(';', array_map(fn ($v) => '"'.str_replace('"', '""', (string) $v).'"', $fila))."\r\n";
+            $csv .= implode(';', array_map(function ($v) {
+                $str = (string) $v;
+                if ($str !== '' && in_array($str[0], ['=', '+', '-', '@'], true)) {
+                    $str = "'".$str;
+                }
+
+                return '"'.str_replace('"', '""', $str).'"';
+            }, $fila))."\r\n";
         }
 
         return response($csv, 200, [
@@ -57,6 +65,12 @@ class ReporteExportController extends Controller
             'hasta' => ['required', 'date', 'after_or_equal:desde'],
         ]);
 
+        $desdeCarbon = Carbon::parse($validated['desde']);
+        $hastaCarbon = Carbon::parse($validated['hasta']);
+        if ($desdeCarbon->diffInDays($hastaCarbon) > 366) {
+            abort(422, 'El rango de fechas no puede superar los 366 días.');
+        }
+
         $service = app(ReporteService::class);
         $reporte = $validated['reporte'];
         $desde = $validated['desde'];
@@ -64,6 +78,7 @@ class ReporteExportController extends Controller
 
         $datos = match ($reporte) {
             'ventas' => ['por_periodo' => $service->ventasPorPeriodo($desde, $hasta), 'por_tipo' => $service->ventasPorTipo($desde, $hasta), 'por_producto' => $service->ventasPorProducto($desde, $hasta, 10), 'por_trabajador' => $service->ventasPorTrabajador($desde, $hasta), 'comparativa' => $service->comparativaPeriodos($desde, $hasta)],
+            'meseros' => ['resumen' => $service->rendimientoMeseros($desde, $hasta)],
             'clientes' => ['top_clientes' => $service->topClientes($desde, $hasta, 10), 'tiempos' => $service->tiemposEntrega($desde, $hasta)],
             'reservas' => ['resumen' => $service->resumenReservas($desde, $hasta)],
             default => ['resultado' => $service->estadoResultados($desde, $hasta)],
@@ -76,6 +91,7 @@ class ReporteExportController extends Controller
     {
         return match ($reporte) {
             'ventas' => ['Producto', 'Cantidad', 'Ventas', 'Costo', 'Margen'],
+            'meseros' => ['Mesero', 'Comandas', 'Ventas Netas', 'Propinas', 'Total Con Propina', 'Ticket Promedio'],
             'clientes' => ['Cliente', 'Visitas', 'Gastado'],
             'reservas' => ['Concepto', 'Valor'],
             default => ['Cuenta', 'Total', 'Movimientos'],
@@ -86,6 +102,7 @@ class ReporteExportController extends Controller
     {
         return match ($reporte) {
             'ventas' => collect($datos['por_producto'])->map(fn ($fila) => [$fila['producto'], $fila['cantidad'], $fila['ventas'], $fila['costo'], $fila['margen']])->all(),
+            'meseros' => collect($datos['resumen']['meseros'] ?? [])->map(fn ($fila) => [$fila['nombre'], $fila['comandas_cerradas'], $fila['ventas_netas'], $fila['propinas_recaudadas'], $fila['total_con_propina'], $fila['ticket_promedio']])->all(),
             'clientes' => collect($datos['top_clientes'])->map(fn ($fila) => [$fila['cliente'], $fila['visitas'], $fila['gastado']])->all(),
             'reservas' => [["{$datos['resumen']['total']} total reservas", ''], ["{$datos['resumen']['confirmadas']} confirmadas", $datos['resumen']['cumplimiento_porcentaje'].'%'], ["{$datos['resumen']['canceladas']} canceladas", ''], ["{$datos['resumen']['no_shows']} no-shows", '']],
             default => collect($datos['resultado']['detalle']['ingresos'])->map(fn ($fila) => [$fila['cuenta'], $fila['total'], $fila['movimientos']])->all(),

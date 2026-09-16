@@ -26,18 +26,18 @@ class AdminUserSeeder extends Seeder
 
         $sucursal = Sucursal::first();
 
-        $rawPassword = env('DEMO_USERS_PASSWORD') ?: Str::password(12);
+        $rawPassword = env('DEMO_USERS_PASSWORD') ?: Str::password(16);
 
-        if ($this->command) {
-            $this->command->info("Contraseña asignada para usuarios demo: {$rawPassword}");
+        if ($this->command && app()->isLocal()) {
+            $this->command->info('Usuarios del sistema configurados correctamente.');
         }
 
         $unifiedPassword = Hash::make($rawPassword);
 
         $users = [
             [
-                'email' => 'admin@sushixpress.com',
-                'name' => 'Administrador SushiXpress',
+                'email' => 'admin@restomaster.com',
+                'name' => 'Administrador RestoMaster',
                 'role_id' => $adminRole?->id,
                 'telefono' => '+57 300 987 6543',
                 'sucursal_id' => $sucursal?->id,
@@ -46,17 +46,7 @@ class AdminUserSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
             [
-                'email' => 'gerente@sushixpress.com',
-                'name' => 'Gerente de Operaciones',
-                'role_id' => $gerenteRole?->id,
-                'telefono' => '+57 300 111 2233',
-                'sucursal_id' => $sucursal?->id,
-                'activo' => true,
-                'password' => $unifiedPassword,
-                'email_verified_at' => now(),
-            ],
-            [
-                'email' => 'cajero@sushixpress.com',
+                'email' => 'cajero@restomaster.com',
                 'name' => 'Cajero Principal',
                 'role_id' => $cajeroRole?->id,
                 'telefono' => '+57 300 222 3344',
@@ -66,7 +56,7 @@ class AdminUserSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
             [
-                'email' => 'mesero@sushixpress.com',
+                'email' => 'mesero@restomaster.com',
                 'name' => 'Mesero Turno Salón',
                 'role_id' => $meseroRole?->id,
                 'telefono' => '+57 300 333 4455',
@@ -76,7 +66,7 @@ class AdminUserSeeder extends Seeder
                 'email_verified_at' => now(),
             ],
             [
-                'email' => 'cocina@sushixpress.com',
+                'email' => 'cocina@restomaster.com',
                 'name' => 'Chef de Cocina KDS',
                 'role_id' => $cocinaRole?->id,
                 'telefono' => '+57 300 444 5566',
@@ -85,33 +75,16 @@ class AdminUserSeeder extends Seeder
                 'password' => $unifiedPassword,
                 'email_verified_at' => now(),
             ],
-            [
-                'email' => 'barra@sushixpress.com',
-                'name' => 'Bartender & Barra',
-                'role_id' => $barraRole?->id,
-                'telefono' => '+57 300 555 6677',
-                'sucursal_id' => $sucursal?->id,
-                'activo' => true,
-                'password' => $unifiedPassword,
-                'email_verified_at' => now(),
-            ],
-            [
-                'email' => 'repartidor@sushixpress.com',
-                'name' => 'Domiciliario Express',
-                'role_id' => $deliveryRole?->id,
-                'telefono' => '+57 300 666 7788',
-                'sucursal_id' => $sucursal?->id,
-                'activo' => true,
-                'password' => $unifiedPassword,
-                'email_verified_at' => now(),
-            ],
         ];
 
         foreach ($users as $userData) {
-            User::updateOrCreate(
-                ['email' => $userData['email']],
-                $userData
-            );
+            $userExistente = User::where('email', $userData['email'])->first();
+            if ($userExistente) {
+                unset($userData['password']);
+                $userExistente->update($userData);
+            } else {
+                User::create($userData);
+            }
         }
     }
 }

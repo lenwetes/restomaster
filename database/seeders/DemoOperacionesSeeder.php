@@ -20,9 +20,18 @@ class DemoOperacionesSeeder extends Seeder
 {
     public function run(): void
     {
-        $cajero = User::where('email', 'cajero@sushixpress.com')->first();
-        $mesero = User::where('email', 'mesero@sushixpress.com')->first();
-        $admin = User::where('email', 'admin@sushixpress.com')->first();
+        $cajero = User::where('email', 'cajero@restomaster.com')->first()
+            ?? User::where('email', 'cajero@sushixpress.com')->first()
+            ?? User::whereHas('role', fn ($q) => $q->where('slug', 'cajero'))->first();
+
+        $mesero = User::where('email', 'mesero@restomaster.com')->first()
+            ?? User::where('email', 'mesero@sushixpress.com')->first()
+            ?? User::whereHas('role', fn ($q) => $q->where('slug', 'mesero'))->first();
+
+        $admin = User::where('email', 'admin@restomaster.com')->first()
+            ?? User::where('email', 'admin@sushixpress.com')->first()
+            ?? User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))->first();
+
         $sucursal = Sucursal::first();
 
         if (! $cajero || ! $mesero || Pedido::where('codigo', 'ORD-101')->exists()) {
@@ -58,9 +67,9 @@ class DemoOperacionesSeeder extends Seeder
             return;
         }
 
-        $california = $productos->firstWhere('slug', 'california-roll') ?? $productos->first();
-        $dragon = $productos->firstWhere('slug', 'dragon-roll') ?? $productos->skip(1)->first() ?? $productos->first();
-        $salmon = $productos->firstWhere('slug', 'salmon-nigiri') ?? $productos->skip(2)->first() ?? $productos->first();
+        $platoPrincipal = $productos->firstWhere('slug', 'bife-de-chorizo-angus-350g') ?? $productos->first();
+        $segundoPlato = $productos->firstWhere('slug', 'restomaster-burger-master') ?? $productos->skip(1)->first() ?? $productos->first();
+        $tercerPlato = $productos->firstWhere('slug', 'carpaccio-de-res-trufado') ?? $productos->skip(2)->first() ?? $productos->first();
         $bebida = $productos->firstWhere('area_cocina', 'barra') ?? $productos->last();
 
         $cliente1 = Cliente::first();
@@ -71,6 +80,7 @@ class DemoOperacionesSeeder extends Seeder
         if ($mesa1) {
             $mesa1->update(['estado' => 'ocupada']);
 
+            $subtotal1 = ($platoPrincipal->precio * 2) + ($bebida->precio * 2);
             $pedido1 = Pedido::create([
                 'codigo' => 'ORD-101',
                 'tipo' => 'mesa',
@@ -78,20 +88,20 @@ class DemoOperacionesSeeder extends Seeder
                 'mesa_id' => $mesa1->id,
                 'usuario_id' => $mesero->id,
                 'cliente_id' => $cliente1?->id,
-                'subtotal' => 76000,
-                'total' => 76000,
+                'subtotal' => $subtotal1,
+                'total' => $subtotal1,
                 'turno_caja_id' => $turno->id,
-                'notas' => 'Sin wasabi para el cliente de la cabecera',
+                'notas' => 'Término medio para los cortes de res.',
             ]);
 
             ItemPedido::create([
                 'pedido_id' => $pedido1->id,
-                'producto_id' => $california->id,
-                'nombre_producto' => $california->nombre,
+                'producto_id' => $platoPrincipal->id,
+                'nombre_producto' => $platoPrincipal->nombre,
                 'cantidad' => 2,
-                'precio_unitario' => $california->precio,
-                'subtotal' => $california->precio * 2,
-                'area_cocina' => 'sushi',
+                'precio_unitario' => $platoPrincipal->precio,
+                'subtotal' => $platoPrincipal->precio * 2,
+                'area_cocina' => $platoPrincipal->area_cocina ?? 'caliente',
                 'estado_cocina' => 'en_preparacion',
                 'iniciado_en' => now()->subMinutes(12),
             ]);
@@ -113,6 +123,7 @@ class DemoOperacionesSeeder extends Seeder
         if ($mesa2) {
             $mesa2->update(['estado' => 'ocupada']);
 
+            $subtotal2 = $segundoPlato->precio + $tercerPlato->precio;
             $pedido2 = Pedido::create([
                 'codigo' => 'ORD-102',
                 'tipo' => 'mesa',
@@ -120,30 +131,30 @@ class DemoOperacionesSeeder extends Seeder
                 'mesa_id' => $mesa2->id,
                 'usuario_id' => $mesero->id,
                 'cliente_id' => $cliente2?->id,
-                'subtotal' => 58000,
-                'total' => 58000,
+                'subtotal' => $subtotal2,
+                'total' => $subtotal2,
                 'turno_caja_id' => $turno->id,
             ]);
 
             ItemPedido::create([
                 'pedido_id' => $pedido2->id,
-                'producto_id' => $dragon->id,
-                'nombre_producto' => $dragon->nombre,
+                'producto_id' => $segundoPlato->id,
+                'nombre_producto' => $segundoPlato->nombre,
                 'cantidad' => 1,
-                'precio_unitario' => $dragon->precio,
-                'subtotal' => $dragon->precio,
-                'area_cocina' => 'sushi',
+                'precio_unitario' => $segundoPlato->precio,
+                'subtotal' => $segundoPlato->precio,
+                'area_cocina' => $segundoPlato->area_cocina ?? 'caliente',
                 'estado_cocina' => 'pendiente',
             ]);
 
             ItemPedido::create([
                 'pedido_id' => $pedido2->id,
-                'producto_id' => $salmon->id,
-                'nombre_producto' => $salmon->nombre,
+                'producto_id' => $tercerPlato->id,
+                'nombre_producto' => $tercerPlato->nombre,
                 'cantidad' => 1,
-                'precio_unitario' => $salmon->precio,
-                'subtotal' => $salmon->precio,
-                'area_cocina' => 'sushi',
+                'precio_unitario' => $tercerPlato->precio,
+                'subtotal' => $tercerPlato->precio,
+                'area_cocina' => $tercerPlato->area_cocina ?? 'fria',
                 'estado_cocina' => 'en_preparacion',
                 'iniciado_en' => now()->subMinutes(6),
             ]);
@@ -151,11 +162,11 @@ class DemoOperacionesSeeder extends Seeder
 
         // 3. Pedidos Pagados del Día (Alimentan Dashboard KPIs)
         $ventasDemo = [
-            ['codigo' => 'ORD-095', 'tipo' => 'mostrador', 'subtotal' => 45000, 'total' => 45000, 'metodo' => 'efectivo', 'horas' => 3],
-            ['codigo' => 'ORD-096', 'tipo' => 'mesa', 'subtotal' => 115000, 'total' => 115000, 'metodo' => 'tarjeta', 'horas' => 2.5],
-            ['codigo' => 'ORD-097', 'tipo' => 'mesa', 'subtotal' => 88000, 'total' => 88000, 'metodo' => 'tarjeta', 'horas' => 2],
-            ['codigo' => 'ORD-098', 'tipo' => 'delivery', 'subtotal' => 62000, 'total' => 62000, 'metodo' => 'efectivo', 'horas' => 1.5],
-            ['codigo' => 'ORD-099', 'tipo' => 'mesa', 'subtotal' => 135000, 'total' => 135000, 'metodo' => 'tarjeta', 'horas' => 1],
+            ['codigo' => 'ORD-095', 'tipo' => 'mostrador', 'subtotal' => 48000, 'total' => 48000, 'metodo' => 'efectivo', 'horas' => 3],
+            ['codigo' => 'ORD-096', 'tipo' => 'mesa', 'subtotal' => 124000, 'total' => 124000, 'metodo' => 'tarjeta', 'horas' => 2.5],
+            ['codigo' => 'ORD-097', 'tipo' => 'mesa', 'subtotal' => 96000, 'total' => 96000, 'metodo' => 'tarjeta', 'horas' => 2],
+            ['codigo' => 'ORD-098', 'tipo' => 'delivery', 'subtotal' => 74000, 'total' => 74000, 'metodo' => 'efectivo', 'horas' => 1.5],
+            ['codigo' => 'ORD-099', 'tipo' => 'mesa', 'subtotal' => 152000, 'total' => 152000, 'metodo' => 'tarjeta', 'horas' => 1],
         ];
 
         foreach ($ventasDemo as $v) {
@@ -177,12 +188,12 @@ class DemoOperacionesSeeder extends Seeder
 
             ItemPedido::create([
                 'pedido_id' => $ped->id,
-                'producto_id' => $california->id,
-                'nombre_producto' => $california->nombre,
+                'producto_id' => $platoPrincipal->id,
+                'nombre_producto' => $platoPrincipal->nombre,
                 'cantidad' => 2,
-                'precio_unitario' => $california->precio,
-                'subtotal' => $california->precio * 2,
-                'area_cocina' => 'sushi',
+                'precio_unitario' => $platoPrincipal->precio,
+                'subtotal' => $platoPrincipal->precio * 2,
+                'area_cocina' => $platoPrincipal->area_cocina ?? 'caliente',
                 'estado_cocina' => 'entregado',
             ]);
         }
@@ -200,7 +211,7 @@ class DemoOperacionesSeeder extends Seeder
                 'personas' => 4,
                 'estado' => 'confirmada',
                 'origen' => 'whatsapp',
-                'notas' => 'Celebración de cumpleaños, mesa cerca a ventana.',
+                'notas' => 'Celebración de cumpleaños, mesa en salón principal o terraza.',
                 'anticipo' => 50000,
                 'token_publico' => Str::random(32),
                 'created_by' => $admin?->id,
@@ -242,11 +253,11 @@ class DemoOperacionesSeeder extends Seeder
 
         // 5. Cuentas por Pagar (CXP)
         CuentaPorPagar::firstOrCreate(
-            ['proveedor_nombre' => 'Pescadería del Mar S.A.S.', 'concepto' => 'Lote Salmón Fresco Chileno'],
+            ['proveedor_nombre' => 'Frigorífico Cárnicos Gourmet S.A.S.', 'concepto' => 'Lote Cortes Angus y Punta de Anca'],
             [
-                'proveedor_nit' => '900.876.543-1',
-                'monto_total' => 1250000,
-                'saldo_pendiente' => 1250000,
+                'proveedor_nit' => '900.789.123-1',
+                'monto_total' => 1850000,
+                'saldo_pendiente' => 1850000,
                 'fecha_emision' => now()->subDays(4),
                 'fecha_vencimiento' => now()->addDays(12),
                 'estado' => 'pendiente',
@@ -256,11 +267,11 @@ class DemoOperacionesSeeder extends Seeder
         );
 
         CuentaPorPagar::firstOrCreate(
-            ['proveedor_nombre' => 'Insumos de Oriente Ltda.', 'concepto' => 'Arroz Koshihikari y Algas Nori'],
+            ['proveedor_nombre' => 'Distribuidora Lácteos & Pastas del Valle', 'concepto' => 'Quesos Madurados, Mozzarella y Pasta Fresca'],
             [
                 'proveedor_nit' => '800.123.987-5',
-                'monto_total' => 680000,
-                'saldo_pendiente' => 340000,
+                'monto_total' => 920000,
+                'saldo_pendiente' => 460000,
                 'fecha_emision' => now()->subDays(15),
                 'fecha_vencimiento' => now()->subDays(1),
                 'estado' => 'parcial',

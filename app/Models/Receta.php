@@ -40,6 +40,7 @@ class Receta extends Model
      */
     public function getCostoTeoricoAttribute(): float
     {
+        $this->loadMissing('insumo');
         $costoBase = (float) $this->cantidad * (float) ($this->insumo->costo_unitario ?? 0);
         $factorMerma = 1 + ((float) $this->merma_esperada_pct / 100);
 

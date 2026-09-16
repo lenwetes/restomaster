@@ -7,6 +7,7 @@ use App\Models\Mesa;
 use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 
 class MesaService
 {
@@ -29,8 +30,28 @@ class MesaService
      */
     public function cambiarEstado(Mesa $mesa, MesaEstado|string $nuevoEstado): Mesa
     {
-        $estadoValor = $nuevoEstado instanceof MesaEstado ? $nuevoEstado->value : $nuevoEstado;
-        $mesa->update(['estado' => $estadoValor]);
+        $estadoActual = $mesa->estado instanceof MesaEstado ? $mesa->estado : MesaEstado::tryFrom((string) $mesa->estado);
+        $target = $nuevoEstado instanceof MesaEstado ? $nuevoEstado : MesaEstado::tryFrom((string) $nuevoEstado);
+
+        if (! $target) {
+            throw new \InvalidArgumentException("Estado de mesa inválido: {$nuevoEstado}");
+        }
+
+        if ($estadoActual && $estadoActual !== $target && ! $estadoActual->puedeTransicionarA($target)) {
+            throw new \DomainException("Transición de mesa no permitida de '{$estadoActual->value}' a '{$target->value}'.");
+        }
+
+        // Bloquear cambio a libre si la mesa tiene pedidos activos
+        if ($target === MesaEstado::LIBRE) {
+            $pedidosActivos = $mesa->pedidos()->activos()->exists();
+
+            if ($pedidosActivos) {
+                throw new \DomainException("No se puede liberar la Mesa #{$mesa->numero} porque tiene una comanda activa en curso.");
+            }
+        }
+
+        $mesa->update(['estado' => $target->value]);
+        Cache::forget('pos.terminal.mesas');
 
         return $mesa->fresh();
     }
@@ -49,6 +70,8 @@ class MesaService
             'zona' => strtolower($datos['zona'] ?? 'salon'),
             'estado' => MesaEstado::LIBRE->value,
         ]);
+
+        Cache::forget('pos.terminal.mesas');
 
         if ($usuario) {
             app(AuditoriaService::class)->registrar(
@@ -76,6 +99,8 @@ class MesaService
             'sucursal_id' => $datos['sucursal_id'] ?? $mesa->sucursal_id,
         ]);
 
+        Cache::forget('pos.terminal.mesas');
+
         if ($usuario) {
             app(AuditoriaService::class)->registrar(
                 usuario: $usuario,
@@ -95,9 +120,7 @@ class MesaService
      */
     public function eliminarMesa(Mesa $mesa, ?User $usuario = null): bool
     {
-        $pedidosActivos = $mesa->pedidos()
-            ->whereIn('estado', ['creado', 'en_cocina', 'listo', 'entregado'])
-            ->count();
+        $pedidosActivos = $mesa->pedidos()->activos()->count();
 
         if ($pedidosActivos > 0) {
             throw new \InvalidArgumentException("No se puede eliminar la Mesa #{$mesa->numero} porque tiene pedidos activos en curso.");
@@ -114,6 +137,10 @@ class MesaService
 
         $deleted = (bool) $mesa->delete();
 
+        if ($deleted) {
+            Cache::forget('pos.terminal.mesas');
+        }
+
         if ($deleted && $usuario) {
             app(AuditoriaService::class)->registrar(
                 usuario: $usuario,
@@ -126,5 +153,135 @@ class MesaService
         }
 
         return $deleted;
+    }
+
+    /**
+     * Autoasignar una mesa al mesero autenticado o seleccionado.
+     */
+    public function autoasignarMesa(Mesa $mesa, User $mesero): Mesa
+    {
+        $mesa->update(['mesero_id' => $mesero->id]);
+
+        // Si la mesa tiene pedidos activos, reasignarlos al nuevo mesero
+        foreach ($mesa->pedidos()->activos()->get() as $pedido) {
+            $pedido->update(['mesero_id' => $mesero->id]);
+        }
+
+        Cache::forget('pos.terminal.mesas');
+
+        app(AuditoriaService::class)->registrar(
+            usuario: $mesero,
+            accion: 'mesas.autoasignada',
+            entidad: 'mesa',
+            entidadId: $mesa->id,
+            descripcion: "Mesero {$mesero->name} se autoasignó la Mesa #{$mesa->numero}.",
+            datos: ['mesa_id' => $mesa->id, 'mesero_id' => $mesero->id]
+        );
+
+        return $mesa->fresh(['mesero', 'pedidos']);
+    }
+
+    /**
+     * Liberar la mesa para relevo de turno o descanso sin cerrar pedidos activos.
+     */
+    public function liberarParaRelevo(Mesa $mesa, User $mesero): Mesa
+    {
+        $anteriorMeseroId = $mesa->mesero_id;
+        $mesa->update(['mesero_id' => null]);
+
+        Cache::forget('pos.terminal.mesas');
+
+        app(AuditoriaService::class)->registrar(
+            usuario: $mesero,
+            accion: 'mesas.liberada_relevo',
+            entidad: 'mesa',
+            entidadId: $mesa->id,
+            descripcion: "Mesero {$mesero->name} liberó la Mesa #{$mesa->numero} para relevo de turno.",
+            datos: [
+                'mesa_id' => $mesa->id,
+                'mesero_anterior_id' => $anteriorMeseroId,
+                'estado_mesa' => $mesa->estado,
+            ]
+        );
+
+        return $mesa->fresh(['mesero', 'pedidos']);
+    }
+
+    /**
+     * Asignar o desasignar mesero a una mesa (por administrador o capitán).
+     */
+    public function asignarMesero(Mesa $mesa, ?User $mesero, ?User $autorizadoPor = null): Mesa
+    {
+        $meseroAnteriorId = $mesa->mesero_id;
+        $mesa->update(['mesero_id' => $mesero?->id]);
+
+        $pedidoActivo = $mesa->pedidos()->activos()->latest()->first();
+        if ($pedidoActivo && $mesero) {
+            $pedidoActivo->update(['mesero_id' => $mesero->id]);
+        }
+
+        Cache::forget('pos.terminal.mesas');
+
+        if ($autorizadoPor) {
+            $nombreMesero = $mesero ? $mesero->name : 'Sin asignar';
+            app(AuditoriaService::class)->registrar(
+                usuario: $autorizadoPor,
+                accion: 'mesas.mesero_asignado',
+                entidad: 'mesa',
+                entidadId: $mesa->id,
+                descripcion: "Mesa #{$mesa->numero} asignada a {$nombreMesero} por {$autorizadoPor->name}.",
+                datos: ['mesa_id' => $mesa->id, 'mesero_anterior_id' => $meseroAnteriorId, 'nuevo_mesero_id' => $mesero?->id]
+            );
+        }
+
+        return $mesa->fresh(['mesero', 'pedidos']);
+    }
+
+    /**
+     * Transferir mesa libremente de un mesero a otro (con auditoría).
+     */
+    public function transferirMesa(Mesa $mesa, User $nuevoMesero, User $solicitante): Mesa
+    {
+        $anteriorMesero = $mesa->mesero?->name ?? 'Sin asignar';
+        $mesa->update(['mesero_id' => $nuevoMesero->id]);
+
+        // Transferir también la comanda activa si existe
+        $pedidoActivo = $mesa->pedidos()->activos()->latest()->first();
+        if ($pedidoActivo) {
+            $pedidoActivo->update(['mesero_id' => $nuevoMesero->id]);
+        }
+
+        Cache::forget('pos.terminal.mesas');
+
+        app(AuditoriaService::class)->registrar(
+            usuario: $solicitante,
+            accion: 'mesas.transferida',
+            entidad: 'mesa',
+            entidadId: $mesa->id,
+            descripcion: "Mesa #{$mesa->numero} transferida de {$anteriorMesero} a {$nuevoMesero->name} por {$solicitante->name}.",
+            datos: [
+                'mesa_id' => $mesa->id,
+                'mesero_anterior' => $anteriorMesero,
+                'nuevo_mesero_id' => $nuevoMesero->id,
+                'solicitante_id' => $solicitante->id,
+            ]
+        );
+
+        return $mesa->fresh(['mesero', 'pedidos']);
+    }
+
+    /**
+     * Liberar la asignación de mesero cuando la mesa queda limpia.
+     */
+    public function liberarMesa(Mesa $mesa): Mesa
+    {
+        $mesa->update([
+            'estado' => MesaEstado::LIBRE->value,
+            'mesero_id' => null,
+        ]);
+
+        Cache::forget('pos.terminal.mesas');
+
+        return $mesa->fresh(['mesero']);
     }
 }

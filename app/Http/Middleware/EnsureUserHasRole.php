@@ -21,6 +21,14 @@ class EnsureUserHasRole
             return redirect()->route('login');
         }
 
+        if ($user->activo === false) {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors(['email' => 'Tu usuario se encuentra inactivo. Consulta con administración.']);
+        }
+
         $userRoleSlug = $user->role?->slug;
 
         // Admin siempre tiene acceso a todo el sistema

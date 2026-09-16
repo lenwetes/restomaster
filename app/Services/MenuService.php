@@ -4,11 +4,65 @@ namespace App\Services;
 
 use App\Models\Categoria;
 use App\Models\Producto;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class MenuService
 {
+    public const CACHE_KEY_PUBLICO = 'menu.publico.v1';
+
+    public const CACHE_TTL_PUBLICO = 300;
+
+    /**
+     * Obtiene el menú público con categorías y productos activos en cache-aside (300 segundos).
+     *
+     * La caché persiste únicamente datos planos (arrays anidados). Con CACHE_STORE=database/file,
+     * cachear modelos o colecciones Eloquent produce __PHP_Incomplete_Class al hidratar.
+     */
+    public function obtenerMenuPublico(): Collection
+    {
+        $menu = Cache::remember(self::CACHE_KEY_PUBLICO, self::CACHE_TTL_PUBLICO, function (): array {
+            return Categoria::where('activo', true)
+                ->orderBy('orden')
+                ->with(['productos' => function ($query) {
+                    $query->where('activo', true)->orderBy('nombre');
+                }])
+                ->get()
+                ->map(fn (Categoria $categoria) => [
+                    'id' => $categoria->id,
+                    'nombre' => $categoria->nombre,
+                    'slug' => $categoria->slug,
+                    'icono' => $categoria->icono,
+                    'productos' => $categoria->productos
+                        ->map(fn (Producto $producto) => [
+                            'id' => $producto->id,
+                            'nombre' => $producto->nombre,
+                            'descripcion' => $producto->descripcion,
+                            'precio' => (float) $producto->precio,
+                            'area_cocina' => $producto->area_cocina,
+                            'imagen' => $producto->imagen,
+                        ])
+                        ->values()
+                        ->all(),
+                ])
+                ->values()
+                ->all();
+        });
+
+        return collect($menu);
+    }
+
+    /**
+     * Invalida la caché del menú público.
+     */
+    public function invalidarCacheMenu(): void
+    {
+        Cache::forget(self::CACHE_KEY_PUBLICO);
+        Cache::forget('pos.terminal.categorias');
+    }
+
     /**
      * Crea una categoría de menú con slug único.
      */
@@ -28,6 +82,8 @@ class MenuService
             'orden' => (int) ($datos['orden'] ?? 0),
             'activo' => $datos['activo'] ?? true,
         ]);
+
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'categoria.creada',
@@ -68,6 +124,7 @@ class MenuService
         }
 
         $categoria->save();
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'categoria.actualizada',
@@ -86,6 +143,7 @@ class MenuService
     public function desactivarCategoria(Categoria $categoria): Categoria
     {
         $categoria->update(['activo' => false]);
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'categoria.desactivada',
@@ -124,6 +182,8 @@ class MenuService
             'activo' => $datos['activo'] ?? true,
             'imagen' => $datos['imagen'] ?? null,
         ]);
+
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'producto.creado',
@@ -166,6 +226,7 @@ class MenuService
         }
 
         $producto->save();
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'producto.actualizado',
@@ -184,6 +245,7 @@ class MenuService
     public function desactivarProducto(Producto $producto): Producto
     {
         $producto->update(['activo' => false]);
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'producto.desactivado',
@@ -201,6 +263,7 @@ class MenuService
     public function activarProducto(Producto $producto): Producto
     {
         $producto->update(['activo' => true]);
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'producto.activado',
@@ -218,6 +281,7 @@ class MenuService
     public function activarCategoria(Categoria $categoria): Categoria
     {
         $categoria->update(['activo' => true]);
+        $this->invalidarCacheMenu();
 
         app(AuditoriaService::class)->registrar(
             accion: 'categoria.activada',

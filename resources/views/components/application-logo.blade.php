@@ -1,42 +1,54 @@
 <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" {{ $attributes }}>
-  <!-- Outer Glow & Red Artisan Ring -->
-  <circle cx="100" cy="100" r="92" fill="#18181B" stroke="#FF5436" stroke-width="4"/>
-  <circle cx="100" cy="100" r="84" stroke="#FF5436" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.6"/>
+  <defs>
+    <linearGradient id="restoGlow" x1="20" y1="20" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF5436"/>
+      <stop offset="100%" stop-color="#E11D48"/>
+    </linearGradient>
+    <linearGradient id="goldAccent" x1="60" y1="40" x2="140" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FDE047"/>
+      <stop offset="100%" stop-color="#CA8A04"/>
+    </linearGradient>
+    <radialGradient id="plateInner" cx="100" cy="100" r="80" gradientUnits="userSpaceOnUse">
+      <stop offset="60%" stop-color="#1C1917"/>
+      <stop offset="100%" stop-color="#0C0A09"/>
+    </radialGradient>
+  </defs>
 
-  <!-- Nori Outer Wrap -->
-  <circle cx="100" cy="100" r="72" fill="#09090B" stroke="#27272A" stroke-width="2"/>
+  <!-- Outer Ring with Artisan Terracotta & Gold Stitching -->
+  <circle cx="100" cy="100" r="92" fill="url(#plateInner)" stroke="url(#restoGlow)" stroke-width="4"/>
+  <circle cx="100" cy="100" r="85" stroke="#F59E0B" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.7"/>
 
-  <!-- Pearl Rice Ring -->
-  <circle cx="100" cy="100" r="58" fill="#F8FAFC"/>
-  <!-- Rice texture dots -->
-  <circle cx="70" cy="80" r="3.5" fill="#E2E8F0"/>
-  <circle cx="130" cy="80" r="3.5" fill="#E2E8F0"/>
-  <circle cx="65" cy="115" r="3.5" fill="#E2E8F0"/>
-  <circle cx="135" cy="115" r="3.5" fill="#E2E8F0"/>
-  <circle cx="100" cy="55" r="3.5" fill="#E2E8F0"/>
-  <circle cx="100" cy="145" r="3.5" fill="#E2E8F0"/>
+  <!-- Inner Plate Rim -->
+  <circle cx="100" cy="100" r="74" fill="#1C1917" stroke="#292524" stroke-width="2"/>
 
-  <!-- Fresh Salmon Core (Sashimi Grade) -->
-  <path d="M85 70C72 80 68 98 74 114C80 130 100 138 116 134C132 130 140 114 136 98C132 82 118 70 100 70C95 70 90 70 85 70Z" fill="#FF5436"/>
-  <!-- Salmon Marbling Fat Lines -->
-  <path d="M82 82C90 88 108 88 120 80" stroke="#FFB0A3" stroke-width="3" stroke-linecap="round"/>
-  <path d="M80 100C92 106 112 106 128 98" stroke="#FFB0A3" stroke-width="3" stroke-linecap="round"/>
-  <path d="M84 118C94 122 110 122 122 114" stroke="#FFB0A3" stroke-width="3" stroke-linecap="round"/>
+  <!-- Gourmet Cloche (Campana de Restaurante) -->
+  <!-- Cloche Handle / Knob -->
+  <circle cx="100" cy="62" r="7" fill="url(#goldAccent)"/>
+  <path d="M97 69H103V74H97V69Z" fill="url(#goldAccent)"/>
 
-  <!-- Creamy Avocado Wedge -->
-  <path d="M72 90C72 108 82 122 100 126C94 122 86 112 84 98C82 88 82 78 86 72C76 76 72 82 72 90Z" fill="#10B981"/>
+  <!-- Dome -->
+  <path d="M52 118C52 86 73 74 100 74C127 74 148 86 148 118H52Z" fill="url(#restoGlow)"/>
 
-  <!-- Golden Masago / Tobiko Caviar -->
-  <circle cx="118" cy="82" r="5" fill="#F59E0B"/>
-  <circle cx="128" cy="92" r="4.2" fill="#F59E0B"/>
-  <circle cx="112" cy="122" r="4" fill="#F59E0B"/>
-  <circle cx="122" cy="114" r="3.8" fill="#F59E0B"/>
+  <!-- Cloche Rim & Base Plate -->
+  <rect x="44" y="118" width="112" height="8" rx="4" fill="url(#goldAccent)"/>
+  <rect x="36" y="128" width="128" height="4" rx="2" fill="#E7E5E4" opacity="0.8"/>
 
-  <!-- Japanese Kanji Stamp Seal "鮨" (Sushi) on top-right -->
-  <rect x="136" y="22" width="42" height="42" rx="10" fill="#FF5436"/>
-  <text x="157" y="52" fill="#FFFFFF" font-family="'Noto Sans JP', 'Hiragino Sans', sans-serif" font-size="24" font-weight="900" text-anchor="middle">鮨</text>
+  <!-- Elegant Crossed Cutlery (Fork & Knife) Accent on Bottom -->
+  <g transform="translate(100, 154) scale(0.75)">
+    <!-- Fork -->
+    <path d="M-22 -8L-14 8M-26 -8L-18 8M-18 -8L-18 8M-18 8L-18 20" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+    <!-- Knife -->
+    <path d="M18 -8C22 -4 22 2 18 8L18 20M18 -8L14 -8L14 8L18 8" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"/>
+  </g>
 
-  <!-- Golden Chopsticks Crossed at the Bottom -->
-  <line x1="45" y1="175" x2="155" y2="175" stroke="#F59E0B" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="100" cy="175" r="4" fill="#FF5436"/>
+  <!-- 3 Stars of Culinary Excellence on top -->
+  <!-- Center Star -->
+  <path d="M100 42L101.8 46.5L106.5 46.8L102.8 49.8L104 54.4L100 51.8L96 54.4L97.2 49.8L93.5 46.8L98.2 46.5Z" fill="#FACC15"/>
+  <!-- Left Star -->
+  <path d="M78 47L79.3 50.4L82.8 50.6L80.1 52.8L81 56.3L78 54.3L75 56.3L75.9 52.8L73.2 50.6L76.7 50.4Z" fill="#FACC15" opacity="0.8"/>
+  <!-- Right Star -->
+  <path d="M122 47L123.3 50.4L126.8 50.6L124.1 52.8L125 56.3L122 54.3L119 56.3L119.9 52.8L117.2 50.6L120.7 50.4Z" fill="#FACC15" opacity="0.8"/>
+
+  <!-- Stylized "M" Crest in Center of Cloche -->
+  <text x="100" y="106" fill="#FFFFFF" font-family="'Plus Jakarta Sans', sans-serif" font-size="22" font-weight="900" text-anchor="middle" letter-spacing="1">RM</text>
 </svg>

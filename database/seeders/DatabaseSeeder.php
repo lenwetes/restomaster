@@ -25,7 +25,12 @@ class DatabaseSeeder extends Seeder
             ClienteSeeder::class,
             ConfiguracionSeeder::class,
             ImpresoraSeeder::class,
-            DemoOperacionesSeeder::class,
         ]);
+
+        if (env('SEED_DEMO_OPERACIONES', false)) {
+            $this->call([
+                DemoOperacionesSeeder::class,
+            ]);
+        }
     }
 }

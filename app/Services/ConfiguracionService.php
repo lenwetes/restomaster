@@ -132,9 +132,9 @@ class ConfiguracionService
     public function valoresPorDefectoTicket80mm(): array
     {
         return [
-            'nombre_comercial' => 'SUSHIEXPRESS ENTERPRISE',
-            'lema' => 'Auténtico Sushi & Cocina Fusión Japonesa',
-            'razon_social' => 'SushiXpress Colombia S.A.S.',
+            'nombre_comercial' => 'RESTOMASTER GASTRO',
+            'lema' => 'Restaurante & Bar · Cocina Artesanal y Parrilla',
+            'razon_social' => 'RestoMaster Colombia S.A.S.',
             'nit' => '901.458.789-3',
             'regimen' => 'IVA Régimen Común - Tarifa Especial',
             'direccion' => 'Cra 35 # 8A-12, El Poblado, Medellín',
@@ -148,8 +148,8 @@ class ConfiguracionService
             'sugerir_propina' => true,
             'porcentaje_propina' => 10,
             'mensaje_propina' => 'Propina sugerida 10%: El servicio es voluntario',
-            'pie_pagina' => '¡Muchas gracias por su preferencia! Esperamos su pronta visita.',
-            'redes_sociales' => 'Instagram: @sushixpress · www.sushixpress.com',
+            'pie_pagina' => '¡Muchas gracias por su preferencia! Esperamos su pronta visita en RestoMaster.',
+            'redes_sociales' => 'Instagram: @restomaster · www.restomaster.co',
             'politica_cambios' => 'Verifique su pedido al momento de la entrega. Conserve este comprobante.',
             'mostrar_qr' => true,
         ];
@@ -163,7 +163,7 @@ class ConfiguracionService
         }
 
         // Restablecer valores generales
-        $this->guardar('general', 'razon_social', 'SushiXpress S.A.S.');
+        $this->guardar('general', 'razon_social', 'RestoMaster S.A.S.');
         $this->guardar('general', 'nit', '901.458.789-3');
         $this->guardar('general', 'direccion', 'Cra 35 # 8A-12, El Poblado');
         $this->guardar('general', 'telefono', '+57 300 123 4567');
@@ -173,6 +173,6 @@ class ConfiguracionService
         $this->guardar('general', 'simbolo_moneda', '$');
         $this->guardar('general', 'impuesto_porcentaje', 8);
         $this->guardar('general', 'costo_envio_base', 8000);
-        $this->guardar('impresion', 'pie_ticket', '¡Gracias por preferir SushiXpress!');
+        $this->guardar('impresion', 'pie_ticket', '¡Gracias por preferir RestoMaster!');
     }
 }

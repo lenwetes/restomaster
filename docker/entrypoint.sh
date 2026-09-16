@@ -21,16 +21,16 @@ chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 if [ -z "$APP_KEY" ] || [ "$APP_KEY" = '""' ] || [ "$APP_KEY" = "''" ]; then
     echo "==> APP_KEY not provided. Generating new application encryption key..."
     export APP_KEY=$(php /var/www/html/artisan key:generate --show)
-    echo "==> Generated APP_KEY: $APP_KEY"
+    echo "==> Application encryption key generated successfully."
 fi
 
 # 2. Write runtime environment variables to /var/www/html/.env so PHP-FPM workers and Dotenv always have them
 echo "==> Writing runtime configuration to /var/www/html/.env..."
 cat <<EOF > /var/www/html/.env
-APP_NAME="${APP_NAME:-SushiXpress}"
+APP_NAME="${APP_NAME:-RestoMaster}"
 APP_ENV="${APP_ENV:-production}"
 APP_KEY="${APP_KEY}"
-APP_DEBUG="${APP_DEBUG:-true}"
+APP_DEBUG="${APP_DEBUG:-false}"
 APP_URL="${APP_URL:-http://localhost:8004}"
 LOG_CHANNEL="${LOG_CHANNEL:-stderr}"
 LOG_LEVEL="${LOG_LEVEL:-debug}"
@@ -38,16 +38,16 @@ LOG_LEVEL="${LOG_LEVEL:-debug}"
 DB_CONNECTION="${DB_CONNECTION:-pgsql}"
 DB_HOST="${DB_HOST:-postgres}"
 DB_PORT="${DB_PORT:-5432}"
-DB_DATABASE="${DB_DATABASE:-sushixpress}"
-DB_USERNAME="${DB_USERNAME:-sushixpress_user}"
-DB_PASSWORD="${DB_PASSWORD:-sushixpress_secure_password}"
+DB_DATABASE="${DB_DATABASE:-restomaster}"
+DB_USERNAME="${DB_USERNAME:-adminresto}"
+DB_PASSWORD="${DB_PASSWORD}"
 
-SESSION_DRIVER="${SESSION_DRIVER:-file}"
+SESSION_DRIVER="${SESSION_DRIVER:-database}"
 SESSION_LIFETIME="${SESSION_LIFETIME:-120}"
 QUEUE_CONNECTION="${QUEUE_CONNECTION:-database}"
 CACHE_STORE="${CACHE_STORE:-file}"
 
-DEMO_USERS_PASSWORD="${DEMO_USERS_PASSWORD:-sushixpress2026}"
+DEMO_USERS_PASSWORD="${DEMO_USERS_PASSWORD}"
 EOF
 
 chown www-data:www-data /var/www/html/.env

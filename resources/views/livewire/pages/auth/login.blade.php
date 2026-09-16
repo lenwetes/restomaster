@@ -12,7 +12,8 @@ new #[Layout('layouts.guest')] class extends Component
     public function rellenarCredencial(string $email, ?string $password = null): void
     {
         $this->form->email = $email;
-        $this->form->password = $password ?? (string) config('auth.demo_password', 'sushixpress2026');
+        $this->form->password = $password ?? (config('auth.demo_password') !== null ? (string) config('auth.demo_password') : '');
+
     }
 
     /**
@@ -56,10 +57,10 @@ new #[Layout('layouts.guest')] class extends Component
             </div>
             <div>
                 <div class="flex items-center justify-center gap-2">
-                    <span class="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">SUSHI<span class="text-[#ff5436]">XPRESS</span></span>
+                    <span class="text-xl sm:text-2xl font-black text-stone-900 tracking-tight">RESTO<span class="text-[#ff5436]">MASTER</span></span>
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#ff5436]/20 text-[#ff5436] border border-[#ff5436]/30">Gastro POS</span>
                 </div>
-                <p class="text-xs text-stone-500 font-medium mt-1">Terminal de Servicio, Cocina KDS y Gestión Operativa</p>
+                <p class="text-xs text-stone-500 font-medium mt-1">Terminal de Servicio, Cocina KDS y Gestión Gastronómica</p>
             </div>
         </div>
 
@@ -89,7 +90,7 @@ new #[Layout('layouts.guest')] class extends Component
                         required 
                         autofocus 
                         autocomplete="username" 
-                        placeholder="tu.usuario@sushixpress.com"
+                        placeholder="tu.usuario@restomaster.com"
                         class="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-stone-200 bg-stone-50 text-sm font-semibold text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-1 focus:ring-[#ff5436] outline-none transition-all"
                     />
                 </div>
@@ -175,71 +176,73 @@ new #[Layout('layouts.guest')] class extends Component
             </div>
         </form>
 
-        <!-- 1-Click Role Fillers (Demo / Test) -->
-        <div class="mt-8 pt-6 border-t border-stone-100 space-y-3">
-            <div class="flex items-center justify-between">
-                <span class="text-[11px] font-black uppercase tracking-wider text-stone-400">Acceso Rápido por Rol</span>
-                <span class="text-[10px] text-stone-500 font-mono">Clave: {{ config('auth.demo_password', 'sushixpress2026') }}</span>
+        @if(app()->environment('local', 'testing') || config('auth.demo_password'))
+            <!-- 1-Click Role Fillers (Demo / Test) -->
+            <div class="mt-8 pt-6 border-t border-stone-100 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-black uppercase tracking-wider text-stone-400">Acceso Rápido por Rol</span>
+                    <span class="text-[10px] text-stone-500 font-mono">Clave demo</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('admin@restomaster.com')" 
+                        class="p-2.5 rounded-xl bg-stone-50 hover:bg-amber-50 border border-stone-200 hover:border-amber-300 text-left transition-all group cursor-pointer"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">👑</span>
+                            <div>
+                                <p class="text-xs font-black text-stone-800 group-hover:text-amber-600 transition-colors">Administrador</p>
+                                <p class="text-[10px] text-stone-500 truncate">admin@restomaster.com</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('mesero@restomaster.com')" 
+                        class="p-2.5 rounded-xl bg-stone-50 hover:bg-red-50 border border-stone-200 hover:border-[#ff5436]/50 text-left transition-all group cursor-pointer"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">🧑‍🍳</span>
+                            <div>
+                                <p class="text-xs font-black text-stone-800 group-hover:text-[#ff5436] transition-colors">Mesero / Salón</p>
+                                <p class="text-[10px] text-stone-500 truncate">mesero@restomaster.com</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('cocina@restomaster.com')" 
+                        class="p-2.5 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 hover:border-emerald-400/50 text-left transition-all group cursor-pointer"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">🔪</span>
+                            <div>
+                                <p class="text-xs font-black text-stone-800 group-hover:text-emerald-600 transition-colors">Cocina / Barra</p>
+                                <p class="text-[10px] text-stone-500 truncate">cocina@restomaster.com</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('cajero@restomaster.com')" 
+                        class="p-2.5 rounded-xl bg-stone-50 hover:bg-sky-50 border border-stone-200 hover:border-sky-400/50 text-left transition-all group cursor-pointer"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">💵</span>
+                            <div>
+                                <p class="text-xs font-black text-stone-800 group-hover:text-sky-600 transition-colors">Cajero / POS</p>
+                                <p class="text-[10px] text-stone-500 truncate">cajero@restomaster.com</p>
+                            </div>
+                        </div>
+                    </button>
+                </div>
             </div>
-
-            <div class="grid grid-cols-2 gap-2">
-                <button 
-                    type="button" 
-                    wire:click="rellenarCredencial('admin@sushixpress.com')" 
-                    class="p-2.5 rounded-xl bg-stone-50 hover:bg-amber-50 border border-stone-200 hover:border-amber-300 text-left transition-all group cursor-pointer"
-                >
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm">👑</span>
-                        <div>
-                            <p class="text-xs font-black text-stone-800 group-hover:text-amber-600 transition-colors">Administrador</p>
-                            <p class="text-[10px] text-stone-500 truncate">admin@sushixpress.com</p>
-                        </div>
-                    </div>
-                </button>
-
-                <button 
-                    type="button" 
-                    wire:click="rellenarCredencial('mesero@sushixpress.com')" 
-                    class="p-2.5 rounded-xl bg-stone-50 hover:bg-red-50 border border-stone-200 hover:border-[#ff5436]/50 text-left transition-all group cursor-pointer"
-                >
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm">🧑‍🍳</span>
-                        <div>
-                            <p class="text-xs font-black text-stone-800 group-hover:text-[#ff5436] transition-colors">Mesero / Salón</p>
-                            <p class="text-[10px] text-stone-500 truncate">mesero@sushixpress.com</p>
-                        </div>
-                    </div>
-                </button>
-
-                <button 
-                    type="button" 
-                    wire:click="rellenarCredencial('cocina@sushixpress.com')" 
-                    class="p-2.5 rounded-xl bg-stone-50 hover:bg-emerald-50 border border-stone-200 hover:border-emerald-400/50 text-left transition-all group cursor-pointer"
-                >
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm">🔪</span>
-                        <div>
-                            <p class="text-xs font-black text-stone-800 group-hover:text-emerald-600 transition-colors">Cocina / Barra</p>
-                            <p class="text-[10px] text-stone-500 truncate">cocina@sushixpress.com</p>
-                        </div>
-                    </div>
-                </button>
-
-                <button 
-                    type="button" 
-                    wire:click="rellenarCredencial('caja@sushixpress.com')" 
-                    class="p-2.5 rounded-xl bg-stone-50 hover:bg-sky-50 border border-stone-200 hover:border-sky-400/50 text-left transition-all group cursor-pointer"
-                >
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm">💵</span>
-                        <div>
-                            <p class="text-xs font-black text-stone-800 group-hover:text-sky-600 transition-colors">Cajero / POS</p>
-                            <p class="text-[10px] text-stone-500 truncate">caja@sushixpress.com</p>
-                        </div>
-                    </div>
-                </button>
-            </div>
-        </div>
+        @endif
 
         <!-- Back to Customer Portal -->
         <div class="mt-6 pt-4 border-t border-stone-100 flex items-center justify-between text-xs">
@@ -248,7 +251,7 @@ new #[Layout('layouts.guest')] class extends Component
                 <span>Portal de Clientes</span>
             </a>
             <a href="{{ route('carta.publico') }}" class="text-[#ff5436] hover:underline font-bold">
-                Ver Menú Nikkei →
+                Ver Menú & Carta →
             </a>
         </div>
 

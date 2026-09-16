@@ -16,6 +16,13 @@ class NotificacionService
      */
     public function obtenerResumen(?User $usuario = null): array
     {
+        $usuario = $usuario ?? auth()->user();
+
+        return $this->consultarResumen($usuario);
+    }
+
+    protected function consultarResumen(?User $usuario = null): array
+    {
         $rol = $usuario?->role?->slug ?? 'admin';
 
         $puedeVerPedidosQr = in_array($rol, ['mesero', 'cajero', 'gerente', 'admin'], true);

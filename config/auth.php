@@ -20,7 +20,7 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
-    'demo_password' => env('DEMO_USERS_PASSWORD', 'sushixpress2026'),
+    'demo_password' => env('DEMO_USERS_PASSWORD'),
 
     /*
     |--------------------------------------------------------------------------
@@ -115,5 +115,7 @@ return [
     */
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
+
+    'demo_password' => env('DEMO_USERS_PASSWORD', null),
 
 ];

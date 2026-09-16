@@ -33,23 +33,25 @@ class AuditoriaService
     /**
      * Devuelve la traza de auditoría de una entidad concreta (más recientes primero).
      */
-    public function porEntidad(string $entidad, int $entidadId): Collection
+    public function porEntidad(string $entidad, int $entidadId, int $limite = 200): Collection
     {
         return Auditoria::with('usuario')
             ->where('entidad', $entidad)
             ->where('entidad_id', $entidadId)
             ->orderByDesc('id')
+            ->limit($limite)
             ->get();
     }
 
     /**
      * Devuelve auditorías filtradas por acción.
      */
-    public function porAccion(string $accion): Collection
+    public function porAccion(string $accion, int $limite = 200): Collection
     {
         return Auditoria::with('usuario')
             ->where('accion', $accion)
             ->orderByDesc('id')
+            ->limit($limite)
             ->get();
     }
 }

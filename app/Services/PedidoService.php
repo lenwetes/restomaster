@@ -8,9 +8,11 @@ use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class PedidoService
 {
@@ -20,14 +22,34 @@ class PedidoService
     public function crearPedido(array $datos, array $items, ?User $usuario = null): Pedido
     {
         return DB::transaction(function () use ($datos, $items, $usuario) {
-            $codigo = 'ORD-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
+            do {
+                $codigo = 'ORD-'.date('Ymd-His').'-'.strtoupper(Str::random(6));
+            } while (Pedido::where('codigo', $codigo)->exists());
+
+            $mesa = ! empty($datos['mesa_id']) ? Mesa::find($datos['mesa_id']) : null;
+            $sucursalId = $datos['sucursal_id']
+                ?? $mesa?->sucursal_id
+                ?? $usuario?->sucursal_id
+                ?? auth()->user()?->sucursal_id
+                ?? Sucursal::value('id')
+                ?? 1;
+
+            $meseroId = $datos['mesero_id'] ?? null;
+            if (! $meseroId && $mesa?->mesero_id) {
+                $meseroId = $mesa->mesero_id;
+            }
+            if (! $meseroId && ($usuario?->isMesero() || auth()->user()?->isMesero())) {
+                $meseroId = $usuario?->id ?? auth()->id();
+            }
 
             $pedido = Pedido::create([
                 'codigo' => $codigo,
                 'tipo' => $datos['tipo'] ?? 'mesa',
                 'estado' => $datos['estado'] ?? 'creado',
+                'sucursal_id' => $sucursalId,
                 'mesa_id' => $datos['mesa_id'] ?? null,
                 'usuario_id' => $usuario?->id ?? auth()->id(),
+                'mesero_id' => $meseroId,
                 'cliente_id' => $datos['cliente_id'] ?? null,
                 'nombre_cliente' => $datos['nombre_cliente'] ?? null,
                 'telefono_cliente' => $datos['telefono_cliente'] ?? null,
@@ -36,6 +58,10 @@ class PedidoService
                 'descuento' => $datos['descuento'] ?? 0,
                 'canal_origen' => $datos['canal_origen'] ?? 'pos',
             ]);
+
+            if ($mesa && $meseroId && ! $mesa->mesero_id) {
+                $mesa->update(['mesero_id' => $meseroId]);
+            }
 
             $subtotal = 0;
             $descuentoSolicitado = max(0, (float) ($datos['descuento'] ?? 0));
@@ -163,24 +189,52 @@ class PedidoService
 
     /**
      * Procesar cobro y cierre de un pedido.
+     *
+     * El cobro exige un turno de caja abierto en la sucursal del pedido; de lo
+     * contrario el ingreso quedaría invisible en el Reporte Z y el arqueo.
      */
-    public function cobrarPedido(Pedido $pedido, string $metodoPago, float $montoPagado): Pedido
-    {
-        return DB::transaction(function () use ($pedido, $metodoPago, $montoPagado) {
+    public function cobrarPedido(
+        Pedido $pedido,
+        string $metodoPago,
+        float $montoPagado,
+        ?float $montoPagoEfectivo = null,
+        float $propina = 0.0,
+        ?float $porcentajePropina = 0.0
+    ): Pedido {
+        return DB::transaction(function () use ($pedido, $metodoPago, $montoPagado, $montoPagoEfectivo, $propina, $porcentajePropina) {
             // H5 FIX: Bloqueo pesimista e idempotencia para evitar cobros dobles por race condition
             $pedido = Pedido::where('id', $pedido->id)->lockForUpdate()->firstOrFail();
             abort_if($pedido->estado === 'pagado', 400, 'El pedido ya se encuentra pagado.');
 
-            if ($montoPagado < (float) $pedido->total) {
-                throw new \InvalidArgumentException("El monto pagado ({$montoPagado}) no puede ser inferior al total del pedido ({$pedido->total}).");
+            $propina = max(0.0, round($propina, 2));
+            $porcentajePropina = $porcentajePropina !== null ? max(0.0, (float) $porcentajePropina) : null;
+            $totalConPropina = (float) $pedido->total + $propina;
+
+            $metodo = strtolower($metodoPago);
+            $montoEfectivo = null;
+            $montoTarjeta = null;
+
+            if ($metodo === 'mixto') {
+                $montoEfectivo = max(0, (float) ($montoPagoEfectivo ?? 0));
+                $montoTarjeta = max(0, $totalConPropina - $montoEfectivo);
+            } elseif (in_array($metodo, ['tarjeta', 'tarjeta_credito', 'tarjeta_debito', 'datafono', 'datáfono', 'datfono'], true)) {
+                $montoTarjeta = $totalConPropina;
             }
 
-            $cambio = max(0, $montoPagado - (float) $pedido->total);
+            if ($montoPagado < $totalConPropina) {
+                throw new \InvalidArgumentException("El monto pagado ({$montoPagado}) no puede ser inferior al total a pagar ({$totalConPropina}).");
+            }
+
+            $cambio = max(0, $montoPagado - $totalConPropina);
 
             $pedido->update([
                 'estado' => 'pagado',
                 'metodo_pago' => $metodoPago,
+                'propina' => $propina,
+                'porcentaje_propina' => $porcentajePropina,
                 'monto_pagado' => $montoPagado,
+                'monto_pago_efectivo' => $montoEfectivo,
+                'monto_pago_tarjeta' => $montoTarjeta,
                 'cambio' => $cambio,
                 'pagado_en' => now(),
             ]);
@@ -193,11 +247,17 @@ class PedidoService
                 }
             }
 
-            // Vincular automáticamente con turno de caja abierto
-            $turnoActivo = TurnoCaja::where('estado', 'abierto')->latest()->first();
-            if ($turnoActivo) {
-                app(CajaService::class)->vincularCobroPedido($turnoActivo, $pedido);
+            // Vincular obligatoriamente con el turno de caja abierto de la sucursal del pedido
+            $turnoActivo = TurnoCaja::where('estado', 'abierto')
+                ->when($pedido->sucursal_id, fn ($q) => $q->whereHas('caja', fn ($cq) => $cq->where('sucursal_id', $pedido->sucursal_id)))
+                ->latest()
+                ->first();
+
+            if (! $turnoActivo) {
+                throw new \DomainException('No hay un turno de caja abierto para cobrar este pedido. Abra un turno en el módulo de Caja.');
             }
+
+            app(CajaService::class)->vincularCobroPedido($turnoActivo, $pedido);
 
             // Salvaguarda: descontar cualquier ítem del pedido que no haya pasado por KDS
             app(InventarioService::class)->descontarPorPedido($pedido);
@@ -208,20 +268,20 @@ class PedidoService
             // Despachar ticket térmico fiscal de venta al spooler de impresión
             app(ImpresionService::class)->despacharTicketVenta($pedido);
 
-            return $pedido->fresh(['items', 'mesa', 'cliente']);
+            return $pedido->fresh(['items', 'mesa', 'cliente', 'mesero']);
         });
     }
 
     /**
-     * Crear un pedido iniciado por un comensal desde el menú QR de mesa.
+     * Crear un pedido desde el menú público QR de la mesa (solicitado_qr).
      */
     public function crearPedidoDesdeQr(Mesa $mesa, array $items, string $nombreCliente = '', ?string $notas = null): Pedido
     {
         return $this->crearPedido([
-            'tipo' => 'mesa',
             'estado' => 'solicitado_qr',
             'canal_origen' => 'qr_mesa',
             'mesa_id' => $mesa->id,
+            'mesero_id' => $mesa->mesero_id,
             'nombre_cliente' => ! empty(trim($nombreCliente)) ? trim($nombreCliente) : 'Comensal Mesa '.$mesa->numero,
             'notas' => $notas,
         ], $items, null);
@@ -236,7 +296,7 @@ class PedidoService
         return DB::transaction(function () use ($pedidoId, $mesero) {
             $pedido = Pedido::where('id', $pedidoId)
                 ->lockForUpdate()
-                ->with(['mesa', 'usuario'])
+                ->with(['mesa', 'usuario', 'mesero'])
                 ->firstOrFail();
 
             // Verificación de concurrencia: si ya fue asignado y no es el mismo mesero
@@ -246,13 +306,17 @@ class PedidoService
             }
 
             $pedido->usuario_id = $mesero->id;
+            $pedido->mesero_id = $mesero->id;
             if ($pedido->estado === 'solicitado_qr') {
                 $pedido->estado = 'en_cocina';
             }
             $pedido->save();
 
             if ($pedido->mesa) {
-                $pedido->mesa->update(['estado' => MesaEstado::OCUPADA->value]);
+                $pedido->mesa->update([
+                    'estado' => MesaEstado::OCUPADA->value,
+                    'mesero_id' => $mesero->id,
+                ]);
             }
 
             // Actualizar items de la comanda para cocina
@@ -263,7 +327,7 @@ class PedidoService
 
             app(ImpresionService::class)->despacharComandaCocina($pedido);
 
-            return $pedido->fresh(['usuario', 'mesa', 'items']);
+            return $pedido->fresh(['usuario', 'mesero', 'mesa', 'items']);
         });
     }
 

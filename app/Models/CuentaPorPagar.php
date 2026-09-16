@@ -16,6 +16,7 @@ class CuentaPorPagar extends Model
     protected $fillable = [
         'proveedor_nombre',
         'proveedor_nit',
+        'numero_factura',
         'insumo_id',
         'concepto',
         'monto_total',
@@ -40,6 +41,11 @@ class CuentaPorPagar extends Model
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function insumo(): BelongsTo
+    {
+        return $this->belongsTo(Insumo::class, 'insumo_id');
     }
 
     public function pagos(): HasMany

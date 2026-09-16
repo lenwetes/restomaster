@@ -1,13 +1,13 @@
-@component('layouts.publico', ['title' => 'Reserva de Mesa · SushiXpress Provenza'])
+@component('layouts.publico', ['title' => 'Reserva de Mesa · RestoMaster Provenza'])
     <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
         
         <!-- Header Banner -->
         <div class="text-center max-w-xl mx-auto space-y-3">
             <span class="px-3.5 py-1 rounded-full bg-amber-50 text-amber-600 text-xs font-black uppercase tracking-wider border border-amber-200">
-                📅 Barra Nikkei & Salón Principal
+                📅 Salón Principal, Terraza & Barra
             </span>
             <h1 class="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">
-                Reserva tu Experiencia SushiXpress
+                Reserva tu Mesa en RestoMaster
             </h1>
             <p class="text-xs sm:text-sm text-stone-500 leading-relaxed">
                 Vía Provenza, El Poblado, Medellín. Selecciona la fecha, el número de comensales y tu horario preferido.
@@ -204,7 +204,7 @@
                             type="submit" 
                             class="w-full py-3.5 px-6 rounded-2xl bg-[#ff5436] hover:bg-[#e0381d] text-white font-black text-sm shadow-xl shadow-[#ff5436]/25 hover:shadow-[#ff5436]/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
-                            <span>Solicitar Reserva en SushiXpress</span>
+                            <span>Solicitar Reserva en RestoMaster</span>
                             <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                         </button>
                     </div>

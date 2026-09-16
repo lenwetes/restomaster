@@ -9,6 +9,12 @@ new class extends Component
 {
     public string $filtroZona = 'todas';
     public string $filtroEstado = 'todas';
+    public string $filtroMesero = 'todos'; // 'todos', 'mis_mesas'
+
+    // Asignación / Transferencia Mesas State
+    public bool $modalTransferirOpen = false;
+    public ?int $mesaTransferirId = null;
+    public ?int $nuevoMeseroId = null;
 
     // CRUD Mesas State
     public bool $modalMesaOpen = false;
@@ -114,12 +120,20 @@ new class extends Component
         }
 
         $mesa = Mesa::findOrFail($mesaId);
-        $mesa->update(['estado' => $nuevoEstado]);
 
-        $this->dispatch('notificacion', [
-            'mensaje' => "Mesa {$mesa->numero} actualizada a {$nuevoEstado}",
-            'tipo' => 'success',
-        ]);
+        try {
+            app(\App\Services\MesaService::class)->cambiarEstado($mesa, $nuevoEstado);
+
+            $this->dispatch('notificacion', [
+                'mensaje' => "Mesa {$mesa->numero} actualizada a {$nuevoEstado}",
+                'tipo' => 'success',
+            ]);
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            $this->dispatch('notificacion', [
+                'mensaje' => $e->getMessage(),
+                'tipo' => 'error',
+            ]);
+        }
     }
 
     public function abrirModalQr(int $mesaId): void
@@ -156,10 +170,91 @@ new class extends Component
         }
     }
 
+    public function autoasignarMesa(int $mesaId): void
+    {
+        $mesa = Mesa::findOrFail($mesaId);
+        app(\App\Services\MesaService::class)->autoasignarMesa($mesa, auth()->user());
+
+        $this->mensajeFlash = "¡Te has asignado la Mesa #{$mesa->numero}!";
+        $this->tipoFlash = 'success';
+        $this->dispatch('notificacion', [
+            'mensaje' => $this->mensajeFlash,
+            'tipo' => 'success',
+        ]);
+    }
+
+    public function abrirModalTransferir(int $mesaId): void
+    {
+        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Solo administradores o gerentes pueden reasignar mesas a otros compañeros.');
+
+        $mesa = Mesa::findOrFail($mesaId);
+        $this->mesaTransferirId = $mesa->id;
+        $this->nuevoMeseroId = $mesa->mesero_id;
+        $this->modalTransferirOpen = true;
+    }
+
+    public function ejecutarTransferenciaMesa(): void
+    {
+        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Solo administradores o gerentes pueden reasignar mesas a otros compañeros.');
+
+        $this->validate([
+            'mesaTransferirId' => 'required|exists:mesas,id',
+            'nuevoMeseroId' => 'required|exists:users,id',
+        ], [
+            'nuevoMeseroId.required' => 'Selecciona el mesero receptor de la mesa.',
+        ]);
+
+        $mesa = Mesa::findOrFail($this->mesaTransferirId);
+        $nuevoMesero = \App\Models\User::findOrFail($this->nuevoMeseroId);
+
+        app(\App\Services\MesaService::class)->transferirMesa($mesa, $nuevoMesero, auth()->user());
+
+        $this->modalTransferirOpen = false;
+        $this->mensajeFlash = "Mesa #{$mesa->numero} asignada / transferida a {$nuevoMesero->name}.";
+        $this->tipoFlash = 'success';
+        $this->dispatch('notificacion', [
+            'mensaje' => $this->mensajeFlash,
+            'tipo' => 'success',
+        ]);
+    }
+
+    public function liberarParaRelevo(int $mesaId): void
+    {
+        $mesa = Mesa::findOrFail($mesaId);
+
+        if (! in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true)) {
+            abort_unless($mesa->mesero_id === auth()->id(), 403, 'Solo puedes liberar para relevo las mesas que atiendes actualmente.');
+        }
+
+        app(\App\Services\MesaService::class)->liberarParaRelevo($mesa, auth()->user());
+
+        $this->mensajeFlash = "Mesa #{$mesa->numero} liberada para relevo. Tus compañeros ya pueden tomarla.";
+        $this->tipoFlash = 'success';
+        $this->dispatch('notificacion', [
+            'mensaje' => $this->mensajeFlash,
+            'tipo' => 'success',
+        ]);
+    }
+
+    public function desasignarMesero(int $mesaId): void
+    {
+        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Solo administradores o gerentes pueden desasignar meseros.');
+
+        $mesa = Mesa::findOrFail($mesaId);
+        app(\App\Services\MesaService::class)->asignarMesero($mesa, null, auth()->user());
+
+        $this->mensajeFlash = "Mesa #{$mesa->numero} liberada de mesero asignado.";
+        $this->tipoFlash = 'success';
+        $this->dispatch('notificacion', [
+            'mensaje' => $this->mensajeFlash,
+            'tipo' => 'success',
+        ]);
+    }
+
     public function with(): array
     {
-        $query = Mesa::query()->with(['sucursal', 'pedidos' => function ($q) {
-            $q->activos()->latest();
+        $query = Mesa::query()->with(['sucursal', 'mesero', 'pedidos' => function ($q) {
+            $q->activos()->latest()->with(['items', 'usuario', 'mesero']);
         }]);
 
         if ($this->filtroZona !== 'todas') {
@@ -170,7 +265,16 @@ new class extends Component
             $query->where('estado', $this->filtroEstado);
         }
 
+        if ($this->filtroMesero === 'mis_mesas' && auth()->check()) {
+            $query->where('mesero_id', auth()->id());
+        }
+
         $mesas = $query->orderBy('numero')->get();
+
+        $meserosDisponibles = \App\Models\User::whereHas('role', fn ($q) => $q->where('slug', 'mesero'))
+            ->where('activo', true)
+            ->orderBy('name')
+            ->get();
 
         // Global counters optimizados por agregación SQL
         $conteosPorEstado = Mesa::query()
@@ -193,6 +297,7 @@ new class extends Component
             'conteo' => $conteo,
             'sucursales' => \App\Models\Sucursal::all(),
             'mesaQr' => $mesaQr,
+            'meserosDisponibles' => $meserosDisponibles,
         ];
     }
 }; ?>
@@ -330,7 +435,7 @@ new class extends Component
                 wire:click="$set('filtroZona', 'barra')"
                 class="rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $filtroZona === 'barra' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
             >
-                Barra Sushi
+                Barra / Bar
             </button>
             <button 
                 wire:click="$set('filtroZona', 'terraza')"
@@ -338,11 +443,33 @@ new class extends Component
             >
                 Terraza
             </button>
+
+            <!-- Filtro Mesero Asignado -->
+            <div class="flex items-center gap-1 pl-2 sm:border-l border-surface-container-high">
+                <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[16px] text-primary">person</span>
+                    Mesero:
+                </span>
+                <button 
+                    wire:click="$set('filtroMesero', 'todos')"
+                    class="rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all {{ $filtroMesero === 'todos' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                >
+                    Todas
+                </button>
+                @if(auth()->user()?->role?->slug === 'mesero')
+                    <button 
+                        wire:click="$set('filtroMesero', 'mis_mesas')"
+                        class="rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all {{ $filtroMesero === 'mis_mesas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                    >
+                        Mis Mesas
+                    </button>
+                @endif
+            </div>
         </div>
 
-        @if($filtroEstado !== 'todas' || $filtroZona !== 'todas')
+        @if($filtroEstado !== 'todas' || $filtroZona !== 'todas' || $filtroMesero !== 'todos')
             <button 
-                wire:click="$set('filtroEstado', 'todas'); $set('filtroZona', 'todas')"
+                wire:click="$set('filtroEstado', 'todas'); $set('filtroZona', 'todas'); $set('filtroMesero', 'todos')"
                 class="flex items-center gap-1 text-xs font-bold text-primary hover:underline px-2"
             >
                 <span class="material-symbols-outlined text-[16px]">close</span>
@@ -414,6 +541,90 @@ new class extends Component
                             <span class="text-[10px] font-bold text-on-surface-variant block uppercase tracking-wider mt-0.5">
                                 Zona {{ $mesa->zona }}
                             </span>
+                            @if($mesa->mesero)
+                                <div class="mt-1.5 flex items-center gap-1 flex-wrap">
+                                    @if($mesa->mesero_id === auth()->id())
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary border border-primary/25" title="Mesa a tu cargo">
+                                            <span class="material-symbols-outlined text-[13px]">person</span>
+                                            <span>Atendida por ti</span>
+                                        </span>
+                                        <button 
+                                            type="button"
+                                            wire:click="liberarParaRelevo({{ $mesa->id }})"
+                                            wire:confirm="¿Deseas liberar la Mesa #{{ $mesa->numero }} para que un compañero tome el relevo de tu turno?"
+                                            class="text-[10px] font-extrabold text-amber-700 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-0.5 rounded-full flex items-center gap-0.5 cursor-pointer transition border border-amber-500/20"
+                                            title="Liberar mesa para relevo de descanso o cambio de turno"
+                                        >
+                                            <span class="material-symbols-outlined text-[12px]">pause_circle</span>
+                                            <span>Liberar Relevo</span>
+                                        </button>
+                                    @else
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-surface-container text-on-surface-variant border border-surface-container-high">
+                                            <span class="material-symbols-outlined text-[13px]">badge</span>
+                                            <span class="truncate max-w-[90px]">Atiende: {{ $mesa->mesero->name }}</span>
+                                        </span>
+                                        @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                                            <button 
+                                                type="button"
+                                                wire:click="abrirModalTransferir({{ $mesa->id }})"
+                                                class="text-[10px] font-extrabold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                                                title="Transferir / Reasignar mesa"
+                                            >
+                                                <span class="material-symbols-outlined text-[12px]">sync_alt</span>
+                                                <span>Transferir</span>
+                                            </button>
+                                        @endif
+                                    @endif
+                                </div>
+                            @elseif($mesa->estado === 'ocupada')
+                                <div class="mt-1.5 flex items-center gap-1 flex-wrap">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-800 border border-amber-500/30 animate-pulse">
+                                        <span class="material-symbols-outlined text-[13px]">hourglass_empty</span>
+                                        <span>En Relevo</span>
+                                    </span>
+                                    @if(auth()->user()?->role?->slug === 'mesero')
+                                        <button 
+                                            type="button"
+                                            wire:click="autoasignarMesa({{ $mesa->id }})"
+                                            class="text-[10px] font-extrabold text-white bg-primary hover:bg-primary-container px-2 py-0.5 rounded-full flex items-center gap-0.5 cursor-pointer transition shadow-xs"
+                                            title="Tomar el relevo y continuar atendiendo comanda activa"
+                                        >
+                                            <span class="material-symbols-outlined text-[12px]">handshake</span>
+                                            <span>+ Tomar Relevo</span>
+                                        </button>
+                                    @elseif(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                                        <button 
+                                            type="button"
+                                            wire:click="abrirModalTransferir({{ $mesa->id }})"
+                                            class="text-[10px] font-extrabold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                                            title="Asignar mesero a esta mesa"
+                                        >
+                                            <span class="material-symbols-outlined text-[12px]">person_add</span>
+                                            <span>Asignar</span>
+                                        </button>
+                                    @endif
+                                </div>
+                            @elseif(auth()->user()?->role?->slug === 'mesero')
+                                <button 
+                                    type="button"
+                                    wire:click="autoasignarMesa({{ $mesa->id }})"
+                                    class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition cursor-pointer border border-surface-container-highest"
+                                    title="Autoasignarme esta mesa"
+                                >
+                                    <span class="material-symbols-outlined text-[12px]">person_add</span>
+                                    <span>+ Atender Mesa</span>
+                                </button>
+                            @elseif(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                                <button 
+                                    type="button"
+                                    wire:click="abrirModalTransferir({{ $mesa->id }})"
+                                    class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest transition cursor-pointer border border-surface-container-highest"
+                                    title="Asignar mesero a esta mesa"
+                                >
+                                    <span class="material-symbols-outlined text-[12px]">person_add</span>
+                                    <span>Asignar Mesero</span>
+                                </button>
+                            @endif
                         </div>
                         <div class="flex flex-col items-end gap-1">
                             <span class="rounded-full border px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider {{ $badgeStyle }}">
@@ -566,7 +777,7 @@ new class extends Component
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-1">Zona del Local *</label>
                         <div class="grid grid-cols-2 gap-2">
-                            @foreach (['salon' => 'Salón Principal', 'barra' => 'Barra Sushi', 'terraza' => 'Terraza Exterior', 'vip' => 'Área VIP'] as $val => $label)
+                            @foreach (['salon' => 'Salón Principal', 'barra' => 'Barra / Bar', 'terraza' => 'Terraza Exterior', 'vip' => 'Área VIP'] as $val => $label)
                                 <button 
                                     type="button"
                                     wire:click="$set('formMesa.zona', '{{ $val }}')"
@@ -674,7 +885,7 @@ new class extends Component
                     <!-- Brand / Restaurant Header -->
                     <div class="space-y-1">
                         <div class="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-stone-900 text-white text-[10px] font-black tracking-widest uppercase">
-                            <span>🍣 SUSHIXPRESS GASTRO</span>
+                            <span>🍽️ RESTOMASTER GOURMET</span>
                         </div>
                         <h3 class="text-3xl font-black text-stone-900 tracking-tight mt-1 font-mono">
                             MESA #{{ $mesaQr->numero }}
@@ -731,6 +942,113 @@ new class extends Component
                     >
                         <span class="material-symbols-outlined text-[18px]">print</span>
                         <span>Imprimir Soporte de Mesa (Stand Acrílico)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Modal Transferir / Asignar Mesa -->
+    @if($modalTransferirOpen && in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+        @php
+            $mesaParaTransferir = $mesas->firstWhere('id', $mesaTransferirId);
+        @endphp
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="w-full max-w-md bg-surface-container-lowest rounded-3xl p-6 shadow-2xl border border-surface-container-highest space-y-5">
+                <div class="flex items-center justify-between pb-3 border-b border-surface-container-high">
+                    <div class="flex items-center gap-2.5">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-on-primary-container">
+                            <span class="material-symbols-outlined text-[20px]">swap_horiz</span>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-black text-on-surface">Transferir / Asignar Mesa</h3>
+                            <p class="text-xs text-on-surface-variant">
+                                Mesa #{{ $mesaParaTransferir?->numero }} · Zona {{ ucfirst($mesaParaTransferir?->zona ?? '') }}
+                            </p>
+                        </div>
+                    </div>
+                    <button 
+                        wire:click="$set('modalTransferirOpen', false)"
+                        class="p-1.5 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                @if($mesaParaTransferir?->mesero)
+                    <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-container-low border border-surface-container-high">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px] text-on-surface-variant">badge</span>
+                            <div>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Atendida actualmente por:</p>
+                                <p class="text-xs font-black text-on-surface">{{ $mesaParaTransferir->mesero->name }}</p>
+                            </div>
+                        </div>
+                        <button 
+                            type="button"
+                            wire:click="desasignarMesero({{ $mesaParaTransferir->id }}); $set('modalTransferirOpen', false)"
+                            class="px-2.5 py-1 text-[11px] font-bold text-error bg-error-container/40 hover:bg-error-container rounded-xl transition cursor-pointer"
+                        >
+                            Liberar
+                        </button>
+                    </div>
+                @else
+                    <div class="p-3 rounded-2xl bg-secondary-container/30 border border-secondary/20 text-xs text-secondary font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">info</span>
+                        <span>Esta mesa actualmente no tiene mesero asignado.</span>
+                    </div>
+                @endif
+
+                <div class="space-y-2">
+                    <label class="block text-xs font-black uppercase tracking-wider text-on-surface-variant">
+                        Seleccionar Mesero Receptor:
+                    </label>
+                    <div class="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+                        @forelse($meserosDisponibles as $mesero)
+                            <label class="flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all {{ $nuevoMeseroId === $mesero->id ? 'border-primary bg-primary/5 shadow-sm' : 'border-surface-container-high bg-surface-container-low hover:bg-surface-container' }}">
+                                <div class="flex items-center gap-3">
+                                    <input 
+                                        type="radio" 
+                                        wire:model.live="nuevoMeseroId" 
+                                        value="{{ $mesero->id }}" 
+                                        class="text-primary focus:ring-primary h-4 w-4"
+                                    />
+                                    <div>
+                                        <p class="text-xs font-black text-on-surface">{{ $mesero->name }}</p>
+                                        <p class="text-[10px] text-on-surface-variant">{{ $mesero->email }}</p>
+                                    </div>
+                                </div>
+                                <span class="material-symbols-outlined text-[18px] text-on-surface-variant">person</span>
+                            </label>
+                        @empty
+                            <p class="text-xs text-on-surface-variant italic py-3 text-center">No hay otros meseros activos registrados.</p>
+                        @endforelse
+                    </div>
+                    @error('nuevoMeseroId') 
+                        <p class="text-xs text-error font-bold mt-1">{{ $message }}</p> 
+                    @enderror
+                </div>
+
+                <div class="p-3 rounded-2xl bg-surface-container-low text-[11px] text-on-surface-variant flex items-start gap-2">
+                    <span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">verified_user</span>
+                    <span>La transferencia es libre e inmediata. Se registrará la entrega y recepción en el log de auditoría del sistema.</span>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2 border-t border-surface-container-high">
+                    <button 
+                        type="button"
+                        wire:click="$set('modalTransferirOpen', false)"
+                        class="flex-1 py-2.5 px-4 rounded-xl border border-surface-container-high bg-surface-container-low text-xs font-extrabold text-on-surface hover:bg-surface-container transition cursor-pointer"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="button"
+                        wire:click="ejecutarTransferenciaMesa"
+                        class="flex-1 py-2.5 px-4 rounded-xl bg-primary text-on-primary text-xs font-black shadow hover:opacity-90 active:scale-98 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-[16px]">check</span>
+                        <span>Confirmar</span>
                     </button>
                 </div>
             </div>

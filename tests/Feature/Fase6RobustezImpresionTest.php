@@ -263,7 +263,7 @@ class Fase6RobustezImpresionTest extends TestCase
         $trabajo = $this->impresionService->despacharTicketVenta($pedido, $this->admin);
 
         $this->assertEquals('ticket_venta', $trabajo->tipo);
-        $this->assertStringContainsString('SUSHIXPRESS COLOMBIA', $trabajo->contenido_texto);
+        $this->assertStringContainsString('RESTOMASTER COLOMBIA', $trabajo->contenido_texto);
         $this->assertStringContainsString('ORD-FACT-778', $trabajo->contenido_texto);
         $this->assertStringContainsString('Valentina Restrepo', $trabajo->contenido_texto);
         $this->assertStringContainsString('Sake Junmai', $trabajo->contenido_texto);
@@ -425,5 +425,43 @@ class Fase6RobustezImpresionTest extends TestCase
             ->assertSee('Servidor de Impresión', false)
             ->call('probarImpresora', $this->impresoraSushi->id)
             ->assertHasNoErrors();
+    }
+
+    public function test_formatear_ticket_venta_cliente_ocasional_sin_telefono_ni_documento(): void
+    {
+        $impresionService = app(ImpresionService::class);
+
+        $clienteOcasional = Cliente::create([
+            'nombre' => 'Comensal Sin Telefono',
+            'telefono' => null,
+            'documento' => null,
+            'tier' => Cliente::TIER_OCASIONAL,
+            'puntos_fidelidad' => 0,
+            'activo' => true,
+        ]);
+
+        $pedido = Pedido::create([
+            'codigo' => 'PED-TEST-001',
+            'sucursal_id' => $this->sucursal->id,
+            'mesa_id' => $this->mesa->id,
+            'usuario_id' => $this->admin->id,
+            'cliente_id' => $clienteOcasional->id,
+            'nombre_cliente' => $clienteOcasional->nombre,
+            'tipo' => 'mesa',
+            'estado' => 'pagado',
+            'metodo_pago' => 'efectivo',
+            'subtotal' => 25000,
+            'total' => 25000,
+            'monto_pagado' => 30000,
+            'cambio' => 5000,
+            'pagado_en' => now(),
+        ]);
+
+        $ticket = $impresionService->formatearTicketVentaTexto($pedido);
+
+        $this->assertNotEmpty($ticket);
+        $this->assertStringContainsString('Comensal Sin Telefono', $ticket);
+        $this->assertStringContainsString('Consumidor Final', $ticket);
+        $this->assertStringContainsString('TOTAL A PAGAR:', $ticket);
     }
 }

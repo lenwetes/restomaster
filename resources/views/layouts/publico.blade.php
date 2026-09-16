@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>{{ $title ?? 'SushiXpress' }} — Barra Nikkei & Cocina Japonesa Contemporánea</title>
+    <title>{{ $title ?? 'RestoMaster' }} — Restaurante & Gastro Experience</title>
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
@@ -70,9 +70,9 @@
                 </div>
                 <div>
                     <div class="flex items-center gap-1.5">
-                        <span class="text-base sm:text-lg font-black tracking-tight text-stone-900">SUSHI<span class="text-[#ff5436]">XPRESS</span></span>
+                        <span class="text-base sm:text-lg font-black tracking-tight text-stone-900">RESTO<span class="text-[#ff5436]">MASTER</span></span>
                     </div>
-                    <p class="text-[10px] text-stone-400 font-bold uppercase tracking-wider hidden sm:block">Barra Nikkei & Gastro Experience</p>
+                    <p class="text-[10px] text-stone-400 font-bold uppercase tracking-wider hidden sm:block">Restaurante & Gastro Experience</p>
                 </div>
             </a>
 
@@ -166,9 +166,9 @@
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
             <div class="space-y-1">
                 <div class="flex items-center justify-center sm:justify-start gap-2">
-                    <span class="text-sm font-black text-stone-900">SushiXpress Medellín</span>
+                    <span class="text-sm font-black text-stone-900">RestoMaster</span>
                     <span class="text-stone-300">·</span>
-                    <span class="text-amber-500 font-bold">Barra Nikkei de Autor</span>
+                    <span class="text-amber-500 font-bold">Gastronomía Artesanal & Parrilla</span>
                 </div>
                 <p class="text-stone-400">Cra 35 # 8A-12, Vía Provenza, El Poblado · Tel: +57 300 123 4567</p>
             </div>
@@ -180,7 +180,7 @@
             </div>
 
             <div>
-                <p class="text-[11px] text-stone-400">© {{ date('Y') }} SushiXpress. Todos los derechos reservados.</p>
+                <p class="text-[11px] text-stone-400">© {{ date('Y') }} RestoMaster. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>

@@ -6,16 +6,22 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 
 class BackupDatabaseCommand extends Command
 {
-    protected $signature = 'sushixpress:backup {--tablas= : Lista opcional de tablas separadas por coma}';
+    protected $signature = 'restomaster:backup
+                            {--tablas= : Lista opcional de tablas separadas por coma}
+                            {--keep=14 : Cantidad de respaldos recientes a conservar en rotación}
+                            {--dump : Forzar uso de pg_dump binario si está disponible}';
 
-    protected $description = 'Genera un volcado estructurado de respaldo de la base de datos de SushiXpress';
+    protected $aliases = ['sushixpress:backup'];
+
+    protected $description = 'Genera un volcado estructurado de respaldo de la base de datos de RestoMaster con streaming y rotación';
 
     public function handle(): int
     {
-        $this->info('Iniciando respaldo seguro de base de datos SushiXpress...');
+        $this->info('Iniciando respaldo seguro de base de datos RestoMaster...');
         $inicio = microtime(true);
 
         $backupDir = storage_path('app/backups');
@@ -23,6 +29,21 @@ class BackupDatabaseCommand extends Command
             File::makeDirectory($backupDir, 0755, true);
         }
 
+        $timestamp = Carbon::now()->format('Y-m-d_His');
+        $conn = config('database.default');
+        $keep = (int) $this->option('keep') ?: 14;
+
+        // Intentar pg_dump binario si es pgsql y se solicita o no hay filtro de tablas
+        if ($conn === 'pgsql' && ($this->option('dump') || ! $this->option('tablas'))) {
+            $dumpResult = $this->ejecutarPgDump($backupDir, $timestamp);
+            if ($dumpResult !== null) {
+                $this->rotarRespaldos($backupDir, $keep);
+
+                return $dumpResult;
+            }
+        }
+
+        // Respaldo streaming mediante cursores (bajo uso de memoria y sin desbordamiento)
         $tablasPorDefecto = [
             'users',
             'roles',
@@ -58,8 +79,7 @@ class BackupDatabaseCommand extends Command
             $tablas = $tablasPorDefecto;
         }
 
-        $timestamp = Carbon::now()->format('Y-m-d_His');
-        $filename = "sushixpress_backup_{$timestamp}.sql";
+        $filename = "restomaster_backup_{$timestamp}.sql";
         $filepath = "{$backupDir}/{$filename}";
 
         $fp = fopen($filepath, 'w');
@@ -70,22 +90,22 @@ class BackupDatabaseCommand extends Command
         }
 
         fwrite($fp, "-- ========================================================\n");
-        fwrite($fp, "-- SushiXpress POS Enterprise — Volcado de Respaldo\n");
+        fwrite($fp, "-- RestoMaster POS Enterprise — Volcado de Respaldo\n");
         fwrite($fp, '-- Fecha: '.Carbon::now()->toIso8601String()."\n");
-        fwrite($fp, '-- Servidor: '.config('database.default')."\n");
+        fwrite($fp, '-- Servidor: '.$conn."\n");
         fwrite($fp, "-- ========================================================\n\n");
 
         $totalRegistros = 0;
 
         foreach ($tablas as $tabla) {
             try {
-                $registros = DB::table($tabla)->get();
-                $count = $registros->count();
+                $count = DB::table($tabla)->count();
                 $totalRegistros += $count;
 
                 fwrite($fp, "-- Tabla: {$tabla} ({$count} registros)\n");
 
-                foreach ($registros as $row) {
+                // Streaming por cursor para no materializar todas las filas en RAM
+                foreach (DB::table($tabla)->cursor() as $row) {
                     $rowArray = (array) $row;
                     $cols = array_keys($rowArray);
                     $vals = array_map(function ($val) {
@@ -95,8 +115,12 @@ class BackupDatabaseCommand extends Command
                         if (is_bool($val)) {
                             return $val ? 'true' : 'false';
                         }
+                        if (is_int($val) || is_float($val)) {
+                            return (string) $val;
+                        }
 
-                        return "'".addslashes((string) $val)."'";
+                        // Escape SQL estándar seguro evitando corrupción de backslashes
+                        return "'".str_replace("'", "''", (string) $val)."'";
                     }, array_values($rowArray));
 
                     $colList = '"'.implode('", "', $cols).'"';
@@ -116,6 +140,9 @@ class BackupDatabaseCommand extends Command
 
         $duracion = round(microtime(true) - $inicio, 2);
         $tamanoKb = round(filesize($filepath) / 1024, 2);
+        $sha256 = hash_file('sha256', $filepath);
+
+        $this->rotarRespaldos($backupDir, $keep);
 
         $this->newLine();
         $this->info("✓ Respaldo completado exitosamente en {$duracion} s.");
@@ -125,11 +152,89 @@ class BackupDatabaseCommand extends Command
                 ['Archivo Generado', $filename],
                 ['Ruta Completa', $filepath],
                 ['Tamaño del Archivo', "{$tamanoKb} KB"],
+                ['Checksum (SHA256)', substr($sha256, 0, 16).'...'],
                 ['Registros Respaldados', (string) $totalRegistros],
                 ['Tablas Procesadas', (string) count($tablas)],
             ]
         );
 
         return Command::SUCCESS;
+    }
+
+    protected function ejecutarPgDump(string $backupDir, string $timestamp): ?int
+    {
+        $dbConfig = config('database.connections.pgsql');
+        if (! $dbConfig) {
+            return null;
+        }
+
+        $host = $dbConfig['host'] ?? '127.0.0.1';
+        $port = (string) ($dbConfig['port'] ?? 5432);
+        $user = $dbConfig['username'] ?? 'postgres';
+        $dbname = $dbConfig['database'] ?? 'restomaster';
+        $password = $dbConfig['password'] ?? '';
+
+        $filename = "restomaster_backup_{$timestamp}.dump";
+        $filepath = "{$backupDir}/{$filename}";
+
+        try {
+            $env = array_merge($_ENV, [
+                'PGPASSWORD' => $password,
+            ]);
+
+            $result = Process::timeout(300)
+                ->env($env)
+                ->path($backupDir)
+                ->run([
+                    'pg_dump',
+                    '-h', $host,
+                    '-p', $port,
+                    '-U', $user,
+                    '-Fc',
+                    '-Z', '9',
+                    '-f', $filepath,
+                    $dbname,
+                ]);
+
+            if ($result->successful() && File::exists($filepath) && filesize($filepath) > 0) {
+                $tamanoKb = round(filesize($filepath) / 1024, 2);
+                $sha256 = hash_file('sha256', $filepath);
+                $this->info('✓ Respaldo nativo pg_dump generado exitosamente (-Fc, compresión 9).');
+                $this->table(
+                    ['Propiedad', 'Detalle'],
+                    [
+                        ['Archivo Generado', $filename],
+                        ['Ruta Completa', $filepath],
+                        ['Formato', 'PostgreSQL Custom Dump (-Fc)'],
+                        ['Tamaño del Archivo', "{$tamanoKb} KB"],
+                        ['Checksum (SHA256)', substr($sha256, 0, 16).'...'],
+                    ]
+                );
+
+                return Command::SUCCESS;
+            }
+        } catch (\Throwable $e) {
+            // Si pg_dump no está en el PATH o falla, se continúa con streaming cursor
+            $this->comment('pg_dump no disponible o falló en el entorno actual. Utilizando volcado por cursor streaming...');
+        }
+
+        return null;
+    }
+
+    protected function rotarRespaldos(string $backupDir, int $keep = 14): void
+    {
+        $archivos = File::glob("{$backupDir}/*_backup_*.*");
+        if (count($archivos) <= $keep) {
+            return;
+        }
+
+        // Ordenar por tiempo de modificación descendente (más nuevos primero)
+        usort($archivos, fn ($a, $b) => filemtime($b) <=> filemtime($a));
+
+        $aBorrar = array_slice($archivos, $keep);
+        foreach ($aBorrar as $archivo) {
+            File::delete($archivo);
+            $this->comment('Rotación: eliminado respaldo antiguo '.basename($archivo));
+        }
     }
 }

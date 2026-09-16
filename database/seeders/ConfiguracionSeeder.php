@@ -14,7 +14,7 @@ class ConfiguracionSeeder extends Seeder
 
         $defaults = [
             'general' => [
-                'razon_social' => 'SushiXpress S.A.S.',
+                'razon_social' => 'RestoMaster Colombia S.A.S.',
                 'nit' => '901.458.789-3',
                 'direccion' => 'Cra 35 # 8A-12, El Poblado',
                 'telefono' => '+57 300 123 4567',
@@ -44,14 +44,14 @@ class ConfiguracionSeeder extends Seeder
             'database_external' => [
                 'host' => '127.0.0.1',
                 'port' => 5432,
-                'database' => 'sushixpress',
+                'database' => 'restomaster',
                 'username' => 'postgres',
                 'password' => '',
                 'sslmode' => 'prefer',
                 'activo' => false,
             ],
             'impresion' => [
-                'pie_ticket' => '¡Gracias por preferir SushiXpress!',
+                'pie_ticket' => '¡Gracias por preferir RestoMaster!',
             ],
         ];
 

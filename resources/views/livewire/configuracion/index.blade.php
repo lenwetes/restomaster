@@ -42,7 +42,7 @@ new class extends Component
         $svc = app(ConfiguracionService::class);
 
         $this->dianForm = [
-            'razon_social' => $svc->obtener('general', 'razon_social', 'SushiXpress S.A.S.'),
+            'razon_social' => $svc->obtener('general', 'razon_social', 'RestoMaster Colombia S.A.S.'),
             'nit' => $svc->obtener('general', 'nit', '901.458.789-3'),
             'regimen' => $svc->obtener('general', 'regimen', 'Común'),
             'ambiente' => $svc->obtener('dian', 'ambiente', 'habilitacion'),
@@ -57,7 +57,7 @@ new class extends Component
         ];
 
         $this->empresaForm = [
-            'razon_social' => $svc->obtener('general', 'razon_social', 'SushiXpress S.A.S.'),
+            'razon_social' => $svc->obtener('general', 'razon_social', 'RestoMaster Colombia S.A.S.'),
             'nit' => $svc->obtener('general', 'nit', '901.458.789-3'),
             'direccion' => $svc->obtener('general', 'direccion', 'Cra 35 # 8A-12, El Poblado'),
             'telefono' => $svc->obtener('general', 'telefono', '+57 300 123 4567'),
@@ -82,7 +82,7 @@ new class extends Component
         $this->dbForm = [
             'host' => $svc->obtener('database_external', 'host', config('database.connections.pgsql.host', '127.0.0.1')),
             'port' => (int) $svc->obtener('database_external', 'port', config('database.connections.pgsql.port', 5432)),
-            'database' => $svc->obtener('database_external', 'database', config('database.connections.pgsql.database', 'sushixpress')),
+            'database' => $svc->obtener('database_external', 'database', config('database.connections.pgsql.database', 'restomaster')),
             'username' => $svc->obtener('database_external', 'username', config('database.connections.pgsql.username', 'postgres')),
             'password' => $svc->obtener('database_external', 'password', ''),
             'sslmode' => $svc->obtener('database_external', 'sslmode', 'prefer'),
@@ -204,7 +204,7 @@ new class extends Component
 
     public function crearBackup(): void
     {
-        Artisan::call('sushixpress:backup');
+        Artisan::call('restomaster:backup');
         session()->flash('status', 'Copia de seguridad generada con éxito.');
         $this->dispatch('notificacion', ['mensaje' => 'Backup de BD generado con éxito', 'tipo' => 'success']);
     }
@@ -476,15 +476,15 @@ new class extends Component
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
                                     <label class="text-xs font-bold text-on-surface-variant">Nombre Comercial</label>
-                                    <input type="text" wire:model.live="ticketForm.nombre_comercial" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" placeholder="Ej: SUSHIEXPRESS" />
+                                    <input type="text" wire:model.live="ticketForm.nombre_comercial" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" placeholder="Ej: RESTOMASTER" />
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-on-surface-variant">Lema / Slogan</label>
-                                    <input type="text" wire:model.live="ticketForm.lema" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="Ej: Auténtico Sushi Fusión" />
+                                    <input type="text" wire:model.live="ticketForm.lema" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="Ej: Gastronomía de Autor & Parrilla" />
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-on-surface-variant">Razón Social</label>
-                                    <input type="text" wire:model.live="ticketForm.razon_social" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="SushiXpress S.A.S." />
+                                    <input type="text" wire:model.live="ticketForm.razon_social" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="RestoMaster Colombia S.A.S." />
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-on-surface-variant">NIT / Identificación Tributaria</label>
@@ -548,8 +548,8 @@ new class extends Component
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div>
-                                    <label class="text-xs font-bold text-on-surface-variant">Redes Sociales / Enlace Web</label>
-                                    <input type="text" wire:model.live="ticketForm.redes_sociales" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="@sushixpress · sushixpress.com" />
+                                    <label class="text-xs font-bold text-on-surface-variant">Redes Sociales / Web</label>
+                                    <input type="text" wire:model.live="ticketForm.redes_sociales" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="@restomaster · restomaster.com" />
                                 </div>
                                 <div>
                                     <label class="text-xs font-bold text-on-surface-variant">Términos o Política de Reclamo</label>
@@ -588,11 +588,11 @@ new class extends Component
 
                         <!-- Header del ticket -->
                         <div class="text-center space-y-1 pb-2 border-b border-dashed border-gray-400">
-                            <p class="text-base font-black tracking-wider uppercase">{{ $ticketForm['nombre_comercial'] ?: 'SUSHIEXPRESS' }}</p>
+                            <p class="text-base font-black tracking-wider uppercase">{{ $ticketForm['nombre_comercial'] ?: 'RESTOMASTER' }}</p>
                             @if(!empty($ticketForm['lema']))
                                 <p class="text-[10px] font-semibold text-gray-600">{{ $ticketForm['lema'] }}</p>
                             @endif
-                            <p class="text-[10px] font-bold">{{ $ticketForm['razon_social'] ?: 'SushiXpress Colombia S.A.S.' }}</p>
+                            <p class="text-[10px] font-bold">{{ $ticketForm['razon_social'] ?: 'RestoMaster Colombia S.A.S.' }}</p>
                             <p class="text-[10px]">{{ $ticketForm['nit'] ?: 'NIT: 901.458.789-3' }}</p>
                             <p class="text-[9px] text-gray-600">{{ $ticketForm['regimen'] ?: 'IVA Régimen Común' }}</p>
                             <p class="text-[10px]">{{ $ticketForm['direccion'] ?: 'Cra 35 # 8A-12, Medellín' }}</p>
@@ -698,7 +698,7 @@ new class extends Component
                                 </div>
                             @endif
 
-                            <p class="text-[8px] text-gray-400 pt-2">*** SOFTWARE POS SUSHIEXPRESS ***</p>
+                            <p class="text-[8px] text-gray-400 pt-2">*** SOFTWARE POS RESTOMASTER ***</p>
                         </div>
 
                         <!-- Corte dentado inferior -->
@@ -748,7 +748,7 @@ new class extends Component
                     </div>
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Nombre de la Base de Datos</label>
-                        <input type="text" wire:model="dbForm.database" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" placeholder="sushixpress_cloud" />
+                        <input type="text" wire:model="dbForm.database" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" placeholder="restomaster_cloud" />
                     </div>
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Usuario</label>
@@ -1002,8 +1002,8 @@ new class extends Component
                                 <label class="text-xs font-bold text-on-surface-variant">Área Asignada</label>
                                 <select wire:model="impresoraForm.area" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0">
                                     <option value="caja">Caja / Facturación</option>
-                                    <option value="sushi">Cocina Sushi / Fría</option>
-                                    <option value="caliente">Cocina Caliente / Wok</option>
+                                    <option value="sushi">Cocina Fría & Entradas</option>
+                                    <option value="caliente">Cocina Caliente & Parrilla</option>
                                     <option value="barra">Barra / Bebidas</option>
                                 </select>
                             </div>

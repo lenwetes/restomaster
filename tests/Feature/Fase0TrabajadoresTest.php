@@ -189,6 +189,7 @@ class Fase0TrabajadoresTest extends TestCase
             ->set('mostrarModalNuevo', true)
             ->set('nuevo.nombre', 'Paula Sede')
             ->set('nuevo.email', 'paula@test.com')
+            ->set('nuevo.telefono', '3119876543')
             ->set('nuevo.password', 'Secret-123')
             ->set('nuevo.role_id', $this->cajero->role_id)
             ->set('nuevo.sucursal_id', $this->sucursal->id)

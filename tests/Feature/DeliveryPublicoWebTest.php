@@ -29,7 +29,7 @@ class DeliveryPublicoWebTest extends TestCase
         parent::setUp();
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RestoMaster Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,
@@ -65,7 +65,7 @@ class DeliveryPublicoWebTest extends TestCase
     {
         $response = $this->get('/delivery/pedir');
         $response->assertStatus(200);
-        $response->assertSee('SushiXpress');
+        $response->assertSee('RestoMaster');
         $response->assertSee('Delivery');
         $response->assertSee('Salmón Trufado Roll');
     }

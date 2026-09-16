@@ -9,12 +9,12 @@ class InsumoPolicy
 {
     public function viewAny(User $user): bool
     {
-        return in_array($user->role?->slug, ['cocina', 'barra', 'gerente', 'admin']);
+        return in_array($user->role?->slug, ['gerente', 'admin']);
     }
 
     public function view(User $user, Insumo $insumo): bool
     {
-        return in_array($user->role?->slug, ['cocina', 'barra', 'gerente', 'admin']);
+        return in_array($user->role?->slug, ['gerente', 'admin']);
     }
 
     public function create(User $user): bool

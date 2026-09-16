@@ -451,7 +451,7 @@ class ImpresionService
         $ancho = $impresora->ancho_columnas ?: self::ANCHO_80MM;
 
         $t = '';
-        $t .= $this->centrar('SUSHIXPRESS ENTERPRISE', $ancho)."\n";
+        $t .= $this->centrar('RESTOMASTER ENTERPRISE', $ancho)."\n";
         $t .= $this->centrar('TEST DE CONEXIÓN ESC/POS', $ancho)."\n";
         $t .= $this->lineaSeparadora($ancho, '=')."\n";
         $t .= $this->alinearDosColumnas('Impresora:', $impresora->nombre, $ancho)."\n";
@@ -500,7 +500,7 @@ class ImpresionService
         }
 
         $salida = '';
-        $salida .= $this->centrar('SUSHIXPRESS · KDS COCINA', $ancho)."\n";
+        $salida .= $this->centrar('RESTOMASTER · KDS COCINA', $ancho)."\n";
         $salida .= $this->centrar('COMANDA ÁREA: '.strtoupper($area), $ancho)."\n";
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
         $salida .= $this->alinearDosColumnas("ORDEN: #{$pedido->codigo}", $destino, $ancho)."\n";
@@ -531,7 +531,7 @@ class ImpresionService
         $fecha = $pedido->pagado_en ? Carbon::parse($pedido->pagado_en)->format('d/m/Y H:i') : Carbon::now()->format('d/m/Y H:i');
 
         $salida = '';
-        $salida .= $this->centrar('SUSHIXPRESS COLOMBIA S.A.S.', $ancho)."\n";
+        $salida .= $this->centrar('RESTOMASTER COLOMBIA S.A.S.', $ancho)."\n";
         $salida .= $this->centrar('NIT 901.458.789-2 · RÉGIMEN SIMPLE', $ancho)."\n";
         $salida .= $this->centrar('Calle 10 # 36-24, El Poblado, Medellín', $ancho)."\n";
         $salida .= $this->centrar('Tel: +57 (604) 448-9000', $ancho)."\n";
@@ -541,11 +541,19 @@ class ImpresionService
         $salida .= $this->alinearDosColumnas('FACTURA ELECTRÓNICA POS:', "#{$pedido->codigo}", $ancho)."\n";
         $salida .= $this->alinearDosColumnas('FECHA:', $fecha, $ancho)."\n";
         $salida .= $this->alinearDosColumnas('CAJERO:', $pedido->usuario->name ?? 'Caja Central', $ancho)."\n";
+        if ($pedido->mesero) {
+            $salida .= $this->alinearDosColumnas('MESERO:', $pedido->mesero->name, $ancho)."\n";
+        }
 
         if ($pedido->cliente) {
-            $salida .= $this->alinearDosColumnas('CLIENTE:', $pedido->cliente->nombre, $ancho)."\n";
-            $salida .= $this->alinearDosColumnas('DOC / TEL:', ($pedido->cliente->documento ?: $pedido->cliente->telefono), $ancho)."\n";
+            $nombreCli = $pedido->cliente->nombre ?: ($pedido->nombre_cliente ?: 'Consumidor Final');
+            $docTel = $pedido->cliente->documento ?: ($pedido->cliente->telefono ?: 'Consumidor Final');
+            $salida .= $this->alinearDosColumnas('CLIENTE:', $nombreCli, $ancho)."\n";
+            $salida .= $this->alinearDosColumnas('DOC / TEL:', $docTel, $ancho)."\n";
             $salida .= $this->alinearDosColumnas('PUNTOS CLUB:', "{$pedido->cliente->puntos_fidelidad} pts ({$pedido->cliente->tier})", $ancho)."\n";
+        } elseif (! empty($pedido->nombre_cliente)) {
+            $salida .= $this->alinearDosColumnas('CLIENTE:', $pedido->nombre_cliente, $ancho)."\n";
+            $salida .= $this->alinearDosColumnas('DOC / TEL:', 'Consumidor Final', $ancho)."\n";
         }
 
         $salida .= $this->lineaSeparadora($ancho, '-')."\n";
@@ -577,8 +585,14 @@ class ImpresionService
             $salida .= $this->alinearDosColumnas('TARIFA DOMICILIO:', '$ '.number_format($pedido->costo_envio, 0), $ancho)."\n";
         }
 
+        if ((float) ($pedido->propina ?? 0) > 0) {
+            $porcentajeStr = (float) $pedido->porcentaje_propina > 0 ? ' ('.round((float) $pedido->porcentaje_propina).'%)' : '';
+            $salida .= $this->alinearDosColumnas("PROPINA VOLUNTARIA{$porcentajeStr}:", '$ '.number_format($pedido->propina, 0), $ancho)."\n";
+        }
+
+        $totalFinal = (float) $pedido->total + (float) ($pedido->propina ?? 0);
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
-        $salida .= $this->alinearDosColumnas('TOTAL A PAGAR:', '$ '.number_format($pedido->total, 0).' COP', $ancho)."\n";
+        $salida .= $this->alinearDosColumnas('TOTAL A PAGAR:', '$ '.number_format($totalFinal, 0).' COP', $ancho)."\n";
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
 
         $metodo = strtoupper($pedido->metodo_pago ?: 'EFECTIVO');
@@ -594,7 +608,7 @@ class ImpresionService
         }
 
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
-        $salida .= $this->centrar('GRACIAS POR PREFERIR SUSHIXPRESS', $ancho)."\n";
+        $salida .= $this->centrar('GRACIAS POR PREFERIR RESTOMASTER', $ancho)."\n";
         $salida .= $this->centrar('Propina voluntaria no incluida', $ancho)."\n";
         $salida .= $this->centrar('Conserve este recibo para reclamos', $ancho)."\n\n\n";
 
@@ -608,7 +622,7 @@ class ImpresionService
         $cierre = $turno->cierre_en ? Carbon::parse($turno->cierre_en)->format('d/m/Y H:i') : Carbon::now()->format('d/m/Y H:i');
 
         $salida = '';
-        $salida .= $this->centrar('SUSHIXPRESS · CONTROL FISCAL', $ancho)."\n";
+        $salida .= $this->centrar('RESTOMASTER · CONTROL FISCAL', $ancho)."\n";
         $salida .= $this->centrar('REPORTE Z — CIERRE DIARIO DE CAJA', $ancho)."\n";
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
         $salida .= $this->alinearDosColumnas('TURNO ID:', "#{$turno->id}", $ancho)."\n";
@@ -618,19 +632,27 @@ class ImpresionService
         $salida .= $this->alinearDosColumnas('CIERRE:', $cierre, $ancho)."\n";
         $salida .= $this->lineaSeparadora($ancho, '-')."\n";
 
-        $salida .= $this->alinearDosColumnas('FONDO INICIAL:', '$ '.number_format($turno->monto_apertura, 2), $ancho)."\n";
-        $salida .= $this->alinearDosColumnas('TOTAL VENTAS (+):', '$ '.number_format($turno->total_ventas, 2), $ancho)."\n";
-        $salida .= $this->alinearDosColumnas('TOTAL INGRESOS (+):', '$ '.number_format($turno->total_ingresos, 2), $ancho)."\n";
-        $salida .= $this->alinearDosColumnas('TOTAL EGRESOS (-):', '$ '.number_format($turno->total_egresos, 2), $ancho)."\n";
-        $salida .= $this->alinearDosColumnas('TOTAL RETIROS (-):', '$ '.number_format($turno->total_retiros, 2), $ancho)."\n";
+        $montoInicial = (float) ($turno->monto_inicial ?? 0);
+        $totalVentas = (float) ($turno->total_ventas_efectivo ?? 0)
+            + (float) ($turno->total_ventas_tarjeta ?? 0)
+            + (float) ($turno->total_ventas_transferencia ?? 0);
+        $totalIngresos = (float) ($turno->total_ingresos ?? 0);
+        $totalEgresos = (float) ($turno->total_egresos ?? 0);
+        $totalRetiros = (float) ($turno->total_retiros ?? 0);
+
+        $salida .= $this->alinearDosColumnas('FONDO INICIAL:', '$ '.number_format($montoInicial, 2), $ancho)."\n";
+        $salida .= $this->alinearDosColumnas('TOTAL VENTAS (+):', '$ '.number_format($totalVentas, 2), $ancho)."\n";
+        $salida .= $this->alinearDosColumnas('TOTAL INGRESOS (+):', '$ '.number_format($totalIngresos, 2), $ancho)."\n";
+        $salida .= $this->alinearDosColumnas('TOTAL EGRESOS (-):', '$ '.number_format($totalEgresos, 2), $ancho)."\n";
+        $salida .= $this->alinearDosColumnas('TOTAL RETIROS (-):', '$ '.number_format($totalRetiros, 2), $ancho)."\n";
         $salida .= $this->lineaSeparadora($ancho, '-')."\n";
 
-        $saldoEsperado = (float) $turno->monto_apertura + (float) $turno->total_ventas + (float) $turno->total_ingresos - (float) $turno->total_egresos - (float) $turno->total_retiros;
+        $saldoEsperado = $montoInicial + (float) ($turno->total_ventas_efectivo ?? 0) + $totalIngresos - $totalEgresos - $totalRetiros;
         $salida .= $this->alinearDosColumnas('SALDO CALCULADO EN SISTEMA:', '$ '.number_format($saldoEsperado, 2), $ancho)."\n";
 
-        if ($turno->monto_cierre_real !== null) {
-            $salida .= $this->alinearDosColumnas('ARQUEO FÍSICO CONTADO:', '$ '.number_format($turno->monto_cierre_real, 2), $ancho)."\n";
-            $salida .= $this->alinearDosColumnas('DIFERENCIA:', '$ '.number_format($turno->diferencia, 2), $ancho)."\n";
+        if ($turno->monto_real_efectivo !== null) {
+            $salida .= $this->alinearDosColumnas('ARQUEO FÍSICO CONTADO:', '$ '.number_format((float) $turno->monto_real_efectivo, 2), $ancho)."\n";
+            $salida .= $this->alinearDosColumnas('DIFERENCIA:', '$ '.number_format((float) $turno->diferencia, 2), $ancho)."\n";
         }
 
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
@@ -643,8 +665,9 @@ class ImpresionService
     // HELPERS ESC/POS Y TIPOGRAFÍA TÉRMICA
     // ==========================================
 
-    public function centrar(string $texto, int $ancho = self::ANCHO_80MM): string
+    public function centrar(?string $texto, int $ancho = self::ANCHO_80MM): string
     {
+        $texto = (string) ($texto ?? '');
         $longitud = mb_strlen($texto);
         if ($longitud >= $ancho) {
             return $texto;
@@ -654,8 +677,9 @@ class ImpresionService
         return str_repeat(' ', $espaciosIzq).$texto;
     }
 
-    public function alinearDosColumnas(string $izq, string $der, int $ancho = self::ANCHO_80MM): string
+    public function alinearDosColumnas(string $izq, ?string $der, int $ancho = self::ANCHO_80MM): string
     {
+        $der = (string) ($der ?? '');
         $lenIzq = mb_strlen($izq);
         $lenDer = mb_strlen($der);
         $espacioDisponible = max(1, $ancho - $lenIzq - $lenDer);

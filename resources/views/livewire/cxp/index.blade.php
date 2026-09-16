@@ -12,11 +12,14 @@ new class extends Component
     public array $pagoForm = [
         'monto' => '',
         'metodo_pago' => 'efectivo',
+        'comprobante' => '',
+        'notas' => '',
     ];
 
     public array $crearForm = [
         'proveedor_nombre' => '',
         'proveedor_nit' => '',
+        'numero_factura' => '',
         'concepto' => '',
         'monto_total' => '',
         'fecha_emision' => '',
@@ -53,8 +56,12 @@ new class extends Component
     public function abrirPago(int $cuentaId): void
     {
         $this->cuentaPagoId = $cuentaId;
-        $this->reset('pagoForm');
-        $this->pagoForm['metodo_pago'] = 'efectivo';
+        $this->pagoForm = [
+            'monto' => '',
+            'metodo_pago' => 'efectivo',
+            'comprobante' => '',
+            'notas' => '',
+        ];
     }
 
     public function registrarPago(): void
@@ -65,6 +72,8 @@ new class extends Component
             'cuentaPagoId' => ['required', 'integer'],
             'pagoForm.monto' => ['required', 'numeric', 'min:0.01'],
             'pagoForm.metodo_pago' => ['required', 'string'],
+            'pagoForm.comprobante' => ['nullable', 'string', 'max:100'],
+            'pagoForm.notas' => ['nullable', 'string', 'max:255'],
         ]);
 
         $cuenta = CuentaPorPagar::findOrFail($this->cuentaPagoId);
@@ -77,13 +86,25 @@ new class extends Component
             return;
         }
 
+        $comprobante = trim($validated['pagoForm']['comprobante'] ?? '');
+        $notas = trim($validated['pagoForm']['notas'] ?? '');
+        $conceptoPartes = array_filter(['Abono a cuenta', $comprobante ? "Comp: {$comprobante}" : null, $notas ?: null]);
+        $concepto = implode(' - ', $conceptoPartes);
+
         app(CuentasPorPagarService::class)->registrarPago(
             $cuenta,
             (float) $validated['pagoForm']['monto'],
             metodoPago: $validated['pagoForm']['metodo_pago'],
+            concepto: $concepto,
         );
 
-        $this->reset('cuentaPagoId', 'pagoForm');
+        $this->reset('cuentaPagoId');
+        $this->pagoForm = [
+            'monto' => '',
+            'metodo_pago' => 'efectivo',
+            'comprobante' => '',
+            'notas' => '',
+        ];
         $this->dispatch('close-modal', 'modal-pago');
         session()->flash('status', 'Abono registrado.');
     }
@@ -99,9 +120,12 @@ new class extends Component
 
         $validated = $this->validate([
             'crearForm.proveedor_nombre' => ['required', 'string', 'max:255'],
+            'crearForm.proveedor_nit' => ['nullable', 'string', 'max:30'],
+            'crearForm.numero_factura' => ['nullable', 'string', 'max:50'],
             'crearForm.concepto' => ['required', 'string', 'max:255'],
             'crearForm.monto_total' => ['required', 'numeric', 'min:0.01'],
             'crearForm.fecha_emision' => ['required', 'date'],
+            'crearForm.fecha_vencimiento' => ['nullable', 'date'],
         ]);
 
         app(CuentasPorPagarService::class)->crear($validated['crearForm']);
@@ -113,7 +137,13 @@ new class extends Component
 
     public function cerrarModales(): void
     {
-        $this->reset('cuentaPagoId', 'pagoForm', 'modalCrear');
+        $this->reset('cuentaPagoId', 'modalCrear');
+        $this->pagoForm = [
+            'monto' => '',
+            'metodo_pago' => 'efectivo',
+            'comprobante' => '',
+            'notas' => '',
+        ];
     }
 }; ?>
 
@@ -196,9 +226,19 @@ new class extends Component
                     <div class="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-4">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div class="min-w-0">
-                                <p class="text-sm font-extrabold text-on-surface truncate">{{ $cuenta->concepto }}</p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-sm font-extrabold text-on-surface truncate">{{ $cuenta->concepto }}</p>
+                                    @if ($cuenta->numero_factura)
+                                        <span class="rounded-lg bg-surface-container-high px-2 py-0.5 text-[10px] font-black text-on-surface-variant border border-outline-variant/30">
+                                            Factura #{{ $cuenta->numero_factura }}
+                                        </span>
+                                    @endif
+                                </div>
                                 <p class="text-[11px] text-on-surface-variant mt-0.5">
                                     {{ $cuenta->proveedor_nombre }}
+                                    @if ($cuenta->proveedor_nit)
+                                        (NIT: {{ $cuenta->proveedor_nit }})
+                                    @endif
                                     @if ($cuenta->fecha_vencimiento)
                                         · Vence {{ $cuenta->fecha_vencimiento->format('d/m/Y') }}
                                     @endif
@@ -251,7 +291,7 @@ new class extends Component
                     <p class="mt-3 rounded-xl bg-error/10 px-3 py-2 text-xs font-bold text-error">{{ $message }}</p>
                 @enderror
 
-                <form wire:submit="registrarAbono" class="mt-4 space-y-4">
+                <form wire:submit="registrarPago" class="mt-4 space-y-4">
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Monto del abono</label>
                         <input type="number" step="0.01" min="0.01" wire:model="pagoForm.monto"
@@ -295,7 +335,7 @@ new class extends Component
                     </button>
                 </div>
 
-                <form wire:submit="guardarCuenta" class="mt-4 space-y-3">
+                <form wire:submit="crearCuenta" class="mt-4 space-y-3">
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Proveedor</label>
                         <input type="text" wire:model="crearForm.proveedor_nombre" required

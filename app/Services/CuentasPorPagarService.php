@@ -6,6 +6,7 @@ use App\Models\CuentaPorPagar;
 use App\Models\PagoCxp;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class CuentasPorPagarService
@@ -24,6 +25,7 @@ class CuentasPorPagarService
         return CuentaPorPagar::create([
             'proveedor_nombre' => $datos['proveedor_nombre'],
             'proveedor_nit' => $datos['proveedor_nit'] ?? null,
+            'numero_factura' => $datos['numero_factura'] ?? null,
             'insumo_id' => $datos['insumo_id'] ?? null,
             'concepto' => $datos['concepto'],
             'monto_total' => $monto,
@@ -45,31 +47,45 @@ class CuentasPorPagarService
         ?User $usuario = null,
         string $metodoPago = 'efectivo',
         ?string $concepto = null,
+        ?string $comprobante = null,
+        ?string $notas = null,
     ): PagoCxp {
         if ($monto <= 0) {
             throw new InvalidArgumentException('El monto del pago debe ser mayor a cero.');
         }
 
-        $saldo = (float) $cuenta->saldo_pendiente;
-
-        if ($monto > $saldo) {
-            throw new InvalidArgumentException("El pago ({$monto}) no puede superar el saldo pendiente ({$saldo}).");
-        }
-
-        $cuenta->saldo_pendiente = $saldo - $monto;
-        if ($cuenta->saldo_pendiente == 0) {
-            $cuenta->estado = 'pagada';
-        }
-        $cuenta->save();
-
-        return PagoCxp::create([
-            'cuenta_por_pagar_id' => $cuenta->id,
-            'user_id' => $usuario?->id ?? auth()->id(),
-            'monto' => $monto,
-            'metodo_pago' => $metodoPago,
-            'fecha_pago' => now()->toDateString(),
-            'concepto' => $concepto,
+        $partesConcepto = array_filter([
+            $concepto,
+            $comprobante ? "Comprobante: {$comprobante}" : null,
+            $notas ? "Notas: {$notas}" : null,
         ]);
+        $conceptoFinal = ! empty($partesConcepto) ? implode(' | ', $partesConcepto) : null;
+
+        return DB::transaction(function () use ($cuenta, $monto, $usuario, $metodoPago, $conceptoFinal) {
+            $cuentaLocked = CuentaPorPagar::whereKey($cuenta->id)->lockForUpdate()->firstOrFail();
+
+            $saldo = (float) $cuentaLocked->saldo_pendiente;
+
+            if ($monto > $saldo) {
+                throw new InvalidArgumentException("El pago ({$monto}) no puede superar el saldo pendiente ({$saldo}).");
+            }
+
+            $nuevoSaldo = round($saldo - $monto, 2);
+            $cuentaLocked->saldo_pendiente = $nuevoSaldo;
+            if ($nuevoSaldo <= 0) {
+                $cuentaLocked->estado = 'pagada';
+            }
+            $cuentaLocked->save();
+
+            return PagoCxp::create([
+                'cuenta_por_pagar_id' => $cuentaLocked->id,
+                'user_id' => $usuario?->id ?? auth()->id(),
+                'monto' => $monto,
+                'metodo_pago' => $metodoPago,
+                'fecha_pago' => now()->toDateString(),
+                'concepto' => $conceptoFinal,
+            ]);
+        });
     }
 
     /**

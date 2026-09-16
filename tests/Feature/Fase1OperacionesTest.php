@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Enums\MesaEstado;
+use App\Models\Caja;
 use App\Models\Categoria;
 use App\Models\Mesa;
 use App\Models\Producto;
 use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\User;
+use App\Services\CajaService;
 use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -44,6 +46,15 @@ class Fase1OperacionesTest extends TestCase
         $rolAdmin = Role::create(['nombre' => 'Admin', 'slug' => 'admin']);
 
         $this->usuario = User::factory()->create(['role_id' => $rolAdmin->id]);
+
+        $caja = Caja::create([
+            'sucursal_id' => $this->sucursal->id,
+            'nombre' => 'Caja Test',
+            'codigo' => 'CAJA-F1',
+            'activa' => true,
+        ]);
+
+        app(CajaService::class)->abrirTurno($caja, $this->usuario, 100000.00, 'Apertura');
 
         $this->mesa = Mesa::create([
             'sucursal_id' => $this->sucursal->id,

@@ -5,3 +5,4 @@ Before planning or editing, find the row whose globs match the file's path and r
 | Applies to | Rule file |
 | --- | --- |
 | resources/views/livewire/** | .ai/rules/livewire.md |
+| app/Services/**, app/Services/PedidoService.php | .ai/rules/services.md |

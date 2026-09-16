@@ -25,12 +25,22 @@ new class extends Component
         'descripcion' => '',
         'precio' => null,
         'costo' => 0,
-        'area_cocina' => 'sushi',
+        'area_cocina' => 'caliente',
     ];
+
+    private function autorizarGestionMenu(): void
+    {
+        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Acción reservada al Administrador y Gerente.');
+    }
+
+    public function puedeGestionarMenu(): bool
+    {
+        return in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true);
+    }
 
     public function abrirNuevaCategoria(): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $this->categoriaEnEdicion = null;
         $this->categoriaForm = ['nombre' => '', 'icono' => '🍣', 'orden' => 0];
         $this->mostrarModalCategoria = true;
@@ -38,7 +48,7 @@ new class extends Component
 
     public function abrirEditarCategoria(int $id): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $categoria = Categoria::findOrFail($id);
         $this->categoriaEnEdicion = $id;
         $this->categoriaForm = [
@@ -51,7 +61,7 @@ new class extends Component
 
     public function guardarCategoria(): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $this->validate([
             'categoriaForm.nombre' => 'required|string|min:2|max:100',
             'categoriaForm.icono' => 'nullable|string|max:5',
@@ -80,7 +90,7 @@ new class extends Component
 
     public function toggleCategoria(int $id): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $categoria = Categoria::findOrFail($id);
         if ($categoria->activo) {
             app(MenuService::class)->desactivarCategoria($categoria);
@@ -95,7 +105,7 @@ new class extends Component
 
     public function abrirNuevoProducto(?int $categoriaId = null): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $this->productoEnEdicion = null;
         $primerCategoria = $categoriaId ?: Categoria::where('activo', true)->orderBy('orden')->value('id');
         $this->productoForm = [
@@ -104,14 +114,14 @@ new class extends Component
             'descripcion' => '',
             'precio' => null,
             'costo' => 0,
-            'area_cocina' => 'sushi',
+            'area_cocina' => 'caliente',
         ];
         $this->mostrarModalProducto = true;
     }
 
     public function abrirEditarProducto(int $id): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $producto = Producto::findOrFail($id);
         $this->productoEnEdicion = $id;
         $this->productoForm = [
@@ -127,13 +137,13 @@ new class extends Component
 
     public function guardarProducto(): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $this->validate([
             'productoForm.categoria_id' => 'required|exists:categorias,id',
             'productoForm.nombre' => 'required|string|min:2|max:150',
             'productoForm.precio' => 'required|numeric|gt:0',
             'productoForm.costo' => 'nullable|numeric|min:0',
-            'productoForm.area_cocina' => 'required|in:sushi,caliente,barra',
+            'productoForm.area_cocina' => 'required|in:sushi,caliente,barra,fria,postres',
         ]);
 
         try {
@@ -158,7 +168,7 @@ new class extends Component
 
     public function toggleProducto(int $id): void
     {
-        abort_unless(auth()->user()?->role?->slug === 'admin', 403, 'Acción reservada al Administrador.');
+        $this->autorizarGestionMenu();
         $producto = Producto::findOrFail($id);
         if ($producto->activo) {
             app(MenuService::class)->desactivarProducto($producto);
@@ -177,7 +187,6 @@ new class extends Component
             'categorias' => Categoria::with(['productos' => function ($q) {
                 $q->orderBy('nombre');
             }])->orderBy('orden')->orderBy('nombre')->get(),
-            'productos' => Producto::with('categoria')->orderBy('nombre')->get(),
         ];
     }
 }; ?>
@@ -200,7 +209,7 @@ new class extends Component
             </p>
         </div>
         <div class="flex items-center gap-2 flex-wrap">
-            @if(auth()->user()?->role?->slug === 'admin')
+            @if($this->puedeGestionarMenu())
                 <button
                     wire:click="abrirNuevaCategoria"
                     type="button"
@@ -265,7 +274,7 @@ new class extends Component
                             @if(! $categoria->activo)
                                 <span class="rounded-full bg-error/15 px-2 py-0.5 text-[9px] font-extrabold uppercase text-error">Inactiva</span>
                             @endif
-                        @if(auth()->user()?->role?->slug === 'admin')
+                        @if($this->puedeGestionarMenu())
                             <button
                                 wire:click="abrirNuevoProducto({{ $categoria->id }})"
                                 class="inline-flex items-center justify-center h-8 w-8 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-on-primary transition-all text-xs font-bold cursor-pointer"
@@ -300,7 +309,7 @@ new class extends Component
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
                                     <span class="text-xs font-black text-primary font-mono">${{ number_format((float) $producto->precio, 0, ',', '.') }}</span>
-                                    @if(auth()->user()?->role?->slug === 'admin')
+                                    @if($this->puedeGestionarMenu())
                                         <button 
                                             wire:click="abrirEditarProducto({{ $producto->id }})" 
                                             class="h-7 w-7 inline-flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container cursor-pointer transition"
@@ -323,7 +332,7 @@ new class extends Component
                         @empty
                             <div class="rounded-xl border border-dashed border-outline-variant/30 p-4 text-center">
                                 <p class="text-[11px] text-on-surface-variant italic">Sin productos en esta categoría.</p>
-                                @if(auth()->user()?->role?->slug === 'admin')
+                                @if($this->puedeGestionarMenu())
                                     <button
                                         wire:click="abrirNuevoProducto({{ $categoria->id }})"
                                         class="mt-2 text-xs font-bold text-primary hover:underline inline-flex items-center gap-1 cursor-pointer"
@@ -337,7 +346,7 @@ new class extends Component
                     </div>
                 </div>
 
-                @if(auth()->user()?->role?->slug === 'admin')
+                @if($this->puedeGestionarMenu())
                     <div class="mt-5 pt-3 border-t border-outline-variant/15 flex items-center justify-between">
                         <button
                             wire:click="abrirEditarCategoria({{ $categoria->id }})"
@@ -368,7 +377,7 @@ new class extends Component
             </div>
         @endforeach
 
-        @if(auth()->user()?->role?->slug === 'admin')
+        @if($this->puedeGestionarMenu())
             <!-- Quick Action Card: Nuevo Producto -->
             <button
                 wire:click="abrirNuevoProducto"
@@ -377,7 +386,7 @@ new class extends Component
             >
                 <span class="material-symbols-outlined text-[44px] group-hover:scale-110 transition-transform">add_circle</span>
                 <span class="text-sm font-extrabold">+ Nuevo Producto / Plato</span>
-                <span class="text-[11px] text-on-surface-variant font-medium text-center">Crear sushi, roll, bebida, postre o servicio para los comensales</span>
+                <span class="text-[11px] text-on-surface-variant font-medium text-center">Crear corte, pasta, hamburguesa, entrada, postre o bebida</span>
             </button>
 
             <!-- Quick Action Card: Nueva Categoría -->
@@ -398,12 +407,12 @@ new class extends Component
             <div 
                 x-data="{
                     mostrarPicker: false,
-                    tabActiva: 'sushi',
+                    tabActiva: 'parrilla',
                     grupos: {
-                        'sushi': {
-                            nombre: 'Sushi & Rolls',
-                            icono: '🍣',
-                            emojis: ['🍣', '🍱', '🍙', '🥢', '🍘', '🍥', '🐟', '🦐', '🦀', '🐙', '🥑', '🥒']
+                        'parrilla': {
+                            nombre: 'Parrilla & Carnes',
+                            icono: '🥩',
+                            emojis: ['🥩', '🍗', '🍖', '🥓', '🍔', '🌭', '🥪', '🌮', '🌯', '🧆', '🍲', '🥘']
                         },
                         'calientes': {
                             nombre: 'Wok & Ramen',
@@ -612,9 +621,11 @@ new class extends Component
                         <div>
                             <label class="text-xs font-bold text-on-surface-variant">Área de Preparación / Cocina:</label>
                             <select wire:model="productoForm.area_cocina" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-2.5 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
-                                <option value="sushi">Barra Sushi</option>
-                                <option value="caliente">Cocina Caliente</option>
-                                <option value="barra">Barra Bebidas / Postres</option>
+                                <option value="caliente">Cocina Caliente & Parrilla</option>
+                                <option value="fria">Cocina Fría & Entradas</option>
+                                <option value="postres">Estación de Postres</option>
+                                <option value="barra">Barra & Bebidas</option>
+                                <option value="sushi">Cocina Especial</option>
                             </select>
                             @error('productoForm.area_cocina') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                         </div>

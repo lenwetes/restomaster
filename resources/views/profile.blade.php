@@ -28,7 +28,7 @@
                         <h3 class="text-sm font-extrabold text-on-surface">Baja y Gestión de Cuentas</h3>
                     </div>
                     <p class="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
-                        Para preservar la integridad de los turnos de caja, la trazabilidad fiscal y los registros de auditoría de SushiXpress, la auto-eliminación de usuarios está deshabilitada. Las solicitudes de baja o desactivación deben ser procesadas por el Administrador desde la configuración de trabajadores.
+                        Para preservar la integridad de los turnos de caja, la trazabilidad fiscal y los registros de auditoría de RestoMaster, la auto-eliminación de usuarios está deshabilitada. Las solicitudes de baja o desactivación deben ser procesadas por el Administrador desde la configuración de trabajadores.
                     </p>
                 </div>
             </div>

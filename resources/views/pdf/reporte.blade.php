@@ -41,6 +41,30 @@
             </tbody>
         </table>
         <p>Tiempo promedio de entrega: {{ $datos['tiempos']['promedio_min'] }} min ({{ $datos['tiempos']['entregados'] }} entregas).</p>
+    @elseif ($reporte === 'meseros')
+        <table>
+            <thead><tr><th>Mesero</th><th>Comandas</th><th>Ventas Netas</th><th>Propinas</th><th>Total Recaudado</th><th>Ticket Prom.</th></tr></thead>
+            <tbody>
+                @foreach (($datos['resumen']['meseros'] ?? []) as $fila)
+                    <tr>
+                        <td>{{ $fila['nombre'] }}</td>
+                        <td>{{ $fila['comandas_cerradas'] }}</td>
+                        <td>$ {{ number_format($fila['ventas_netas'], 0, ',', '.') }}</td>
+                        <td>$ {{ number_format($fila['propinas_recaudadas'], 0, ',', '.') }}</td>
+                        <td>$ {{ number_format($fila['total_con_propina'], 0, ',', '.') }}</td>
+                        <td>$ {{ number_format($fila['ticket_promedio'], 0, ',', '.') }}</td>
+                    </tr>
+                @endforeach
+                <tr class="total">
+                    <td>TOTAL GENERAL</td>
+                    <td>{{ $datos['resumen']['totales']['total_comandas'] ?? 0 }}</td>
+                    <td>$ {{ number_format($datos['resumen']['totales']['total_ventas_netas'] ?? 0, 0, ',', '.') }}</td>
+                    <td>$ {{ number_format($datos['resumen']['totales']['total_propinas'] ?? 0, 0, ',', '.') }}</td>
+                    <td>$ {{ number_format($datos['resumen']['totales']['total_con_propinas'] ?? 0, 0, ',', '.') }}</td>
+                    <td>$ {{ number_format($datos['resumen']['totales']['ticket_promedio_general'] ?? 0, 0, ',', '.') }}</td>
+                </tr>
+            </tbody>
+        </table>
     @elseif ($reporte === 'reservas')
         <table>
             <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
@@ -54,6 +78,6 @@
         </table>
     @endif
 
-    <div class="footer">SushiXpress · {{ $razon_social }} · Documento generado por el sistema</div>
+    <div class="footer">RestoMaster · {{ $razon_social }} · Documento generado por el sistema</div>
 </body>
 </html>

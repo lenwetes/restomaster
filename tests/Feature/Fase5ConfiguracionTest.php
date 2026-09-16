@@ -28,7 +28,7 @@ class Fase5ConfiguracionTest extends TestCase
 
     public function test_seeder_crea_configuraciones_base(): void
     {
-        $this->assertSame('SushiXpress S.A.S.', $this->service->obtener('general', 'razon_social'));
+        $this->assertSame('RestoMaster Colombia S.A.S.', $this->service->obtener('general', 'razon_social'));
         $this->assertSame('habilitacion', $this->service->obtener('dian', 'ambiente', ''));
         $this->assertFalse($this->service->obtener('reservas', 'webhook_activo', true));
         $this->assertNotNull($this->service->obtener('reservas', 'webhook_token'));

@@ -193,6 +193,8 @@ class Fase4ClientesDeliveryTest extends TestCase
             'telefono' => '3157778899',
         ]);
 
+        app(CajaService::class)->abrirTurno($this->caja, $this->admin, 100000.00, 'Apertura');
+
         // Crear pedido de salón de $90.000 COP (2 Tiger Rolls)
         $pedido = $pedidoService->crearPedido(
             [

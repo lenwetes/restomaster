@@ -19,8 +19,10 @@ class Pedido extends Model
         'codigo',
         'tipo',
         'estado',
+        'sucursal_id',
         'mesa_id',
         'usuario_id',
+        'mesero_id',
         'turno_caja_id',
         'nombre_cliente',
         'telefono_cliente',
@@ -40,8 +42,12 @@ class Pedido extends Model
         'subtotal',
         'descuento',
         'total',
+        'propina',
+        'porcentaje_propina',
         'metodo_pago',
         'monto_pagado',
+        'monto_pago_efectivo',
+        'monto_pago_tarjeta',
         'cambio',
         'notas',
         'pagado_en',
@@ -55,7 +61,11 @@ class Pedido extends Model
             'costo_envio' => 'decimal:2',
             'descuento_puntos' => 'decimal:2',
             'total' => 'decimal:2',
+            'propina' => 'decimal:2',
+            'porcentaje_propina' => 'decimal:2',
             'monto_pagado' => 'decimal:2',
+            'monto_pago_efectivo' => 'decimal:2',
+            'monto_pago_tarjeta' => 'decimal:2',
             'cambio' => 'decimal:2',
             'puntos_ganados' => 'integer',
             'puntos_canjeados' => 'integer',
@@ -64,6 +74,11 @@ class Pedido extends Model
             'hora_entrega' => 'datetime',
             'pagado_en' => 'datetime',
         ];
+    }
+
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class);
     }
 
     public function mesa(): BelongsTo
@@ -89,6 +104,11 @@ class Pedido extends Model
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function mesero(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mesero_id');
     }
 
     public function turnoCaja(): BelongsTo

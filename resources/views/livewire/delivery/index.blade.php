@@ -118,7 +118,19 @@ new class extends Component
     {
         $this->authorize('liquidarRepartidor', [Pedido::class, $repartidorId]);
         $repartidor = User::findOrFail($repartidorId);
-        $turnoActivo = TurnoCaja::where('estado', 'abierto')->latest()->first();
+
+        $sucursalId = auth()->user()?->sucursal_id;
+        $turnoActivo = TurnoCaja::with('caja')
+            ->where('estado', 'abierto')
+            ->when($sucursalId, function ($query, $sucursalId) {
+                $query->whereHas('caja', fn ($q) => $q->where('sucursal_id', $sucursalId));
+            })
+            ->latest()
+            ->first();
+
+        if (! $turnoActivo && $sucursalId) {
+            $turnoActivo = TurnoCaja::with('caja')->where('estado', 'abierto')->latest()->first();
+        }
 
         if (! $turnoActivo) {
             $this->dispatch('notificacion', ['mensaje' => 'No hay un turno de caja abierto para registrar la liquidación.', 'tipo' => 'error']);
@@ -126,9 +138,10 @@ new class extends Component
         }
 
         $montoLiquidado = app(DeliveryService::class)->liquidarRecaudoRepartidor($repartidor, $turnoActivo);
+        $cajaNombre = $turnoActivo->caja?->nombre ?? 'Caja Principal';
         if ($montoLiquidado > 0) {
             $this->dispatch('notificacion', [
-                'mensaje' => "Liquidado $ " . number_format($montoLiquidado) . " COP del motorizado {$repartidor->name} en Caja #01.",
+                'mensaje' => "Liquidado $ " . number_format($montoLiquidado) . " COP del motorizado {$repartidor->name} en {$cajaNombre}.",
                 'tipo' => 'success',
             ]);
         } else {

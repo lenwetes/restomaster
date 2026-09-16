@@ -13,11 +13,11 @@ class SucursalSeeder extends Seeder
     public function run(): void
     {
         Sucursal::firstOrCreate(
-            ['nombre' => 'SushiXpress Central'],
+            ['nombre' => 'RestoMaster Principal'],
             [
-                'direccion' => 'Av. Gastronómica 123',
-                'telefono' => '+52 55 1234 5678',
-                'nit_ruc' => 'SX900101-ABC',
+                'direccion' => 'Cra 35 # 8A-12, Provenza, Medellín',
+                'telefono' => '+57 300 123 4567',
+                'nit_ruc' => '901.458.789-3',
                 'activo' => true,
             ]
         );

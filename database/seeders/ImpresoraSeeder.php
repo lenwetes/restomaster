@@ -14,7 +14,7 @@ class ImpresoraSeeder extends Seeder
     {
         $impresoras = [
             [
-                'nombre' => 'Térmica Barra de Sushi',
+                'nombre' => 'Térmica Cocina Fría & Entradas',
                 'tipo_conexion' => 'red_ip',
                 'ip_address' => '192.168.1.201',
                 'puerto' => 9100,
@@ -22,10 +22,10 @@ class ImpresoraSeeder extends Seeder
                 'ancho_columnas' => 48,
                 'copias' => 1,
                 'activa' => true,
-                'descripcion' => 'Impresora térmica de estación sushi, nigiris y makis',
+                'descripcion' => 'Impresora térmica de ensaladas, entradas de autor y platos fríos',
             ],
             [
-                'nombre' => 'Térmica Cocina Caliente & Wok',
+                'nombre' => 'Térmica Cocina Caliente & Parrilla',
                 'tipo_conexion' => 'red_ip',
                 'ip_address' => '192.168.1.202',
                 'puerto' => 9100,
@@ -33,7 +33,7 @@ class ImpresoraSeeder extends Seeder
                 'ancho_columnas' => 48,
                 'copias' => 1,
                 'activa' => true,
-                'descripcion' => 'Impresora térmica de cocina caliente, teppanyaki y tempuras',
+                'descripcion' => 'Impresora térmica de cocina caliente, parrilla, cortes y pastas',
             ],
             [
                 'nombre' => 'Térmica Barra de Bebidas & Cocktails',
@@ -44,7 +44,7 @@ class ImpresoraSeeder extends Seeder
                 'ancho_columnas' => 48,
                 'copias' => 1,
                 'activa' => true,
-                'descripcion' => 'Impresora térmica de barra para sake, cervezas y bebidas',
+                'descripcion' => 'Impresora térmica de barra para cócteles, vinos, licores y cafés',
             ],
             [
                 'nombre' => 'Térmica Caja Principal (Facturación)',
