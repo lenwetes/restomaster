@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "==> Sushixpress Production Container Starting..."
+echo "==> RestoMaster Production Container Starting..."
 
 # Ensure proper directory permissions for storage, cache, and bootstrap
 mkdir -p /var/www/html/storage/framework/sessions \
@@ -79,8 +79,8 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
     until php -r "
         \$host = getenv('DB_HOST') ?: 'postgres';
         \$port = getenv('DB_PORT') ?: 5432;
-        \$db   = getenv('DB_DATABASE') ?: 'sushixpress';
-        \$user = getenv('DB_USERNAME') ?: 'postgres';
+        \$db   = getenv('DB_DATABASE') ?: 'restomaster';
+        \$user = getenv('DB_USERNAME') ?: 'adminresto';
         \$pass = getenv('DB_PASSWORD') ?: '';
         try {
             \$pdo = new PDO(\"pgsql:host={\$host};port={\$port};dbname={\$db}\", \$user, \$pass, [

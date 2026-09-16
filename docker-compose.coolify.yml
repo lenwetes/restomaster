@@ -1,5 +1,6 @@
 # ==============================================================================
-# RestoMaster — Standard Docker Compose (Local Testing & Coolify Default)
+# RestoMaster — Production & Staging Docker Compose for Coolify
+# Compatible with Coolify v4+ and standalone Docker on VPS
 # ==============================================================================
 
 services:
@@ -12,17 +13,20 @@ services:
     expose:
       - "80"
     ports:
+      # Puerto directo para pruebas en VPS vía http://IP_VPS:8004
       - "${APP_PORT:-8004}:80"
     environment:
+      # Configuración de Aplicación
       APP_NAME: "${APP_NAME:-RestoMaster}"
       APP_ENV: "${APP_ENV:-production}"
       APP_KEY: "${APP_KEY:-}"
       APP_DEBUG: "${APP_DEBUG:-false}"
+      # Coolify inyecta automáticamente SERVICE_FQDN_APP si defines un dominio en la UI
       APP_URL: "${SERVICE_FQDN_APP:-${APP_URL:-http://localhost:8004}}"
       LOG_CHANNEL: stderr
       LOG_LEVEL: "${LOG_LEVEL:-info}"
 
-      # Database Configuration
+      # Conexión Base de Datos PostgreSQL
       DB_CONNECTION: pgsql
       DB_HOST: "${DB_HOST:-postgres}"
       DB_PORT: "${DB_PORT:-5432}"
@@ -30,13 +34,13 @@ services:
       DB_USERNAME: "${DB_USERNAME:-adminresto}"
       DB_PASSWORD: "${DB_PASSWORD:-SecretResto2026!}"
 
-      # Drivers
+      # Control de Sesiones, Colas y Caché (database/file para VPS ligero y estable)
       SESSION_DRIVER: "${SESSION_DRIVER:-database}"
-      SESSION_LIFETIME: 120
+      SESSION_LIFETIME: "${SESSION_LIFETIME:-120}"
       QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
       CACHE_STORE: "${CACHE_STORE:-file}"
 
-      # Automation on container boot
+      # Automatización en el arranque del contenedor
       AUTO_MIGRATE: "${AUTO_MIGRATE:-true}"
       AUTO_SEED: "${AUTO_SEED:-true}"
       DEMO_USERS_PASSWORD: "${DEMO_USERS_PASSWORD:-password}"
@@ -57,6 +61,7 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     ports:
+      # Expuesto solo en localhost del VPS para evitar riesgos de seguridad externa
       - "${POSTGRES_EXTERNAL_PORT:-127.0.0.1:5434}:5432"
     environment:
       POSTGRES_DB: "${DB_DATABASE:-restomaster}"

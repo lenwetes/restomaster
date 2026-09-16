@@ -6,6 +6,22 @@
 ---
 
 ## Última Actualización
+2026-09-16 17:55 | Antigravity | 🚀 **DOCKER COMPOSE PARA COOLIFY Y DESPLIEGUE EN VPS COMPLETADO**:
+- **Nuevo Archivo Compose:** Creado [docker-compose.coolify.yml](file:///d:/Proyectos/restomaster/docker-compose.coolify.yml) y actualizado [docker-compose.yml](file:///d:/Proyectos/restomaster/docker-compose.yml) optimizados para Coolify v4+ y VPS.
+- **Configuración de Red y Puertos:**
+  - `expose: - "80"` para que el proxy inverso Traefik de Coolify enrute dominios con SSL/Let's Encrypt automático.
+  - `ports: - "${APP_PORT:-8004}:80"` para acceso de pruebas directo e inmediato vía `http://<IP_VPS>:8004` sin necesidad de dominio previo.
+  - `ports: - "${POSTGRES_EXTERNAL_PORT:-127.0.0.1:5434}:5432"` enlazando PostgreSQL exclusivamente a localhost del VPS.
+- **Volúmenes Persistentes Nombrados:**
+  - `restomaster_postgres_data` (base de datos relacional).
+  - `restomaster_storage_app` (backups y reportes).
+  - `restomaster_storage_public` (imágenes de productos y avatares subidos).
+  - `restomaster_storage_logs` (logs de producción).
+- **Arranque Inteligente con Auto-Seed:**
+  - `AUTO_MIGRATE=true` y `AUTO_SEED=true` para crear las tablas y sembrar de inmediato los 4 usuarios base (`admin@restomaster.com`, `cajero@restomaster.com`, `mesero@restomaster.com`, `cocina@restomaster.com`).
+  - `docker/entrypoint.sh` actualizado con fallbacks uniformes a `restomaster` y `adminresto`.
+- **Documentación:** Creada guía paso a paso en [docs/despliegue-coolify.md](file:///d:/Proyectos/restomaster/docs/despliegue-coolify.md).
+- **Lock liberado:** Eliminado `.locks/antigravity-coolify-compose-2026-09-16.lock`.
 2026-09-16 17:25 | Antigravity | ✅ **MENÚ NAVEGACIÓN MESERO, FLUJO DE RELEVO DE TURNO (OPCIÓN B) Y PERMISOS RBAC EN MESAS (17/17 TESTS VERDE · PINT 0)**:
 - **Menú de Opciones para Mesero:**
   - En `resources/views/livewire/layout/navigation.blade.php`, se amplió la barra lateral de escritorio y el drawer táctil móvil para el rol `mesero`, incorporando:
