@@ -33,6 +33,7 @@ services:
       # Drivers
       SESSION_DRIVER: "${SESSION_DRIVER:-database}"
       SESSION_LIFETIME: 120
+      SESSION_SECURE_COOKIE: "${SESSION_SECURE_COOKIE:-false}"
       QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
       CACHE_STORE: "${CACHE_STORE:-file}"
 

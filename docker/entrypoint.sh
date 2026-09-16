@@ -17,11 +17,16 @@ touch /var/www/html/storage/logs/laravel.log
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 1. Guarantee valid APP_KEY is present
+# 1. Guarantee valid and stable APP_KEY is present
 if [ -z "$APP_KEY" ] || [ "$APP_KEY" = '""' ] || [ "$APP_KEY" = "''" ]; then
-    echo "==> APP_KEY not provided. Generating new application encryption key..."
-    export APP_KEY=$(php /var/www/html/artisan key:generate --show)
-    echo "==> Application encryption key generated successfully."
+    if [ -f /var/www/html/storage/app/app.key ]; then
+        export APP_KEY=$(cat /var/www/html/storage/app/app.key)
+    else
+        echo "==> APP_KEY not provided. Generating new application encryption key..."
+        export APP_KEY=$(php /var/www/html/artisan key:generate --show)
+        echo "$APP_KEY" > /var/www/html/storage/app/app.key
+        echo "==> Application encryption key generated and persisted."
+    fi
 fi
 
 # 2. Write runtime environment variables to /var/www/html/.env so PHP-FPM workers and Dotenv always have them
@@ -44,6 +49,8 @@ DB_PASSWORD="${DB_PASSWORD}"
 
 SESSION_DRIVER="${SESSION_DRIVER:-database}"
 SESSION_LIFETIME="${SESSION_LIFETIME:-120}"
+SESSION_SECURE_COOKIE="${SESSION_SECURE_COOKIE:-false}"
+SESSION_DOMAIN="${SESSION_DOMAIN:-}"
 QUEUE_CONNECTION="${QUEUE_CONNECTION:-database}"
 CACHE_STORE="${CACHE_STORE:-file}"
 
