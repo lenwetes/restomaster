@@ -313,4 +313,16 @@ class RemediacionDineroTurnosTest extends TestCase
         $this->assertEquals(20000.00, (float) $turno->total_ventas_efectivo);
         $this->assertEquals(80000.00, (float) $turno->total_ventas_tarjeta);
     }
+
+    public function test_connection_pgsql_fija_timezone_america_bogota(): void
+    {
+        $timezone = config('database.connections.pgsql.timezone');
+        $this->assertSame('America/Bogota', $timezone, 'La conexión debe fijar timezone America/Bogota (UTC-5) para lecturas/escrituras consistentes de timestamptz.');
+
+        if (DB::getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        $this->assertSame('America/Bogota', DB::selectOne('SHOW TIME ZONE')->TimeZone);
+    }
 }
