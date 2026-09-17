@@ -112,7 +112,7 @@ class RemediacionDineroTurnosTest extends TestCase
         $this->assertEquals(0.0, (float) $turno->total_ventas_transferencia);
     }
 
-    public function test_vincular_pedido_mixto_doble_invocacion_acumula_desglose_sin_perder_metodo(): void
+    public function test_vincular_pedido_mixto_doble_invocacion_no_duplica_desglose(): void
     {
         $s = $this->crearSucursal('S3');
         $user = $this->crearUsuario('admin', $s->id);
@@ -123,10 +123,10 @@ class RemediacionDineroTurnosTest extends TestCase
         app(CajaService::class)->vincularCobroPedido($turno, $cobrado);
 
         $turno->refresh();
-        $this->assertEquals(40000.00, (float) $turno->total_ventas_efectivo, 'La segunda vinculación no debe duplicar el efectivo (idempotencia).');
-        $this->assertEquals(60000.00, (float) $turno->total_ventas_tarjeta, 'La segunda vinculación no debe duplicar la tarjeta (idempotencia).');
-        $this->assertEquals(0.0, (float) $turno->total_ventas_transferencia);
-        $this->assertEquals(1, AsientoContable::where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->count(), 'Solo debe existir un asiento contable por pedido (idempotente).');
+        $this->assertSame(40000.00, (float) $turno->total_ventas_efectivo, 'La segunda vinculación no debe duplicar el efectivo (idempotencia).');
+        $this->assertSame(60000.00, (float) $turno->total_ventas_tarjeta, 'La segunda vinculación no debe duplicar la tarjeta (idempotencia).');
+        $this->assertSame(0.0, (float) $turno->total_ventas_transferencia);
+        $this->assertSame(1, AsientoContable::where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->count(), 'Solo debe existir un asiento contable por pedido (idempotente).');
     }
 
     public function test_cobrar_pedido_sin_turno_abierto_lanza_domain_exception(): void
@@ -427,5 +427,20 @@ class RemediacionDineroTurnosTest extends TestCase
 
         $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
         app(CajaService::class)->abrirTurno($caja, $mesero, 50000.00);
+    }
+
+    public function test_cobro_con_propina_genera_asiento_propinas(): void
+    {
+        $s = $this->crearSucursal('SPR');
+        $admin = $this->crearUsuario('admin', $s->id);
+        $turno = $this->abrirTurnoEn($s->id, $admin);
+        $pedido = $this->crearPedidoConItems($admin, $s->id, 1, 100000.00);
+
+        app(PedidoService::class)->cobrarPedido($pedido, 'efectivo', 110000.00, null, 10000.00, 10.0);
+
+        $asientoPropina = AsientoContable::where('cuenta', 'propinas')->latest()->first();
+        $this->assertNotNull($asientoPropina);
+        $this->assertSame(10000.00, (float) $asientoPropina->monto);
+        $this->assertSame('ingreso', $asientoPropina->tipo);
     }
 }

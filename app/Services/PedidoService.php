@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MesaEstado;
+use App\Models\AsientoContable;
 use App\Models\Cliente;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
@@ -285,6 +286,19 @@ class PedidoService
             }
 
             app(CajaService::class)->vincularCobroPedido($turnoActivo, $pedido);
+
+            if ($propina > 0) {
+                AsientoContable::create([
+                    'fecha' => now()->toDateString(),
+                    'tipo' => 'ingreso',
+                    'cuenta' => 'propinas',
+                    'concepto' => "Propina pedido {$pedido->codigo} ({$porcentajePropina}%)",
+                    'monto' => $propina,
+                    'referencia_tipo' => 'pedido',
+                    'referencia_id' => $pedido->id,
+                    'user_id' => $pedido->usuario_id ?? auth()->id(),
+                ]);
+            }
 
             // Salvaguarda: descontar cualquier ítem del pedido que no haya pasado por KDS
             app(InventarioService::class)->descontarPorPedido($pedido);
