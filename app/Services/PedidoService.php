@@ -81,6 +81,10 @@ class PedidoService
             $puntosCanjeados = (int) ($datos['puntos_canjeados'] ?? 0);
 
             if ($descuentoPuntos > 0 || $puntosCanjeados > 0) {
+                if ($descuentoPuntos > 0 && $puntosCanjeados < 1) {
+                    throw new \InvalidArgumentException('Para aplicar descuento por puntos debe indicar cuántos puntos canjear.');
+                }
+
                 if ($usuario && ! in_array($usuario->role?->slug, ['mesero', 'cajero', 'gerente', 'admin'], true)) {
                     throw new AuthorizationException('No tiene permisos para canjear puntos de fidelidad.');
                 }
