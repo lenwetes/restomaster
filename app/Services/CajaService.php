@@ -127,7 +127,7 @@ class CajaService
      */
     public function abrirTurno(Caja $caja, User $cajero, float $fondoInicial, ?string $notas = null): TurnoCaja
     {
-        if ($cajero->role && ! in_array($cajero->role->slug, ['cajero', 'gerente', 'admin', 'mesero'], true) && ! str_starts_with($cajero->role->slug, 'cajero')) {
+        if (! in_array($cajero->role?->slug, ['cajero', 'gerente', 'admin'], true)) {
             throw new AuthorizationException('El usuario no tiene permisos para abrir turnos de caja.');
         }
 

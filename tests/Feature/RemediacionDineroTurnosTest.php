@@ -418,4 +418,14 @@ class RemediacionDineroTurnosTest extends TestCase
             'El efectivo del COD se cuenta una sola vez en el turno.');
         $this->assertTrue($entregado->recaudo_liquidado);
     }
+
+    public function test_abrir_turno_rechaza_mesero(): void
+    {
+        $s = $this->crearSucursal('SMB');
+        $mesero = $this->crearUsuario('mesero', $s->id);
+        $caja = Caja::create(['sucursal_id' => $s->id, 'nombre' => 'Caja', 'codigo' => 'CAJA-M', 'activa' => true]);
+
+        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        app(CajaService::class)->abrirTurno($caja, $mesero, 50000.00);
+    }
 }
