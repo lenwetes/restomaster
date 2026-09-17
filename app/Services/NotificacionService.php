@@ -7,6 +7,7 @@ use App\Models\ItemPedido;
 use App\Models\Pedido;
 use App\Models\Reserva;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class NotificacionService
@@ -20,9 +21,18 @@ class NotificacionService
         $usuario = $usuario ?? auth()->user();
         $clave = 'notif.resumen.'.($usuario?->id ?? 'anon');
 
-        return Cache::remember($clave, now()->addSeconds(15), function () use ($usuario) {
+        $data = Cache::remember($clave, now()->addSeconds(15), function () use ($usuario) {
             return $this->consultarResumen($usuario);
         });
+
+        return [
+            'total' => $data['total'] ?? 0,
+            'pedidos_qr' => new Collection($data['pedidos_qr'] ?? []),
+            'platos_listos' => new Collection($data['platos_listos'] ?? []),
+            'stock_critico' => new Collection($data['stock_critico'] ?? []),
+            'reservas_hoy' => new Collection($data['reservas_hoy'] ?? []),
+            'rol_consultado' => $data['rol_consultado'] ?? null,
+        ];
     }
 
     protected function consultarResumen(?User $usuario = null): array
