@@ -84,10 +84,12 @@ class ReporteService
     public function kpisRealtime(?int $sucursalId = null): array
     {
         $hoy = now()->toDateString();
+        $hoyInicio = $hoy.' 00:00:00';
+        $hoyFin = $hoy.' 23:59:59';
 
         $pedidosQuery = Pedido::query()
             ->where('estado', 'pagado')
-            ->whereDate('pagado_en', $hoy)
+            ->whereBetween('pagado_en', [$hoyInicio, $hoyFin])
             ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId));
 
         $ventas = (float) (clone $pedidosQuery)->sum('total');
@@ -95,7 +97,7 @@ class ReporteService
         $ticketPromedio = $transacciones > 0 ? round($ventas / $transacciones, 2) : 0.0;
 
         $costoVendido = (float) ItemPedido::query()
-            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereDate('pagado_en', $hoy)->when($sucursalId, fn ($sq) => $sq->where('sucursal_id', $sucursalId)))
+            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereBetween('pagado_en', [$hoyInicio, $hoyFin])->when($sucursalId, fn ($sq) => $sq->where('sucursal_id', $sucursalId)))
             ->join('productos', 'items_pedido.producto_id', '=', 'productos.id')
             ->sum(DB::raw('COALESCE(productos.costo, 0) * items_pedido.cantidad'));
 
@@ -109,16 +111,30 @@ class ReporteService
             ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
             ->count();
 
-        $picosPorHora = (clone $pedidosQuery)
-            ->select(['id', 'pagado_en'])
-            ->get()
-            ->groupBy(fn ($p) => Carbon::parse($p->pagado_en)->format('H'))
-            ->map->count()
-            ->sortKeysDesc()
-            ->take(6);
+        if (DB::getDriverName() === 'pgsql') {
+            $picosPorHora = (clone $pedidosQuery)
+                ->selectRaw("to_char(pagado_en AT TIME ZONE 'America/Bogota', 'HH24') as hora, count(*) as total")
+                ->groupByRaw("to_char(pagado_en AT TIME ZONE 'America/Bogota', 'HH24')")
+                ->orderByDesc('total')
+                ->limit(6)
+                ->get()
+                ->mapWithKeys(fn ($r) => [((int) $r->hora) => (int) $r->total])
+                ->sortKeysDesc()
+                ->all();
+        } else {
+            $picosPorHora = (clone $pedidosQuery)
+                ->selectRaw("strftime('%H', pagado_en) as hora, count(*) as total")
+                ->groupByRaw("strftime('%H', pagado_en)")
+                ->orderByDesc('total')
+                ->limit(6)
+                ->get()
+                ->mapWithKeys(fn ($r) => [((int) $r->hora) => (int) $r->total])
+                ->sortKeysDesc()
+                ->all();
+        }
 
         $topProductos = ItemPedido::query()
-            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereDate('pagado_en', $hoy)->when($sucursalId, fn ($sq) => $sq->where('sucursal_id', $sucursalId)))
+            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereBetween('pagado_en', [$hoyInicio, $hoyFin])->when($sucursalId, fn ($sq) => $sq->where('sucursal_id', $sucursalId)))
             ->join('productos', 'items_pedido.producto_id', '=', 'productos.id')
             ->groupBy('items_pedido.producto_id', 'items_pedido.nombre_producto')
             ->selectRaw('
