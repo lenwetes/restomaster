@@ -634,7 +634,9 @@ new class extends Component
             'baseAperturaPos' => 'required|numeric|min:0',
         ]);
 
-        $caja = \App\Models\Caja::findOrFail($this->cajaAperturaId);
+        $sucursalId = auth()->user()?->sucursal_id;
+        $caja = \App\Models\Caja::when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
+            ->findOrFail($this->cajaAperturaId);
 
         try {
             $turno = app(\App\Services\CajaService::class)->abrirTurno(
@@ -822,10 +824,14 @@ new class extends Component
             return;
         }
 
+        $sucursalId = auth()->user()?->sucursal_id;
         $pedido = Pedido::where('mesa_id', $this->mesaId)
             ->where('canal_origen', 'qr_mesa')
             ->where('estado', 'solicitado_qr')
             ->whereNull('usuario_id')
+            ->when($sucursalId, function ($q) use ($sucursalId) {
+                $q->whereHas('mesa', fn ($m) => $m->where('sucursal_id', $sucursalId));
+            })
             ->latest()
             ->first();
 

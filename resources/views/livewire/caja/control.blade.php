@@ -211,7 +211,9 @@ new class extends Component
             'fondoInicial' => 'required|numeric|min:0',
         ]);
 
-        $caja = Caja::findOrFail($this->cajaSeleccionadaId);
+        $sucursalId = auth()->user()?->sucursal_id;
+        $caja = Caja::when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
+            ->findOrFail($this->cajaSeleccionadaId);
         $cajaService = app(CajaService::class);
 
         try {

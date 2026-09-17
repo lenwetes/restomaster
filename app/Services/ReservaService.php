@@ -6,6 +6,7 @@ use App\Enums\MesaEstado;
 use App\Models\Mesa;
 use App\Models\Reserva;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -15,13 +16,14 @@ use InvalidArgumentException;
 
 class ReservaService
 {
-    public function verificarDisponibilidad(string $fecha, string $horaInicio, int $personas, int $duracionMin = 120): Collection
+    public function verificarDisponibilidad(string $fecha, string $horaInicio, int $personas, int $duracionMin = 120, ?int $sucursalId = null): Collection
     {
         $horaFin = $this->sumarMinutos($horaInicio, $duracionMin);
 
         $bloqueadas = Reserva::query()
             ->whereIn('estado', ['confirmada', 'llego'])
             ->whereDate('fecha', $fecha)
+            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
             ->get()
             ->filter(fn (Reserva $r) => $this->seSolapan($horaInicio, $horaFin, $r->hora_llegada, $this->sumarMinutos($r->hora_llegada, $r->duracion_min)))
             ->pluck('id');
@@ -31,6 +33,7 @@ class ReservaService
             ->pluck('mesa_id');
 
         $query = Mesa::query()
+            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
             ->whereNotIn('id', $mesasBloqueadas)
             ->whereNotIn('estado', [MesaEstado::OCUPADA->value, MesaEstado::POR_LIMPIAR->value]);
 
@@ -58,8 +61,16 @@ class ReservaService
             throw new InvalidArgumentException('Debe elegirse una fecha igual o posterior a hoy.');
         }
 
+        $sucursalId = (int) ($datos['sucursal_id'] ?? auth()->user()?->sucursal_id);
+        if ($sucursalId === 0) {
+            $sucursalId = (int) (\App\Models\Sucursal::value('id') ?? 1);
+        }
+        if (auth()->user()?->sucursal_id && $sucursalId !== (int) auth()->user()->sucursal_id) {
+            throw new AuthorizationException('No puede crear reservas en otra sucursal.');
+        }
+
         $reserva = Reserva::create([
-            'sucursal_id' => $datos['sucursal_id'] ?? null,
+            'sucursal_id' => $sucursalId,
             'cliente_id' => $datos['cliente_id'] ?? null,
             'nombre_contacto' => $datos['nombre_contacto'],
             'telefono_contacto' => $datos['telefono_contacto'],
@@ -97,7 +108,15 @@ class ReservaService
             $reservaLocked = Reserva::whereKey($reserva->id)->lockForUpdate()->firstOrFail();
 
             if ($mesaIds !== null && count($mesaIds) > 0) {
-                $capacidadTotal = Mesa::whereIn('id', $mesaIds)->sum('capacidad');
+                $mesasValidas = Mesa::whereIn('id', $mesaIds);
+                if ($reservaLocked->sucursal_id) {
+                    $mesasValidas->where('sucursal_id', $reservaLocked->sucursal_id);
+                }
+                if ($mesasValidas->count() !== count($mesaIds)) {
+                    throw new AuthorizationException('Una o más mesas no pertenecen a la sucursal de la reserva.');
+                }
+
+                $capacidadTotal = (clone $mesasValidas)->sum('capacidad');
                 if ($capacidadTotal < $reservaLocked->personas) {
                     throw new InvalidArgumentException("La capacidad total de las mesas seleccionadas ({$capacidadTotal}) es insuficiente para {$reservaLocked->personas} personas.");
                 }
@@ -107,7 +126,13 @@ class ReservaService
             }
 
             if ($reservaLocked->mesas->isEmpty()) {
-                $disponibles = $this->verificarDisponibilidad($reservaLocked->fecha->toDateString(), $reservaLocked->hora_llegada, $reservaLocked->personas, $reservaLocked->duracion_min);
+                $disponibles = $this->verificarDisponibilidad(
+                    $reservaLocked->fecha->toDateString(),
+                    $reservaLocked->hora_llegada,
+                    $reservaLocked->personas,
+                    $reservaLocked->duracion_min,
+                    $reservaLocked->sucursal_id
+                );
 
                 if ($disponibles->isEmpty()) {
                     throw new InvalidArgumentException('No hay mesas disponibles para esta reserva.');
@@ -210,6 +235,7 @@ class ReservaService
                 ->whereDate('fecha', $reserva->fecha->toDateString())
                 ->whereIn('estado', ['confirmada', 'llego'])
                 ->where('id', '!=', $reserva->id)
+                ->when($reserva->sucursal_id, fn ($q) => $q->where('sucursal_id', $reserva->sucursal_id))
                 ->whereHas('mesas', fn ($q) => $q->where('mesas.id', $mesa->id))
                 ->get()
                 ->filter(fn (Reserva $r) => $this->seSolapan(

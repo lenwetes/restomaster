@@ -326,6 +326,10 @@ class PedidoService
                 ->with(['mesa', 'usuario', 'mesero'])
                 ->firstOrFail();
 
+            if ($mesero->sucursal_id && $pedido->sucursal_id && $pedido->sucursal_id !== $mesero->sucursal_id) {
+                throw new AuthorizationException('No puede atender pedidos de otra sucursal.');
+            }
+
             // Verificación de concurrencia: si ya fue asignado y no es el mismo mesero
             if ($pedido->usuario_id !== null && $pedido->usuario_id !== $mesero->id) {
                 $nombreAsignado = $pedido->usuario?->name ?? 'otro mesero';
