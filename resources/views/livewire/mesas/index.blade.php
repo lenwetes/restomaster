@@ -737,15 +737,15 @@ new class extends Component
 
     <!-- Modal Crear / Editar Mesa -->
     @if ($modalMesaOpen)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/60 backdrop-blur-sm animate-fade-in">
-            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/30 space-y-5">
+        <div x-data @keydown.escape.window="$wire.set('modalMesaOpen', false)" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/60 backdrop-blur-sm animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-mesa-title" class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/30 space-y-5">
                 <div class="flex items-center justify-between border-b border-outline-variant/20 pb-4">
                     <div class="flex items-center gap-2.5">
                         <div class="w-9 h-9 rounded-2xl bg-secondary-container/50 flex items-center justify-center text-secondary border border-secondary/30">
                             <span class="material-symbols-outlined text-[20px]">table_restaurant</span>
                         </div>
                         <div>
-                            <h2 class="text-base font-extrabold text-on-surface">
+                            <h2 id="modal-mesa-title" class="text-base font-extrabold text-on-surface">
                                 {{ $mesaEditandoId ? "Editar Mesa #{$formMesa['numero']}" : "Crear Nueva Mesa" }}
                             </h2>
                             <p class="text-[11px] text-on-surface-variant">Configuración espacial del salón</p>
@@ -753,9 +753,10 @@ new class extends Component
                     </div>
                     <button 
                         wire:click="$set('modalMesaOpen', false)"
-                        class="p-1.5 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface"
+                        aria-label="Cerrar modal de mesa"
                     >
-                        <span class="material-symbols-outlined text-[18px]">close</span>
+                        <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
 
@@ -857,8 +858,8 @@ new class extends Component
 
     <!-- Modal Ver / Imprimir Código QR de Mesa (Aura Gastro Expressive OS) -->
     @if ($modalQrOpen && $mesaQr)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/60 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static">
-            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/30 space-y-5 print:border-none print:shadow-none print:p-0">
+        <div x-data @keydown.escape.window="$wire.set('modalQrOpen', false)" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/60 backdrop-blur-sm animate-fade-in print:p-0 print:bg-white print:static">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-qr-title" class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/30 space-y-5 print:border-none print:shadow-none print:p-0">
                 <!-- Modal Header (hidden when printing) -->
                 <div class="flex items-center justify-between border-b border-outline-variant/20 pb-4 print:hidden">
                     <div class="flex items-center gap-2.5">
@@ -866,7 +867,7 @@ new class extends Component
                             <span class="material-symbols-outlined text-[20px]">qr_code_2</span>
                         </div>
                         <div>
-                            <h2 class="text-base font-extrabold text-on-surface">
+                            <h2 id="modal-qr-title" class="text-base font-extrabold text-on-surface">
                                 Código QR · Mesa #{{ $mesaQr->numero }}
                             </h2>
                             <p class="text-[11px] text-on-surface-variant">Menú público y auto-pedido online</p>
@@ -874,7 +875,8 @@ new class extends Component
                     </div>
                     <button 
                         wire:click="$set('modalQrOpen', false)"
-                        class="p-1.5 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface cursor-pointer"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface cursor-pointer"
+                        aria-label="Cerrar modal de código QR"
                     >
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>

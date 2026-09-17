@@ -150,7 +150,7 @@ class DeliveryService
                     'pagado_en' => now(),
                 ]);
 
-                // Vincular el ingreso al turno abierto de caja de la sucursal del pedido
+                // Vincular el cobro al turno abierto de la sucursal
                 $turnoActivo = TurnoCaja::where('estado', 'abierto')
                     ->when($pedido->sucursal_id, fn ($q) => $q->whereHas('caja', fn ($cq) => $cq->where('sucursal_id', $pedido->sucursal_id)))
                     ->latest()

@@ -250,6 +250,18 @@ new class extends Component
         ]);
     }
 
+    private function obtenerTurnoValido(): TurnoCaja
+    {
+        $userSucursalId = auth()->user()?->sucursal_id;
+        $query = TurnoCaja::where('id', $this->turnoId);
+
+        if ($userSucursalId && ! in_array(auth()->user()?->role?->slug, ['admin'], true)) {
+            $query->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
+        }
+
+        return $query->firstOrFail();
+    }
+
     public function registrarMovimiento(): void
     {
         $this->authorize('guardarMovimiento', TurnoCaja::class);
@@ -274,7 +286,7 @@ new class extends Component
             return;
         }
 
-        $turno = TurnoCaja::findOrFail($this->turnoId);
+        $turno = $this->obtenerTurnoValido();
         $cajaService = app(CajaService::class);
 
         try {
@@ -301,7 +313,7 @@ new class extends Component
 
     public function abrirModalCierre(): void
     {
-        $turno = TurnoCaja::findOrFail($this->turnoId);
+        $turno = $this->obtenerTurnoValido();
         app(CajaService::class)->recalcularEsperado($turno);
         $this->montoContado = 0.0;
         $this->notasCierre = '';
@@ -316,7 +328,7 @@ new class extends Component
             'montoContado' => 'required|numeric|min:0',
         ]);
 
-        $turno = TurnoCaja::findOrFail($this->turnoId);
+        $turno = $this->obtenerTurnoValido();
         $cajaService = app(CajaService::class);
 
         try {
@@ -339,7 +351,7 @@ new class extends Component
         if (! $this->turnoId) {
             return;
         }
-        $turno = TurnoCaja::findOrFail($this->turnoId);
+        $turno = $this->obtenerTurnoValido();
         $this->reporteZ = app(CajaService::class)->generarReporteZ($turno);
         $this->mostrarModalReporteZ = true;
     }

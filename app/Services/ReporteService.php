@@ -11,6 +11,7 @@ use App\Models\Reserva;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class ReporteService
 {
@@ -80,46 +81,61 @@ class ReporteService
             ->get();
     }
 
-    public function kpisRealtime(): array
+    public function kpisRealtime(?int $sucursalId = null): array
     {
         $hoy = now()->toDateString();
 
-        $pedidosHoy = Pedido::with(['items.producto'])
+        $pedidosQuery = Pedido::query()
             ->where('estado', 'pagado')
             ->whereDate('pagado_en', $hoy)
-            ->get();
+            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId));
 
-        $ventas = (float) $pedidosHoy->sum('total');
-        $transacciones = $pedidosHoy->count();
+        $ventas = (float) (clone $pedidosQuery)->sum('total');
+        $transacciones = (int) (clone $pedidosQuery)->count();
         $ticketPromedio = $transacciones > 0 ? round($ventas / $transacciones, 2) : 0.0;
 
-        $costoVendido = $pedidosHoy->flatMap->items->sum(fn ($item) => (float) ($item->producto?->costo ?? 0) * $item->cantidad);
+        $costoVendido = (float) ItemPedido::query()
+            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereDate('pagado_en', $hoy)->when($sucursalId, fn ($sq) => $sq->where('sucursal_id', $sucursalId)))
+            ->join('productos', 'items_pedido.producto_id', '=', 'productos.id')
+            ->sum(DB::raw('COALESCE(productos.costo, 0) * items_pedido.cantidad'));
+
         $foodCost = $ventas > 0 ? round($costoVendido / $ventas * 100, 1) : 0.0;
 
-        $mesasOcupadas = Mesa::whereIn('estado', [MesaEstado::OCUPADA->value, MesaEstado::POR_LIMPIAR->value])->count();
+        $mesasOcupadas = Mesa::whereIn('estado', [MesaEstado::OCUPADA->value, MesaEstado::POR_LIMPIAR->value])
+            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
+            ->count();
 
-        $comandasActivas = Pedido::whereNotIn('estado', ['pagado', 'cancelado'])->count();
+        $comandasActivas = Pedido::whereNotIn('estado', ['pagado', 'cancelado'])
+            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
+            ->count();
 
-        $picosPorHora = $pedidosHoy
+        $picosPorHora = (clone $pedidosQuery)
+            ->select(['id', 'pagado_en'])
+            ->get()
             ->groupBy(fn ($p) => Carbon::parse($p->pagado_en)->format('H'))
             ->map->count()
             ->sortKeysDesc()
             ->take(6);
 
         $topProductos = ItemPedido::query()
-            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereDate('pagado_en', $hoy))
-            ->with('producto')
+            ->whereHas('pedido', fn ($q) => $q->where('estado', 'pagado')->whereDate('pagado_en', $hoy)->when($sucursalId, fn ($sq) => $sq->where('sucursal_id', $sucursalId)))
+            ->join('productos', 'items_pedido.producto_id', '=', 'productos.id')
+            ->groupBy('items_pedido.producto_id', 'items_pedido.nombre_producto')
+            ->selectRaw('
+                items_pedido.nombre_producto as producto,
+                SUM(items_pedido.cantidad) as cantidad,
+                SUM(items_pedido.subtotal) as ventas,
+                ROUND(SUM(items_pedido.subtotal) - SUM(COALESCE(productos.costo, 0) * items_pedido.cantidad), 2) as margen
+            ')
+            ->orderByDesc('ventas')
+            ->limit(5)
             ->get()
-            ->groupBy('producto_id')
-            ->map(fn ($items) => [
-                'producto' => $items->first()->nombre_producto,
-                'cantidad' => $items->sum('cantidad'),
-                'ventas' => (float) $items->sum('subtotal'),
-                'margen' => round((float) $items->sum('subtotal') - (float) $items->sum(fn ($i) => (float) ($i->producto?->costo ?? 0) * $i->cantidad), 2),
+            ->map(fn ($r) => [
+                'producto' => $r->producto,
+                'cantidad' => (int) $r->cantidad,
+                'ventas' => (float) $r->ventas,
+                'margen' => (float) $r->margen,
             ])
-            ->sortByDesc('ventas')
-            ->take(5)
-            ->values()
             ->all();
 
         return [

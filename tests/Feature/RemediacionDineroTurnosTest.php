@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AsientoContable;
 use App\Models\Caja;
 use App\Models\Cliente;
 use App\Models\ItemPedido;
@@ -122,9 +123,10 @@ class RemediacionDineroTurnosTest extends TestCase
         app(CajaService::class)->vincularCobroPedido($turno, $cobrado);
 
         $turno->refresh();
-        $this->assertEquals(80000.00, (float) $turno->total_ventas_efectivo);
-        $this->assertEquals(120000.00, (float) $turno->total_ventas_tarjeta);
+        $this->assertEquals(40000.00, (float) $turno->total_ventas_efectivo, 'La segunda vinculación no debe duplicar el efectivo (idempotencia).');
+        $this->assertEquals(60000.00, (float) $turno->total_ventas_tarjeta, 'La segunda vinculación no debe duplicar la tarjeta (idempotencia).');
         $this->assertEquals(0.0, (float) $turno->total_ventas_transferencia);
+        $this->assertEquals(1, AsientoContable::where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->count(), 'Solo debe existir un asiento contable por pedido (idempotente).');
     }
 
     public function test_cobrar_pedido_sin_turno_abierto_lanza_domain_exception(): void

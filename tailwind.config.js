@@ -26,6 +26,7 @@ export default {
                 'surface-variant': '#e1e1ed',
                 'inverse-surface': '#2e3039',
                 'inverse-on-surface': '#f0f0fb',
+                scrim: '#000000',
 
                 // Content & Typography
                 'on-background': '#191b23',
@@ -106,6 +107,15 @@ export default {
                 'touch-comfortable': '64px',
                 'touch-lg': '56px',
                 'touch-xl': '64px',
+            },
+            keyframes: {
+                'fade-in': {
+                    '0%': { opacity: '0' },
+                    '100%': { opacity: '1' },
+                },
+            },
+            animation: {
+                'fade-in': 'fade-in 0.2s ease-out forwards',
             },
         },
     },

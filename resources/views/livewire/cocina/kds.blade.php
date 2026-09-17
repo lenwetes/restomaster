@@ -99,8 +99,14 @@ new class extends Component
         $pedidos = $query->get();
 
         // Contadores por área optimizados en SQL
-        $conteosArea = ItemPedido::query()
-            ->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])
+        $conteosQuery = ItemPedido::query()
+            ->whereIn('estado_cocina', ['pendiente', 'en_preparacion']);
+
+        if (auth()->user()?->sucursal_id) {
+            $conteosQuery->whereHas('pedido', fn ($q) => $q->where('sucursal_id', auth()->user()->sucursal_id));
+        }
+
+        $conteosArea = $conteosQuery
             ->selectRaw('area_cocina, count(*) as total')
             ->groupBy('area_cocina')
             ->pluck('total', 'area_cocina');
@@ -367,11 +373,11 @@ new class extends Component
     </div>
 
     @if($comandaImpresion && $comandaImpresion->items->isNotEmpty())
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto">
-            <div class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
+        <div x-data @keydown.escape.window="$wire.cerrarComanda()" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-comanda-title" class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
                 <!-- Comanda Ticket Header -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
-                    <p class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
+                    <p id="modal-comanda-title" class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
                     <p class="text-[11px] text-on-surface-variant">COMANDA DE COCINA</p>
                     <p class="text-[10px] text-on-surface-variant/70">Estación: <strong class="uppercase text-secondary">{{ $areaSeleccionada === 'todas' ? 'Todas' : $areaSeleccionada }}</strong></p>
                 </div>
@@ -417,14 +423,14 @@ new class extends Component
                 <div class="no-print mt-5 grid grid-cols-2 gap-2">
                     <button
                         onclick="window.print()"
-                        class="rounded-xl border border-surface-container-high bg-surface-container py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high cursor-pointer flex items-center justify-center gap-1.5"
+                        class="min-h-[44px] rounded-xl border border-surface-container-high bg-surface-container py-2.5 px-3 text-xs font-bold text-on-surface hover:bg-surface-container-high cursor-pointer flex items-center justify-center gap-1.5"
                     >
                         <span class="material-symbols-outlined text-[16px]">print</span>
                         <span>Imprimir Comanda</span>
                     </button>
                     <button
                         wire:click="cerrarComanda"
-                        class="rounded-xl bg-primary py-2.5 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container cursor-pointer"
+                        class="min-h-[44px] rounded-xl bg-primary py-2.5 px-3 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container cursor-pointer flex items-center justify-center"
                     >
                         ✓ Cerrar
                     </button>

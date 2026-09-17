@@ -376,6 +376,24 @@ new class extends Component
         $this->descuentoPuntos = 0.0;
     }
 
+    public function updatedDescuentoPuntos(): void
+    {
+        if ($this->puntosCanjeados > 0 && $this->clienteId) {
+            $this->descuentoPuntos = min($this->descuentoPuntos, app(\App\Services\FidelizacionService::class)->calcularDescuentoPorPuntos($this->puntosCanjeados));
+        } else {
+            $this->descuentoPuntos = 0.0;
+        }
+    }
+
+    public function updatedPuntosCanjeados(): void
+    {
+        if ($this->puntosCanjeados > 0 && $this->clienteId) {
+            $this->canjearPuntos($this->puntosCanjeados);
+        } else {
+            $this->limpiarCanje();
+        }
+    }
+
     public function getTotalProperty(): float
     {
         $envio = $this->tipo === 'delivery' ? $this->costoEnvio : 0.0;
@@ -505,6 +523,14 @@ new class extends Component
 
             $pedido = $pedidoService->enviarACocina($pedidoExistente);
         } else {
+            if ($this->puntosCanjeados > 0 && $this->clienteId) {
+                $this->authorize('canjearPuntos', Pedido::class);
+                $this->descuentoPuntos = min($this->descuentoPuntos, app(\App\Services\FidelizacionService::class)->calcularDescuentoPorPuntos($this->puntosCanjeados));
+            } else {
+                $this->puntosCanjeados = 0;
+                $this->descuentoPuntos = 0.0;
+            }
+
             $mesaObj = ($this->tipo === 'mesa' && $this->mesaId) ? Mesa::find($this->mesaId) : null;
             $pedido = $pedidoService->crearPedido([
                 'tipo' => $this->tipo,
@@ -699,6 +725,14 @@ new class extends Component
             }
             $pedido = $pedidoExistente->fresh(['items', 'mesa']);
         } else {
+            if ($this->puntosCanjeados > 0 && $this->clienteId) {
+                $this->authorize('canjearPuntos', Pedido::class);
+                $this->descuentoPuntos = min($this->descuentoPuntos, app(\App\Services\FidelizacionService::class)->calcularDescuentoPorPuntos($this->puntosCanjeados));
+            } else {
+                $this->puntosCanjeados = 0;
+                $this->descuentoPuntos = 0.0;
+            }
+
             $mesaObj = ($this->tipo === 'mesa' && $this->mesaId) ? Mesa::find($this->mesaId) : null;
             $pedido = $pedidoService->crearPedido([
                 'tipo' => $this->tipo,
@@ -2120,19 +2154,19 @@ new class extends Component
 
     <!-- Modal de Apertura Rápida de Turno de Caja desde POS -->
     @if($mostrarModalAperturaPos)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4">
-            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest">
+        <div x-data @keydown.escape.window="$wire.set('mostrarModalAperturaPos', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-apertura-pos-title" class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
                             <span class="material-symbols-outlined text-[20px]">lock_open</span>
                         </div>
                         <div>
-                            <h3 class="text-base font-extrabold text-on-surface">Apertura Rápida de Caja</h3>
+                            <h3 id="modal-apertura-pos-title" class="text-base font-extrabold text-on-surface">Apertura Rápida de Caja</h3>
                             <p class="text-[11px] text-on-surface-variant">Ingresa la base inicial de efectivo para habilitar el cobro</p>
                         </div>
                     </div>
-                    <button wire:click="$set('mostrarModalAperturaPos', false)" class="text-on-surface-variant hover:text-on-surface">
+                    <button wire:click="$set('mostrarModalAperturaPos', false)" aria-label="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
@@ -2202,16 +2236,16 @@ new class extends Component
 
     <!-- Modal de Cobro Táctil (Stitch POS-02 Billing Console) -->
     @if($mostrarModalCobro)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4">
-            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest">
+        <div x-data @keydown.escape.window="$wire.set('mostrarModalCobro', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-cobro-pos-title" class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
                             <span class="material-symbols-outlined text-[20px]">point_of_sale</span>
                         </div>
-                        <h3 class="text-base font-extrabold text-on-surface">Terminal de Cobro</h3>
+                        <h3 id="modal-cobro-pos-title" class="text-base font-extrabold text-on-surface">Terminal de Cobro</h3>
                     </div>
-                    <button wire:click="$set('mostrarModalCobro', false)" class="text-on-surface-variant hover:text-on-surface">
+                    <button wire:click="$set('mostrarModalCobro', false)" aria-label="Cerrar modal de cobro" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
@@ -2377,11 +2411,11 @@ new class extends Component
 
     <!-- Thermal Ticket 80mm Simulation Modal (Optimizado para Impresoras Locales USB / Driver Navegador) -->
     @if($mostrarTicket && $pedidoCompletado)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto">
-            <div class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs">
+        <div x-data @keydown.escape.window="$wire.cerrarTicket()" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-ticket-title" class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs max-h-[90vh] overflow-y-auto">
                 <!-- Thermal Receipt Header -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
-                    <p class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
+                    <p id="modal-ticket-title" class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
                     <p class="text-[11px] text-on-surface-variant">AURA GASTRO Enterprise POS</p>
                     <p class="text-[10px] text-on-surface-variant/70">El Poblado MDE-01 • Medellín</p>
                     <p class="text-[10px] text-on-surface-variant/70">NIT: 901.884.200-1 · Res. DIAN 18764022</p>
@@ -2484,19 +2518,19 @@ new class extends Component
 
     <!-- Modal Ley 1581 Habeas Data y Consentimiento -->
     @if($mostrarModalHabeasData)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4">
-            <div class="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
+        <div x-data @keydown.escape.window="$wire.set('mostrarModalHabeasData', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-habeas-title" class="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
                     <div class="flex items-center gap-2">
                         <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
                             <span class="material-symbols-outlined text-[20px]">verified_user</span>
                         </div>
                         <div>
-                            <h3 class="text-base font-extrabold text-on-surface">Habeas Data & Datos de Contacto</h3>
+                            <h3 id="modal-habeas-title" class="text-base font-extrabold text-on-surface">Habeas Data & Datos de Contacto</h3>
                             <p class="text-[11px] text-on-surface-variant">Ley 1581 de 2012 · Fidelización y Facturación</p>
                         </div>
                     </div>
-                    <button wire:click="$set('mostrarModalHabeasData', false)" class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+                    <button wire:click="$set('mostrarModalHabeasData', false)" aria-label="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface cursor-pointer">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>

@@ -719,7 +719,15 @@ new class extends Component
     <!-- MODAL INTERACTIVO DE AGENDA DEL DÍA (DESPLEGABLE AL TOCAR CUALQUIER DÍA) -->
 
     @if ($modalDiaOpen && $diaSeleccionado)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in" wire:click.self="cerrarModalDia">
+        <div 
+            x-data 
+            @keydown.escape.window="$wire.cerrarModalDia()" 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="modal-agenda-dia-title" 
+            class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in" 
+            wire:click.self="cerrarModalDia"
+        >
             <div class="w-full max-w-2xl rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest space-y-4 max-h-[85vh] overflow-y-auto">
                 <!-- CABECERA DEL MODAL DE DÍA -->
                 <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
@@ -728,7 +736,7 @@ new class extends Component
                             <span class="material-symbols-outlined text-[22px]">calendar_today</span>
                         </div>
                         <div>
-                            <h3 class="text-base font-extrabold text-on-surface">
+                            <h3 id="modal-agenda-dia-title" class="text-base font-extrabold text-on-surface">
                                 Agenda del {{ \Illuminate\Support\Carbon::parse($diaSeleccionado)->format('d/m/Y') }}
                             </h3>
                             <p class="text-xs text-on-surface-variant">
@@ -740,7 +748,12 @@ new class extends Component
                         </div>
                     </div>
 
-                    <button wire:click="cerrarModalDia" class="text-on-surface-variant hover:text-on-surface p-1 rounded-lg">
+                    <button 
+                        type="button" 
+                        wire:click="cerrarModalDia" 
+                        aria-label="Cerrar agenda del día" 
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                    >
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
@@ -963,11 +976,24 @@ new class extends Component
 
     <!-- MODAL: NUEVA RESERVA -->
     @if ($modalCrear)
-        <div class="fixed inset-0 z-50 flex items-end justify-center bg-inverse-surface/40 backdrop-blur-sm sm:items-center animate-fade-in" wire:click.self="$set('modalCrear', false)">
+        <div 
+            x-data 
+            @keydown.escape.window="$wire.set('modalCrear', false)" 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="modal-crear-reserva-title" 
+            class="fixed inset-0 z-50 flex items-end justify-center bg-inverse-surface/40 backdrop-blur-sm sm:items-center animate-fade-in" 
+            wire:click.self="$set('modalCrear', false)"
+        >
             <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-6 shadow-2xl sm:max-w-md sm:rounded-3xl border border-surface-container-highest space-y-4">
                 <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
-                    <h3 class="text-base font-extrabold text-on-surface">Nueva Reserva</h3>
-                    <button wire:click="$set('modalCrear', false)" class="text-on-surface-variant hover:text-on-surface">
+                    <h3 id="modal-crear-reserva-title" class="text-base font-extrabold text-on-surface">Nueva Reserva</h3>
+                    <button 
+                        type="button" 
+                        wire:click="$set('modalCrear', false)" 
+                        aria-label="Cerrar creación de reserva" 
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+                    >
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
@@ -1015,11 +1041,24 @@ new class extends Component
     <!-- MODAL: DETALLE Y CONFIRMACIÓN DE RESERVA -->
     @if ($reservaSeleccionada)
         @php $detalle = \App\Models\Reserva::with(['mesas', 'confirmadoPor'])->find($reservaSeleccionada); @endphp
-        <div class="fixed inset-0 z-50 flex items-end justify-center bg-inverse-surface/40 backdrop-blur-sm sm:items-center animate-fade-in" wire:click.self="cerrarDetalle">
+        <div 
+            x-data 
+            @keydown.escape.window="$wire.cerrarDetalle()" 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="modal-detalle-reserva-title" 
+            class="fixed inset-0 z-50 flex items-end justify-center bg-inverse-surface/40 backdrop-blur-sm sm:items-center animate-fade-in" 
+            wire:click.self="cerrarDetalle"
+        >
             <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-6 shadow-2xl sm:max-w-md sm:rounded-3xl border border-surface-container-highest space-y-4">
                 <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
-                    <h3 class="text-base font-extrabold text-on-surface">{{ $detalle?->nombre_contacto }}</h3>
-                    <button wire:click="cerrarDetalle" class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+                    <h3 id="modal-detalle-reserva-title" class="text-base font-extrabold text-on-surface">{{ $detalle?->nombre_contacto }}</h3>
+                    <button 
+                        type="button" 
+                        wire:click="cerrarDetalle" 
+                        aria-label="Cerrar detalle de reserva" 
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+                    >
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>

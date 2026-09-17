@@ -49,7 +49,7 @@ class PedidoPolicy
 
     public function canjearPuntos(User $user, ?Pedido $pedido = null): bool
     {
-        return in_array($user->role?->slug, ['cajero', 'gerente', 'admin']);
+        return in_array($user->role?->slug, ['mesero', 'cajero', 'gerente', 'admin']);
     }
 
     public function gestionarDelivery(User $user, ?Pedido $pedido = null): bool

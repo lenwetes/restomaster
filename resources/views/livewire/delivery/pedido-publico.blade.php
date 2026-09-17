@@ -294,7 +294,7 @@ new #[Layout('layouts.publico')] class extends Component
             <!-- Tracking Code Box -->
             <div class="p-5 rounded-2xl bg-stone-50 border border-stone-200 space-y-1">
                 <span class="text-[11px] font-bold uppercase tracking-widest text-stone-500">Número de Orden Oficial</span>
-                <div class="text-3xl sm:text-4xl font-black text-[#ff5436] tracking-tight font-mono">
+                <div class="text-3xl sm:text-4xl font-black text-primary tracking-tight font-mono">
                     #{{ $pedidoCreado->codigo }}
                 </div>
                 <p class="text-[11px] text-stone-500">Guarda este código para verificar tu entrega y pago.</p>
@@ -312,11 +312,11 @@ new #[Layout('layouts.publico')] class extends Component
                 </div>
                 <div class="flex justify-between items-center pb-2 border-b border-stone-200">
                     <span class="text-stone-500">Método de Pago:</span>
-                    <span class="font-bold text-amber-400 uppercase">{{ str_replace('_', ' ', $pedidoCreado->metodo_pago) }}</span>
+                    <span class="font-bold text-amber-800 uppercase">{{ str_replace('_', ' ', $pedidoCreado->metodo_pago) }}</span>
                 </div>
                 <div class="flex justify-between items-center pt-1 font-bold text-sm">
                     <span class="text-stone-900">Total a Pagar:</span>
-                    <span class="text-[#ff5436] font-mono text-base">$ {{ number_format($pedidoCreado->total, 0, ',', '.') }} COP</span>
+                    <span class="text-primary font-mono text-base font-black">$ {{ number_format($pedidoCreado->total, 0, ',', '.') }} COP</span>
                 </div>
             </div>
 
@@ -352,7 +352,7 @@ new #[Layout('layouts.publico')] class extends Component
         <!-- Hero Header -->
         <div class="mb-8 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-stone-50 via-white to-stone-50 border border-stone-200 relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6">
             <div class="space-y-2 text-center sm:text-left">
-                <span class="px-3 py-1 rounded-full bg-[#ff5436]/15 text-[#ff5436] text-[11px] font-black uppercase tracking-wider border border-[#ff5436]/30">
+                <span class="px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-black uppercase tracking-wider border border-primary/20">
                     🛵 Pedidos Online · Despacho Inmediato
                 </span>
                 <h1 class="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
@@ -366,12 +366,12 @@ new #[Layout('layouts.publico')] class extends Component
             <!-- Quick Delivery Badges -->
             <div class="flex items-center gap-4 bg-white p-3.5 rounded-2xl border border-stone-200 shrink-0 text-xs">
                 <div class="flex items-center gap-2 text-stone-600 font-bold">
-                    <span class="material-symbols-outlined text-amber-400 text-[20px]">schedule</span>
+                    <span class="material-symbols-outlined text-amber-700 text-[20px]">schedule</span>
                     <span>35-45 min</span>
                 </div>
                 <div class="w-px h-6 bg-stone-200"></div>
                 <div class="flex items-center gap-2 text-stone-600 font-bold">
-                    <span class="material-symbols-outlined text-emerald-400 text-[20px]">local_shipping</span>
+                    <span class="material-symbols-outlined text-emerald-700 text-[20px]">local_shipping</span>
                     <span>$ 8.000 COP</span>
                 </div>
             </div>
@@ -386,7 +386,7 @@ new #[Layout('layouts.publico')] class extends Component
                     <button 
                         type="button" 
                         wire:click="seleccionarCategoria('todas')" 
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 {{ $categoriaSeleccionada === 'todas' ? 'bg-[#ff5436] text-stone-900 shadow-md' : 'bg-stone-50 text-stone-500 hover:text-stone-900 border border-stone-200' }}"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 {{ $categoriaSeleccionada === 'todas' ? 'bg-primary text-white shadow-md' : 'bg-stone-50 text-stone-500 hover:text-stone-900 border border-stone-200' }}"
                     >
                         🔥 Todos los Platos
                     </button>
@@ -394,7 +394,7 @@ new #[Layout('layouts.publico')] class extends Component
                         <button 
                             type="button" 
                             wire:click="seleccionarCategoria('{{ $catPill->slug }}')" 
-                            class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 {{ $categoriaSeleccionada === $catPill->slug ? 'bg-[#ff5436] text-stone-900 shadow-md' : 'bg-stone-50 text-stone-500 hover:text-stone-900 border border-stone-200' }}"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 {{ $categoriaSeleccionada === $catPill->slug ? 'bg-primary text-white shadow-md' : 'bg-stone-50 text-stone-500 hover:text-stone-900 border border-stone-200' }}"
                         >
                             <span>{{ $catPill->icono ?? '🍣' }}</span>
                             <span>{{ $catPill->nombre }}</span>
@@ -411,7 +411,8 @@ new #[Layout('layouts.publico')] class extends Component
                         type="text" 
                         wire:model.live.debounce.250ms="busqueda" 
                         placeholder="Buscar roll, salmón, atún..." 
-                        class="w-full pl-9 pr-3 py-1.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-0 outline-none"
+                        aria-label="Buscar productos en la carta de sushi"
+                        class="w-full pl-9 pr-3 py-1.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-primary focus:ring-0 outline-none"
                     />
                 </div>
             </div>
@@ -444,7 +445,7 @@ new #[Layout('layouts.publico')] class extends Component
                                         $enCarrito = isset($carrito[$producto->id]);
                                         $cant = $enCarrito ? $carrito[$producto->id]['cantidad'] : 0;
                                     @endphp
-                                    <div class="p-4 rounded-2xl bg-white border {{ $enCarrito ? 'border-[#ff5436]/60 shadow-lg shadow-[#ff5436]/5' : 'border-stone-200' }} flex flex-col justify-between transition-all hover:border-stone-300">
+                                    <div class="p-4 rounded-2xl bg-white border {{ $enCarrito ? 'border-primary/60 shadow-lg shadow-primary/5' : 'border-stone-200' }} flex flex-col justify-between transition-all hover:border-stone-300">
                                         <div class="space-y-2">
                                             <div class="flex items-start justify-between gap-2">
                                                 <h3 class="font-extrabold text-stone-900 text-sm leading-snug">{{ $producto->nombre }}</h3>
@@ -462,7 +463,7 @@ new #[Layout('layouts.publico')] class extends Component
                                             <!-- Price -->
                                             <div>
                                                 <span class="text-[10px] text-stone-500 uppercase font-bold block">Precio</span>
-                                                <span class="text-sm sm:text-base font-black text-[#ff5436] font-mono">
+                                                <span class="text-sm sm:text-base font-black text-primary font-mono">
                                                     $ {{ number_format($producto->precio, 0, ',', '.') }}
                                                 </span>
                                             </div>
@@ -473,7 +474,7 @@ new #[Layout('layouts.publico')] class extends Component
                                                     <button 
                                                         type="button" 
                                                         wire:click="agregarAlCarrito({{ $producto->id }})" 
-                                                        class="px-3.5 py-1.5 rounded-xl bg-[#ff5436] hover:bg-[#e0381d] text-stone-900 text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
+                                                        class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary-container text-white text-xs font-black shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                                                     >
                                                         <span class="material-symbols-outlined text-[16px]">add</span>
                                                         <span>Agregar</span>
@@ -491,7 +492,7 @@ new #[Layout('layouts.publico')] class extends Component
                                                         <button 
                                                             type="button" 
                                                             wire:click="modificarCantidad({{ $producto->id }}, 1)" 
-                                                            class="w-7 h-7 rounded-lg bg-[#ff5436] hover:bg-[#e0381d] text-stone-900 flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
+                                                            class="w-7 h-7 rounded-lg bg-primary hover:bg-primary-container text-white flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
                                                         >
                                                             +
                                                         </button>
@@ -521,7 +522,7 @@ new #[Layout('layouts.publico')] class extends Component
                             <span class="text-lg">🛍️</span>
                             <h3 class="font-black text-stone-900 text-base">Bolsa de Pedido</h3>
                         </div>
-                        <span class="px-2.5 py-0.5 rounded-full bg-[#ff5436]/20 text-[#ff5436] text-xs font-black font-mono">
+                        <span class="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-black font-mono">
                             {{ $totalItems }} {{ $totalItems === 1 ? 'item' : 'items' }}
                         </span>
                     </div>
@@ -539,7 +540,7 @@ new #[Layout('layouts.publico')] class extends Component
                                 <div class="p-2.5 rounded-xl bg-stone-50 border border-stone-200 flex items-center justify-between gap-2">
                                     <div class="min-w-0 flex-1">
                                         <h4 class="font-bold text-stone-900 text-xs truncate">{{ $item['nombre'] }}</h4>
-                                        <span class="text-[11px] text-[#ff5436] font-mono">$ {{ number_format($item['precio'], 0, ',', '.') }}</span>
+                                        <span class="text-[11px] text-primary font-mono">$ {{ number_format($item['precio'], 0, ',', '.') }}</span>
                                     </div>
 
                                     <div class="flex items-center gap-1.5 shrink-0">
@@ -554,14 +555,14 @@ new #[Layout('layouts.publico')] class extends Component
                                         <button 
                                             type="button" 
                                             wire:click="modificarCantidad({{ $item['producto_id'] }}, 1)" 
-                                            class="w-6 h-6 rounded-md bg-[#ff5436] hover:bg-[#e0381d] text-white flex items-center justify-center text-xs font-bold"
+                                            class="w-6 h-6 rounded-md bg-primary hover:bg-primary-container text-white flex items-center justify-center text-xs font-bold"
                                         >
                                             +
                                         </button>
                                         <button 
                                             type="button" 
                                             wire:click="removerDelCarrito({{ $item['producto_id'] }})" 
-                                            class="p-1 text-stone-500 hover:text-rose-400 transition-colors ml-1"
+                                            class="p-1 text-stone-500 hover:text-rose-600 transition-colors ml-1"
                                             title="Quitar"
                                         >
                                             <span class="material-symbols-outlined text-[16px]">delete</span>
@@ -583,7 +584,7 @@ new #[Layout('layouts.publico')] class extends Component
                             </div>
                             <div class="flex justify-between font-black text-sm pt-2 border-t border-stone-200">
                                 <span class="text-stone-900">Total a Pagar:</span>
-                                <span class="text-[#ff5436] font-mono text-base">$ {{ number_format($totalGeneral, 0, ',', '.') }} COP</span>
+                                <span class="text-primary font-mono text-base font-black">$ {{ number_format($totalGeneral, 0, ',', '.') }} COP</span>
                             </div>
                         </div>
 
@@ -591,7 +592,7 @@ new #[Layout('layouts.publico')] class extends Component
                         <button 
                             type="button" 
                             wire:click="abrirCheckout" 
-                            class="w-full py-3.5 px-4 rounded-2xl bg-[#ff5436] hover:bg-[#e0381d] text-white font-black text-sm shadow-xl shadow-[#ff5436]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                            class="w-full py-3.5 px-4 rounded-2xl bg-primary hover:bg-primary-container text-white font-black text-sm shadow-xl shadow-primary/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
                         >
                             <span>Tramitar Pedido</span>
                             <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
@@ -607,12 +608,12 @@ new #[Layout('layouts.publico')] class extends Component
             <div class="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 p-3 flex items-center justify-between shadow-2xl">
                 <div>
                     <span class="text-[10px] text-stone-500 uppercase font-bold block">{{ $totalItems }} platos en bolsa</span>
-                    <span class="text-base font-black text-[#ff5436] font-mono">$ {{ number_format($totalGeneral, 0, ',', '.') }} COP</span>
+                    <span class="text-base font-black text-primary font-mono">$ {{ number_format($totalGeneral, 0, ',', '.') }} COP</span>
                 </div>
                 <button 
                     type="button" 
                     wire:click="abrirCheckout" 
-                    class="py-2.5 px-5 rounded-xl bg-[#ff5436] text-stone-900 font-black text-xs shadow-lg flex items-center gap-1.5"
+                    class="py-2.5 px-5 rounded-xl bg-primary text-white font-black text-xs shadow-lg flex items-center gap-1.5"
                 >
                     <span>Ver Pedido</span>
                     <span class="material-symbols-outlined text-[18px]">shopping_cart_checkout</span>
@@ -625,21 +626,29 @@ new #[Layout('layouts.publico')] class extends Component
     <!-- MODAL / DRAWER DE TRAMITACIÓN (CHECKOUT)                       -->
     <!-- ============================================================= -->
     @if ($mostrarCheckout)
-        <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto">
+        <div 
+            x-data 
+            @keydown.escape.window="$wire.cerrarCheckout()" 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="modal-checkout-title" 
+            class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-fade-in overflow-y-auto"
+        >
             <div class="w-full max-w-xl bg-white border border-stone-200 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 relative my-auto">
                 
                 <!-- Modal Header -->
                 <div class="flex items-center justify-between pb-3 border-b border-stone-200">
                     <div class="flex items-center gap-2">
                         <span class="text-xl">🛵</span>
-                        <h3 class="font-black text-stone-900 text-lg">Tramitar Pedido a Domicilio</h3>
+                        <h3 id="modal-checkout-title" class="font-black text-stone-900 text-lg">Tramitar Pedido a Domicilio</h3>
                     </div>
                     <button 
                         type="button" 
                         wire:click="cerrarCheckout" 
-                        class="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 flex items-center justify-center"
+                        aria-label="Cerrar ventana de tramitación" 
+                        class="min-w-[44px] min-h-[44px] rounded-full bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 flex items-center justify-center transition-colors"
                     >
-                        <span class="material-symbols-outlined text-[18px]">close</span>
+                        <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
 
@@ -656,10 +665,10 @@ new #[Layout('layouts.publico')] class extends Component
                                 type="text" 
                                 wire:model="nombreCliente" 
                                 placeholder="Ej. Carlos Mendoza" 
-                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-0 outline-none"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-primary focus:ring-0 outline-none"
                             />
                             @error('nombreCliente')
-                                <p class="text-[11px] text-rose-400 mt-1 font-bold">{{ $message }}</p>
+                                <p class="text-[11px] text-rose-700 mt-1 font-bold">{{ $message }}</p>
                             @enderror
                         </div>
 
@@ -671,10 +680,10 @@ new #[Layout('layouts.publico')] class extends Component
                                 type="tel" 
                                 wire:model="telefonoCliente" 
                                 placeholder="Ej. 300 123 4567" 
-                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-0 outline-none font-mono"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-primary focus:ring-0 outline-none font-mono"
                             />
                             @error('telefonoCliente')
-                                <p class="text-[11px] text-rose-400 mt-1 font-bold">{{ $message }}</p>
+                                <p class="text-[11px] text-rose-700 mt-1 font-bold">{{ $message }}</p>
                             @enderror
                         </div>
                     </div>
@@ -688,10 +697,10 @@ new #[Layout('layouts.publico')] class extends Component
                             type="text" 
                             wire:model="direccionDelivery" 
                             placeholder="Calle, Carrera, Edificio, Apto..." 
-                            class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-0 outline-none"
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-primary focus:ring-0 outline-none"
                         />
                         @error('direccionDelivery')
-                            <p class="text-[11px] text-rose-400 mt-1 font-bold">{{ $message }}</p>
+                            <p class="text-[11px] text-rose-700 mt-1 font-bold">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -704,7 +713,7 @@ new #[Layout('layouts.publico')] class extends Component
                                 type="text" 
                                 wire:model="referenciaDireccion" 
                                 placeholder="Ej. Torre 2, Apto 504" 
-                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-0 outline-none"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-primary focus:ring-0 outline-none"
                             />
                         </div>
                         <div>
@@ -715,7 +724,7 @@ new #[Layout('layouts.publico')] class extends Component
                                 type="text" 
                                 wire:model="notas" 
                                 placeholder="Ej. Sin wasabi, salsa de soya extra" 
-                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-[#ff5436] focus:ring-0 outline-none"
+                                class="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-primary focus:ring-0 outline-none"
                             />
                         </div>
                     </div>
@@ -726,20 +735,20 @@ new #[Layout('layouts.publico')] class extends Component
                             Método de Pago *
                         </label>
                         <div class="grid grid-cols-3 gap-2">
-                            <label class="p-3 rounded-xl border text-center cursor-pointer transition-all {{ $metodoPago === 'nequi_bancolombia' ? 'bg-[#ff5436]/15 border-[#ff5436] text-stone-900' : 'bg-stone-100 border-stone-200 text-stone-500 hover:border-stone-300' }}">
-                                <input type="radio" wire:model.live="metodoPago" value="nequi_bancolombia" class="hidden" />
+                            <label class="p-3 rounded-xl border text-center cursor-pointer transition-all {{ $metodoPago === 'nequi_bancolombia' ? 'bg-primary/10 border-primary text-primary font-bold' : 'bg-stone-100 border-stone-200 text-stone-600 hover:border-stone-300' }}">
+                                <input type="radio" wire:model.live="metodoPago" value="nequi_bancolombia" class="sr-only" />
                                 <span class="material-symbols-outlined text-[20px] block mx-auto mb-1">qr_code_2</span>
                                 <span class="text-[11px] font-bold block">Nequi / Bancolombia</span>
                             </label>
 
-                            <label class="p-3 rounded-xl border text-center cursor-pointer transition-all {{ $metodoPago === 'efectivo' ? 'bg-[#ff5436]/15 border-[#ff5436] text-stone-900' : 'bg-stone-100 border-stone-200 text-stone-500 hover:border-stone-300' }}">
-                                <input type="radio" wire:model.live="metodoPago" value="efectivo" class="hidden" />
+                            <label class="p-3 rounded-xl border text-center cursor-pointer transition-all {{ $metodoPago === 'efectivo' ? 'bg-primary/10 border-primary text-primary font-bold' : 'bg-stone-100 border-stone-200 text-stone-600 hover:border-stone-300' }}">
+                                <input type="radio" wire:model.live="metodoPago" value="efectivo" class="sr-only" />
                                 <span class="material-symbols-outlined text-[20px] block mx-auto mb-1">payments</span>
                                 <span class="text-[11px] font-bold block">Efectivo</span>
                             </label>
 
-                            <label class="p-3 rounded-xl border text-center cursor-pointer transition-all {{ $metodoPago === 'datafono' ? 'bg-[#ff5436]/15 border-[#ff5436] text-stone-900' : 'bg-stone-100 border-stone-200 text-stone-500 hover:border-stone-300' }}">
-                                <input type="radio" wire:model.live="metodoPago" value="datafono" class="hidden" />
+                            <label class="p-3 rounded-xl border text-center cursor-pointer transition-all {{ $metodoPago === 'datafono' ? 'bg-primary/10 border-primary text-primary font-bold' : 'bg-stone-100 border-stone-200 text-stone-600 hover:border-stone-300' }}">
+                                <input type="radio" wire:model.live="metodoPago" value="datafono" class="sr-only" />
                                 <span class="material-symbols-outlined text-[20px] block mx-auto mb-1">credit_card</span>
                                 <span class="text-[11px] font-bold block">Datáfono</span>
                             </label>
@@ -748,7 +757,7 @@ new #[Layout('layouts.publico')] class extends Component
                         <!-- Payment Details Context Box -->
                         @if ($metodoPago === 'nequi_bancolombia')
                             <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-600 space-y-1">
-                                <p class="font-bold text-amber-400">📱 Cuentas Oficiales:</p>
+                                <p class="font-bold text-amber-800">📱 Cuentas Oficiales:</p>
                                 <p>• Bancolombia Ahorros: <span class="font-mono font-bold text-stone-900">102-948572-11</span></p>
                                 <p>• Nequi / Dale: <span class="font-mono font-bold text-stone-900">300 123 4567</span></p>
                                 <p class="text-[10px] text-stone-500">Al confirmar, podrás enviar el comprobante por WhatsApp con tu número de orden.</p>
@@ -768,8 +777,8 @@ new #[Layout('layouts.publico')] class extends Component
                                 </div>
                             </div>
                         @else
-                            <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-300">
-                                <p class="font-bold text-sky-400">💳 Pago con Tarjeta:</p>
+                            <div class="p-3 rounded-xl bg-stone-50 border border-stone-200 text-xs text-stone-600">
+                                <p class="font-bold text-sky-700">💳 Pago con Tarjeta:</p>
                                 <p class="text-[11px] text-stone-500">El domiciliario llevará un datáfono inalámbrico para tarjeta débito o crédito.</p>
                             </div>
                         @endif
@@ -781,7 +790,7 @@ new #[Layout('layouts.publico')] class extends Component
                             <span class="text-stone-500 block">Total con domicilio incluido:</span>
                             <span class="text-xs text-stone-500 font-mono">({{ $totalItems }} platos + $8.000 flete)</span>
                         </div>
-                        <span class="text-lg font-black text-[#ff5436] font-mono">
+                        <span class="text-lg font-black text-primary font-mono">
                             $ {{ number_format($totalGeneral, 0, ',', '.') }} COP
                         </span>
                     </div>
@@ -791,14 +800,14 @@ new #[Layout('layouts.publico')] class extends Component
                         <button 
                             type="button" 
                             wire:click="cerrarCheckout" 
-                            class="w-1/3 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-500 hover:text-stone-900 text-xs font-bold transition-all"
+                            class="w-1/3 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 text-xs font-bold transition-all"
                         >
                             Volver
                         </button>
                         <button 
                             type="submit" 
                             wire:loading.attr="disabled" 
-                            class="w-2/3 py-3 px-4 rounded-xl bg-[#ff5436] hover:bg-[#e0381d] text-white font-black text-xs shadow-lg shadow-[#ff5436]/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                            class="w-2/3 py-3 px-4 rounded-xl bg-primary hover:bg-primary-container text-white font-black text-xs shadow-lg shadow-primary/25 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
                         >
                             <span wire:loading.remove wire:target="enviarPedidoDelivery" class="flex items-center gap-1.5">
                                 <span>Confirmar y Enviar Pedido</span>

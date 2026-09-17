@@ -39,7 +39,7 @@ services:
 
       # Automation on container boot
       AUTO_MIGRATE: "${AUTO_MIGRATE:-true}"
-      AUTO_SEED: "${AUTO_SEED:-true}"
+      AUTO_SEED: "${AUTO_SEED:-false}"
       DEMO_USERS_PASSWORD: "${DEMO_USERS_PASSWORD:-password}"
       OPTIMIZE_CACHE: "${OPTIMIZE_CACHE:-true}"
     volumes:

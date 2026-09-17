@@ -11,6 +11,7 @@ use App\Models\Producto;
 use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -70,10 +71,23 @@ class PedidoService
             $clienteId = $datos['cliente_id'] ?? null;
             $puntosCanjeados = (int) ($datos['puntos_canjeados'] ?? 0);
 
-            if ($clienteId && $puntosCanjeados > 0) {
-                $cliente = Cliente::find($clienteId);
-                if ($cliente && $cliente->puntos_fidelidad < $puntosCanjeados) {
-                    throw new \InvalidArgumentException("El comensal solo dispone de {$cliente->puntos_fidelidad} puntos (se intentaron canjear {$puntosCanjeados}).");
+            if ($descuentoPuntos > 0 || $puntosCanjeados > 0) {
+                if ($usuario && ! in_array($usuario->role?->slug, ['mesero', 'cajero', 'gerente', 'admin'], true)) {
+                    throw new AuthorizationException('No tiene permisos para canjear puntos de fidelidad.');
+                }
+
+                if ($clienteId && $puntosCanjeados > 0) {
+                    $cliente = Cliente::find($clienteId);
+                    if (! $cliente) {
+                        throw new \InvalidArgumentException('El cliente especificado no existe.');
+                    }
+                    if ($cliente->puntos_fidelidad < $puntosCanjeados) {
+                        throw new \InvalidArgumentException("El comensal solo dispone de {$cliente->puntos_fidelidad} puntos (se intentaron canjear {$puntosCanjeados}).");
+                    }
+                    $maxDescuentoPuntos = app(FidelizacionService::class)->calcularDescuentoPorPuntos($puntosCanjeados);
+                    $descuentoPuntos = min($descuentoPuntos, $maxDescuentoPuntos);
+                } elseif ($puntosCanjeados > 0 && ! $clienteId) {
+                    throw new \InvalidArgumentException('Para canjear puntos se requiere especificar un cliente.');
                 }
             }
 
@@ -293,6 +307,10 @@ class PedidoService
      */
     public function asignarMeseroAPedidoQr(int $pedidoId, User $mesero): Pedido
     {
+        if (! in_array($mesero->role?->slug, ['mesero', 'capitan', 'gerente', 'admin'], true)) {
+            throw new AuthorizationException('El usuario no tiene rol para ser asignado como mesero.');
+        }
+
         return DB::transaction(function () use ($pedidoId, $mesero) {
             $pedido = Pedido::where('id', $pedidoId)
                 ->lockForUpdate()

@@ -652,14 +652,14 @@ new class extends Component
 
     <!-- Modal: Asignar Repartidor -->
     @if($mostrarModalAsignar)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 backdrop-blur-sm p-4">
-            <div class="w-full max-w-sm rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20">
+        <div x-data @keydown.escape.window="$wire.set('mostrarModalAsignar', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-asignar-title" class="w-full max-w-sm rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20">
                 <div class="flex items-center justify-between border-b border-outline-variant/15 pb-3">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-[24px] text-primary">two_wheeler</span>
-                        <h3 class="text-base font-extrabold text-on-surface">Asignar Motorizado</h3>
+                        <h3 id="modal-asignar-title" class="text-base font-extrabold text-on-surface">Asignar Motorizado</h3>
                     </div>
-                    <button wire:click="$set('mostrarModalAsignar', false)" class="text-on-surface-variant hover:text-on-surface">
+                    <button wire:click="$set('mostrarModalAsignar', false)" aria-label="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
@@ -689,14 +689,14 @@ new class extends Component
 
     <!-- Modal: Confirmar Entrega y Cobro Contra Entrega -->
     @if($mostrarModalCobroEntrega)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 backdrop-blur-sm p-4">
-            <div class="w-full max-w-sm rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20">
+        <div x-data @keydown.escape.window="$wire.set('mostrarModalCobroEntrega', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-cobro-title" class="w-full max-w-sm rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20">
                 <div class="flex items-center justify-between border-b border-outline-variant/15 pb-3">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-[24px] text-secondary">payments</span>
-                        <h3 class="text-base font-extrabold text-on-surface">Cobro Contra Entrega</h3>
+                        <h3 id="modal-cobro-title" class="text-base font-extrabold text-on-surface">Cobro Contra Entrega</h3>
                     </div>
-                    <button wire:click="$set('mostrarModalCobroEntrega', false)" class="text-on-surface-variant hover:text-on-surface">
+                    <button wire:click="$set('mostrarModalCobroEntrega', false)" aria-label="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
@@ -731,14 +731,14 @@ new class extends Component
 
     <!-- Modal: Nuevo Pedido Manual Delivery -->
     @if($mostrarModalNuevo)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 backdrop-blur-sm p-4">
-            <div class="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20 max-h-[90vh] overflow-y-auto">
+        <div x-data @keydown.escape.window="$wire.set('mostrarModalNuevo', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-nuevo-title" class="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20 max-h-[90vh] overflow-y-auto">
                 <div class="flex items-center justify-between border-b border-outline-variant/15 pb-3">
                     <div class="flex items-center gap-2">
                         <span class="material-symbols-outlined text-[24px] text-primary">add_circle</span>
-                        <h3 class="text-base font-extrabold text-on-surface">Nuevo Pedido Delivery Manual</h3>
+                        <h3 id="modal-nuevo-title" class="text-base font-extrabold text-on-surface">Nuevo Pedido Delivery Manual</h3>
                     </div>
-                    <button wire:click="$set('mostrarModalNuevo', false)" class="text-on-surface-variant hover:text-on-surface">
+                    <button wire:click="$set('mostrarModalNuevo', false)" aria-label="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>

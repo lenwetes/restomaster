@@ -9,6 +9,7 @@ use App\Models\Pedido;
 use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -126,6 +127,10 @@ class CajaService
      */
     public function abrirTurno(Caja $caja, User $cajero, float $fondoInicial, ?string $notas = null): TurnoCaja
     {
+        if ($cajero->role && ! in_array($cajero->role->slug, ['cajero', 'gerente', 'admin', 'mesero'], true) && ! str_starts_with($cajero->role->slug, 'cajero')) {
+            throw new AuthorizationException('El usuario no tiene permisos para abrir turnos de caja.');
+        }
+
         return DB::transaction(function () use ($caja, $cajero, $fondoInicial, $notas) {
             $turnoExistente = TurnoCaja::where('caja_id', $caja->id)
                 ->where('estado', 'abierto')
@@ -261,6 +266,16 @@ class CajaService
     {
         DB::transaction(function () use ($turno, $pedido) {
             $turno = TurnoCaja::whereKey($turno->id)->lockForUpdate()->firstOrFail();
+
+            // Idempotencia: si el pedido ya está vinculado contablemente a este turno, no duplicar ventas ni asientos
+            $yaVinculado = AsientoContable::where('referencia_tipo', 'pedido')
+                ->where('referencia_id', $pedido->id)
+                ->exists();
+
+            if ($yaVinculado && $pedido->turno_caja_id === $turno->id) {
+                return;
+            }
+
             $pedido->update(['turno_caja_id' => $turno->id]);
 
             $metodo = strtolower($pedido->metodo_pago ?? 'efectivo');
