@@ -325,4 +325,38 @@ class RemediacionDineroTurnosTest extends TestCase
 
         $this->assertSame('America/Bogota', DB::selectOne('SHOW TIME ZONE')->TimeZone);
     }
+
+    public function test_crear_pedido_con_misma_idempotencia_uuid_no_duplica(): void
+    {
+        $s = $this->crearSucursal('SID*');
+        $user = $this->crearUsuario('admin', $s->id);
+        $uuid = (string) \Illuminate\Support\Str::uuid();
+
+        $menu = app(MenuService::class);
+        $categoria = $menu->crearCategoria(['nombre' => 'P', 'icono' => '🍜', 'orden' => 1, 'activo' => true]);
+        $producto = $menu->crearProducto([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Ramen',
+            'precio' => 30000.00,
+            'costo' => 8000.00,
+            'area_cocina' => 'cocina',
+            'activo' => true,
+        ]);
+        $items = [['producto_id' => $producto->id, 'cantidad' => 1]];
+
+        $primero = app(PedidoService::class)->crearPedido(
+            ['tipo' => 'mesa', 'sucursal_id' => $s->id, 'idempotencia_uuid' => $uuid],
+            $items,
+            $user
+        );
+
+        $segundo = app(PedidoService::class)->crearPedido(
+            ['tipo' => 'mesa', 'sucursal_id' => $s->id, 'idempotencia_uuid' => $uuid],
+            $items,
+            $user
+        );
+
+        $this->assertSame($primero->id, $segundo->id, 'El reintento con la misma clave debe reutilizar el pedido.');
+        $this->assertSame(1, Pedido::where('idempotencia_uuid', $uuid)->count());
+    }
 }

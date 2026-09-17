@@ -51,6 +51,7 @@ class Pedido extends Model
         'cambio',
         'notas',
         'pagado_en',
+        'idempotencia_uuid',
     ];
 
     protected function casts(): array

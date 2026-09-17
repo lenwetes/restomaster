@@ -23,6 +23,14 @@ class PedidoService
     public function crearPedido(array $datos, array $items, ?User $usuario = null): Pedido
     {
         return DB::transaction(function () use ($datos, $items, $usuario) {
+            $idempotenciaUuid = $datos['idempotencia_uuid'] ?? null;
+            if ($idempotenciaUuid) {
+                $existente = Pedido::where('idempotencia_uuid', $idempotenciaUuid)->first();
+                if ($existente) {
+                    return $existente->fresh(['items', 'mesa']);
+                }
+            }
+
             do {
                 $codigo = 'ORD-'.date('Ymd-His').'-'.strtoupper(Str::random(6));
             } while (Pedido::where('codigo', $codigo)->exists());
@@ -58,6 +66,7 @@ class PedidoService
                 'notas' => $datos['notas'] ?? null,
                 'descuento' => $datos['descuento'] ?? 0,
                 'canal_origen' => $datos['canal_origen'] ?? 'pos',
+                'idempotencia_uuid' => $idempotenciaUuid,
             ]);
 
             if ($mesa && $meseroId && ! $mesa->mesero_id) {

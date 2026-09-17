@@ -6,10 +6,13 @@ use App\Models\Pedido;
 use App\Models\Producto;
 use App\Services\PedidoService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Livewire\Volt\Component;
 
 new class extends Component
 {
+    public ?string $idempotenciaUuid = null;
+
     public string $tipo = 'mesa'; // 'mesa', 'mostrador', 'delivery'
 
     public ?int $mesaId = null;
@@ -733,6 +736,10 @@ new class extends Component
                 $this->descuentoPuntos = 0.0;
             }
 
+            if (empty($this->idempotenciaUuid)) {
+                $this->idempotenciaUuid = (string) Str::uuid();
+            }
+
             $mesaObj = ($this->tipo === 'mesa' && $this->mesaId) ? Mesa::find($this->mesaId) : null;
             $pedido = $pedidoService->crearPedido([
                 'tipo' => $this->tipo,
@@ -749,6 +756,7 @@ new class extends Component
                 'descuento' => $this->descuento,
                 'descuento_puntos' => $this->descuentoPuntos,
                 'puntos_canjeados' => $this->puntosCanjeados,
+                'idempotencia_uuid' => $this->idempotenciaUuid,
             ], array_values($this->carrito), auth()->user());
         }
 
@@ -788,6 +796,7 @@ new class extends Component
 
         $this->mostrarModalCobro = false;
         $this->mostrarTicket = true;
+        $this->idempotenciaUuid = null;
         $this->limpiarCarrito();
     }
 
