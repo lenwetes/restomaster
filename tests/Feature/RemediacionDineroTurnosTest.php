@@ -17,9 +17,11 @@ use App\Services\DeliveryService;
 use App\Services\FidelizacionService;
 use App\Services\MenuService;
 use App\Services\PedidoService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -330,7 +332,7 @@ class RemediacionDineroTurnosTest extends TestCase
     {
         $s = $this->crearSucursal('SID*');
         $user = $this->crearUsuario('admin', $s->id);
-        $uuid = (string) \Illuminate\Support\Str::uuid();
+        $uuid = (string) Str::uuid();
 
         $menu = app(MenuService::class);
         $categoria = $menu->crearCategoria(['nombre' => 'P', 'icono' => '🍜', 'orden' => 1, 'activo' => true]);
@@ -425,7 +427,7 @@ class RemediacionDineroTurnosTest extends TestCase
         $mesero = $this->crearUsuario('mesero', $s->id);
         $caja = Caja::create(['sucursal_id' => $s->id, 'nombre' => 'Caja', 'codigo' => 'CAJA-M', 'activa' => true]);
 
-        $this->expectException(\Illuminate\Auth\Access\AuthorizationException::class);
+        $this->expectException(AuthorizationException::class);
         app(CajaService::class)->abrirTurno($caja, $mesero, 50000.00);
     }
 

@@ -58,7 +58,7 @@ class RemediacionInfraSeguridadTest extends TestCase
         // La wiki de despliegue no debe publicar el valor real de la contraseña
         $despliegue = File::get(base_path('docs/despliegue-coolify.md'));
         foreach ($secretosConocidos as $secreto) {
-            $this->assertStringNotContainsString($secreto, $despliegue, "Secreto filtrado en docs/despliegue-coolify.md.");
+            $this->assertStringNotContainsString($secreto, $despliegue, 'Secreto filtrado en docs/despliegue-coolify.md.');
         }
     }
 

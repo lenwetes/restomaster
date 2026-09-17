@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\MesaEstado;
 use App\Models\Mesa;
 use App\Models\Reserva;
+use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
@@ -63,7 +64,7 @@ class ReservaService
 
         $sucursalId = (int) ($datos['sucursal_id'] ?? auth()->user()?->sucursal_id);
         if ($sucursalId === 0) {
-            $sucursalId = (int) (\App\Models\Sucursal::value('id') ?? 1);
+            $sucursalId = (int) (Sucursal::value('id') ?? 1);
         }
         if (auth()->user()?->sucursal_id && $sucursalId !== (int) auth()->user()->sucursal_id) {
             throw new AuthorizationException('No puede crear reservas en otra sucursal.');

@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Mesa;
-use App\Models\Pedido;
 use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\User;

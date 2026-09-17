@@ -175,7 +175,7 @@ class DeliveryService
      */
     public function liquidarRecaudoRepartidor(User $repartidor, TurnoCaja $turno): float
     {
-        return DB::transaction(function () use ($repartidor, $turno) {
+        return DB::transaction(function () use ($repartidor) {
             $pedidosALiquidar = Pedido::where('repartidor_id', $repartidor->id)
                 ->where('tipo', 'delivery')
                 ->where('metodo_pago', 'efectivo')
@@ -203,7 +203,7 @@ class DeliveryService
                 return 0.0;
             }
 
-            app(\App\Services\AuditoriaService::class)->registrar(
+            app(AuditoriaService::class)->registrar(
                 usuario: auth()->user(),
                 accion: 'delivery.recaudo_liquidado',
                 entidad: 'delivery',
