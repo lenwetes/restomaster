@@ -43,7 +43,7 @@ En la pestaña **Environment Variables** de tu aplicación en Coolify, puedes co
 | `APP_URL` | `https://tu-dominio.com` | URL pública de la aplicación |
 | `DB_DATABASE` | `restomaster` | Nombre de base de datos PostgreSQL |
 | `DB_USERNAME` | `adminresto` | Usuario de base de datos |
-| `DB_PASSWORD` | `SecretResto2026!` | Contraseña segura de base de datos |
+| `DB_PASSWORD` | *(generar con `openssl rand -base64 42`)* | Contraseña de base de datos — obligatoria, sin valor por defecto |
 | `AUTO_MIGRATE` | `true` | Ejecuta migraciones automáticamente al iniciar |
 | `AUTO_SEED` | `true` | Crea usuarios principales y configuración inicial |
 | `DEMO_USERS_PASSWORD`| `password` | Contraseña unificada para los 4 usuarios base |

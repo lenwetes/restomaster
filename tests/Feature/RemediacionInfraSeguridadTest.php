@@ -31,43 +31,34 @@ class RemediacionInfraSeguridadTest extends TestCase
 
         $this->assertNotEmpty($archivosCompose, 'No se encontraron archivos docker-compose en la raíz.');
 
+        $secretosConocidos = [
+            'SecretResto2026!',
+            'sushixpress2026',
+            'sushixpress_secure_password',
+            'base64:ryJ8oRftsst90c9',
+        ];
+
         foreach ($archivosCompose as $archivo) {
             $contenido = File::get($archivo);
 
-            // APP_KEY real hardcodeado (R1)
-            $this->assertStringNotContainsString(
-                'base64:ryJ8oRftsst90c9',
-                $contenido,
-                "Secret APP_KEY presente en {$archivo}. Usar \${APP_KEY} sin default real."
-            );
-
-            // Password de BD real (R1)
-            $this->assertStringNotContainsString(
-                'sushixpress_secure_password',
-                $contenido,
-                "Password de BD hardcodeado en {$archivo}."
-            );
+            foreach ($secretosConocidos as $secreto) {
+                $this->assertStringNotContainsString(
+                    $secreto,
+                    $contenido,
+                    "Secreto comprometido '{$secreto}' presente en {$archivo}. Usar \${DB_PASSWORD} sin default real."
+                );
+            }
 
             // Auto-seed habilitado por defecto (R2)
-            $this->assertStringNotContainsString(
-                'AUTO_SEED:-true',
-                $contenido,
-                "AUTO_SEED=true por defecto en {$archivo}. Debe ser \${AUTO_SEED:-false}."
-            );
-
-            // Password demo visible por defecto (R1)
-            $this->assertStringNotContainsString(
-                'sushixpress2026',
-                $contenido,
-                "Password demo hardcodeado en {$archivo}."
-            );
-
+            $this->assertStringNotContainsString('AUTO_SEED:-true', $contenido, "AUTO_SEED=true por defecto en {$archivo}.");
             // APP_DEBUG en producción por defecto (R1)
-            $this->assertStringNotContainsString(
-                'APP_DEBUG:-true',
-                $contenido,
-                "APP_DEBUG=true por defecto en {$archivo}. Debe ser \${APP_DEBUG:-false}."
-            );
+            $this->assertStringNotContainsString('APP_DEBUG:-true', $contenido, "APP_DEBUG=true por defecto en {$archivo}.");
+        }
+
+        // La wiki de despliegue no debe publicar el valor real de la contraseña
+        $despliegue = File::get(base_path('docs/despliegue-coolify.md'));
+        foreach ($secretosConocidos as $secreto) {
+            $this->assertStringNotContainsString($secreto, $despliegue, "Secreto filtrado en docs/despliegue-coolify.md.");
         }
     }
 
