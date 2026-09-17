@@ -52,6 +52,99 @@ new class extends Component
         'codigo' => '',
     ];
 
+    // Gestión y Administración de Terminales State
+    public bool $modalGestionTerminalesOpen = false;
+
+    public ?int $cajaEditandoId = null;
+
+    public array $formEditarCaja = [
+        'nombre' => '',
+        'codigo' => '',
+    ];
+
+    public function abrirModalGestionTerminales(): void
+    {
+        $this->modalGestionTerminalesOpen = true;
+        $this->cajaEditandoId = null;
+    }
+
+    public function iniciarEdicionCaja(int $id): void
+    {
+        $caja = Caja::findOrFail($id);
+        $this->cajaEditandoId = $caja->id;
+        $this->formEditarCaja = [
+            'nombre' => $caja->nombre,
+            'codigo' => $caja->codigo,
+        ];
+    }
+
+    public function cancelarEdicionCaja(): void
+    {
+        $this->cajaEditandoId = null;
+        $this->formEditarCaja = ['nombre' => '', 'codigo' => ''];
+    }
+
+    public function guardarEdicionCaja(): void
+    {
+        if (! $this->cajaEditandoId) {
+            return;
+        }
+
+        $caja = Caja::findOrFail($this->cajaEditandoId);
+        $this->authorize('update', $caja);
+
+        $this->validate([
+            'formEditarCaja.nombre' => 'required|string|max:60',
+            'formEditarCaja.codigo' => 'required|string|max:20|unique:cajas,codigo,'.$caja->id,
+        ]);
+
+        app(CajaService::class)->actualizarCaja($caja, $this->formEditarCaja, auth()->user());
+        $this->cajaEditandoId = null;
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Terminal {$caja->fresh()->nombre} actualizada con éxito.",
+            'tipo' => 'success',
+        ]);
+    }
+
+    public function alternarEstadoCaja(int $id): void
+    {
+        $caja = Caja::findOrFail($id);
+        $this->authorize('update', $caja);
+
+        app(CajaService::class)->alternarEstadoCaja($caja, auth()->user());
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Terminal {$caja->nombre} ahora está ".($caja->fresh()->activa ? 'activa' : 'inactiva').'.',
+            'tipo' => 'info',
+        ]);
+    }
+
+    public function eliminarCaja(int $id): void
+    {
+        $caja = Caja::findOrFail($id);
+        $this->authorize('delete', $caja);
+
+        try {
+            $nombre = $caja->nombre;
+            app(CajaService::class)->eliminarCaja($caja, auth()->user());
+
+            if ($this->cajaSeleccionadaId === $id) {
+                $this->cajaSeleccionadaId = Caja::value('id');
+            }
+
+            $this->dispatch('notificacion', [
+                'mensaje' => "Terminal {$nombre} eliminada permanentemente.",
+                'tipo' => 'success',
+            ]);
+        } catch (\DomainException $e) {
+            $this->dispatch('notificacion', [
+                'mensaje' => $e->getMessage(),
+                'tipo' => 'error',
+            ]);
+        }
+    }
+
     public function abrirModalNuevaCaja(): void
     {
         $conteo = Caja::count() + 1;
@@ -144,6 +237,17 @@ new class extends Component
         $this->comprobanteMovimiento = '';
         $this->autorizadoPor = '';
         $this->mostrarModalMovimiento = true;
+    }
+
+    public function abrirGavetaManual(): void
+    {
+        $this->authorize('guardarMovimiento', TurnoCaja::class);
+        app(\App\Services\ImpresionService::class)->despacharAperturaGaveta(auth()->user());
+
+        $this->dispatch('notificacion', [
+            'mensaje' => 'Señal de apertura enviada a la gaveta de dinero.',
+            'tipo' => 'success',
+        ]);
     }
 
     public function registrarMovimiento(): void
@@ -259,6 +363,7 @@ new class extends Component
         return [
             'turno' => $turnoActivo,
             'cajas' => $cajas,
+            'todasLasCajas' => Caja::withCount('turnos')->orderBy('id')->get(),
             'ultimosTurnos' => $ultimosTurnos,
         ];
     }
@@ -282,6 +387,13 @@ new class extends Component
         </div>
         <div class="flex items-center gap-2">
             @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                <button
+                    wire:click="abrirModalGestionTerminales"
+                    class="inline-flex items-center gap-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-surface-container-highest px-3.5 py-2 text-xs font-extrabold text-on-surface transition-all active:scale-95"
+                >
+                    <span class="material-symbols-outlined text-[16px] text-primary">devices</span>
+                    <span>Gestionar Terminales</span>
+                </button>
                 <button
                     wire:click="abrirModalNuevaCaja"
                     class="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3.5 py-2 text-xs font-extrabold text-on-secondary shadow-sm hover:bg-secondary-fixed-dim transition-all active:scale-95"
@@ -341,6 +453,14 @@ new class extends Component
             <!-- BOTONES DE ACCIÓN RÁPIDA (Stitch CAJ-01) -->
             <div class="flex flex-wrap items-center gap-2 xl:justify-end">
                 <button 
+                    wire:click="abrirModalMovimiento('ingreso')"
+                    class="h-11 px-3.5 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary transition-all flex items-center gap-1.5 shadow-sm active:scale-95 text-xs font-extrabold border border-secondary/30" 
+                    type="button"
+                >
+                    <span class="material-symbols-outlined text-[18px]">add_circle</span>
+                    <span>+ Registrar Ingreso</span>
+                </button>
+                <button 
                     wire:click="abrirModalMovimiento('egreso')"
                     class="h-11 px-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface transition-all flex items-center gap-1.5 shadow-sm active:scale-95 text-xs font-extrabold border border-surface-container-high" 
                     type="button"
@@ -355,6 +475,15 @@ new class extends Component
                 >
                     <span class="material-symbols-outlined text-[18px] text-tertiary">account_balance</span>
                     <span>Retiro a Banco</span>
+                </button>
+                <button 
+                    wire:click="abrirGavetaManual"
+                    class="h-11 px-3.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface transition-all flex items-center gap-1.5 shadow-sm active:scale-95 text-xs font-extrabold border border-surface-container-high" 
+                    type="button"
+                    title="Enviar comando ESC/POS para abrir cajón de dinero físicamente"
+                >
+                    <span class="material-symbols-outlined text-[18px] text-primary">meeting_room</span>
+                    <span>Abrir Gaveta</span>
                 </button>
                 <button 
                     wire:click="generarReporteX"
@@ -464,7 +593,7 @@ new class extends Component
                     </div>
                 </div>
                 <div class="mt-4 pt-2 border-t border-surface-container-high flex items-center justify-between text-xs text-on-surface-variant">
-                    <span class="text-[10px] font-mono">Fondo + Ef. Ventas - Egresos</span>
+                    <span class="text-[10px] font-mono">Fondo + Ef. Ventas + Ingresos - Egresos</span>
                     <span class="text-[10px] font-bold text-on-secondary-container bg-secondary-container/50 px-2 py-0.5 rounded">Cuadre Automático</span>
                 </div>
             </div>
@@ -664,16 +793,28 @@ new class extends Component
         </div>
     @endif
 
-    <!-- MODAL: REGISTRAR EGRESO / RETIRO -->
+    <!-- MODAL: REGISTRAR INGRESO / EGRESO / RETIRO -->
     @if($mostrarModalMovimiento)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4">
             <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest">
                 <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
                     <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-error-container text-error flex items-center justify-center">
-                            <span class="material-symbols-outlined text-[20px]">price_change</span>
-                        </div>
-                        <h3 class="text-base font-extrabold text-on-surface capitalize">Registrar {{ $tipoMovimiento }}</h3>
+                        @if($tipoMovimiento === 'ingreso')
+                            <div class="w-8 h-8 rounded-lg bg-secondary-container text-secondary flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[20px]">add_circle</span>
+                            </div>
+                            <h3 class="text-base font-extrabold text-on-surface">Registrar Ingreso de Efectivo</h3>
+                        @elseif($tipoMovimiento === 'retiro')
+                            <div class="w-8 h-8 rounded-lg bg-tertiary-container text-tertiary flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[20px]">account_balance</span>
+                            </div>
+                            <h3 class="text-base font-extrabold text-on-surface">Registrar Retiro a Banco</h3>
+                        @else
+                            <div class="w-8 h-8 rounded-lg bg-error-container text-error flex items-center justify-center">
+                                <span class="material-symbols-outlined text-[20px]">price_change</span>
+                            </div>
+                            <h3 class="text-base font-extrabold text-on-surface">Registrar Egreso de Caja</h3>
+                        @endif
                     </div>
                     <button wire:click="$set('mostrarModalMovimiento', false)" class="text-on-surface-variant hover:text-on-surface">
                         <span class="material-symbols-outlined text-[20px]">close</span>
@@ -699,28 +840,40 @@ new class extends Component
                             type="text" 
                             wire:model="conceptoMovimiento" 
                             class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-2.5 text-xs text-on-surface focus:border-primary focus:ring-0"
-                            placeholder="Ej: Compra de hielo de urgencia, retiro a banco..."
+                            placeholder="{{ $tipoMovimiento === 'ingreso' ? 'Ej: Inyección de cambio / sencillo, aporte a caja...' : 'Ej: Compra de hielo de urgencia, insumos...' }}"
                         />
                         @error('conceptoMovimiento') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="text-xs font-bold text-on-surface-variant">N° Factura / Recibo:</label>
+                            <label class="text-xs font-bold text-on-surface-variant">N° Recibo / Comprobante:</label>
                             <input 
                                 type="text" 
                                 wire:model="comprobanteMovimiento" 
                                 class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0 font-mono"
-                                placeholder="FAC-1234"
+                                placeholder="{{ $tipoMovimiento === 'ingreso' ? 'REC-001 (Opc.)' : 'FAC-1234' }}"
                             />
                         </div>
                         <div>
-                            <label class="text-xs font-bold text-on-surface-variant">Autorizado por:</label>
-                            <input 
-                                type="text" 
-                                wire:model="autorizadoPor" 
-                                class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0"
-                            />
+                            @if($tipoMovimiento === 'ingreso')
+                                <label class="text-xs font-bold text-on-surface-variant">Entregado por (Opcional):</label>
+                                <input 
+                                    type="text" 
+                                    wire:model="autorizadoPor" 
+                                    class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0"
+                                    placeholder="Nombre de quien aporta"
+                                />
+                            @else
+                                <label class="text-xs font-bold text-on-surface-variant">Autorizado por:</label>
+                                <input 
+                                    type="text" 
+                                    wire:model="autorizadoPor" 
+                                    class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-2 text-xs text-on-surface focus:border-primary focus:ring-0"
+                                    placeholder="Superior que autoriza"
+                                />
+                                @error('autorizadoPor') <span class="text-[11px] text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -732,12 +885,21 @@ new class extends Component
                     >
                         Cancelar
                     </button>
-                    <button 
-                        wire:click="registrarMovimiento" 
-                        class="rounded-xl bg-error py-3 text-xs font-black text-on-error shadow-md hover:opacity-90"
-                    >
-                        ✓ Registrar Salida
-                    </button>
+                    @if($tipoMovimiento === 'ingreso')
+                        <button 
+                            wire:click="registrarMovimiento" 
+                            class="rounded-xl bg-secondary py-3 text-xs font-black text-on-secondary shadow-md hover:bg-secondary-fixed-dim"
+                        >
+                            ✓ Registrar Ingreso
+                        </button>
+                    @else
+                        <button 
+                            wire:click="registrarMovimiento" 
+                            class="rounded-xl bg-error py-3 text-xs font-black text-on-error shadow-md hover:opacity-90"
+                        >
+                            ✓ Registrar Salida
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -953,6 +1115,176 @@ new class extends Component
                         class="rounded-xl bg-primary py-2.5 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container"
                     >
                         ✓ Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL: GESTIÓN DE TERMINALES DE CAJA -->
+    @if($modalGestionTerminalesOpen)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div class="w-full max-w-2xl rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest space-y-4">
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+                            <span class="material-symbols-outlined text-[20px]">devices</span>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-on-surface">Gestión de Terminales de Caja</h3>
+                            <p class="text-[11px] text-on-surface-variant">Edita nombres, códigos, activa/desactiva o elimina puntos de cobro físicos.</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('modalGestionTerminalesOpen', false)" class="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded-lg">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <div class="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+                    @forelse($todasLasCajas as $cajaItem)
+                        <div class="rounded-2xl border {{ $cajaItem->activa ? 'border-surface-container-highest bg-surface-container-low/40' : 'border-dashed border-surface-container-high bg-surface-container-highest/20 opacity-75' }} p-4 transition-all hover:shadow-sm">
+                            @if($cajaEditandoId === $cajaItem->id)
+                                <!-- MODO EDICIÓN EN LÍNEA -->
+                                <form wire:submit="guardarEdicionCaja" class="space-y-3">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="text-[11px] font-bold text-on-surface-variant block mb-1">Nombre Terminal:</label>
+                                            <input 
+                                                type="text" 
+                                                wire:model="formEditarCaja.nombre" 
+                                                class="w-full h-10 rounded-xl border border-primary/40 bg-surface-container-lowest px-3 text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
+                                                required
+                                            />
+                                            @error('formEditarCaja.nombre') <span class="text-[11px] text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                                        </div>
+                                        <div>
+                                            <label class="text-[11px] font-bold text-on-surface-variant block mb-1">Código Único:</label>
+                                            <input 
+                                                type="text" 
+                                                wire:model="formEditarCaja.codigo" 
+                                                class="w-full h-10 rounded-xl border border-primary/40 bg-surface-container-lowest px-3 font-mono text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
+                                                required
+                                            />
+                                            @error('formEditarCaja.codigo') <span class="text-[11px] text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 pt-1">
+                                        <button 
+                                            type="button" 
+                                            wire:click="cancelarEdicionCaja" 
+                                            class="rounded-xl border border-surface-container-high bg-surface-container px-3 py-1.5 text-xs font-bold text-on-surface-variant hover:text-on-surface"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button 
+                                            type="submit" 
+                                            class="rounded-xl bg-primary px-4 py-1.5 text-xs font-black text-on-primary shadow-sm hover:bg-primary-container"
+                                        >
+                                            ✓ Guardar Cambios
+                                        </button>
+                                    </div>
+                                </form>
+                            @else
+                                <!-- MODO VISUALIZACIÓN -->
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="flex-shrink-0 w-3 h-3 rounded-full {{ $cajaItem->activa ? 'bg-secondary' : 'bg-surface-container-highest' }}" title="{{ $cajaItem->activa ? 'Terminal activa' : 'Terminal inactiva' }}"></div>
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm font-extrabold text-on-surface">{{ $cajaItem->nombre }}</span>
+                                                <span class="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-surface-container text-on-surface-variant border border-surface-container-highest">
+                                                    {{ $cajaItem->codigo }}
+                                                </span>
+                                                @if($cajaItem->activa)
+                                                    <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-secondary-container/40 text-on-secondary-container border border-secondary/20">
+                                                        Activa
+                                                    </span>
+                                                @else
+                                                    <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">
+                                                        Inactiva
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="flex items-center gap-3 text-[11px] text-on-surface-variant mt-1">
+                                                <span>{{ $cajaItem->turnos_count }} {{ $cajaItem->turnos_count === 1 ? 'turno registrado' : 'turnos registrados' }}</span>
+                                                @if($cajaItem->turnos_count > 0)
+                                                    <span>•</span>
+                                                    <span class="text-amber-600 font-medium">Contiene auditoría contable</span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 self-end sm:self-center">
+                                        <!-- BOTÓN ACTIVAR / DESACTIVAR -->
+                                        <button 
+                                            wire:click="alternarEstadoCaja({{ $cajaItem->id }})" 
+                                            class="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all {{ $cajaItem->activa ? 'bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20' : 'bg-secondary/10 text-secondary hover:bg-secondary/20 border border-secondary/20' }}"
+                                            title="{{ $cajaItem->activa ? 'Desactivar esta terminal' : 'Activar esta terminal' }}"
+                                        >
+                                            <span class="material-symbols-outlined text-[16px]">{{ $cajaItem->activa ? 'power_settings_new' : 'check_circle' }}</span>
+                                            <span>{{ $cajaItem->activa ? 'Desactivar' : 'Activar' }}</span>
+                                        </button>
+
+                                        <!-- BOTÓN EDITAR -->
+                                        <button 
+                                            wire:click="iniciarEdicionCaja({{ $cajaItem->id }})" 
+                                            class="inline-flex items-center gap-1 rounded-xl border border-surface-container-highest bg-surface-container px-2.5 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container-high transition-all"
+                                            title="Editar nombre y código"
+                                        >
+                                            <span class="material-symbols-outlined text-[16px] text-primary">edit</span>
+                                            <span>Editar</span>
+                                        </button>
+
+                                        <!-- BOTÓN ELIMINAR (SOLO ADMIN) -->
+                                        @if(auth()->user()?->role?->slug === 'admin')
+                                            @if($cajaItem->turnos_count === 0)
+                                                <button 
+                                                    wire:click="eliminarCaja({{ $cajaItem->id }})" 
+                                                    wire:confirm="¿Seguro que deseas eliminar permanentemente la terminal {{ $cajaItem->nombre }}? Esta acción no se puede deshacer."
+                                                    class="inline-flex items-center gap-1 rounded-xl bg-error/10 text-error hover:bg-error/20 border border-error/20 px-2.5 py-1.5 text-xs font-bold transition-all"
+                                                    title="Eliminar terminal (sin turnos)"
+                                                >
+                                                    <span class="material-symbols-outlined text-[16px]">delete</span>
+                                                    <span>Eliminar</span>
+                                                </button>
+                                            @else
+                                                <button 
+                                                    disabled
+                                                    class="inline-flex items-center gap-1 rounded-xl bg-surface-container text-on-surface-variant/40 border border-surface-container-highest px-2.5 py-1.5 text-xs font-medium cursor-not-allowed opacity-60"
+                                                    title="No se puede eliminar porque tiene turnos y ventas asociadas. Puedes desactivarla."
+                                                >
+                                                    <span class="material-symbols-outlined text-[16px]">lock</span>
+                                                    <span>Eliminar</span>
+                                                </button>
+                                            @endif
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <div class="text-center py-6 text-xs text-on-surface-variant">
+                            No hay terminales configuradas en el sistema.
+                        </div>
+                    @endforelse
+                </div>
+
+                <div class="pt-3 border-t border-surface-container-high flex items-center justify-between">
+                    <button 
+                        type="button" 
+                        wire:click="abrirModalNuevaCaja" 
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-secondary/15 text-secondary border border-secondary/30 px-3 py-2 text-xs font-bold hover:bg-secondary/25 transition-all"
+                    >
+                        <span class="material-symbols-outlined text-[16px]">add_box</span>
+                        <span>+ Nueva Terminal</span>
+                    </button>
+                    <button 
+                        type="button"
+                        wire:click="$set('modalGestionTerminalesOpen', false)" 
+                        class="rounded-xl border border-surface-container-high bg-surface-container px-4 py-2 text-xs font-extrabold text-on-surface-variant hover:text-on-surface"
+                    >
+                        Cerrar
                     </button>
                 </div>
             </div>

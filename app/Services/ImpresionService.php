@@ -93,7 +93,9 @@ class ImpresionService
             ]);
 
         $textoTicket = $this->formatearTicketVentaTexto($pedido);
-        $rawTicket = $this->convertirEscPos($textoTicket, true);
+        $metodoPago = strtolower((string) ($pedido->metodo_pago ?? ''));
+        $abrirGaveta = in_array($metodoPago, ['efectivo', 'mixto'], true) || ((float) ($pedido->monto_pago_efectivo ?? 0) > 0);
+        $rawTicket = $this->convertirEscPos($textoTicket, true, $abrirGaveta);
 
         $trabajo = TrabajoImpresion::create([
             'tipo' => 'ticket_venta',
@@ -107,6 +109,37 @@ class ImpresionService
         ]);
 
         ImprimirTicketVentaJob::dispatch($trabajo->id);
+
+        return $trabajo;
+    }
+
+    /**
+     * Despacha una orden directa para abrir físicamente la gaveta monedero sin imprimir ticket.
+     */
+    public function despacharAperturaGaveta(?User $usuario = null): TrabajoImpresion
+    {
+        $impresora = Impresora::activas()->whereIn('area', ['caja_principal', 'todas'])->first()
+            ?? Impresora::activas()->first()
+            ?? Impresora::create([
+                'nombre' => 'Térmica Caja (Simulador)',
+                'tipo_conexion' => 'virtual_simulador',
+                'area' => 'caja_principal',
+                'ancho_columnas' => self::ANCHO_80MM,
+                'copias' => 1,
+                'activa' => true,
+            ]);
+
+        $rawSecuencia = "\x1B\x40".$this->comandoAbrirGaveta();
+
+        $trabajo = TrabajoImpresion::create([
+            'tipo' => 'apertura_gaveta',
+            'impresora_id' => $impresora->id,
+            'area' => 'caja',
+            'contenido_texto' => '*** APERTURA MANUAL DE GAVETA DE DINERO ***',
+            'contenido_raw' => $rawSecuencia,
+            'estado' => 'completado',
+            'usuario_id' => $usuario?->id ?? auth()->id(),
+        ]);
 
         return $trabajo;
     }
@@ -130,7 +163,7 @@ class ImpresionService
             ]);
 
         $textoReporte = $this->formatearReporteZTexto($turno);
-        $rawReporte = $this->convertirEscPos($textoReporte, true);
+        $rawReporte = $this->convertirEscPos($textoReporte, true, true);
 
         $trabajo = TrabajoImpresion::create([
             'tipo' => 'reporte_z',
@@ -693,16 +726,26 @@ class ImpresionService
     }
 
     /**
-     * Convierte texto plano a secuencia binaria ESC/POS con inicialización y corte.
+     * Retorna la secuencia de comando binario estándar ESC/POS para abrir gaveta física (Drawer Kick).
+     * Envía pulso a Pin 2 y Pin 5 para máxima compatibilidad con cajones monedero de todas las marcas.
      */
-    public function convertirEscPos(string $texto, bool $cortarPapel = true): string
+    public function comandoAbrirGaveta(): string
+    {
+        return "\x1B\x70\x00\x19\xFA"."\x1B\x70\x01\x19\xFA";
+    }
+
+    /**
+     * Convierte texto plano a secuencia binaria ESC/POS con inicialización, apertura de gaveta opcional y corte.
+     */
+    public function convertirEscPos(string $texto, bool $cortarPapel = true, bool $abrirGaveta = false): string
     {
         $escInit = "\x1B\x40"; // ESC @: Inicializar impresora
+        $drawerKick = $abrirGaveta ? $this->comandoAbrirGaveta() : '';
         $gsCut = $cortarPapel ? "\x1D\x56\x42\x00" : ''; // GS V B 0: Corte parcial de papel
 
         // Normalizar saltos de línea a CRLF para impresoras térmicas
         $textoNormalizado = str_replace(["\r\n", "\r", "\n"], "\r\n", $texto);
 
-        return $escInit.$textoNormalizado."\r\n\r\n\r\n".$gsCut;
+        return $escInit.$drawerKick.$textoNormalizado."\r\n\r\n\r\n".$gsCut;
     }
 }

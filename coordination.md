@@ -6,6 +6,108 @@
 ---
 
 ## Última Actualización
+2026-09-17 15:42 | Antigravity | ✅ **CALENDARIO MENSUAL REDISEÑADO: TABLA CLÁSICA CON BARRAS DE EVENTOS DE COLOR (31/31 TESTS VERDE · PINT 0)**:
+- **Solicitud del usuario:** El diseño "estilo Google Calendar" anterior fue rechazado. El usuario solicitó un diseño idéntico a su segunda imagen de referencia: calendario tipo tabla clásica mensual (LUNES→DOMINGO), número de día en la esquina superior izquierda, y reservas como barras horizontales de color dentro de cada celda.
+- **Cambios en `resources/views/livewire/reservas/index.blade.php`:**
+  - Reemplazada la grilla CSS `grid grid-cols-7` + celdas `div` por una **tabla HTML** `<table>` semántica con columnas `table-fixed`.
+  - **Cabecera:** `LUNES | MARTES | MIÉRCOLES | JUEVES | VIERNES | SÁBADO | DOMINGO` (nombres completos, no abreviaciones), con sábado y domingo en tono rosado.
+  - **Número de día:** Esquina **superior izquierda** de cada celda. Hoy: círculo relleno con color primario.
+  - **Eventos:** Barras horizontales de color con icono `bookmark`, hora (fuente mono) y nombre. Color por estado: dorado (`#c8a96e`) para confirmadas, ámbar para solicitudes web, esmeralda para en sala, gris para finalizadas, rosa para canceladas.
+  - **Overflow:** Si hay más de 3 reservas en un día, se muestra `+N más` clicable.
+  - **Barra de navegación:** Simplificada — chevrons redondos + título mes/año centrado + botón "Hoy" + chips de KPIs (`Reservas:` / `Comensales:`) + botón `Nueva reserva`.
+  - **Leyenda de colores** al pie del calendario.
+- **Tests actualizados en `tests/Feature/ReservasCalendarioMensualTest.php`:**
+  - Actualizados 3 tests para reflejar los nuevos labels (`Reservas:`, `Comensales:`, nombres completos de días) y el nuevo comportamiento de barras de eventos en lugar del banner naranja con "X res".
+  - 31/31 tests VERDE (117 assertions). Pint 0 violaciones. Lock liberado.
+
+- **Diseño Idéntico a la Captura de Referencia (`resources/views/livewire/reservas/index.blade.php`):**
+  - **Barra Superior de Control y Filtros:**
+    - Checkboxes a la izquierda: `[ ] MOSTRAR DÍAS SIN RESERVAS` y `[ ] MOSTRAR SOLO RESERVAS CONFIRMADAS`.
+    - Dropdown central de filtrado de estado de reservas (`Todas las reservas`, `Confirmadas`, `Solicitudes web`, `En sala`, etc.).
+    - Botón `+ NUEVA RESERVA` estilo pizarra/slate con icono `+` (idéntico a `+ NEUER TERMIN`).
+    - Botón `HOY` en tono coral/naranja cálido `#e05638` (idéntico a `HEUTE`).
+  - **Cabecera de Días de la Semana:**
+    - 7 columnas con formato de 2 letras en mayúscula (`LU`, `MA`, `MI`, `JU`, `VI`, `SÁ`, `DO`), borde inferior y espaciado limpio.
+  - **Estructura de Cada Celda Diaria:**
+    - **Banner Superior Naranja Sólido (`#f58220`):** Presente en días con reservas activas mostrando en blanco nítido:
+      - Izquierda: Icono de persona `👤` y total de comensales del día (`{{ $celda['totalPersonas'] }}`).
+      - Derecha: Icono de métricas `📊` y conteo de reservas (`{{ $celda['totalReservas'] }} res`).
+    - **Cuerpo de la Celda:** Lista compacta vertical de citas (`10:00 Cliente (Mesa)`) con hora en fuente mono gris y nombre truncado.
+    - **Indicador `•••`:** Tres puntos horizontales destacados cuando el día cuenta con más de 4 reservas.
+    - **Número de Día en Esquina Inferior Derecha:** Tipografía grande en gris tenue (`01`, `02`, `03` ... `28`), con relleno a dos dígitos (exacto a la imagen). Los días sin reservas quedan completamente limpios con solo este número.
+    - **Día de Hoy:** Resaltado con marco e indicador primario.
+- **Modal Interactivo de Gestión del Día (al tocar cualquier día):**
+  - Despliega la agenda completa de esa fecha (`Agenda del DD/MM/AAAA`) con:
+    - Botón `+ Nueva reserva para este día` (precarga la fecha en 1 toque).
+    - Botón `Abrir en Agenda Diaria`.
+    - Botones de acción directa: `Confirmar`, `Llegó`, `Finalizar`, `Cancelar` y `Detalle`.
+- **Suite de Pruebas y Calidad:**
+  - Ampliado [ReservasCalendarioMensualTest.php](file:///d:/Proyectos/restomaster/tests/Feature/ReservasCalendarioMensualTest.php) con tests de renderizado de cabecera, botones, banner naranja y modal.
+  - 31/31 tests pasando (119 assertions en suite de reservas).
+  - Pint 100% aprobado (0 violaciones).
+  - Lock liberado.
+- **Estilo Google Calendar Compacto y Elegante (`reservas/index.blade.php`):**
+  - Eliminado el tablón voluminoso vertical y las tarjetas sobredimensionadas.
+  - Cuadrícula compacta de 7 columnas dividida por líneas sutiles (Lunes a Domingo) idéntica a Google Calendar / Apple Calendar.
+  - Casillas de días limpias con número en círculo destacado (día actual resaltado en azul primario).
+  - Dentro de cada casilla, las reservas se exhiben como **chips / barras de eventos compactos** (`hora · cliente · pax`), con código de color según estado (verde esmeralda para confirmadas, ámbar para solicitudes web, azul para clientes en sala).
+  - Si un día tiene más de 2 reservas, añade indicador limpio `+N más...`.
+  - Barra superior compacta con controles estilo Google Calendar (`[ < ] [ > ] [ Hoy ] Septiembre 2026`), chips resumidos y toggle de vista.
+- **Modal Interactivo de Agenda del Día (al tocar cualquier día):**
+  - Al hacer clic o tocar en cualquier día del calendario, se despliega un **modal interactivo centrado**:
+    - Título del día (`Agenda del 17/09/2026`) con total de reservas y comensales.
+    - Botón `+ Nueva reserva para este día` y botón `Abrir en Agenda Diaria`.
+    - Lista de reservas del día con gestión directa en 1 clic:
+      - Botón `Confirmar` (abre asignación de mesas).
+      - Botón `Llegó` (marca comensales en sala de inmediato con `marcarLlegoId`).
+      - Botón `Finalizar` (cierra reserva y libera mesa con `finalizarId`).
+      - Botón `Cancelar` (con confirmación rápida con `cancelarReservaId`).
+      - Botón de información completa `Detalle`.
+- **Tests Automatizados y Calidad:**
+  - Suite [ReservasCalendarioMensualTest.php](file:///d:/Proyectos/restomaster/tests/Feature/ReservasCalendarioMensualTest.php) (7/7 tests pasando).
+  - Suites existentes `Fase5ReservasTest` y `Fase5PublicoReservasTest` (22/22 tests pasando). Total 29/29 tests verdes (99 assertions).
+  - Formato validado con `vendor/bin/pint --test` (0 violaciones).
+  - Lock `.locks/antigravity-reservas-google-calendar.lock` liberado.
+
+2026-09-17 15:00 | Antigravity | ✅ **GESTIÓN COMPLETA DE TERMINALES DE CAJA (11/11 TESTS VERDE · PINT 0)**:
+- **Servicio y Modelo de Cajas (`CajaService.php`):**
+  - Implementado `actualizarCaja(Caja $caja, array $datos, ?User $usuario = null): Caja`: actualización segura de nombre y código con registro en `AuditoriaService`.
+  - Implementado `alternarEstadoCaja(Caja $caja, ?User $usuario = null): Caja`: toggle de activación/desactivación para ocultar terminales obsoletas sin romper relaciones.
+  - Implementado `eliminarCaja(Caja $caja, ?User $usuario = null): bool`: eliminación protegida que valida `turnos()->exists()`. Si la caja posee historial contable o turnos previos, bloquea la eliminación con `DomainException` recomendando la desactivación.
+- **Interfaz y Modal de Gestión (`caja/control.blade.php`):**
+  - Añadido botón superior `Gestionar Terminales` para roles autorizados (`admin`, `gerente`).
+  - Modal reactivo con listado completo de terminales (`todasLasCajas`), indicadores de estado, conteo de turnos y alerta contable.
+  - Edición en línea (inline edit) para modificar nombre y código sin recargar ni salir del modal.
+  - Botón de alternancia Activar/Desactivar en tiempo real con feedback visual.
+  - Botón de eliminación protegido por rol `admin` y deshabilitado con candado explicativo si la terminal contiene auditoría contable.
+- **Tests Automatizados y Calidad:**
+  - Suite [CajaPosGavetaMejorasTest.php](file:///d:/Proyectos/restomaster/tests/Feature/CajaPosGavetaMejorasTest.php) ampliada a 11 tests exhaustivos (11/11 tests pasando, 37 assertions).
+  - Verificación de políticas de seguridad RBAC (`CajaPolicy`): cajeros restringidos (`403 Forbidden`).
+  - Código formateado al 100% con `vendor/bin/pint --test` (0 violaciones).
+  - Lock `.locks/antigravity-gestion-terminales-caja.lock` liberado.
+
+2026-09-17 14:45 | Antigravity | ✅ **MEJORAS CAJA, POS Y GAVETA ESC/POS COMPLETADAS (38/38 TESTS VERDE · PINT 0)**:
+- **Botón y Modal Dinámico `+ Registrar Ingreso` en Caja (`caja/control.blade.php`):**
+  - Añadido botón de acción rápida `+ Registrar Ingreso` (estilo esmeralda/secundario).
+  - Modal adaptativo para `ingreso`: título dinámico, ícono `add_circle`, color verde, texto `✓ Registrar Ingreso`, sin exigir autorización de superiores (aplica a inyecciones de cambio/base adicional).
+  - Métricas de Efectivo Esperado actualizadas con desglose explícito de ingresos.
+  - Botón de acción rápida `Abrir Gaveta` para disparar el pulso manual de apertura sin comprobante fiscal.
+- **Bloqueo Preventivo y Apertura Rápida de Turno en POS (`pos/terminal.blade.php`):**
+  - Indicador táctil en el top bar del POS: chip de estado `Turno Activo #[ID]` (verde) vs `Caja Cerrada · Abrir con Base` (aviso con acción 1-clic).
+  - Bloqueo preventivo en `abrirModalCobro()`: en lugar de arrojar excepciones de backend al cobrar sin turno, despliega el modal táctil de **Apertura Rápida de Caja**.
+  - Modal de Apertura Rápida en POS: permite a `cajero`/`admin` seleccionar la terminal, definir el fondo inicial (con atajos táctiles de $100k, $150k, $200k) y abrir la caja directamente desbloqueando el cobro en el mismo flujo.
+  - Para el rol `mesero`, despliega advertencia amigable informando que debe solicitar la apertura de turno al cajero antes de cobrar.
+- **Apertura de Gaveta Física ESC/POS Drawer Kick (`ImpresionService.php`):**
+  - Implementado `comandoAbrirGaveta(): string` con secuencias estándar ESC/POS para Pin 2 (`\x1B\x70\x00\x19\xFA`) y Pin 5 (`\x1B\x70\x01\x19\xFA`).
+  - Actualizado `convertirEscPos` con flag `$abrirGaveta` para inyectar el pulso antes del cuerpo del documento.
+  - Activado automáticamente en `despacharReporteZ` (arqueo fiscal) y en `despacharTicketVenta` cuando el método de pago involucra `efectivo` o `mixto`.
+  - Agregado método `despacharAperturaGaveta(?User $usuario = null)` para aperturas manuales auditables.
+- **Tests Automatizados y Calidad:**
+  - Creada suite [CajaPosGavetaMejorasTest.php](file:///d:/Proyectos/restomaster/tests/Feature/CajaPosGavetaMejorasTest.php) (6/6 tests pasando).
+  - Suites de regresión `Fase2CajaTest`, `RemediacionDineroTurnosTest`, `RemediacionReporteZTest`, `MeseroPosOptimizationTest` 100% verde (32/32 tests pasando, total 149 assertions).
+  - Formato validado con `vendor/bin/pint --test` (0 violaciones).
+  - Lock liberado: Eliminado `.locks/antigravity-caja-pos-gaveta.lock`.
+
 2026-09-16 17:55 | Antigravity | 🚀 **DOCKER COMPOSE PARA COOLIFY Y DESPLIEGUE EN VPS COMPLETADO**:
 - **Nuevo Archivo Compose:** Creado [docker-compose.coolify.yml](file:///d:/Proyectos/restomaster/docker-compose.coolify.yml) y actualizado [docker-compose.yml](file:///d:/Proyectos/restomaster/docker-compose.yml) optimizados para Coolify v4+ y VPS.
 - **Configuración de Red y Puertos:**

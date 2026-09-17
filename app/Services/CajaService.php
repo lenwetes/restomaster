@@ -43,6 +43,85 @@ class CajaService
     }
 
     /**
+     * Actualizar los datos de una terminal de caja.
+     */
+    public function actualizarCaja(Caja $caja, array $datos, ?User $usuario = null): Caja
+    {
+        $datosAnteriores = $caja->only(['nombre', 'codigo', 'activa']);
+
+        $caja->update([
+            'nombre' => trim($datos['nombre']),
+            'codigo' => strtoupper(trim($datos['codigo'])),
+            'activa' => $datos['activa'] ?? $caja->activa,
+        ]);
+
+        if ($usuario) {
+            app(AuditoriaService::class)->registrar(
+                usuario: $usuario,
+                accion: 'cajas.actualizada',
+                entidad: 'caja',
+                entidadId: $caja->id,
+                descripcion: "Terminal de caja {$caja->nombre} ({$caja->codigo}) actualizada.",
+                datos: [
+                    'antes' => $datosAnteriores,
+                    'despues' => $caja->only(['nombre', 'codigo', 'activa']),
+                ]
+            );
+        }
+
+        return $caja;
+    }
+
+    /**
+     * Alternar estado activo/inactivo de una terminal de caja.
+     */
+    public function alternarEstadoCaja(Caja $caja, ?User $usuario = null): Caja
+    {
+        $caja->activa = ! $caja->activa;
+        $caja->save();
+
+        if ($usuario) {
+            app(AuditoriaService::class)->registrar(
+                usuario: $usuario,
+                accion: $caja->activa ? 'cajas.activada' : 'cajas.desactivada',
+                entidad: 'caja',
+                entidadId: $caja->id,
+                descripcion: "Terminal {$caja->nombre} marcada como ".($caja->activa ? 'activa' : 'inactiva').'.',
+                datos: ['activa' => $caja->activa]
+            );
+        }
+
+        return $caja;
+    }
+
+    /**
+     * Eliminar de forma segura una terminal de caja.
+     * Solo se permite si no cuenta con historial de turnos asociados.
+     */
+    public function eliminarCaja(Caja $caja, ?User $usuario = null): bool
+    {
+        if ($caja->turnos()->exists()) {
+            throw new \DomainException("No se puede eliminar la terminal {$caja->nombre} ({$caja->codigo}) porque tiene historial de turnos o transacciones registradas. Puedes desactivarla para que no aparezca en el POS.");
+        }
+
+        $datos = $caja->toArray();
+        $resultado = $caja->delete();
+
+        if ($usuario) {
+            app(AuditoriaService::class)->registrar(
+                usuario: $usuario,
+                accion: 'cajas.eliminada',
+                entidad: 'caja',
+                entidadId: $datos['id'],
+                descripcion: "Terminal de caja {$datos['nombre']} ({$datos['codigo']}) eliminada del sistema.",
+                datos: $datos
+            );
+        }
+
+        return (bool) $resultado;
+    }
+
+    /**
      * Open a new shift for a cash register.
      */
     public function abrirTurno(Caja $caja, User $cajero, float $fondoInicial, ?string $notas = null): TurnoCaja

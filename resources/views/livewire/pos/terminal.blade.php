@@ -88,6 +88,15 @@ new class extends Component
 
     public bool $mostrarComandaMovil = false;
 
+    // Modal de Apertura Rápida de Turno de Caja desde POS
+    public bool $mostrarModalAperturaPos = false;
+
+    public float $baseAperturaPos = 150000.0;
+
+    public string $notasAperturaPos = '';
+
+    public ?int $cajaAperturaId = null;
+
     public function cambiarVista(string $vista): void
     {
         if (in_array($vista, ['pc', 'tablet', 'movil'])) {
@@ -541,11 +550,87 @@ new class extends Component
         if (empty($this->carrito)) {
             return;
         }
+
+        $userSucursalId = auth()->user()?->sucursal_id;
+        $turnoActivo = \App\Models\TurnoCaja::where('estado', 'abierto')
+            ->when($userSucursalId, fn ($q) => $q->whereHas('caja', fn ($cq) => $cq->where('sucursal_id', $userSucursalId)))
+            ->latest()
+            ->first();
+
+        if (! $turnoActivo) {
+            $userRole = auth()->user()?->role?->slug;
+            if (in_array($userRole, ['cajero', 'gerente', 'admin'], true)) {
+                $caja = \App\Models\Caja::where('activa', true)
+                    ->when($userSucursalId, fn ($q) => $q->where('sucursal_id', $userSucursalId))
+                    ->first() ?? \App\Models\Caja::where('activa', true)->first();
+                $this->cajaAperturaId = $caja?->id;
+                $this->baseAperturaPos = 150000.0;
+                $this->notasAperturaPos = 'Apertura de turno iniciada desde terminal POS';
+                $this->mostrarModalAperturaPos = true;
+            } else {
+                $this->dispatch('notificacion', [
+                    'mensaje' => 'Caja Cerrada: No hay un turno de caja abierto para registrar el cobro. Solicita al cajero la apertura de turno.',
+                    'tipo' => 'warning',
+                ]);
+            }
+
+            return;
+        }
+
         $this->tipoPropina = 'cero';
         $this->montoPropina = 0.0;
         $this->porcentajePropina = 0.0;
         $this->montoPagado = $this->total;
         $this->mostrarModalCobro = true;
+    }
+
+    public function abrirModalAperturaPosManual(): void
+    {
+        $userSucursalId = auth()->user()?->sucursal_id;
+        $caja = \App\Models\Caja::where('activa', true)
+            ->when($userSucursalId, fn ($q) => $q->where('sucursal_id', $userSucursalId))
+            ->first() ?? \App\Models\Caja::where('activa', true)->first();
+        $this->cajaAperturaId = $caja?->id;
+        $this->baseAperturaPos = 150000.0;
+        $this->notasAperturaPos = 'Apertura manual iniciada desde POS';
+        $this->mostrarModalAperturaPos = true;
+    }
+
+    public function abrirTurnoDesdePos(): void
+    {
+        $this->authorize('abrir', \App\Models\TurnoCaja::class);
+
+        $this->validate([
+            'cajaAperturaId' => 'required|exists:cajas,id',
+            'baseAperturaPos' => 'required|numeric|min:0',
+        ]);
+
+        $caja = \App\Models\Caja::findOrFail($this->cajaAperturaId);
+
+        try {
+            $turno = app(\App\Services\CajaService::class)->abrirTurno(
+                $caja,
+                auth()->user(),
+                $this->baseAperturaPos,
+                $this->notasAperturaPos
+            );
+
+            $this->mostrarModalAperturaPos = false;
+            $this->dispatch('notificacion', [
+                'mensaje' => "¡Turno #{$turno->id} abierto con éxito en {$caja->nombre}! Ya puedes registrar el cobro.",
+                'tipo' => 'success',
+            ]);
+
+            if (! empty($this->carrito)) {
+                $this->tipoPropina = 'cero';
+                $this->montoPropina = 0.0;
+                $this->porcentajePropina = 0.0;
+                $this->montoPagado = $this->total;
+                $this->mostrarModalCobro = true;
+            }
+        } catch (\Exception $e) {
+            $this->addError('baseAperturaPos', $e->getMessage());
+        }
     }
 
     public function setMontoExacto(): void
@@ -786,12 +871,24 @@ new class extends Component
             $mesasColeccion->map(fn (array $m) => (new Mesa)->forceFill($m))->all()
         );
 
+        $turnoActivo = \App\Models\TurnoCaja::where('estado', 'abierto')
+            ->when($userSucursalId, fn ($q) => $q->whereHas('caja', fn ($cq) => $cq->where('sucursal_id', $userSucursalId)))
+            ->with('caja')
+            ->latest()
+            ->first();
+
+        $cajasDisponibles = \App\Models\Caja::where('activa', true)
+            ->when($userSucursalId, fn ($q) => $q->where('sucursal_id', $userSucursalId))
+            ->get();
+
         return [
             'categorias' => $categorias,
             'productos' => $query->get(),
             'mesas' => $mesas,
             'clientesDisponibles' => $clientesDisponibles,
             'pedidoQrPendiente' => $pedidoQrPendiente,
+            'turnoActivo' => $turnoActivo,
+            'cajasDisponibles' => $cajasDisponibles,
         ];
     }
 }; ?>
@@ -855,8 +952,13 @@ new class extends Component
                         <span class="font-black text-on-surface">RestoMaster Pocket</span>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
-                        <span class="text-[10px] text-on-surface-variant font-mono">En Línea</span>
+                        @if($turnoActivo)
+                            <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                            <span class="text-[10px] text-secondary font-mono font-bold">Turno #{{ $turnoActivo->id }}</span>
+                        @else
+                            <span class="w-2 h-2 rounded-full bg-error"></span>
+                            <span class="text-[10px] text-error font-mono font-bold">Caja Cerrada</span>
+                        @endif
                     </div>
                 </div>
 
@@ -1607,9 +1709,42 @@ new class extends Component
             @endif
         </div>
 
-        <!-- Search input & View Switcher -->
-        <div class="flex items-center gap-2 w-full lg:w-auto">
-            <div class="relative flex-1 sm:w-60 lg:w-64">
+        <!-- Search input & View Switcher & Caja Indicator -->
+        <div class="flex items-center gap-2 w-full lg:w-auto flex-wrap sm:flex-nowrap">
+            <!-- Indicador de Caja / Turno -->
+            <div class="shrink-0">
+                @if($turnoActivo)
+                    <a 
+                        href="{{ route('caja') }}" 
+                        wire:navigate 
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary-container/40 border border-secondary/30 text-on-secondary-container text-xs font-bold hover:bg-secondary-container/60 transition-all shadow-xs"
+                        title="Turno de caja abierto - Clic para ir a control de caja"
+                    >
+                        <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                        <span class="font-extrabold truncate max-w-[130px]">{{ $turnoActivo->caja->nombre }}</span>
+                        <span class="text-[10px] font-mono text-on-surface-variant font-bold">#{{ $turnoActivo->id }}</span>
+                    </a>
+                @else
+                    @if(in_array(auth()->user()?->role?->slug, ['cajero', 'gerente', 'admin']))
+                        <button 
+                            type="button"
+                            wire:click="abrirModalAperturaPosManual"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-error-container/60 border border-error/40 text-error text-xs font-black hover:bg-error-container active:scale-95 transition-all cursor-pointer shadow-xs"
+                            title="Caja cerrada. Haz clic para ingresar la base y abrir turno"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">lock_open</span>
+                            <span>Caja Cerrada · Abrir</span>
+                        </button>
+                    @else
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-high border border-surface-container-highest text-on-surface-variant text-xs font-bold">
+                            <span class="material-symbols-outlined text-[16px] text-error">lock</span>
+                            <span>Caja Cerrada</span>
+                        </div>
+                    @endif
+                @endif
+            </div>
+
+            <div class="relative flex-1 sm:w-56 lg:w-60">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
                 <input 
                     type="text" 
@@ -1982,6 +2117,88 @@ new class extends Component
     </div>
 </div>
 @endif
+
+    <!-- Modal de Apertura Rápida de Turno de Caja desde POS -->
+    @if($mostrarModalAperturaPos)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4">
+            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest">
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[20px]">lock_open</span>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-on-surface">Apertura Rápida de Caja</h3>
+                            <p class="text-[11px] text-on-surface-variant">Ingresa la base inicial de efectivo para habilitar el cobro</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('mostrarModalAperturaPos', false)" class="text-on-surface-variant hover:text-on-surface">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Terminal de Caja:</label>
+                        <select 
+                            wire:model="cajaAperturaId" 
+                            class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
+                        >
+                            @foreach($cajasDisponibles as $c)
+                                <option value="{{ $c->id }}">{{ $c->nombre }} ({{ $c->codigo }})</option>
+                            @endforeach
+                        </select>
+                        @error('cajaAperturaId') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Fondo Inicial / Base de Efectivo en Gaveta:</label>
+                        <div class="relative mt-1">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-on-surface-variant">$</span>
+                            <input 
+                                type="number" 
+                                step="1000" 
+                                wire:model="baseAperturaPos" 
+                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low pl-7 pr-3 py-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
+                                placeholder="150000"
+                            />
+                        </div>
+                        @error('baseAperturaPos') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                        <div class="flex gap-1.5 mt-2">
+                            <button type="button" wire:click="$set('baseAperturaPos', 100000)" class="px-2 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-on-surface-variant hover:text-on-surface border border-surface-container-high cursor-pointer">$100k</button>
+                            <button type="button" wire:click="$set('baseAperturaPos', 150000)" class="px-2 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-on-surface-variant hover:text-on-surface border border-surface-container-high cursor-pointer">$150k</button>
+                            <button type="button" wire:click="$set('baseAperturaPos', 200000)" class="px-2 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-on-surface-variant hover:text-on-surface border border-surface-container-high cursor-pointer">$200k</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-on-surface-variant">Notas de Apertura (Opcional):</label>
+                        <input 
+                            type="text" 
+                            wire:model="notasAperturaPos" 
+                            placeholder="Ej: Base de cambio entregada para apertura de turno"
+                            class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-2.5 text-xs text-on-surface focus:border-primary focus:ring-0"
+                        />
+                    </div>
+                </div>
+
+                <div class="mt-6 grid grid-cols-2 gap-2">
+                    <button 
+                        wire:click="$set('mostrarModalAperturaPos', false)" 
+                        class="rounded-xl border border-surface-container-high bg-surface-container py-3 text-xs font-extrabold text-on-surface-variant hover:text-on-surface cursor-pointer"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        wire:click="abrirTurnoDesdePos" 
+                        class="rounded-xl bg-primary py-3 text-xs font-black text-on-primary shadow-md hover:bg-primary-container active:scale-95 transition-all cursor-pointer"
+                    >
+                        ✓ Abrir Turno y Cobrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- Modal de Cobro Táctil (Stitch POS-02 Billing Console) -->
     @if($mostrarModalCobro)
