@@ -121,7 +121,7 @@ new class extends Component
             </div>
 
             <!-- Notification Bell & Interactive Dropdown (Aura Gastro Expressive OS) -->
-            <div class="relative" x-data="{ openNotif: false }" wire:poll.15s>
+            <div class="relative" x-data="{ openNotif: false }" wire:poll.30s.visible>
                 <button 
                     @click="openNotif = !openNotif" 
                     class="relative p-2 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0" 
@@ -183,7 +183,7 @@ new class extends Component
 
                     <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 text-xs overscroll-contain">
                         <!-- 1. Pedidos QR por Asignar -->
-                        @if(($notificaciones['pedidos_qr'] ?? collect())->isNotEmpty())
+                        @if(!empty($notificaciones['pedidos_qr']))
                             <div class="space-y-1.5">
                                 <span class="text-[10px] font-black uppercase tracking-wider text-primary flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[14px]">qr_code_2</span>
@@ -194,16 +194,16 @@ new class extends Component
                                         <div class="min-w-0">
                                             <div class="flex items-center gap-1.5 flex-wrap">
                                                 <span class="font-extrabold text-on-surface text-xs">
-                                                    {{ $pqr->mesa?->numero ? 'Mesa #'.$pqr->mesa->numero : 'Autoservicio' }}
+                                                    {{ !empty($pqr['mesa_numero']) ? 'Mesa #'.$pqr['mesa_numero'] : 'Autoservicio' }}
                                                 </span>
-                                                <span class="text-[10px] text-on-surface-variant truncate max-w-[120px]">({{ $pqr->nombre_cliente ?? 'Comensal' }})</span>
+                                                <span class="text-[10px] text-on-surface-variant truncate max-w-[120px]">({{ $pqr['nombre_cliente'] ?? 'Comensal' }})</span>
                                             </div>
                                             <p class="text-[10px] text-on-surface-variant font-mono mt-0.5">
-                                                {{ $pqr->items->count() }} platos · ${{ number_format($pqr->total, 0, ',', '.') }} COP
+                                                {{ $pqr['items_count'] ?? 0 }} platos · ${{ number_format($pqr['total'] ?? 0, 0, ',', '.') }} COP
                                             </p>
                                         </div>
                                         <button 
-                                            wire:click="atenderPedidoQr({{ $pqr->id }})"
+                                            wire:click="atenderPedidoQr({{ $pqr['id'] }})"
                                             class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary text-on-primary text-[11px] font-black shadow-sm hover:bg-primary/90 active:scale-95 transition cursor-pointer shrink-0"
                                         >
                                             <span class="material-symbols-outlined text-[14px]">handshake</span>
@@ -215,7 +215,7 @@ new class extends Component
                         @endif
 
                         <!-- 2. Platos Listos para Servir -->
-                        @if(($notificaciones['platos_listos'] ?? collect())->isNotEmpty())
+                        @if(!empty($notificaciones['platos_listos']))
                             <div class="space-y-1.5 pt-1">
                                 <span class="text-[10px] font-black uppercase tracking-wider text-secondary flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[14px]">room_service</span>
@@ -227,23 +227,23 @@ new class extends Component
                                             <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check_circle</span>
                                             <div class="min-w-0">
                                                 <div class="font-bold text-on-surface text-xs truncate">
-                                                    @if($pl->pedido?->mesa?->numero)
-                                                        Mesa #{{ $pl->pedido->mesa->numero }}
-                                                    @elseif($pl->pedido?->tipo === 'barra')
+                                                    @if(!empty($pl['mesa_numero']))
+                                                        Mesa #{{ $pl['mesa_numero'] }}
+                                                    @elseif(($pl['pedido_tipo'] ?? '') === 'barra')
                                                         Barra
-                                                    @elseif($pl->pedido?->tipo === 'delivery')
+                                                    @elseif(($pl['pedido_tipo'] ?? '') === 'delivery')
                                                         Delivery
                                                     @else
-                                                        Pedido #{{ $pl->pedido?->codigo ?? $pl->pedido_id }}
+                                                        Pedido #{{ $pl['pedido_codigo'] ?? $pl['pedido_id'] }}
                                                     @endif
                                                 </div>
                                                 <p class="text-[11px] text-on-surface-variant truncate">
-                                                    {{ $pl->cantidad }}x {{ $pl->nombre_producto }}
+                                                    {{ $pl['cantidad'] }}x {{ $pl['nombre_producto'] }}
                                                 </p>
                                             </div>
                                         </div>
                                         <span class="text-[10px] text-on-surface-variant font-mono whitespace-nowrap shrink-0">
-                                            {{ $pl->listo_en ? \Carbon\Carbon::parse($pl->listo_en)->diffForHumans(null, true) : 'Listo' }}
+                                            {{ !empty($pl['listo_en']) ? \Carbon\Carbon::parse($pl['listo_en'])->diffForHumans(null, true) : 'Listo' }}
                                         </span>
                                     </div>
                                 @endforeach
@@ -251,7 +251,7 @@ new class extends Component
                         @endif
 
                         <!-- 3. Stock Crítico -->
-                        @if(($notificaciones['stock_critico'] ?? collect())->isNotEmpty())
+                        @if(!empty($notificaciones['stock_critico']))
                             <div class="space-y-1.5 pt-1">
                                 <span class="text-[10px] font-black uppercase tracking-wider text-tertiary flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[14px]">inventory_2</span>
@@ -259,15 +259,15 @@ new class extends Component
                                 </span>
                                 @foreach($notificaciones['stock_critico'] as $st)
                                     <div class="p-2 rounded-2xl bg-tertiary-container/15 border border-tertiary/20 flex items-center justify-between gap-2">
-                                        <span class="font-bold text-on-surface truncate min-w-0">{{ $st->nombre }}</span>
-                                        <span class="font-mono text-[10px] text-tertiary font-extrabold shrink-0">{{ $st->stock_actual }} {{ $st->unidad_medida }}</span>
+                                        <span class="font-bold text-on-surface truncate min-w-0">{{ $st['nombre'] }}</span>
+                                        <span class="font-mono text-[10px] text-tertiary font-extrabold shrink-0">{{ $st['stock_actual'] }} {{ $st['unidad_medida'] ?? '' }}</span>
                                     </div>
                                 @endforeach
                             </div>
                         @endif
 
                         <!-- 4. Reservas de Hoy -->
-                        @if(($notificaciones['reservas_hoy'] ?? collect())->isNotEmpty())
+                        @if(!empty($notificaciones['reservas_hoy']))
                             <div class="space-y-1.5 pt-1">
                                 <span class="text-[10px] font-black uppercase tracking-wider text-on-surface-variant flex items-center gap-1">
                                     <span class="material-symbols-outlined text-[14px]">event_seat</span>
@@ -276,9 +276,9 @@ new class extends Component
                                 @foreach($notificaciones['reservas_hoy'] as $res)
                                     <div class="p-2 rounded-2xl bg-surface-container-low border border-surface-container-high flex items-center justify-between gap-2">
                                         <span class="font-bold text-on-surface truncate min-w-0 text-[11px]">
-                                            {{ substr($res->hora_llegada, 0, 5) }}: {{ $res->nombre_contacto }} ({{ $res->personas }}p)
+                                            {{ substr($res['hora_llegada'], 0, 5) }}: {{ $res['nombre_contacto'] }} ({{ $res['personas'] }}p)
                                         </span>
-                                        <span class="text-[10px] font-extrabold capitalize text-on-surface-variant shrink-0">{{ $res->estado }}</span>
+                                        <span class="text-[10px] font-extrabold capitalize text-on-surface-variant shrink-0">{{ $res['estado'] }}</span>
                                     </div>
                                 @endforeach
                             </div>

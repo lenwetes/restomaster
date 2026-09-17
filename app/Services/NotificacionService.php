@@ -7,6 +7,7 @@ use App\Models\ItemPedido;
 use App\Models\Pedido;
 use App\Models\Reserva;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 
 class NotificacionService
 {
@@ -17,8 +18,11 @@ class NotificacionService
     public function obtenerResumen(?User $usuario = null): array
     {
         $usuario = $usuario ?? auth()->user();
+        $clave = 'notif.resumen.'.($usuario?->id ?? 'anon');
 
-        return $this->consultarResumen($usuario);
+        return Cache::remember($clave, now()->addSeconds(15), function () use ($usuario) {
+            return $this->consultarResumen($usuario);
+        });
     }
 
     protected function consultarResumen(?User $usuario = null): array
@@ -70,10 +74,40 @@ class NotificacionService
 
         return [
             'total' => $total,
-            'pedidos_qr' => $pedidosQr,
-            'platos_listos' => $platosListos,
-            'stock_critico' => $stockCritico,
-            'reservas_hoy' => $reservasHoy,
+            'pedidos_qr' => $pedidosQr->map(fn ($p) => [
+                'id' => $p->id,
+                'codigo' => $p->codigo,
+                'mesa_numero' => $p->mesa?->numero,
+                'mesa_zona' => $p->mesa?->zona,
+                'usuario_id' => $p->usuario_id,
+                'nombre_cliente' => $p->nombre_cliente,
+                'total' => (float) $p->total,
+                'items_count' => $p->items->count(),
+            ])->values()->all(),
+            'platos_listos' => $platosListos->map(fn ($i) => [
+                'id' => $i->id,
+                'pedido_id' => $i->pedido_id,
+                'listo_en' => $i->listo_en?->toIso8601String(),
+                'mesa_numero' => $i->pedido?->mesa?->numero,
+                'pedido_tipo' => $i->pedido?->tipo,
+                'pedido_codigo' => $i->pedido?->codigo,
+                'cantidad' => $i->cantidad,
+                'nombre_producto' => $i->nombre_producto ?? $i->producto?->nombre,
+            ])->values()->all(),
+            'stock_critico' => $stockCritico->map(fn ($i) => [
+                'id' => $i->id,
+                'nombre' => $i->nombre,
+                'stock_actual' => $i->stock_actual,
+                'stock_minimo' => $i->stock_minimo,
+                'unidad_medida' => $i->unidad_medida,
+            ])->values()->all(),
+            'reservas_hoy' => $reservasHoy->map(fn ($r) => [
+                'id' => $r->id,
+                'nombre_contacto' => $r->nombre_contacto,
+                'hora_llegada' => $r->hora_llegada,
+                'personas' => $r->personas,
+                'estado' => $r->estado,
+            ])->values()->all(),
             'rol_consultado' => $rol,
         ];
     }
