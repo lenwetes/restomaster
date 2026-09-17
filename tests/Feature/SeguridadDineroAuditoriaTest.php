@@ -38,6 +38,7 @@ class SeguridadDineroAuditoriaTest extends TestCase
         $this->pedidoService = app(PedidoService::class);
 
         $roleMesero = Role::create(['nombre' => 'Mesero', 'slug' => 'mesero']);
+        $roleCajero = Role::create(['nombre' => 'Cajero', 'slug' => 'cajero']);
 
         $this->sucursal = Sucursal::create([
             'nombre' => 'Sushixpress Provenza',
@@ -51,6 +52,16 @@ class SeguridadDineroAuditoriaTest extends TestCase
             'email' => 'mesero@test.com',
             'password' => bcrypt('password123'),
             'role_id' => $roleMesero->id,
+            'sucursal_id' => $this->sucursal->id,
+            'activo' => true,
+        ]);
+
+        // Cajero autorizado para abrir turnos (mesero no puede hacerlo por policy)
+        $cajero = User::create([
+            'name' => 'Cajero Apertura',
+            'email' => 'cajero@test.com',
+            'password' => bcrypt('password123'),
+            'role_id' => $roleCajero->id,
             'sucursal_id' => $this->sucursal->id,
             'activo' => true,
         ]);
@@ -78,7 +89,16 @@ class SeguridadDineroAuditoriaTest extends TestCase
             'activa' => true,
         ]);
 
-        app(CajaService::class)->abrirTurno($caja, $this->mesero, 100000.00, 'Apertura');
+        // El cajero (no el mesero) abre el turno de caja
+        app(CajaService::class)->abrirTurno($caja, $cajero, 100000.00, 'Apertura');
+
+        // Cliente con puntos suficientes para los escenarios de canje (Task 8)
+        $this->cliente = Cliente::create([
+            'nombre' => 'Cliente Fidelidad',
+            'telefono' => '3001112233',
+            'puntos_fidelidad' => 2000,
+            'activo' => true,
+        ]);
     }
 
     public function test_c1_precio_unitario_siempre_se_obtiene_de_la_base_de_datos(): void
@@ -118,11 +138,14 @@ class SeguridadDineroAuditoriaTest extends TestCase
 
         // Subtotal = 45.000, Envío = 8.000, Descuento = 5.000, Puntos = 3.000
         // Total = 45000 + 8000 - 5000 - 3000 = 45000
+        // puntos_canjeados es obligatorio cuando descuento_puntos > 0 (Task 8 guard)
         $pedido = $this->pedidoService->crearPedido([
             'tipo' => 'delivery',
             'costo_envio' => 8000,
             'descuento' => 5000,
             'descuento_puntos' => 3000,
+            'puntos_canjeados' => 300,
+            'cliente_id' => $this->cliente->id,
         ], $itemsPayload, $this->mesero);
 
         $this->assertEquals(45000.0, (float) $pedido->subtotal);
@@ -165,11 +188,14 @@ class SeguridadDineroAuditoriaTest extends TestCase
         ];
 
         // Subtotal = 45000, Descuento = 40000, Descuento Puntos = 15000 (excede remanente de 5000)
+        // puntos_canjeados es obligatorio cuando descuento_puntos > 0 (Task 8 guard)
         $pedido = $this->pedidoService->crearPedido([
             'tipo' => 'mesa',
             'mesa_id' => $this->mesa->id,
             'descuento' => 40000,
             'descuento_puntos' => 15000,
+            'puntos_canjeados' => 1500,
+            'cliente_id' => $this->cliente->id,
         ], $itemsPayload, $this->mesero);
 
         $this->assertEquals(45000.0, (float) $pedido->subtotal);

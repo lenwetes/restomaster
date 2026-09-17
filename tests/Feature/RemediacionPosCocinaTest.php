@@ -38,19 +38,30 @@ class RemediacionPosCocinaTest extends TestCase
         parent::setUp();
 
         $roleMesero = Role::create(['nombre' => 'Mesero', 'slug' => 'mesero', 'descripcion' => 'Mesero']);
-
-        $this->mesero = User::factory()->create([
-            'name' => 'Carlos Mesero',
-            'email' => 'mesero@restomaster.com',
-            'role_id' => $roleMesero->id,
-            'activo' => true,
-        ]);
+        $roleCajero = Role::create(['nombre' => 'Cajero', 'slug' => 'cajero', 'descripcion' => 'Cajero']);
 
         $sucursal = Sucursal::create([
             'nombre' => 'RestoMaster Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,
+        ]);
+
+        $this->mesero = User::factory()->create([
+            'name' => 'Carlos Mesero',
+            'email' => 'mesero@restomaster.com',
+            'role_id' => $roleMesero->id,
+            'sucursal_id' => $sucursal->id,
+            'activo' => true,
+        ]);
+
+        // Se usa un cajero (rol autorizado) para abrir el turno de caja
+        $cajero = User::factory()->create([
+            'name' => 'Cajero Apertura',
+            'email' => 'cajero@restomaster.com',
+            'role_id' => $roleCajero->id,
+            'sucursal_id' => $sucursal->id,
+            'activo' => true,
         ]);
 
         $this->mesa = Mesa::create([
@@ -95,7 +106,8 @@ class RemediacionPosCocinaTest extends TestCase
             'activa' => true,
         ]);
 
-        app(CajaService::class)->abrirTurno($caja, $this->mesero, 100000.00, 'Apertura');
+        // El cajero (no el mesero) es quien abre el turno de caja
+        app(CajaService::class)->abrirTurno($caja, $cajero, 100000.00, 'Apertura');
     }
 
     private function crearPedidoActivoConItemProductoA(): Pedido

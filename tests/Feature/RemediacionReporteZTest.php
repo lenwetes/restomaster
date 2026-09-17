@@ -85,7 +85,7 @@ class RemediacionReporteZTest extends TestCase
 
     public function test_r9_movimientos_ingreso_afectan_saldo_esperado_y_reporte_z(): void
     {
-        $roleCajero = Role::create(['nombre' => 'Cajero Test', 'slug' => 'cajero_test', 'descripcion' => 'Cajero']);
+        $roleCajero = Role::firstOrCreate(['slug' => 'cajero'], ['nombre' => 'Cajero', 'descripcion' => 'Cajero']);
         $sucursal = Sucursal::first() ?? Sucursal::create([
             'nombre' => 'RestoMaster Test',
             'codigo' => 'TST-01',

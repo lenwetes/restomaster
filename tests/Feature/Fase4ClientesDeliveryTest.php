@@ -371,12 +371,14 @@ class Fase4ClientesDeliveryTest extends TestCase
         $pedido->refresh();
         $this->assertTrue((bool) $pedido->recaudo_liquidado);
 
-        // Verificar que se registró el ingreso en movimientos_caja
-        $this->assertDatabaseHas('movimientos_caja', [
+        // Verificar que no se duplica con un movimiento ingreso extra (H1 COD fix)
+        $this->assertDatabaseMissing('movimientos_caja', [
             'turno_caja_id' => $turnoCaja->id,
             'tipo' => 'ingreso',
             'monto' => 50000.00,
         ]);
+        $turnoCaja->refresh();
+        $this->assertEquals(50000.00, (float) $turnoCaja->total_ventas_efectivo);
     }
 
     public function test_pantalla_clientes_vip_renderiza_correctamente(): void
