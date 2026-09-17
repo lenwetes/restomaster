@@ -359,4 +359,63 @@ class RemediacionDineroTurnosTest extends TestCase
         $this->assertSame($primero->id, $segundo->id, 'El reintento con la misma clave debe reutilizar el pedido.');
         $this->assertSame(1, Pedido::where('idempotencia_uuid', $uuid)->count());
     }
+
+    public function test_liquidar_recaudo_no_duplica_asientos_ni_esperado(): void
+    {
+        $s = $this->crearSucursal('SCOD');
+        $user = $this->crearUsuario('admin', $s->id);
+        $turno = $this->abrirTurnoEn($s->id, $user);
+
+        $cliente = Cliente::create(['nombre' => 'COD', 'telefono' => '3007778899', 'activo' => true]);
+
+        $menu = app(MenuService::class);
+        $categoria = $menu->crearCategoria(['nombre' => 'Y', 'icono' => '🍥', 'orden' => 1, 'activo' => true]);
+        $producto = $menu->crearProducto([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'Delivery Item',
+            'precio' => 60000.00,
+            'costo' => 15000.00,
+            'area_cocina' => 'sushi',
+            'activo' => true,
+        ]);
+
+        $pedido = app(DeliveryService::class)->crearPedidoDelivery([
+            'sucursal_id' => $s->id,
+            'user_id' => $user->id,
+            'cliente_id' => $cliente->id,
+            'estado_delivery' => 'en_ruta',
+            'costo_envio' => 6000.00,
+        ]);
+        $pedido->update(['sucursal_id' => $s->id, 'repartidor_id' => $user->id, 'estado_delivery' => 'entregado']);
+        ItemPedido::create([
+            'pedido_id' => $pedido->id,
+            'producto_id' => $producto->id,
+            'nombre_producto' => $producto->nombre,
+            'cantidad' => 1,
+            'precio_unitario' => 60000.00,
+            'subtotal' => 60000.00,
+            'area_cocina' => 'sushi',
+            'estado_cocina' => 'listo',
+        ]);
+        $pedido->recalcularTotales();
+        $pedido->refresh();
+
+        $entregado = app(DeliveryService::class)->marcarEntregado($pedido, 'efectivo', (float) $pedido->total);
+        $entregado->refresh();
+        $asientosAntes = AsientoContable::where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->count();
+
+        $totalLiquidado = app(DeliveryService::class)->liquidarRecaudoRepartidor($user, $turno);
+
+        $this->assertSame((float) $pedido->total, (float) $totalLiquidado);
+        $this->assertSame($asientosAntes, AsientoContable::where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->count(),
+            'La liquidación no debe sumar asientos de venta (doble conteo COD).');
+        $this->assertSame(0, AsientoContable::where('concepto', 'like', '%Liquidación recaudo delivery%')->count(),
+            'No debe crearse un movimiento ingreso extra por el recaudo ya contado como venta.');
+
+        $turno->refresh();
+        $entregado->refresh();
+        $this->assertSame((float) $pedido->total, (float) $turno->total_ventas_efectivo,
+            'El efectivo del COD se cuenta una sola vez en el turno.');
+        $this->assertTrue($entregado->recaudo_liquidado);
+    }
 }

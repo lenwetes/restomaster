@@ -199,18 +199,18 @@ class DeliveryService
 
             $totalRecaudado = (float) $pedidosALiquidar->sum('total');
 
-            if ($totalRecaudado > 0) {
-                app(CajaService::class)->registrarMovimiento(
-                    $turno,
-                    'ingreso',
-                    $totalRecaudado,
-                    "Liquidación recaudo delivery motorizado: {$repartidor->name} ({$updatedCount} pedidos)",
-                    'efectivo',
-                    null,
-                    auth()->user()?->name ?? 'Sistema',
-                    auth()->user()
-                );
+            if ($totalRecaudado <= 0) {
+                return 0.0;
             }
+
+            app(\App\Services\AuditoriaService::class)->registrar(
+                usuario: auth()->user(),
+                accion: 'delivery.recaudo_liquidado',
+                entidad: 'delivery',
+                entidadId: $repartidor->id,
+                descripcion: "Recaudo delivery liquidado: {$repartidor->name} · {$updatedCount} pedidos · $".number_format($totalRecaudado, 2),
+                datos: ['pedidos' => $pedidoIds, 'total' => $totalRecaudado],
+            );
 
             return $totalRecaudado;
         });
