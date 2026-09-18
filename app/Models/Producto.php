@@ -60,6 +60,14 @@ class Producto extends Model
     }
 
     /**
+     * Líneas de comanda / pedidos donde se ha ordenado este producto.
+     */
+    public function itemsPedido(): HasMany
+    {
+        return $this->hasMany(ItemPedido::class, 'producto_id');
+    }
+
+    /**
      * Calcula el costo teórico total del plato sumando todos sus insumos con merma.
      */
     public function getCostoRecetaAttribute(): float

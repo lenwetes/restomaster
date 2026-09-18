@@ -28,17 +28,37 @@ use Illuminate\Support\Facades\Hash;
 class DatosPruebaRealistasSeeder extends Seeder
 {
     /**
-     * Llena la base de datos con un catálogo gastronómico completo, inventario con recetas,
-     * equipo de trabajo colombiano (2 cajeros, admin, meseros, cocina, delivery),
-     * mesas, clientes fidelizados, pedidos históricos, reservas y turnos de caja activos.
+     * Llena la base de datos con un catálogo gastronómico completo de RESTAURANTE GENERAL & PARRILLA,
+     * inventario real con escandallos y recetas, equipo de trabajo colombiano (admin, 2 cajeros,
+     * meseros, cocina, barra, repartidores), mesas en salón/terraza/barra/VIP, clientes colombianos
+     * con fidelización, comandas activas en KDS, pedidos históricos con propinas y reservas.
      */
     public function run(): void
     {
-        $this->command?->info('Iniciando carga de datos realistas para RestoMaster Colombia...');
+        $this->command?->info('Iniciando carga de datos realistas de Restaurante General para RestoMaster Colombia...');
+
+        // 0. Limpieza defensiva de datos demo previos para garantizar un catálogo libre de sushi
+        $pedidosDemoIds = Pedido::where('codigo', 'like', 'ORD-%')->pluck('id');
+        if ($pedidosDemoIds->isNotEmpty()) {
+            ItemPedido::whereIn('pedido_id', $pedidosDemoIds)->delete();
+            Pedido::whereIn('id', $pedidosDemoIds)->delete();
+        }
+
+        Receta::query()->delete();
+        MovimientoInventario::where('referencia_documento', 'like', 'FAC-INI-%')->delete();
+
+        // Eliminar productos previos si no están referenciados por pedidos externos
+        Producto::whereDoesntHave('itemsPedido')->forceDelete();
+        Categoria::whereDoesntHave('productos')->delete();
+
+        Insumo::whereDoesntHave('recetas')->whereDoesntHave('movimientos')->forceDelete();
+        CategoriaInsumo::whereDoesntHave('insumos')->delete();
+
+        CuentaPorPagar::where('numero_factura', 'like', 'FAC-%')->delete();
 
         // 1. Sucursal Principal
         $sucursal = Sucursal::first() ?? Sucursal::create([
-            'nombre' => 'RestoMaster Provenza · Medellín',
+            'nombre' => 'RestoMaster Gourmet & Parrilla · Medellín',
             'direccion' => 'Carrera 35 # 8A-19, Provenza, El Poblado, Medellín',
             'telefono' => '+57 604 444 8899',
             'nit_ruc' => '901.458.789-3',
@@ -123,14 +143,14 @@ class DatosPruebaRealistasSeeder extends Seeder
             // Cocina & Barra
             [
                 'email' => 'cocina@restomaster.com',
-                'name' => 'Carlos Mario Echeverri (Chef Ejecutivo)',
+                'name' => 'Carlos Mario Echeverri (Chef Ejecutivo Parrilla)',
                 'role_id' => $cocinaRole->id,
                 'telefono' => '+57 300 781 2234',
                 'slug_rol' => 'cocina',
             ],
             [
                 'email' => 'esteban.cocina@restomaster.com',
-                'name' => 'Esteban Quintero Londoño (Sous Chef)',
+                'name' => 'Esteban Quintero Londoño (Sous Chef Cocina)',
                 'role_id' => $cocinaRole->id,
                 'telefono' => '+57 302 998 1145',
                 'slug_rol' => 'cocina',
@@ -236,16 +256,16 @@ class DatosPruebaRealistasSeeder extends Seeder
             ]);
         }
 
-        // 5. Categorías de Insumos (con Color e Ícono)
+        // 5. Categorías de Insumos para Restaurante General (con Color e Ícono)
         $catInsumosData = [
-            ['nombre' => 'Pescados & Mariscos Frescos', 'slug' => 'pescados-mariscos', 'color' => '#0284c7', 'icono' => 'set_meal', 'orden' => 1],
-            ['nombre' => 'Carnes Selectas & Proteínas', 'slug' => 'carnes-proteinas', 'color' => '#dc2626', 'icono' => 'lunch_dining', 'orden' => 2],
-            ['nombre' => 'Granos, Arroces & Fideos', 'slug' => 'granos-arroces', 'color' => '#d97706', 'icono' => 'grain', 'orden' => 3],
-            ['nombre' => 'Vegetales Frescos & Huerta', 'slug' => 'vegetales-huerta', 'color' => '#16a34a', 'icono' => 'eco', 'orden' => 4],
-            ['nombre' => 'Salsas & Especias Especiales', 'slug' => 'salsas-especias', 'color' => '#7c3aed', 'icono' => 'kitchen', 'orden' => 5],
-            ['nombre' => 'Licores & Coctelería de Barra', 'slug' => 'licores-barra', 'color' => '#db2777', 'icono' => 'local_bar', 'orden' => 6],
-            ['nombre' => 'Bebidas Frías & Cervezas', 'slug' => 'bebidas-frias', 'color' => '#06b6d4', 'icono' => 'sports_bar', 'orden' => 7],
-            ['nombre' => 'Lácteos & Quesos', 'slug' => 'lacteos-quesos', 'color' => '#f59e0b', 'icono' => 'egg', 'orden' => 8],
+            ['nombre' => 'Carnes de Res & Cerdo Selectas', 'slug' => 'carnes-res-cerdo', 'color' => '#dc2626', 'icono' => 'lunch_dining', 'orden' => 1],
+            ['nombre' => 'Aves & Pollos de Granja', 'slug' => 'aves-pollos', 'color' => '#ea580c', 'icono' => 'egg', 'orden' => 2],
+            ['nombre' => 'Pescados Frescos & Mariscos', 'slug' => 'pescados-mariscos', 'color' => '#0284c7', 'icono' => 'set_meal', 'orden' => 3],
+            ['nombre' => 'Papas, Granos & Pastas', 'slug' => 'tuberculos-granos-pastas', 'color' => '#d97706', 'icono' => 'grain', 'orden' => 4],
+            ['nombre' => 'Vegetales, Frutas & Huerta', 'slug' => 'vegetales-frutas', 'color' => '#16a34a', 'icono' => 'eco', 'orden' => 5],
+            ['nombre' => 'Lácteos, Quesos & Cremas', 'slug' => 'lacteos-quesos', 'color' => '#f59e0b', 'icono' => 'restaurant', 'orden' => 6],
+            ['nombre' => 'Licores, Destilados & Barra', 'slug' => 'licores-barra', 'color' => '#db2777', 'icono' => 'local_bar', 'orden' => 7],
+            ['nombre' => 'Bebidas Frías & Cervezas', 'slug' => 'bebidas-cervezas', 'color' => '#06b6d4', 'icono' => 'sports_bar', 'orden' => 8],
         ];
 
         $catsInsumo = [];
@@ -256,225 +276,295 @@ class DatosPruebaRealistasSeeder extends Seeder
             );
         }
 
-        // 6. Insumos con Stock, Unidad de Medida y Costo en Pesos Colombianos
+        // 6. Insumos con Stock, Unidad de Medida y Costo en Pesos Colombianos (COP)
         $insumosData = [
-            // Pescados & Mariscos
+            // Carnes de Res & Cerdo
             [
-                'categoria_id' => $catsInsumo['pescados-mariscos']->id,
-                'codigo' => 'INS-SAL-01',
-                'nombre' => 'Salmón Noruego Fresco (Filete)',
+                'categoria_id' => $catsInsumo['carnes-res-cerdo']->id,
+                'codigo' => 'INS-BIF-01',
+                'nombre' => 'Bife de Chorizo / Baby Beef Angus (Corte)',
                 'unidad_medida' => 'kg',
-                'stock_actual' => 28.5,
+                'stock_actual' => 28.0,
                 'stock_minimo' => 8.0,
-                'costo_unitario' => 65000.00,
-                'proveedor_nombre' => 'Pescados y Mariscos del Pacífico S.A.S.',
+                'costo_unitario' => 48000.00,
+                'proveedor_nombre' => 'Carnes Frías San Martín Medellín',
             ],
             [
-                'categoria_id' => $catsInsumo['pescados-mariscos']->id,
-                'codigo' => 'INS-ATU-01',
-                'nombre' => 'Atún Aleta Amarilla Grado Sashimi',
+                'categoria_id' => $catsInsumo['carnes-res-cerdo']->id,
+                'codigo' => 'INS-COS-01',
+                'nombre' => 'Costillas de Cerdo San Luis BBQ',
                 'unidad_medida' => 'kg',
-                'stock_actual' => 16.0,
-                'stock_minimo' => 5.0,
-                'costo_unitario' => 72000.00,
-                'proveedor_nombre' => 'Pescados y Mariscos del Pacífico S.A.S.',
+                'stock_actual' => 25.0,
+                'stock_minimo' => 6.0,
+                'costo_unitario' => 32000.00,
+                'proveedor_nombre' => 'Carnes Frías San Martín Medellín',
             ],
             [
-                'categoria_id' => $catsInsumo['pescados-mariscos']->id,
-                'codigo' => 'INS-LAN-01',
-                'nombre' => 'Langostinos Tigre U15 Pelados',
+                'categoria_id' => $catsInsumo['carnes-res-cerdo']->id,
+                'codigo' => 'INS-TOC-01',
+                'nombre' => 'Tocino Carnudo para Chicharrón Crocante',
                 'unidad_medida' => 'kg',
                 'stock_actual' => 22.0,
                 'stock_minimo' => 6.0,
-                'costo_unitario' => 58000.00,
-                'proveedor_nombre' => 'Distribuidora Marina del Caribe',
+                'costo_unitario' => 26000.00,
+                'proveedor_nombre' => 'Carnes Frías San Martín Medellín',
             ],
             [
-                'categoria_id' => $catsInsumo['pescados-mariscos']->id,
-                'codigo' => 'INS-PES-01',
-                'nombre' => 'Pesca Blanca del Día (Corvina/Róbalo)',
+                'categoria_id' => $catsInsumo['carnes-res-cerdo']->id,
+                'codigo' => 'INS-CAR-MOL',
+                'nombre' => 'Carne Molida Angus para Hamburguesas Gourmet',
                 'unidad_medida' => 'kg',
-                'stock_actual' => 14.5,
-                'stock_minimo' => 4.0,
-                'costo_unitario' => 42000.00,
-                'proveedor_nombre' => 'Pescados y Mariscos del Pacífico S.A.S.',
-            ],
-            // Carnes
-            [
-                'categoria_id' => $catsInsumo['carnes-proteinas']->id,
-                'codigo' => 'INS-LOM-01',
-                'nombre' => 'Lomo Fino de Res Angus',
-                'unidad_medida' => 'kg',
-                'stock_actual' => 25.0,
-                'stock_minimo' => 7.0,
-                'costo_unitario' => 48000.00,
-                'proveedor_nombre' => 'Carnes Frías San Martín',
-            ],
-            [
-                'categoria_id' => $catsInsumo['carnes-proteinas']->id,
-                'codigo' => 'INS-CER-01',
-                'nombre' => 'Panceta de Cerdo Ahumada Chashu',
-                'unidad_medida' => 'kg',
-                'stock_actual' => 18.0,
-                'stock_minimo' => 5.0,
+                'stock_actual' => 30.0,
+                'stock_minimo' => 8.0,
                 'costo_unitario' => 28000.00,
-                'proveedor_nombre' => 'Carnes Frías San Martín',
+                'proveedor_nombre' => 'Carnes Frías San Martín Medellín',
+            ],
+            // Aves & Pollos
+            [
+                'categoria_id' => $catsInsumo['aves-pollos']->id,
+                'codigo' => 'INS-PEC-01',
+                'nombre' => 'Pechuga de Pollo Fresca Fileteada',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 32.0,
+                'stock_minimo' => 8.0,
+                'costo_unitario' => 22000.00,
+                'proveedor_nombre' => 'Avícola Los Andes de Antioquia',
             ],
             [
-                'categoria_id' => $catsInsumo['carnes-proteinas']->id,
-                'codigo' => 'INS-POL-01',
-                'nombre' => 'Pechuga de Pollo Fresca',
+                'categoria_id' => $catsInsumo['aves-pollos']->id,
+                'codigo' => 'INS-ALA-01',
+                'nombre' => 'Alitas de Pollo Frescas Seleccionadas',
                 'unidad_medida' => 'kg',
                 'stock_actual' => 24.0,
                 'stock_minimo' => 6.0,
-                'costo_unitario' => 22000.00,
-                'proveedor_nombre' => 'Avícola Los Andes',
+                'costo_unitario' => 18000.00,
+                'proveedor_nombre' => 'Avícola Los Andes de Antioquia',
             ],
-            // Granos & Arroces
+            // Pescados & Mariscos
             [
-                'categoria_id' => $catsInsumo['granos-arroces']->id,
+                'categoria_id' => $catsInsumo['pescados-mariscos']->id,
+                'codigo' => 'INS-ROB-01',
+                'nombre' => 'Filete de Róbalo / Corvina del Pacífico',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 18.0,
+                'stock_minimo' => 5.0,
+                'costo_unitario' => 42000.00,
+                'proveedor_nombre' => 'Pescados y Mariscos del Pacífico S.A.S.',
+            ],
+            [
+                'categoria_id' => $catsInsumo['pescados-mariscos']->id,
+                'codigo' => 'INS-CAM-01',
+                'nombre' => 'Camarones Jumbo U15 Limpios',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 20.0,
+                'stock_minimo' => 5.0,
+                'costo_unitario' => 54000.00,
+                'proveedor_nombre' => 'Pescados y Mariscos del Pacífico S.A.S.',
+            ],
+            // Tubérculos, Granos & Pastas
+            [
+                'categoria_id' => $catsInsumo['tuberculos-granos-pastas']->id,
+                'codigo' => 'INS-PAP-CRI',
+                'nombre' => 'Papa Criolla Limpia Selección',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 60.0,
+                'stock_minimo' => 15.0,
+                'costo_unitario' => 5500.00,
+                'proveedor_nombre' => 'Central Mayorista de Antioquia',
+            ],
+            [
+                'categoria_id' => $catsInsumo['tuberculos-granos-pastas']->id,
+                'codigo' => 'INS-PAP-RUS',
+                'nombre' => 'Papa Rústica / Francesa Selección',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 70.0,
+                'stock_minimo' => 20.0,
+                'costo_unitario' => 6200.00,
+                'proveedor_nombre' => 'Central Mayorista de Antioquia',
+            ],
+            [
+                'categoria_id' => $catsInsumo['tuberculos-granos-pastas']->id,
                 'codigo' => 'INS-ARR-01',
-                'nombre' => 'Arroz Koshihikari Especial Sushi',
+                'nombre' => 'Arroz Blanco Especial Selección Diana',
                 'unidad_medida' => 'kg',
-                'stock_actual' => 95.0,
-                'stock_minimo' => 25.0,
-                'costo_unitario' => 9500.00,
-                'proveedor_nombre' => 'Importadora Oriental de Colombia',
+                'stock_actual' => 80.0,
+                'stock_minimo' => 20.0,
+                'costo_unitario' => 4800.00,
+                'proveedor_nombre' => 'Central Mayorista de Antioquia',
             ],
             [
-                'categoria_id' => $catsInsumo['granos-arroces']->id,
-                'codigo' => 'INS-FID-01',
-                'nombre' => 'Fideos Ramen Frescos Artesanales',
+                'categoria_id' => $catsInsumo['tuberculos-granos-pastas']->id,
+                'codigo' => 'INS-PAS-FET',
+                'nombre' => 'Pasta Fettuccine Artesanal al Huevo',
                 'unidad_medida' => 'kg',
-                'stock_actual' => 32.0,
-                'stock_minimo' => 10.0,
-                'costo_unitario' => 14000.00,
-                'proveedor_nombre' => 'Fideos & Masas Niponas',
+                'stock_actual' => 25.0,
+                'stock_minimo' => 6.0,
+                'costo_unitario' => 12500.00,
+                'proveedor_nombre' => 'Pastas Italianas de Colombia',
             ],
-            // Vegetales
             [
-                'categoria_id' => $catsInsumo['vegetales-huerta']->id,
-                'codigo' => 'INS-AGU-01',
+                'categoria_id' => $catsInsumo['tuberculos-granos-pastas']->id,
+                'codigo' => 'INS-PAN-BRI',
+                'nombre' => 'Pan Brioche Artesanal Mantequilla (unidad)',
+                'unidad_medida' => 'unidad',
+                'stock_actual' => 120.0,
+                'stock_minimo' => 30.0,
+                'costo_unitario' => 2500.00,
+                'proveedor_nombre' => 'Panadería Francesa Artesanal',
+            ],
+            // Vegetales & Frutas
+            [
+                'categoria_id' => $catsInsumo['vegetales-frutas']->id,
+                'codigo' => 'INS-AGU-HAS',
                 'nombre' => 'Aguacate Hass Calidad Extra',
                 'unidad_medida' => 'kg',
-                'stock_actual' => 40.0,
+                'stock_actual' => 45.0,
                 'stock_minimo' => 10.0,
                 'costo_unitario' => 8500.00,
                 'proveedor_nombre' => 'Agrícola San Jerónimo',
             ],
             [
-                'categoria_id' => $catsInsumo['vegetales-huerta']->id,
-                'codigo' => 'INS-PEP-01',
-                'nombre' => 'Pepino Cohombro Seleccionado',
+                'categoria_id' => $catsInsumo['vegetales-frutas']->id,
+                'codigo' => 'INS-TOM-CHI',
+                'nombre' => 'Tomate Chonto & Cherry Huerta',
                 'unidad_medida' => 'kg',
-                'stock_actual' => 20.0,
-                'stock_minimo' => 5.0,
-                'costo_unitario' => 4200.00,
-                'proveedor_nombre' => 'Central Mayorista de Antioquia',
-            ],
-            [
-                'categoria_id' => $catsInsumo['vegetales-huerta']->id,
-                'codigo' => 'INS-CEB-01',
-                'nombre' => 'Cebolla Morada Ocañera',
-                'unidad_medida' => 'kg',
-                'stock_actual' => 28.0,
+                'stock_actual' => 35.0,
                 'stock_minimo' => 8.0,
                 'costo_unitario' => 4800.00,
                 'proveedor_nombre' => 'Central Mayorista de Antioquia',
             ],
-            // Salsas & Especias
             [
-                'categoria_id' => $catsInsumo['salsas-especias']->id,
-                'codigo' => 'INS-SOY-01',
-                'nombre' => 'Salsa de Soya Kikkoman',
-                'unidad_medida' => 'lt',
-                'stock_actual' => 45.0,
-                'stock_minimo' => 12.0,
-                'costo_unitario' => 24000.00,
-                'proveedor_nombre' => 'Importadora Oriental de Colombia',
+                'categoria_id' => $catsInsumo['vegetales-frutas']->id,
+                'codigo' => 'INS-LECH-MIX',
+                'nombre' => 'Mix de Lechugas Orgánicas Hidropónicas',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 20.0,
+                'stock_minimo' => 5.0,
+                'costo_unitario' => 9500.00,
+                'proveedor_nombre' => 'Huerta Orgánica del Oriente',
             ],
             [
-                'categoria_id' => $catsInsumo['salsas-especias']->id,
-                'codigo' => 'INS-NOR-01',
-                'nombre' => 'Algas Nori Gold (Paquete 50 Hojas)',
-                'unidad_medida' => 'unidad',
-                'stock_actual' => 50.0,
-                'stock_minimo' => 15.0,
-                'costo_unitario' => 35000.00,
-                'proveedor_nombre' => 'Importadora Oriental de Colombia',
+                'categoria_id' => $catsInsumo['vegetales-frutas']->id,
+                'codigo' => 'INS-PUL-FRU',
+                'nombre' => 'Pulpa Natural de Frutas (Lulo/Mango/Maracuyá)',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 35.0,
+                'stock_minimo' => 8.0,
+                'costo_unitario' => 11000.00,
+                'proveedor_nombre' => 'Pulpas Naturales del Valle',
             ],
-            // Lácteos
             [
-                'categoria_id' => $catsInsumo['lacteos-quesos']->id,
-                'codigo' => 'INS-QUE-01',
-                'nombre' => 'Queso Crema Philadelphia',
+                'categoria_id' => $catsInsumo['vegetales-frutas']->id,
+                'codigo' => 'INS-LIM-TAH',
+                'nombre' => 'Limón Tahití Jugoso Fresco',
                 'unidad_medida' => 'kg',
                 'stock_actual' => 30.0,
-                'stock_minimo' => 8.0,
+                'stock_minimo' => 6.0,
+                'costo_unitario' => 4200.00,
+                'proveedor_nombre' => 'Central Mayorista de Antioquia',
+            ],
+            // Lácteos, Quesos & Cremas
+            [
+                'categoria_id' => $catsInsumo['lacteos-quesos']->id,
+                'codigo' => 'INS-QUE-PAR',
+                'nombre' => 'Queso Parmesano Madurado Rallado',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 18.0,
+                'stock_minimo' => 4.0,
+                'costo_unitario' => 46000.00,
+                'proveedor_nombre' => 'Lácteos del Valle S.A.',
+            ],
+            [
+                'categoria_id' => $catsInsumo['lacteos-quesos']->id,
+                'codigo' => 'INS-QUE-CHE',
+                'nombre' => 'Queso Cheddar Americano Fundente',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 25.0,
+                'stock_minimo' => 6.0,
                 'costo_unitario' => 32000.00,
                 'proveedor_nombre' => 'Lácteos del Valle S.A.',
             ],
-            // Barra & Licores
             [
-                'categoria_id' => $catsInsumo['licores-barra']->id,
-                'codigo' => 'INS-SAK-01',
-                'nombre' => 'Sake Junmai Botella 720ml',
-                'unidad_medida' => 'unidad',
-                'stock_actual' => 24.0,
-                'stock_minimo' => 6.0,
-                'costo_unitario' => 68000.00,
-                'proveedor_nombre' => 'Licores Finos de Colombia',
+                'categoria_id' => $catsInsumo['lacteos-quesos']->id,
+                'codigo' => 'INS-CRE-LEC',
+                'nombre' => 'Crema de Leche de Campo Fresca',
+                'unidad_medida' => 'lt',
+                'stock_actual' => 35.0,
+                'stock_minimo' => 8.0,
+                'costo_unitario' => 14000.00,
+                'proveedor_nombre' => 'Colanta Cooperativa Lechera',
             ],
             [
-                'categoria_id' => $catsInsumo['licores-barra']->id,
-                'codigo' => 'INS-GIN-01',
-                'nombre' => 'Ginebra Tanqueray London Dry 750ml',
-                'unidad_medida' => 'unidad',
-                'stock_actual' => 18.0,
+                'categoria_id' => $catsInsumo['lacteos-quesos']->id,
+                'codigo' => 'INS-MAN-01',
+                'nombre' => 'Mantequilla de Vaca Pura con Sal',
+                'unidad_medida' => 'kg',
+                'stock_actual' => 20.0,
                 'stock_minimo' => 5.0,
-                'costo_unitario' => 85000.00,
-                'proveedor_nombre' => 'Licores Finos de Colombia',
+                'costo_unitario' => 25000.00,
+                'proveedor_nombre' => 'Colanta Cooperativa Lechera',
+            ],
+            // Licores & Barra
+            [
+                'categoria_id' => $catsInsumo['licores-barra']->id,
+                'codigo' => 'INS-RON-MED',
+                'nombre' => 'Ron Medellín Añejo 8 Años 750ml',
+                'unidad_medida' => 'unidad',
+                'stock_actual' => 20.0,
+                'stock_minimo' => 5.0,
+                'costo_unitario' => 58000.00,
+                'proveedor_nombre' => 'Fábrica de Licores de Antioquia (FLA)',
             ],
             [
                 'categoria_id' => $catsInsumo['licores-barra']->id,
-                'codigo' => 'INS-VOD-01',
-                'nombre' => 'Vodka Smirnoff 750ml',
+                'codigo' => 'INS-GIN-TAN',
+                'nombre' => 'Ginebra Tanqueray London Dry 750ml',
                 'unidad_medida' => 'unidad',
                 'stock_actual' => 16.0,
                 'stock_minimo' => 4.0,
+                'costo_unitario' => 85000.00,
+                'proveedor_nombre' => 'Licores y Vinos del Mundo',
+            ],
+            [
+                'categoria_id' => $catsInsumo['licores-barra']->id,
+                'codigo' => 'INS-VOD-SMI',
+                'nombre' => 'Vodka Smirnoff Red 750ml',
+                'unidad_medida' => 'unidad',
+                'stock_actual' => 15.0,
+                'stock_minimo' => 4.0,
                 'costo_unitario' => 52000.00,
-                'proveedor_nombre' => 'Licores Finos de Colombia',
+                'proveedor_nombre' => 'Licores y Vinos del Mundo',
             ],
-            // Bebidas
+            // Bebidas Frías & Cervezas
             [
-                'categoria_id' => $catsInsumo['bebidas-frias']->id,
-                'codigo' => 'INS-CER-ASA',
-                'nombre' => 'Cerveza Asahi Super Dry (330ml)',
-                'unidad_medida' => 'unidad',
-                'stock_actual' => 72.0,
-                'stock_minimo' => 24.0,
-                'costo_unitario' => 8500.00,
-                'proveedor_nombre' => 'Importadora Oriental de Colombia',
-            ],
-            [
-                'categoria_id' => $catsInsumo['bebidas-frias']->id,
+                'categoria_id' => $catsInsumo['bebidas-cervezas']->id,
                 'codigo' => 'INS-CER-CLU',
-                'nombre' => 'Cerveza Club Colombia Dorada (330ml)',
+                'nombre' => 'Cerveza Club Colombia Dorada 330ml',
                 'unidad_medida' => 'unidad',
-                'stock_actual' => 120.0,
+                'stock_actual' => 144.0,
                 'stock_minimo' => 36.0,
                 'costo_unitario' => 4200.00,
                 'proveedor_nombre' => 'Bavaria S.A.',
             ],
             [
-                'categoria_id' => $catsInsumo['bebidas-frias']->id,
-                'codigo' => 'INS-PUL-MAR',
-                'nombre' => 'Pulpa de Maracuyá Natural 100%',
-                'unidad_medida' => 'kg',
-                'stock_actual' => 18.0,
-                'stock_minimo' => 5.0,
-                'costo_unitario' => 12000.00,
-                'proveedor_nombre' => 'Pulpas del Oriente',
+                'categoria_id' => $catsInsumo['bebidas-cervezas']->id,
+                'codigo' => 'INS-CER-BBC',
+                'nombre' => 'Cerveza BBC Monserrate Roja 330ml',
+                'unidad_medida' => 'unidad',
+                'stock_actual' => 96.0,
+                'stock_minimo' => 24.0,
+                'costo_unitario' => 5800.00,
+                'proveedor_nombre' => 'Bavaria S.A. / BBC',
+            ],
+            [
+                'categoria_id' => $catsInsumo['bebidas-cervezas']->id,
+                'codigo' => 'INS-GAS-MAN',
+                'nombre' => 'Gaseosa Postobón Manzana / Colombiana 400ml',
+                'unidad_medida' => 'unidad',
+                'stock_actual' => 120.0,
+                'stock_minimo' => 30.0,
+                'costo_unitario' => 2600.00,
+                'proveedor_nombre' => 'Postobón S.A.',
             ],
         ];
 
@@ -487,16 +577,17 @@ class DatosPruebaRealistasSeeder extends Seeder
             $insumosMap[$idat['codigo']] = $ins;
         }
 
-        // 7. Categorías de la Carta / Menú (con Color distintivo para el POS e Ícono)
+        // 7. Categorías de la Carta / Menú para Restaurante General (con Color distintivo para el POS e Ícono)
         $catMenuData = [
-            ['nombre' => 'Rolls Especiales', 'slug' => 'rolls-especiales', 'color' => '#f97316', 'icono' => '🍣', 'orden' => 1],
-            ['nombre' => 'Nigiris & Sashimis', 'slug' => 'nigiris-sashimis', 'color' => '#ef4444', 'icono' => 'set_meal', 'orden' => 2],
-            ['nombre' => 'Entradas & Gyozas', 'slug' => 'entradas-gyozas', 'color' => '#eab308', 'icono' => 'ramen_dining', 'orden' => 3],
-            ['nombre' => 'Woks, Arroces & Ramen', 'slug' => 'woks-ramen', 'color' => '#10b981', 'icono' => 'lunch_dining', 'orden' => 4],
-            ['nombre' => 'Robata & Platos Fuertes', 'slug' => 'robata-grill', 'color' => '#8b5cf6', 'icono' => 'restaurant', 'orden' => 5],
-            ['nombre' => 'Coctelería de Autor', 'slug' => 'cocteleria-autor', 'color' => '#ec4899', 'icono' => 'local_bar', 'orden' => 6],
-            ['nombre' => 'Cervezas & Bebidas', 'slug' => 'cervezas-bebidas', 'color' => '#06b6d4', 'icono' => 'sports_bar', 'orden' => 7],
-            ['nombre' => 'Postres Artesanales', 'slug' => 'postres-artesanales', 'color' => '#d97706', 'icono' => 'icecream', 'orden' => 8],
+            ['nombre' => 'Entradas & Picadas', 'slug' => 'entradas-picadas', 'color' => '#f97316', 'icono' => 'tapas', 'orden' => 1],
+            ['nombre' => 'Cortes a la Parrilla & Asados', 'slug' => 'cortes-parrilla', 'color' => '#dc2626', 'icono' => 'outdoor_grill', 'orden' => 2],
+            ['nombre' => 'Pollos Dorados & Costillas BBQ', 'slug' => 'pollos-costillas', 'color' => '#ea580c', 'icono' => 'dinner_dining', 'orden' => 3],
+            ['nombre' => 'Pescados & Mariscos de la Casa', 'slug' => 'pescados-mariscos-casa', 'color' => '#0284c7', 'icono' => 'set_meal', 'orden' => 4],
+            ['nombre' => 'Pastas Artesanales & Lasañas', 'slug' => 'pastas-artesanales', 'color' => '#10b981', 'icono' => 'ramen_dining', 'orden' => 5],
+            ['nombre' => 'Hamburguesas Gourmet & Sandwiches', 'slug' => 'hamburguesas-sandwiches', 'color' => '#8b5cf6', 'icono' => 'lunch_dining', 'orden' => 6],
+            ['nombre' => 'Coctelería Clásica & de Autor', 'slug' => 'cocteleria-barra', 'color' => '#ec4899', 'icono' => 'local_bar', 'orden' => 7],
+            ['nombre' => 'Bebidas, Jugos Naturales & Cervezas', 'slug' => 'bebidas-jugos', 'color' => '#06b6d4', 'icono' => 'local_cafe', 'orden' => 8],
+            ['nombre' => 'Postres Artesanales de la Casa', 'slug' => 'postres-casa', 'color' => '#d97706', 'icono' => 'icecream', 'orden' => 9],
         ];
 
         $catsMenu = [];
@@ -507,255 +598,350 @@ class DatosPruebaRealistasSeeder extends Seeder
             );
         }
 
-        // 8. Catálogo Completo de Platillos y Bebidas (en COP)
+        // 8. Catálogo Completo de Platillos y Bebidas de Restaurante General (en COP)
         $productosData = [
-            // Rolls Especiales (Cocina Sushi)
+            // Entradas & Picadas
             [
-                'categoria_id' => $catsMenu['rolls-especiales']->id,
-                'codigo' => 'PROD-DRAG',
-                'nombre' => 'Dragon Roll Especial (10 bocados)',
-                'slug' => 'dragon-roll-especial',
-                'descripcion' => 'Langostino crocante en panko, aguacate Hass y salmón fresco flameado con salsa unagi y masago.',
-                'precio' => 42000.00,
-                'costo' => 16500.00,
-                'area_cocina' => 'sushi',
-                'recetas' => [
-                    ['insumo' => 'INS-SAL-01', 'cant' => 0.080],
-                    ['insumo' => 'INS-LAN-01', 'cant' => 0.060],
-                    ['insumo' => 'INS-ARR-01', 'cant' => 0.120],
-                    ['insumo' => 'INS-NOR-01', 'cant' => 1.0],
-                    ['insumo' => 'INS-AGU-01', 'cant' => 0.050],
-                ],
-            ],
-            [
-                'categoria_id' => $catsMenu['rolls-especiales']->id,
-                'codigo' => 'PROD-TIGR',
-                'nombre' => 'Ojo de Tigre Roll Tempura (10 bocados)',
-                'slug' => 'ojo-de-tigre-roll',
-                'descripcion' => 'Salmón, atún rojo, queso philadelphia y cebollín, frito en tempura crocante con hilos de teriyaki.',
-                'precio' => 39000.00,
-                'costo' => 15000.00,
-                'area_cocina' => 'sushi',
-                'recetas' => [
-                    ['insumo' => 'INS-SAL-01', 'cant' => 0.060],
-                    ['insumo' => 'INS-ATU-01', 'cant' => 0.050],
-                    ['insumo' => 'INS-QUE-01', 'cant' => 0.040],
-                    ['insumo' => 'INS-ARR-01', 'cant' => 0.120],
-                    ['insumo' => 'INS-NOR-01', 'cant' => 1.0],
-                ],
-            ],
-            [
-                'categoria_id' => $catsMenu['rolls-especiales']->id,
-                'codigo' => 'PROD-PHILA',
-                'nombre' => 'Filadelfia Clásico Roll (10 bocados)',
-                'slug' => 'filadelfia-clasico-roll',
-                'descripcion' => 'Salmón fresco del pacífico, queso crema philadelphia y semillas de sésamo tostadas.',
-                'precio' => 34000.00,
-                'costo' => 12500.00,
-                'area_cocina' => 'sushi',
-                'recetas' => [
-                    ['insumo' => 'INS-SAL-01', 'cant' => 0.090],
-                    ['insumo' => 'INS-QUE-01', 'cant' => 0.050],
-                    ['insumo' => 'INS-ARR-01', 'cant' => 0.120],
-                    ['insumo' => 'INS-NOR-01', 'cant' => 1.0],
-                ],
-            ],
-            [
-                'categoria_id' => $catsMenu['rolls-especiales']->id,
-                'codigo' => 'PROD-ACEV',
-                'nombre' => 'Acevichado Nikkei Roll (10 bocados)',
-                'slug' => 'acevichado-nikkei-roll',
-                'descripcion' => 'Langostino apanado, pesca blanca fresca, salsa acevichada de ají amarillo y canchita chulpe.',
-                'precio' => 44000.00,
-                'costo' => 17000.00,
-                'area_cocina' => 'sushi',
-                'recetas' => [
-                    ['insumo' => 'INS-LAN-01', 'cant' => 0.070],
-                    ['insumo' => 'INS-PES-01', 'cant' => 0.060],
-                    ['insumo' => 'INS-ARR-01', 'cant' => 0.120],
-                    ['insumo' => 'INS-NOR-01', 'cant' => 1.0],
-                ],
-            ],
-            // Nigiris & Sashimis (Sushi)
-            [
-                'categoria_id' => $catsMenu['nigiris-sashimis']->id,
-                'codigo' => 'PROD-SASH-SAL',
-                'nombre' => 'Sashimi Salmón Noruego (5 Cortes)',
-                'slug' => 'sashimi-salmon-noruego',
-                'descripcion' => 'Finos cortes de salmón fresco noruego calidad superior con wasabi artesanal y jengibre encurtido.',
-                'precio' => 36000.00,
-                'costo' => 14000.00,
-                'area_cocina' => 'sushi',
-                'recetas' => [
-                    ['insumo' => 'INS-SAL-01', 'cant' => 0.120],
-                ],
-            ],
-            [
-                'categoria_id' => $catsMenu['nigiris-sashimis']->id,
-                'codigo' => 'PROD-SASH-ATU',
-                'nombre' => 'Sashimi Atún Aleta Amarilla (5 Cortes)',
-                'slug' => 'sashimi-atun-aleta-amarilla',
-                'descripcion' => 'Cortes gruesos de atún fresco del pacífico con emulsión de soya y sésamo.',
-                'precio' => 40000.00,
-                'costo' => 16000.00,
-                'area_cocina' => 'sushi',
-                'recetas' => [
-                    ['insumo' => 'INS-ATU-01', 'cant' => 0.120],
-                ],
-            ],
-            // Entradas & Gyozas (Cocina Caliente)
-            [
-                'categoria_id' => $catsMenu['entradas-gyozas']->id,
-                'codigo' => 'PROD-GYOZ-CER',
-                'nombre' => 'Gyozas de Cerdo & Shiitake (5 uds)',
-                'slug' => 'gyozas-cerdo-shiitake',
-                'descripcion' => 'Empanaditas japonesas rellenas de cerdo especiado, selladas a la plancha con salsa ponzu.',
-                'precio' => 26000.00,
-                'costo' => 9000.00,
+                'categoria_id' => $catsMenu['entradas-picadas']->id,
+                'codigo' => 'PROD-PIC-CRI',
+                'nombre' => 'Picada Criolla RestoMaster (2-3 personas)',
+                'slug' => 'picada-criolla-restomaster',
+                'descripcion' => 'Chicharrón carnudo crocante, costillitas BBQ, papa criolla dorada, patacones de plátano verde y ají casero.',
+                'precio' => 52000.00,
+                'costo' => 19500.00,
                 'area_cocina' => 'caliente',
                 'recetas' => [
-                    ['insumo' => 'INS-CER-01', 'cant' => 0.100],
-                    ['insumo' => 'INS-CEB-01', 'cant' => 0.030],
+                    ['insumo' => 'INS-TOC-01', 'cant' => 0.200],
+                    ['insumo' => 'INS-COS-01', 'cant' => 0.200],
+                    ['insumo' => 'INS-PAP-CRI', 'cant' => 0.250],
                 ],
             ],
             [
-                'categoria_id' => $catsMenu['entradas-gyozas']->id,
-                'codigo' => 'PROD-CEV-NIK',
-                'nombre' => 'Ceviche Clásico Nikkei',
-                'slug' => 'ceviche-clasico-nikkei',
-                'descripcion' => 'Pesca fresca del día marinada en leche de tigre de ají amarillo, cebolla morada, aguacate y choclo.',
-                'precio' => 36000.00,
-                'costo' => 13000.00,
+                'categoria_id' => $catsMenu['entradas-picadas']->id,
+                'codigo' => 'PROD-EMP-CRI',
+                'nombre' => 'Trilogía de Empanadas Artesanales con Ají (3 uds)',
+                'slug' => 'trilogia-de-empanadas-artesanales',
+                'descripcion' => 'Empanadas crocantes rellenas de carne desmechada de res y papa criolla con ají casero de la huerta.',
+                'precio' => 18000.00,
+                'costo' => 6000.00,
                 'area_cocina' => 'caliente',
                 'recetas' => [
-                    ['insumo' => 'INS-PES-01', 'cant' => 0.120],
-                    ['insumo' => 'INS-CEB-01', 'cant' => 0.040],
-                    ['insumo' => 'INS-AGU-01', 'cant' => 0.050],
-                ],
-            ],
-            // Woks & Ramen (Cocina Caliente)
-            [
-                'categoria_id' => $catsMenu['woks-ramen']->id,
-                'codigo' => 'PROD-RAM-TON',
-                'nombre' => 'Ramen Tonkotsu Tradicional',
-                'slug' => 'ramen-tonkotsu-tradicional',
-                'descripcion' => 'Caldo concentrado de 12 horas, fideos ramen frescos, chashu de panceta, huevo marinado y nori.',
-                'precio' => 42000.00,
-                'costo' => 14500.00,
-                'area_cocina' => 'caliente',
-                'recetas' => [
-                    ['insumo' => 'INS-FID-01', 'cant' => 0.180],
-                    ['insumo' => 'INS-CER-01', 'cant' => 0.100],
-                    ['insumo' => 'INS-SOY-01', 'cant' => 0.020],
+                    ['insumo' => 'INS-CAR-MOL', 'cant' => 0.100],
+                    ['insumo' => 'INS-PAP-CRI', 'cant' => 0.080],
                 ],
             ],
             [
-                'categoria_id' => $catsMenu['woks-ramen']->id,
-                'codigo' => 'PROD-CHAU-ESP',
-                'nombre' => 'Arroz Chaufa Especial al Wok',
-                'slug' => 'arroz-chaufa-especial',
-                'descripcion' => 'Arroz salteado a fuego vivo con lomo de res, pollo, tortilla de huevo, cebollín y soya oscura.',
+                'categoria_id' => $catsMenu['entradas-picadas']->id,
+                'codigo' => 'PROD-CEV-CHI',
+                'nombre' => 'Ceviche de Camarón Costeño con Patacón',
+                'slug' => 'ceviche-de-camaron-costeno',
+                'descripcion' => 'Camarones jumbo tiernos en salsa rosada criolla con cebolla morada, cilantro fresco y chips de plátano verde.',
                 'precio' => 38000.00,
-                'costo' => 13000.00,
-                'area_cocina' => 'caliente',
+                'costo' => 14000.00,
+                'area_cocina' => 'sushi', // Cocina Fría & Entradas
                 'recetas' => [
-                    ['insumo' => 'INS-ARR-01', 'cant' => 0.150],
-                    ['insumo' => 'INS-POL-01', 'cant' => 0.080],
-                    ['insumo' => 'INS-LOM-01', 'cant' => 0.060],
-                    ['insumo' => 'INS-SOY-01', 'cant' => 0.030],
-                ],
-            ],
-            // Robata & Platos Fuertes (Cocina Caliente)
-            [
-                'categoria_id' => $catsMenu['robata-grill']->id,
-                'codigo' => 'PROD-LOM-SALT',
-                'nombre' => 'Lomo Saltado Nikkei al Wok',
-                'slug' => 'lomo-saltado-nikkei',
-                'descripcion' => 'Lomo fino 250g salteado con cebolla morada, tomate criollo, papas rústicas y arroz jazmín.',
-                'precio' => 54000.00,
-                'costo' => 22000.00,
-                'area_cocina' => 'caliente',
-                'recetas' => [
-                    ['insumo' => 'INS-LOM-01', 'cant' => 0.250],
-                    ['insumo' => 'INS-CEB-01', 'cant' => 0.080],
-                    ['insumo' => 'INS-SOY-01', 'cant' => 0.030],
+                    ['insumo' => 'INS-CAM-01', 'cant' => 0.150],
+                    ['insumo' => 'INS-LIM-TAH', 'cant' => 0.050],
                 ],
             ],
             [
-                'categoria_id' => $catsMenu['robata-grill']->id,
-                'codigo' => 'PROD-SALM-GRILL',
-                'nombre' => 'Salmón Glaseado al Miso',
-                'slug' => 'salmon-glaseado-al-miso',
-                'descripcion' => 'Filete de salmón 200g a la parrilla robata con glaseado dulce de miso y vegetales salteados.',
-                'precio' => 58000.00,
+                'categoria_id' => $catsMenu['entradas-picadas']->id,
+                'codigo' => 'PROD-ENS-CES',
+                'nombre' => 'Ensalada César con Pollo a la Parrilla',
+                'slug' => 'ensalada-cesar-con-pollo',
+                'descripcion' => 'Mix de lechugas frescas, pechuga a la parrilla dorada, queso parmesano en lajas, croutons y aderezo césar.',
+                'precio' => 32000.00,
+                'costo' => 10500.00,
+                'area_cocina' => 'sushi', // Cocina Fría
+                'recetas' => [
+                    ['insumo' => 'INS-LECH-MIX', 'cant' => 0.120],
+                    ['insumo' => 'INS-PEC-01', 'cant' => 0.120],
+                    ['insumo' => 'INS-QUE-PAR', 'cant' => 0.030],
+                ],
+            ],
+
+            // Cortes a la Parrilla & Asados
+            [
+                'categoria_id' => $catsMenu['cortes-parrilla']->id,
+                'codigo' => 'PROD-BIF-ANG',
+                'nombre' => 'Bife de Chorizo Angus a la Brasa (350g)',
+                'slug' => 'bife-de-chorizo-angus',
+                'descripcion' => 'Corte jugoso y tierno asado a las brasas con chimichurri casero, papas rústicas y ensalada fresca.',
+                'precio' => 62000.00,
                 'costo' => 24000.00,
                 'area_cocina' => 'caliente',
                 'recetas' => [
-                    ['insumo' => 'INS-SAL-01', 'cant' => 0.200],
+                    ['insumo' => 'INS-BIF-01', 'cant' => 0.350],
+                    ['insumo' => 'INS-PAP-RUS', 'cant' => 0.180],
+                    ['insumo' => 'INS-MAN-01', 'cant' => 0.020],
                 ],
             ],
-            // Coctelería de Autor (Barra)
             [
-                'categoria_id' => $catsMenu['cocteleria-autor']->id,
-                'codigo' => 'PROD-GIN-LYCH',
-                'nombre' => 'Gin Tonic de Lychee & Cardamomo',
-                'slug' => 'gin-tonic-lychee-cardamomo',
-                'descripcion' => 'Ginebra Tanqueray, tónica premium, frutos dulces de lychee y perfume de cardamomo.',
+                'categoria_id' => $catsMenu['cortes-parrilla']->id,
+                'codigo' => 'PROD-BAB-BEE',
+                'nombre' => 'Baby Beef Tierno a la Plancha (300g)',
+                'slug' => 'baby-beef-a-la-parrilla',
+                'descripcion' => 'Lomo fino tierno con mantequilla de finas hierbas acompañado de puré rústico de papa criolla.',
+                'precio' => 58000.00,
+                'costo' => 22000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-BIF-01', 'cant' => 0.300],
+                    ['insumo' => 'INS-PAP-CRI', 'cant' => 0.180],
+                    ['insumo' => 'INS-MAN-01', 'cant' => 0.020],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['cortes-parrilla']->id,
+                'codigo' => 'PROD-PUN-ANC',
+                'nombre' => 'Punta de Anca Tradicional Asada (350g)',
+                'slug' => 'punta-de-anca-tradicional',
+                'descripcion' => 'Corte jugoso con su borde de grasa dorada, plátano asado con queso y hogao de la casa.',
+                'precio' => 54000.00,
+                'costo' => 21000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-BIF-01', 'cant' => 0.350],
+                    ['insumo' => 'INS-TOM-CHI', 'cant' => 0.060],
+                ],
+            ],
+
+            // Pollos Dorados & Costillas BBQ
+            [
+                'categoria_id' => $catsMenu['pollos-costillas']->id,
+                'codigo' => 'PROD-COS-BBQ',
+                'nombre' => 'Costillas de Cerdo Ahumadas en BBQ (450g)',
+                'slug' => 'costillas-de-cerdo-bbq',
+                'descripcion' => 'Tiernas costillas cocinadas a baja temperatura, glaseadas en salsa BBQ de la casa con papas a la francesa.',
+                'precio' => 49000.00,
+                'costo' => 18000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-COS-01', 'cant' => 0.450],
+                    ['insumo' => 'INS-PAP-RUS', 'cant' => 0.180],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['pollos-costillas']->id,
+                'codigo' => 'PROD-POL-CHAM',
+                'nombre' => 'Pechuga de Pollo en Crema de Champiñones',
+                'slug' => 'pechuga-en-salsa-champinones',
+                'descripcion' => 'Pechuga tierna dorada a la plancha bañada en salsa cremosa de champiñones con arroz blanco y ensalada.',
+                'precio' => 38000.00,
+                'costo' => 13500.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-PEC-01', 'cant' => 0.220],
+                    ['insumo' => 'INS-CRE-LEC', 'cant' => 0.080],
+                    ['insumo' => 'INS-ARR-01', 'cant' => 0.100],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['pollos-costillas']->id,
+                'codigo' => 'PROD-ALA-BBQ',
+                'nombre' => 'Alitas BBQ o Crispy de la Casa (10 uds)',
+                'slug' => 'alitas-bbq-o-crispy',
+                'descripcion' => 'Alitas doradas bañadas en salsa BBQ dulce o picante suave acompañadas de salsa ranch y papas criollas.',
+                'precio' => 34000.00,
+                'costo' => 12000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-ALA-01', 'cant' => 0.350],
+                    ['insumo' => 'INS-PAP-CRI', 'cant' => 0.150],
+                ],
+            ],
+
+            // Pescados & Mariscos de la Casa
+            [
+                'categoria_id' => $catsMenu['pescados-mariscos-casa']->id,
+                'codigo' => 'PROD-ROB-ALM',
+                'nombre' => 'Filete de Róbalo en Mantequilla de Ajo & Hierbas',
+                'slug' => 'filete-de-robalo-al-ajillo',
+                'descripcion' => 'Filete fresco a la plancha sobre puré de papa rústica, vegetales salteados y mantequilla aromática.',
+                'precio' => 56000.00,
+                'costo' => 22000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-ROB-01', 'cant' => 0.220],
+                    ['insumo' => 'INS-MAN-01', 'cant' => 0.030],
+                    ['insumo' => 'INS-PAP-RUS', 'cant' => 0.150],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['pescados-mariscos-casa']->id,
+                'codigo' => 'PROD-CAM-AJO',
+                'nombre' => 'Cazuela de Camarones al Ajillo & Vino Blanco',
+                'slug' => 'cazuela-de-camarones',
+                'descripcion' => 'Camarones jumbo salteados en mantequilla de ajo, vino blanco y perejil fresco con arroz blanco y patacón.',
+                'precio' => 52000.00,
+                'costo' => 20000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-CAM-01', 'cant' => 0.200],
+                    ['insumo' => 'INS-MAN-01', 'cant' => 0.030],
+                    ['insumo' => 'INS-ARR-01', 'cant' => 0.100],
+                ],
+            ],
+
+            // Pastas Artesanales & Lasañas
+            [
+                'categoria_id' => $catsMenu['pastas-artesanales']->id,
+                'codigo' => 'PROD-FET-ALF',
+                'nombre' => 'Fettuccine Alfredo con Pollo y Parmesano',
+                'slug' => 'fettuccine-alfredo-con-pollo',
+                'descripcion' => 'Pasta artesanal al dente con salsa bechamel cremosa, pechuga de pollo grillé y queso parmesano gratinado.',
+                'precio' => 39000.00,
+                'costo' => 13500.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-PAS-FET', 'cant' => 0.160],
+                    ['insumo' => 'INS-PEC-01', 'cant' => 0.100],
+                    ['insumo' => 'INS-CRE-LEC', 'cant' => 0.080],
+                    ['insumo' => 'INS-QUE-PAR', 'cant' => 0.030],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['pastas-artesanales']->id,
+                'codigo' => 'PROD-LAS-BOL',
+                'nombre' => 'Lasaña Tradicional Boloñesa de la Casa',
+                'slug' => 'lasana-tradicional-bolonesa',
+                'descripcion' => 'Capas de pasta casera con abundante ragú de carne Angus, bechamel suave y queso mozzarella dorado.',
+                'precio' => 36000.00,
+                'costo' => 12500.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-CAR-MOL', 'cant' => 0.150],
+                    ['insumo' => 'INS-TOM-CHI', 'cant' => 0.080],
+                    ['insumo' => 'INS-CRE-LEC', 'cant' => 0.060],
+                ],
+            ],
+
+            // Hamburguesas Gourmet & Sandwiches
+            [
+                'categoria_id' => $catsMenu['hamburguesas-sandwiches']->id,
+                'codigo' => 'PROD-HAM-REST',
+                'nombre' => 'Hamburguesa RestoMaster Angus Especial',
+                'slug' => 'hamburguesa-restomaster-angus',
+                'descripcion' => '200g de carne Angus seleccionada, tocineta ahumada crocante, queso cheddar, cebolla caramelizada y papas.',
+                'precio' => 38000.00,
+                'costo' => 14000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-CAR-MOL', 'cant' => 0.200],
+                    ['insumo' => 'INS-PAN-BRI', 'cant' => 1.0],
+                    ['insumo' => 'INS-QUE-CHE', 'cant' => 0.040],
+                    ['insumo' => 'INS-TOC-01', 'cant' => 0.040],
+                    ['insumo' => 'INS-PAP-RUS', 'cant' => 0.150],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['hamburguesas-sandwiches']->id,
+                'codigo' => 'PROD-HAM-POLL',
+                'nombre' => 'Hamburguesa Crunchy Chicken BBQ',
+                'slug' => 'hamburguesa-crunchy-chicken',
+                'descripcion' => 'Pechuga de pollo crocante en panko, queso cheddar derretido, lechuga hidropónica y salsa BBQ especial.',
+                'precio' => 34000.00,
+                'costo' => 12000.00,
+                'area_cocina' => 'caliente',
+                'recetas' => [
+                    ['insumo' => 'INS-PEC-01', 'cant' => 0.180],
+                    ['insumo' => 'INS-PAN-BRI', 'cant' => 1.0],
+                    ['insumo' => 'INS-QUE-CHE', 'cant' => 0.030],
+                    ['insumo' => 'INS-PAP-RUS', 'cant' => 0.150],
+                ],
+            ],
+
+            // Coctelería Clásica & de Autor
+            [
+                'categoria_id' => $catsMenu['cocteleria-barra']->id,
+                'codigo' => 'PROD-GINT-COL',
+                'nombre' => 'Gin Tonic Botánico Clásico',
+                'slug' => 'gin-tonic-botanico-clasico',
+                'descripcion' => 'Ginebra Tanqueray London Dry, tónica premium, rodajas de limón Tahití y aroma de romero fresco.',
                 'precio' => 36000.00,
                 'costo' => 11000.00,
                 'area_cocina' => 'barra',
                 'recetas' => [
-                    ['insumo' => 'INS-GIN-01', 'cant' => 0.060],
+                    ['insumo' => 'INS-GIN-TAN', 'cant' => 0.060],
+                    ['insumo' => 'INS-LIM-TAH', 'cant' => 0.030],
                 ],
             ],
             [
-                'categoria_id' => $catsMenu['cocteleria-autor']->id,
-                'codigo' => 'PROD-MOSC-MULE',
-                'nombre' => 'Moscow Mule Maracuyá',
+                'categoria_id' => $catsMenu['cocteleria-barra']->id,
+                'codigo' => 'PROD-MOJ-MED',
+                'nombre' => 'Mojito Clásico de Ron Añejo',
+                'slug' => 'mojito-clasico-ron-anejo',
+                'descripcion' => 'Ron Medellín Añejo 8 Años, hierbabuena fresca campesina, zumo de limón Tahití, azúcar de caña y soda.',
+                'precio' => 32000.00,
+                'costo' => 9500.00,
+                'area_cocina' => 'barra',
+                'recetas' => [
+                    ['insumo' => 'INS-RON-MED', 'cant' => 0.060],
+                    ['insumo' => 'INS-LIM-TAH', 'cant' => 0.040],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['cocteleria-barra']->id,
+                'codigo' => 'PROD-MOS-MULE',
+                'nombre' => 'Moscow Mule Clásico de Frutas',
                 'slug' => 'moscow-mule-maracuya',
-                'descripcion' => 'Vodka Smirnoff, pulpa de maracuyá colombiana, ginger beer artesanal y menta fresca.',
+                'descripcion' => 'Vodka Smirnoff, pulpa de maracuyá natural colombiana, ginger beer artesanal y toque de menta fresca.',
                 'precio' => 34000.00,
                 'costo' => 10000.00,
                 'area_cocina' => 'barra',
                 'recetas' => [
-                    ['insumo' => 'INS-VOD-01', 'cant' => 0.060],
-                    ['insumo' => 'INS-PUL-MAR', 'cant' => 0.050],
+                    ['insumo' => 'INS-VOD-SMI', 'cant' => 0.060],
+                    ['insumo' => 'INS-PUL-FRU', 'cant' => 0.050],
                 ],
             ],
+
+            // Bebidas, Jugos Naturales & Cervezas
             [
-                'categoria_id' => $catsMenu['cocteleria-autor']->id,
-                'codigo' => 'PROD-SAKE-COCK',
-                'nombre' => 'Copa de Sake Junmai Importado',
-                'slug' => 'copa-sake-junmai',
-                'descripcion' => 'Sake japonés puro de arroz servido frío o caliente en taza ochoko tradicional.',
-                'precio' => 28000.00,
-                'costo' => 9000.00,
+                'categoria_id' => $catsMenu['bebidas-jugos']->id,
+                'codigo' => 'PROD-JUG-NAT',
+                'nombre' => 'Jugo Natural en Agua o Leche (350ml)',
+                'slug' => 'jugo-natural-lulo-mango-maracuya',
+                'descripcion' => 'Preparado al momento con pulpa fresca a elegir: Lulo, Mango, Maracuyá o Fresa.',
+                'precio' => 12000.00,
+                'costo' => 3800.00,
                 'area_cocina' => 'barra',
                 'recetas' => [
-                    ['insumo' => 'INS-SAK-01', 'cant' => 0.150],
+                    ['insumo' => 'INS-PUL-FRU', 'cant' => 0.120],
                 ],
             ],
-            // Cervezas & Bebidas (Barra)
             [
-                'categoria_id' => $catsMenu['cervezas-bebidas']->id,
-                'codigo' => 'PROD-CERV-ASAHI',
-                'nombre' => 'Cerveza Asahi Super Dry (330ml)',
-                'slug' => 'cerveza-asahi-super-dry',
-                'descripcion' => 'Cerveza japonesa lager premium de final seco y refrescante.',
-                'precio' => 18000.00,
-                'costo' => 8500.00,
+                'categoria_id' => $catsMenu['bebidas-jugos']->id,
+                'codigo' => 'PROD-LIM-COCO',
+                'nombre' => 'Limonada de Coco Cremosita (400ml)',
+                'slug' => 'limonada-de-coco-cremosita',
+                'descripcion' => 'Zumo de limón Tahití recién exprimido con crema de coco natural y hielo frappé refrescante.',
+                'precio' => 15000.00,
+                'costo' => 4500.00,
                 'area_cocina' => 'barra',
                 'recetas' => [
-                    ['insumo' => 'INS-CER-ASA', 'cant' => 1.0],
+                    ['insumo' => 'INS-LIM-TAH', 'cant' => 0.060],
                 ],
             ],
             [
-                'categoria_id' => $catsMenu['cervezas-bebidas']->id,
-                'codigo' => 'PROD-CERV-CLUB',
+                'categoria_id' => $catsMenu['bebidas-jugos']->id,
+                'codigo' => 'PROD-CER-BBC',
+                'nombre' => 'Cerveza Artesanal BBC Monserrate Roja (330ml)',
+                'slug' => 'cerveza-bbc-monserrate-roja',
+                'descripcion' => 'Cerveza artesanal tipo ale con maltas tostadas caramelizadas y cuerpo balanceado.',
+                'precio' => 14000.00,
+                'costo' => 5800.00,
+                'area_cocina' => 'barra',
+                'recetas' => [
+                    ['insumo' => 'INS-CER-BBC', 'cant' => 1.0],
+                ],
+            ],
+            [
+                'categoria_id' => $catsMenu['bebidas-jugos']->id,
+                'codigo' => 'PROD-CER-CLU',
                 'nombre' => 'Cerveza Club Colombia Dorada (330ml)',
                 'slug' => 'cerveza-club-colombia-dorada',
-                'descripcion' => 'Cerveza colombiana tipo pilsen con notas de malta tostada.',
-                'precio' => 12000.00,
+                'descripcion' => 'Cerveza premium colombiana tipo pilsen dorada bien fría.',
+                'precio' => 10000.00,
                 'costo' => 4200.00,
                 'area_cocina' => 'barra',
                 'recetas' => [
@@ -763,39 +949,42 @@ class DatosPruebaRealistasSeeder extends Seeder
                 ],
             ],
             [
-                'categoria_id' => $catsMenu['cervezas-bebidas']->id,
-                'codigo' => 'PROD-LIM-COCO',
-                'nombre' => 'Limonada de Coco Artesanal',
-                'slug' => 'limonada-de-coco-artesanal',
-                'descripcion' => 'Zumo de limón recién exprimido, crema de coco caribeña y hielo frappé cremoso.',
-                'precio' => 15000.00,
-                'costo' => 4500.00,
+                'categoria_id' => $catsMenu['bebidas-jugos']->id,
+                'codigo' => 'PROD-GAS-POS',
+                'nombre' => 'Gaseosa Postobón Manzana o Colombiana (400ml)',
+                'slug' => 'gaseosa-postobon-manzana',
+                'descripcion' => 'Gaseosa personal bien helada en botella tradicional.',
+                'precio' => 7000.00,
+                'costo' => 2600.00,
                 'area_cocina' => 'barra',
-                'recetas' => [],
+                'recetas' => [
+                    ['insumo' => 'INS-GAS-MAN', 'cant' => 1.0],
+                ],
             ],
-            // Postres (Cocina Caliente)
+
+            // Postres Artesanales de la Casa
             [
-                'categoria_id' => $catsMenu['postres-artesanales']->id,
-                'codigo' => 'PROD-MOCHI-MIX',
-                'nombre' => 'Mochis Helados Artesanales (3 uds)',
-                'slug' => 'mochis-helados-artesanales',
-                'descripcion' => 'Masa de arroz glutinoso rellena de helado: Té verde Matcha, Frutos Rojos y Chocolate.',
+                'categoria_id' => $catsMenu['postres-casa']->id,
+                'codigo' => 'PROD-VOL-CHO',
+                'nombre' => 'Volcán Tibio de Chocolate con Helado',
+                'slug' => 'volcan-tibio-de-chocolate',
+                'descripcion' => 'Bizcochuelo esponjoso tibio con centro líquido fundente de chocolate y bola de helado de vainilla.',
                 'precio' => 22000.00,
                 'costo' => 7500.00,
                 'area_cocina' => 'caliente',
                 'recetas' => [],
             ],
             [
-                'categoria_id' => $catsMenu['postres-artesanales']->id,
-                'codigo' => 'PROD-CHEE-JAP',
-                'nombre' => 'Cheesecake Japonés Esponjoso',
-                'slug' => 'cheesecake-japones-esponjoso',
-                'descripcion' => 'Tarta soufflé de queso suave con coulis de frutos del bosque andinos.',
-                'precio' => 24000.00,
-                'costo' => 8000.00,
-                'area_cocina' => 'caliente',
+                'categoria_id' => $catsMenu['postres-casa']->id,
+                'codigo' => 'PROD-POS-TRE',
+                'nombre' => 'Torta Tres Leches Tradicional',
+                'slug' => 'torta-tres-leches-tradicional',
+                'descripcion' => 'Bizcochuelo casero bañado en mezcla cremosa de tres leches con toque de canela y merengue tostado.',
+                'precio' => 18000.00,
+                'costo' => 6000.00,
+                'area_cocina' => 'sushi', // Repostería / Cocina Fría
                 'recetas' => [
-                    ['insumo' => 'INS-QUE-01', 'cant' => 0.080],
+                    ['insumo' => 'INS-CRE-LEC', 'cant' => 0.080],
                 ],
             ],
         ];
@@ -811,7 +1000,7 @@ class DatosPruebaRealistasSeeder extends Seeder
             );
             $productosMap[$pData['slug']] = $prod;
 
-            // Recetas
+            // Recetas / Escandallo
             Receta::where('producto_id', $prod->id)->delete();
             foreach ($recetasList as $rItem) {
                 if (isset($insumosMap[$rItem['insumo']])) {
@@ -825,7 +1014,7 @@ class DatosPruebaRealistasSeeder extends Seeder
             }
         }
 
-        // 9. Mesas en Zonas de Restaurante (Salón, Terraza, Barra, VIP)
+        // 9. Mesas en Zonas del Restaurante (Salón, Terraza, Barra, VIP)
         $mesasData = [
             // Salón
             ['numero' => '1', 'capacidad' => 4, 'zona' => 'salon', 'estado' => 'libre'],
@@ -876,7 +1065,7 @@ class DatosPruebaRealistasSeeder extends Seeder
             $mesasMap[$mData['numero']] = $m;
         }
 
-        // 10. Clientes Colombianos con Fidelización y Direcciones
+        // 10. Clientes Colombianos con Fidelización y Direcciones en Medellín
         $clientesData = [
             [
                 'nombre' => 'Andrés Felipe Restrepo Londoño',
@@ -888,7 +1077,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'total_gastado' => 1850000.00,
                 'visitas_count' => 14,
                 'alergias' => 'Ninguna',
-                'preferencias' => 'Mesa en terraza, Dragon Roll con salsa extra',
+                'preferencias' => 'Mesa en salón, Bife de Chorizo término tres cuartos con chimichurri extra',
                 'direccion' => 'Carrera 25 # 3Sur-45, Apto 1202, Edificio Bosques del Poblado',
                 'barrio' => 'El Poblado, Medellín',
             ],
@@ -901,8 +1090,8 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'puntos_fidelidad' => 1420,
                 'total_gastado' => 980000.00,
                 'visitas_count' => 8,
-                'alergias' => 'Mariscos crudos (solo consume langostinos cocidos)',
-                'preferencias' => 'Lomo saltado y ramen caliente',
+                'alergias' => 'Ninguna',
+                'preferencias' => 'Costillitas BBQ bien doradas y Fettuccine Alfredo',
                 'direccion' => 'Circular 4 # 73-28, Casa 101',
                 'barrio' => 'Laureles, Medellín',
             ],
@@ -916,7 +1105,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'total_gastado' => 650000.00,
                 'visitas_count' => 5,
                 'alergias' => null,
-                'preferencias' => 'Coctelería Gin Tonic y ceviches',
+                'preferencias' => 'Coctelería Gin Tonic botánico y picada criolla',
                 'direccion' => 'Calle 36D Sur # 27A-15, Apto 503',
                 'barrio' => 'La Magnolia, Envigado',
             ],
@@ -929,8 +1118,8 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'puntos_fidelidad' => 3400,
                 'total_gastado' => 2400000.00,
                 'visitas_count' => 18,
-                'alergias' => 'Gluten (prefiere sashimis y nigiris sin panko)',
-                'preferencias' => 'Sashimi de atún y cócteles sin azúcar añadido',
+                'alergias' => null,
+                'preferencias' => 'Baby beef tierno, ensaladas frescas y cócteles sin azúcar añadido',
                 'direccion' => 'Transversal 39B # 72-10',
                 'barrio' => 'Segundo Parque de Laureles, Medellín',
             ],
@@ -944,7 +1133,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'total_gastado' => 220000.00,
                 'visitas_count' => 2,
                 'alergias' => null,
-                'preferencias' => 'Almuerzos ejecutivos chaufa y cervezas',
+                'preferencias' => 'Almuerzos ejecutivos, cazuelas y cerveza bien fría',
                 'direccion' => 'Carrera 43A # 1Sur-150, Edificio Torre Ónix',
                 'barrio' => 'El Poblado, Medellín',
             ],
@@ -958,7 +1147,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'total_gastado' => 540000.00,
                 'visitas_count' => 4,
                 'alergias' => null,
-                'preferencias' => 'Mochis helados y roll tempura',
+                'preferencias' => 'Hamburguesa Angus especial con papas rústicas',
                 'direccion' => 'Calle 10 # 32-40, Apto 302',
                 'barrio' => 'Provenza, Medellín',
             ],
@@ -972,7 +1161,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'total_gastado' => 3200000.00,
                 'visitas_count' => 22,
                 'alergias' => null,
-                'preferencias' => 'Salón VIP para cenas de negocios, Asahi fría',
+                'preferencias' => 'Salón VIP para cenas de negocios, bife de chorizo y cerveza Club Colombia',
                 'direccion' => 'Carrera 28 # 10-120, Casa 4',
                 'barrio' => 'Las Lomas, El Poblado, Medellín',
             ],
@@ -986,7 +1175,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'total_gastado' => 110000.00,
                 'visitas_count' => 1,
                 'alergias' => null,
-                'preferencias' => 'Pedidos para llevar y delivery',
+                'preferencias' => 'Pedidos para llevar de hamburguesas y lasañas',
                 'direccion' => 'Calle 33 # 65C-20',
                 'barrio' => 'Conquistadores, Medellín',
             ],
@@ -1025,7 +1214,6 @@ class DatosPruebaRealistasSeeder extends Seeder
         }
 
         // 11. Pedidos Históricos (Últimos 5 días) y Pedidos de Hoy
-        // Generar historial rico para reportes, ventas, KDS y propinas
         $diasAtras = [4, 3, 2, 1, 0];
         $meserosList = [$mesero1, $mesero2, $mesero3, $usersByEmail['camila.mesero@restomaster.com']];
         $repartidoresList = [$usersByEmail['delivery@restomaster.com'], $usersByEmail['jhoan.delivery@restomaster.com']];
@@ -1052,17 +1240,18 @@ class DatosPruebaRealistasSeeder extends Seeder
                 $mesaNumero = (string) rand(1, 10);
                 $mesaObj = $mesasMap[$mesaNumero] ?? $mesasMap['1'];
 
-                // 2 a 4 productos
+                // 2 a 3 productos del restaurante general
                 $platosKeys = [
-                    'dragon-roll-especial',
-                    'ojo-de-tigre-roll',
-                    'filadelfia-clasico-roll',
-                    'gyozas-cerdo-shiitake',
-                    'ramen-tonkotsu-tradicional',
-                    'lomo-saltado-nikkei',
-                    'gin-tonic-lychee-cardamomo',
-                    'cerveza-asahi-super-dry',
-                    'limonada-de-coco-artesanal',
+                    'bife-de-chorizo-angus',
+                    'costillas-de-cerdo-bbq',
+                    'pechuga-en-salsa-champinones',
+                    'picada-criolla-restomaster',
+                    'trilogia-de-empanadas-artesanales',
+                    'fettuccine-alfredo-con-pollo',
+                    'hamburguesa-restomaster-angus',
+                    'gin-tonic-botanico-clasico',
+                    'cerveza-bbc-monserrate-roja',
+                    'limonada-de-coco-cremosita',
                 ];
 
                 $seleccionados = array_rand(array_flip($platosKeys), rand(2, 3));
@@ -1153,10 +1342,10 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'nombre_cliente' => 'Andrés Restrepo',
                 'telefono_cliente' => '3004589201',
                 'cliente_id' => $clientesMap['1017234890']->id,
-                'subtotal' => 104000.00,
+                'subtotal' => 116000.00,
                 'descuento' => 0,
-                'total' => 114400.00,
-                'propina' => 10400.00,
+                'total' => 127600.00,
+                'propina' => 11600.00,
                 'porcentaje_propina' => 10.0,
                 'created_at' => now()->subMinutes(14),
                 'updated_at' => now()->subMinutes(14),
@@ -1166,24 +1355,24 @@ class DatosPruebaRealistasSeeder extends Seeder
         if ($pedidoActivo1->wasRecentlyCreated) {
             ItemPedido::create([
                 'pedido_id' => $pedidoActivo1->id,
-                'producto_id' => $productosMap['dragon-roll-especial']->id,
-                'nombre_producto' => 'Dragon Roll Especial (10 bocados)',
+                'producto_id' => $productosMap['bife-de-chorizo-angus']->id,
+                'nombre_producto' => 'Bife de Chorizo Angus a la Brasa (350g)',
                 'cantidad' => 1,
-                'precio_unitario' => 42000.00,
-                'subtotal' => 42000.00,
-                'area_cocina' => 'sushi',
+                'precio_unitario' => 62000.00,
+                'subtotal' => 62000.00,
+                'area_cocina' => 'caliente',
                 'estado_cocina' => 'en_preparacion',
-                'notas' => 'Sin wasabi dentro del rollo',
+                'notas' => 'Término 3/4, chimichurri servido aparte',
                 'iniciado_en' => now()->subMinutes(10),
             ]);
 
             ItemPedido::create([
                 'pedido_id' => $pedidoActivo1->id,
-                'producto_id' => $productosMap['gyozas-cerdo-shiitake']->id,
-                'nombre_producto' => 'Gyozas de Cerdo & Shiitake (5 uds)',
+                'producto_id' => $productosMap['trilogia-de-empanadas-artesanales']->id,
+                'nombre_producto' => 'Trilogía de Empanadas Artesanales con Ají (3 uds)',
                 'cantidad' => 1,
-                'precio_unitario' => 26000.00,
-                'subtotal' => 26000.00,
+                'precio_unitario' => 18000.00,
+                'subtotal' => 18000.00,
                 'area_cocina' => 'caliente',
                 'estado_cocina' => 'listo',
                 'iniciado_en' => now()->subMinutes(12),
@@ -1192,8 +1381,8 @@ class DatosPruebaRealistasSeeder extends Seeder
 
             ItemPedido::create([
                 'pedido_id' => $pedidoActivo1->id,
-                'producto_id' => $productosMap['gin-tonic-lychee-cardamomo']->id,
-                'nombre_producto' => 'Gin Tonic de Lychee & Cardamomo',
+                'producto_id' => $productosMap['gin-tonic-botanico-clasico']->id,
+                'nombre_producto' => 'Gin Tonic Botánico Clásico',
                 'cantidad' => 1,
                 'precio_unitario' => 36000.00,
                 'subtotal' => 36000.00,
@@ -1218,10 +1407,10 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'nombre_cliente' => 'Carolina Duque',
                 'telefono_cliente' => '3108294411',
                 'cliente_id' => $clientesMap['1036782114']->id,
-                'subtotal' => 96000.00,
+                'subtotal' => 102000.00,
                 'descuento' => 0,
-                'total' => 105600.00,
-                'propina' => 9600.00,
+                'total' => 112200.00,
+                'propina' => 10200.00,
                 'porcentaje_propina' => 10.0,
                 'created_at' => now()->subMinutes(35),
                 'updated_at' => now()->subMinutes(15),
@@ -1231,11 +1420,11 @@ class DatosPruebaRealistasSeeder extends Seeder
         if ($pedidoActivo2->wasRecentlyCreated) {
             ItemPedido::create([
                 'pedido_id' => $pedidoActivo2->id,
-                'producto_id' => $productosMap['lomo-saltado-nikkei']->id,
-                'nombre_producto' => 'Lomo Saltado Nikkei al Wok',
+                'producto_id' => $productosMap['costillas-de-cerdo-bbq']->id,
+                'nombre_producto' => 'Costillas de Cerdo Ahumadas en BBQ (450g)',
                 'cantidad' => 1,
-                'precio_unitario' => 54000.00,
-                'subtotal' => 54000.00,
+                'precio_unitario' => 49000.00,
+                'subtotal' => 49000.00,
                 'area_cocina' => 'caliente',
                 'estado_cocina' => 'servido',
                 'iniciado_en' => now()->subMinutes(30),
@@ -1244,15 +1433,93 @@ class DatosPruebaRealistasSeeder extends Seeder
 
             ItemPedido::create([
                 'pedido_id' => $pedidoActivo2->id,
-                'producto_id' => $productosMap['ramen-tonkotsu-tradicional']->id,
-                'nombre_producto' => 'Ramen Tonkotsu Tradicional',
+                'producto_id' => $productosMap['fettuccine-alfredo-con-pollo']->id,
+                'nombre_producto' => 'Fettuccine Alfredo con Pollo y Parmesano',
                 'cantidad' => 1,
-                'precio_unitario' => 42000.00,
-                'subtotal' => 42000.00,
+                'precio_unitario' => 39000.00,
+                'subtotal' => 39000.00,
                 'area_cocina' => 'caliente',
                 'estado_cocina' => 'servido',
                 'iniciado_en' => now()->subMinutes(30),
                 'listo_en' => now()->subMinutes(16),
+            ]);
+
+            ItemPedido::create([
+                'pedido_id' => $pedidoActivo2->id,
+                'producto_id' => $productosMap['cerveza-bbc-monserrate-roja']->id,
+                'nombre_producto' => 'Cerveza Artesanal BBC Monserrate Roja (330ml)',
+                'cantidad' => 1,
+                'precio_unitario' => 14000.00,
+                'subtotal' => 14000.00,
+                'area_cocina' => 'barra',
+                'estado_cocina' => 'servido',
+                'iniciado_en' => now()->subMinutes(32),
+                'listo_en' => now()->subMinutes(29),
+            ]);
+        }
+
+        // Barra B2: Ocupada con Hamburguesa y Coctel
+        $pedidoActivo3 = Pedido::firstOrCreate(
+            ['codigo' => 'ORD-'.date('Ymd').'-0993'],
+            [
+                'tipo' => 'mesa',
+                'estado' => 'en_preparacion',
+                'sucursal_id' => $sucursal->id,
+                'mesa_id' => $mesasMap['B2']->id,
+                'usuario_id' => $cajero2->id,
+                'mesero_id' => $mesero3->id,
+                'turno_caja_id' => $turno2->id,
+                'nombre_cliente' => 'Mateo Gómez',
+                'telefono_cliente' => '3147361092',
+                'cliente_id' => $clientesMap['1020456789']->id,
+                'subtotal' => 85000.00,
+                'descuento' => 0,
+                'total' => 93500.00,
+                'propina' => 8500.00,
+                'porcentaje_propina' => 10.0,
+                'created_at' => now()->subMinutes(10),
+                'updated_at' => now()->subMinutes(10),
+            ]
+        );
+
+        if ($pedidoActivo3->wasRecentlyCreated) {
+            ItemPedido::create([
+                'pedido_id' => $pedidoActivo3->id,
+                'producto_id' => $productosMap['hamburguesa-restomaster-angus']->id,
+                'nombre_producto' => 'Hamburguesa RestoMaster Angus Especial',
+                'cantidad' => 1,
+                'precio_unitario' => 38000.00,
+                'subtotal' => 38000.00,
+                'area_cocina' => 'caliente',
+                'estado_cocina' => 'en_preparacion',
+                'notas' => 'Carne término medio, tocineta bien crujiente',
+                'iniciado_en' => now()->subMinutes(8),
+            ]);
+
+            ItemPedido::create([
+                'pedido_id' => $pedidoActivo3->id,
+                'producto_id' => $productosMap['mojito-clasico-ron-anejo']->id,
+                'nombre_producto' => 'Mojito Clásico de Ron Añejo',
+                'cantidad' => 1,
+                'precio_unitario' => 32000.00,
+                'subtotal' => 32000.00,
+                'area_cocina' => 'barra',
+                'estado_cocina' => 'listo',
+                'iniciado_en' => now()->subMinutes(8),
+                'listo_en' => now()->subMinutes(3),
+            ]);
+
+            ItemPedido::create([
+                'pedido_id' => $pedidoActivo3->id,
+                'producto_id' => $productosMap['limonada-de-coco-cremosita']->id,
+                'nombre_producto' => 'Limonada de Coco Cremosita (400ml)',
+                'cantidad' => 1,
+                'precio_unitario' => 15000.00,
+                'subtotal' => 15000.00,
+                'area_cocina' => 'barra',
+                'estado_cocina' => 'servido',
+                'iniciado_en' => now()->subMinutes(9),
+                'listo_en' => now()->subMinutes(5),
             ]);
         }
 
@@ -1267,7 +1534,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'personas' => 4,
                 'estado' => 'confirmada',
                 'anticipo' => 0,
-                'notas' => 'Almuerzo familiar cumpleaños. Prefieren mesa 3 o salón principal.',
+                'notas' => 'Almuerzo familiar cumpleaños. Prefieren mesa 3 en salón principal.',
                 'mesa_id' => $mesasMap['3']->id,
             ],
             [
@@ -1291,7 +1558,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'personas' => 8,
                 'estado' => 'confirmada',
                 'anticipo' => 200000.00,
-                'notas' => 'Cena ejecutiva reservada en Salón VIP-1. Atender con carta de autor.',
+                'notas' => 'Cena ejecutiva reservada en Salón VIP-1. Atender con carta de carnes y asados.',
                 'mesa_id' => $mesasMap['VIP-1']->id,
             ],
             [
@@ -1303,7 +1570,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'personas' => 2,
                 'estado' => 'pendiente',
                 'anticipo' => 0,
-                'notas' => 'Almuerzo en barra de sushi.',
+                'notas' => 'Almuerzo en barra de coctelería.',
                 'mesa_id' => $mesasMap['B1']->id,
             ],
             [
@@ -1315,7 +1582,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'personas' => 4,
                 'estado' => 'confirmada',
                 'anticipo' => 50000.00,
-                'notas' => 'Terraza exterior.',
+                'notas' => 'Cena en terraza exterior.',
                 'mesa_id' => $mesasMap['8']->id,
             ],
         ];
@@ -1346,23 +1613,11 @@ class DatosPruebaRealistasSeeder extends Seeder
         // 14. Facturas de Proveedores (Cuentas por Pagar)
         $cxpData = [
             [
-                'proveedor_nombre' => 'Pescados y Mariscos del Pacífico S.A.S.',
-                'proveedor_nit' => '900.876.543-2',
-                'numero_factura' => 'FAC-PAC-4482',
-                'concepto' => 'Compra semanal de Salmón Noruego y Atún Aleta Amarilla',
-                'monto_total' => 2850000.00,
-                'saldo_pendiente' => 0.00,
-                'fecha_emision' => Carbon::today()->subDays(3),
-                'fecha_vencimiento' => Carbon::today()->addDays(25),
-                'estado' => 'pagado',
-                'user_id' => $usersByEmail['admin@restomaster.com']->id,
-            ],
-            [
-                'proveedor_nombre' => 'Carnes Frías San Martín',
+                'proveedor_nombre' => 'Carnes Frías San Martín Medellín',
                 'proveedor_nit' => '890.123.456-1',
                 'numero_factura' => 'FAC-CSM-9912',
-                'concepto' => 'Lomo fino de res Angus y panceta de cerdo ahumada',
-                'monto_total' => 1650000.00,
+                'concepto' => 'Lomo fino de res Angus, costillas BBQ y carne molida para hamburguesas',
+                'monto_total' => 2650000.00,
                 'saldo_pendiente' => 650000.00,
                 'fecha_emision' => Carbon::today()->subDays(2),
                 'fecha_vencimiento' => Carbon::today()->addDays(12),
@@ -1370,12 +1625,24 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'user_id' => $usersByEmail['admin@restomaster.com']->id,
             ],
             [
+                'proveedor_nombre' => 'Avícola Los Andes de Antioquia',
+                'proveedor_nit' => '900.876.543-2',
+                'numero_factura' => 'FAC-AVI-4482',
+                'concepto' => 'Pechuga fresca fileteada y alitas de pollo seleccionadas',
+                'monto_total' => 1850000.00,
+                'saldo_pendiente' => 0.00,
+                'fecha_emision' => Carbon::today()->subDays(3),
+                'fecha_vencimiento' => Carbon::today()->addDays(25),
+                'estado' => 'pagado',
+                'user_id' => $usersByEmail['admin@restomaster.com']->id,
+            ],
+            [
                 'proveedor_nombre' => 'Bavaria S.A.',
                 'proveedor_nit' => '860.005.224-6',
                 'numero_factura' => 'FAC-BAV-88231',
-                'concepto' => 'Reposición Cerveza Club Colombia Dorada x5 cajas',
-                'monto_total' => 504000.00,
-                'saldo_pendiente' => 504000.00,
+                'concepto' => 'Cerveza Club Colombia Dorada y BBC Monserrate Roja x6 cajas',
+                'monto_total' => 684000.00,
+                'saldo_pendiente' => 684000.00,
                 'fecha_emision' => Carbon::today()->subDay(),
                 'fecha_vencimiento' => Carbon::today()->addDays(15),
                 'estado' => 'pendiente',
@@ -1409,6 +1676,6 @@ class DatosPruebaRealistasSeeder extends Seeder
             );
         }
 
-        $this->command?->info('✓ Carga de datos reales colombianos para RestoMaster completada con éxito.');
+        $this->command?->info('✓ Carga de catálogo de Restaurante General completada con éxito.');
     }
 }

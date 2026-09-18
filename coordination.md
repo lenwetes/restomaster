@@ -6,6 +6,40 @@
 ---
 
 ## Última Actualización
+2026-09-18 13:12 | Antigravity | 🥩 **TRANSICIÓN COMPLETA A CATÁLOGO DE RESTAURANTE GENERAL & PARRILLA (SIN SUSHI)**:
+- **Cambios realizados:**
+  1. **Catálogo Gastronómico de Restaurante General (9 Categorías Menú + 26 Productos):**
+     - Eliminado todo rastro de sushi, rolls, sashimis y cocina nipona a solicitud expresa del usuario.
+     - **Entradas & Picadas (`#f97316`):** Picada Criolla RestoMaster (chicharrón, costillitas, papa criolla, patacones), Trilogía de Empanadas con ají casero, Ceviche de Camarón Costeño, Ensalada César con Pollo Grillé.
+     - **Cortes a la Parrilla & Asados (`#dc2626`):** Bife de Chorizo Angus (350g), Baby Beef a la Plancha (300g), Punta de Anca Tradicional (350g).
+     - **Pollos Dorados & Costillas BBQ (`#ea580c`):** Costillas de Cerdo Ahumadas en BBQ (450g), Pechuga en Crema de Champiñones, Alitas BBQ o Crispy (10 uds).
+     - **Pescados & Mariscos de la Casa (`#0284c7`):** Filete de Róbalo en Mantequilla de Ajo & Hierbas, Cazuela de Camarones al Ajillo & Vino Blanco.
+     - **Pastas Artesanales & Lasañas (`#10b981`):** Fettuccine Alfredo con Pollo y Parmesano, Lasaña Tradicional Boloñesa de la Casa.
+     - **Hamburguesas Gourmet & Sandwiches (`#8b5cf6`):** Hamburguesa RestoMaster Angus Especial, Hamburguesa Crunchy Chicken BBQ.
+     - **Coctelería Clásica & de Autor (`#ec4899`):** Gin Tonic Botánico Clásico, Mojito Clásico de Ron Añejo, Moscow Mule de Frutas.
+     - **Bebidas, Jugos Naturales & Cervezas (`#06b6d4`):** Jugo Natural en Agua o Leche (Lulo, Mango, Maracuyá), Limonada de Coco Cremosita, Cerveza BBC Monserrate Roja, Cerveza Club Colombia Dorada, Gaseosa Postobón Manzana/Colombiana.
+     - **Postres Artesanales de la Casa (`#d97706`):** Volcán Tibio de Chocolate con Helado de Vainilla, Torta Tres Leches Tradicional.
+  2. **Inventario & Materias Primas de Restaurante General (8 Categorías Insumo + 28 Insumos):**
+     - Carnes de Res & Cerdo (Bife de chorizo, costillas BBQ, tocino para chicharrón, carne molida Angus).
+     - Aves (Pechuga de pollo fresca, alitas de pollo).
+     - Pescados & Mariscos (Filete de róbalo, camarones jumbo U15).
+     - Tubérculos, Granos & Pastas (Papa criolla, papa rústica francesa, arroz blanco Diana, fettuccine al huevo, pan brioche).
+     - Vegetales, Frutas & Huerta (Aguacate Hass, tomate chonto, lechugas hidropónicas, pulpas de fruta, limón Tahití).
+     - Lácteos & Quesos (Parmesano madurado, cheddar fundente, crema de leche Colanta, mantequilla de vaca pura).
+     - Barra & Licores (Ron Medellín 8 Años, Ginebra Tanqueray, Vodka Smirnoff, Club Colombia, BBC, Postobón).
+     - 59 recetas / escandallos configurados vinculando cada plato a sus insumos con merma esperada.
+  3. **Comandas KDS y Pedidos en Sala Actualizados:**
+     - Mesa 3: Bife de Chorizo Angus, Trilogía de Empanadas, Gin Tonic Botánico.
+     - Mesa 7: Costillas de Cerdo BBQ, Fettuccine Alfredo, Cerveza BBC Roja.
+     - Barra B2: Hamburguesa RestoMaster Angus, Mojito Clásico, Limonada de Coco.
+     - Facturas de proveedores actualizadas a distribuidores de carnes, avícolas y cervecería.
+  4. **Modelo Producto:**
+     - Añadida relación canónica `itemsPedido(): HasMany` en [app/Models/Producto.php](file:///d:/Proyectos/restomaster/app/Models/Producto.php).
+- **Verificación:**
+  - `php artisan restomaster:seed-demo`: Ejecutado exitosamente (1.389 ms).
+  - 0 productos y 0 insumos residuales de sushi en base de datos.
+  - Laravel Pint: 0 violaciones.
+
 2026-09-18 12:55 | Antigravity | 🇨🇴 **POBLADO COMPLETO DE BASE DE DATOS PARA PRUEBAS REALES EN ENTORNO COLOMBIANO (COP, MEDELLÍN)**:
 - **Funcionalidad implementada:**
   1. **Seeder de Datos Realistas (`database/seeders/DatosPruebaRealistasSeeder.php`):**
