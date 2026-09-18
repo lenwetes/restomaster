@@ -4,6 +4,7 @@ use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use App\Models\Insumo;
+use App\Models\Proveedor;
 use App\Models\CategoriaInsumo;
 use App\Models\Producto;
 use App\Models\Receta;
@@ -63,6 +64,13 @@ class extends Component {
     public float $nuevoStockMinimo = 5.0;
     public float $nuevoCostoUnitario = 10.0;
     public string $nuevoProveedor = '';
+    public ?int $nuevoProveedorId = null;
+    public ?float $nuevoPrecioReferencia = null;
+
+    // Formulario Editar Insumo (proveedor + referencia de mercado)
+    public array $edicion = ['proveedor_id' => null, 'precio_referencia_mercado' => null];
+    public ?int $editandoInsumoId = null;
+    public bool $mostrarModalEditarInsumo = false;
 
     // Mensajes flash
     public ?string $mensajeExito = null;
@@ -329,6 +337,8 @@ class extends Component {
             'nuevoCodigo' => 'required|unique:insumos,codigo',
             'nuevoStockMinimo' => 'required|numeric|min:0.1',
             'nuevoCostoUnitario' => 'required|numeric|min:0',
+            'nuevoProveedorId' => 'nullable|exists:proveedores,id',
+            'nuevoPrecioReferencia' => 'nullable|numeric|min:0',
         ]);
 
         $categoriaInsumo = $this->nuevoCategoriaId ? CategoriaInsumo::find($this->nuevoCategoriaId) : null;
@@ -345,6 +355,8 @@ class extends Component {
             'capacidad_maxima' => $this->nuevoStockMinimo * 4,
             'costo_unitario' => $this->nuevoCostoUnitario,
             'proveedor_nombre' => $this->nuevoProveedor,
+            'proveedor_id' => $this->nuevoProveedorId,
+            'precio_referencia_mercado' => $this->nuevoPrecioReferencia,
             'activo' => true,
         ]);
 
@@ -354,12 +366,50 @@ class extends Component {
         $this->nuevoCodigo = '';
         $this->nuevaCategoria = '';
         $this->nuevoCategoriaId = null;
+        $this->nuevoProveedorId = null;
+        $this->nuevoPrecioReferencia = null;
         $this->mensajeExito = "Insumo {$insumo->nombre} catalogado con éxito.";
+    }
+
+    public function abrirEditarInsumo(int $id): void
+    {
+        $this->authorize('create', Insumo::class);
+
+        $insumo = Insumo::findOrFail($id);
+        $this->editandoInsumoId = $insumo->id;
+        $this->edicion = [
+            'proveedor_id' => $insumo->proveedor_id,
+            'precio_referencia_mercado' => $insumo->precio_referencia_mercado !== null ? (float) $insumo->precio_referencia_mercado : null,
+        ];
+        $this->mostrarModalEditarInsumo = true;
+    }
+
+    public function guardarEdicionInsumo(): void
+    {
+        $this->authorize('create', Insumo::class);
+
+        $this->validate([
+            'edicion.proveedor_id' => 'nullable|exists:proveedores,id',
+            'edicion.precio_referencia_mercado' => 'nullable|numeric|min:0',
+        ]);
+
+        $insumo = Insumo::findOrFail($this->editandoInsumoId);
+        $insumo->update([
+            'proveedor_id' => $this->edicion['proveedor_id'],
+            'precio_referencia_mercado' => $this->edicion['precio_referencia_mercado'],
+        ]);
+
+        $this->mostrarModalEditarInsumo = false;
+        $this->editandoInsumoId = null;
+        $this->dispatch('notificacion', [
+            'mensaje' => "Insumo {$insumo->nombre} actualizado con éxito.",
+            'tipo' => 'success',
+        ]);
     }
 
     public function with(InventarioService $service): array
     {
-        $query = Insumo::with(['categoriaInsumo'])->where('activo', true);
+        $query = Insumo::with(['categoriaInsumo', 'proveedor'])->where('activo', true);
 
         if ($this->search !== '') {
             $query->where(function ($q) {
@@ -389,12 +439,13 @@ class extends Component {
             ->get();
 
         $selectedInsumo = $this->selectedInsumoId 
-            ? Insumo::with(['categoriaInsumo', 'recetas.producto', 'movimientos.pedido', 'movimientos.user'])->find($this->selectedInsumoId)
+            ? Insumo::with(['categoriaInsumo', 'proveedor', 'recetas.producto', 'movimientos.pedido', 'movimientos.user'])->find($this->selectedInsumoId)
             : $insumos->first();
 
         $kpis = $service->obtenerKpis();
 
         $categoriasBd = CategoriaInsumo::where('activo', true)->orderBy('orden')->orderBy('nombre')->get();
+        $proveedoresActivos = Proveedor::where('activo', true)->orderBy('nombre')->get(['id', 'nombre']);
         $categorias = [];
         if ($categoriasBd->isNotEmpty()) {
             $categorias['todas'] = [
@@ -465,6 +516,7 @@ class extends Component {
             'kpis' => $kpis,
             'categorias' => $categorias,
             'categoriasBd' => $categoriasBd,
+            'proveedoresActivos' => $proveedoresActivos,
             'paletaColores' => $paletaColores,
             'iconosDisponibles' => $iconosDisponibles,
         ];
@@ -1004,8 +1056,16 @@ class extends Component {
                         </div>
                         <div class="flex items-center justify-between">
                             <div class="flex flex-col">
-                                <span class="text-sm font-bold text-on-surface">{{ $selectedInsumo->proveedor_nombre ?? 'Proveedor no asignado' }}</span>
+                                <span class="text-sm font-bold text-on-surface">{{ $selectedInsumo->proveedor?->nombre ?? $selectedInsumo->proveedor_nombre ?? 'Proveedor no asignado' }}</span>
                                 <span class="text-xs text-on-surface-variant">NIT: {{ $selectedInsumo->proveedor_nit ?? 'N/A' }}</span>
+                                @if ($selectedInsumo->proveedor)
+                                    @can('viewAny', \App\Models\Proveedor::class)
+                                        <a href="{{ route('proveedores') }}" class="text-xs font-bold text-primary hover:underline flex items-center gap-1 mt-1">
+                                            <span class="material-symbols-outlined text-[14px]">visibility</span>
+                                            Ver ficha
+                                        </a>
+                                    @endcan
+                                @endif
                             </div>
                             @if ($selectedInsumo->proveedor_telefono)
                                 <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $selectedInsumo->proveedor_telefono) }}" 
@@ -1307,6 +1367,26 @@ class extends Component {
                         <input type="text" wire:model="nuevoProveedor" placeholder="Ej: Bahía Solano Seafood S.A.S."
                                class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
                     </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Proveedor Vinculado</label>
+                            <select wire:model="nuevoProveedorId"
+                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none">
+                                <option value="">-- Sin vincular --</option>
+                                @foreach ($proveedoresActivos as $prov)
+                                    <option value="{{ $prov->id }}">{{ $prov->nombre }}</option>
+                                @endforeach
+                            </select>
+                            @error('nuevoProveedorId') <span class="text-error text-xs">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Precio Ref. Mercado ($)</label>
+                            <input type="number" step="0.01" min="0" wire:model="nuevoPrecioReferencia" placeholder="Ej: 7500"
+                                   class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
+                            @error('nuevoPrecioReferencia') <span class="text-error text-xs">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-end gap-3 pt-2">
@@ -1317,6 +1397,58 @@ class extends Component {
                     <button wire:click="guardarNuevoInsumo"
                             class="h-10 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-bold text-sm shadow-md">
                         Crear Insumo
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL: EDITAR INSUMO (PROVEEDOR + REFERENCIA) -->
+    @if ($mostrarModalEditarInsumo)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-sm animate-fade-in">
+            <div class="bg-surface-container-lowest border border-surface-container-highest rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5">
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[20px]">edit</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-on-surface">Editar Insumo</h3>
+                    </div>
+                    <button wire:click="$set('mostrarModalEditarInsumo', false)" class="text-on-surface-variant hover:text-on-surface">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Proveedor Vinculado</label>
+                            <select wire:model="edicion.proveedor_id"
+                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none">
+                                <option value="">-- Sin vincular --</option>
+                                @foreach ($proveedoresActivos as $prov)
+                                    <option value="{{ $prov->id }}">{{ $prov->nombre }}</option>
+                                @endforeach
+                            </select>
+                            @error('edicion.proveedor_id') <span class="text-error text-xs">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Precio Ref. Mercado ($)</label>
+                            <input type="number" step="0.01" min="0" wire:model="edicion.precio_referencia_mercado" placeholder="Ej: 7500"
+                                   class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
+                            @error('edicion.precio_referencia_mercado') <span class="text-error text-xs">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button wire:click="$set('mostrarModalEditarInsumo', false)"
+                            class="h-10 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold text-sm">
+                        Cancelar
+                    </button>
+                    <button wire:click="guardarEdicionInsumo"
+                            class="h-10 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-bold text-sm shadow-md">
+                        Guardar Cambios
                     </button>
                 </div>
             </div>

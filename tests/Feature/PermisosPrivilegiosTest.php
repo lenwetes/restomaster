@@ -67,6 +67,7 @@ class PermisosPrivilegiosTest extends TestCase
             'CajaPolicy' => 'Caja', 'TurnoCajaPolicy' => 'TurnoCaja',
             'ClientePolicy' => 'Cliente', 'ReservaPolicy' => 'Reserva',
             'InsumoPolicy' => 'Insumo', 'CuentaPorPagarPolicy' => 'CuentaPorPagar',
+            'ProveedorPolicy' => 'Proveedor', 'CompraPolicy' => 'Compra',
         ];
 
         foreach (glob(app_path('Policies/*.php')) as $archivo) {
@@ -109,6 +110,10 @@ class PermisosPrivilegiosTest extends TestCase
         $this->assertNotContains('caja.eliminar', $plantillas['cajero']);
         $this->assertContains('pedidos.cobrar', $plantillas['mesero']);
         $this->assertContains('turnos.abrir', $plantillas['cajero']);
+        $this->assertContains('proveedores.crear', $plantillas['gerente']);
+        $this->assertContains('compras.anular', $plantillas['gerente']);
+        $this->assertNotContains('proveedores.crear', $plantillas['mesero']);
+        $this->assertNotContains('compras.crear', $plantillas['cajero']);
     }
 
     public function test_resolver_mapea_ability_mas_modelo_y_null_si_no_mapea(): void

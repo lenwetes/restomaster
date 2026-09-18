@@ -48,11 +48,19 @@ return [
         'cxp.actualizar' => ['modulo' => 'CxP', 'label' => 'Editar cuentas por pagar'],
         'cxp.eliminar' => ['modulo' => 'CxP', 'label' => 'Eliminar cuentas por pagar'],
         'cxp.registrar_pago' => ['modulo' => 'CxP', 'label' => 'Registrar pago'],
+        'proveedores.ver' => ['modulo' => 'Proveedores', 'label' => 'Ver proveedores'],
+        'proveedores.crear' => ['modulo' => 'Proveedores', 'label' => 'Crear proveedores'],
+        'proveedores.actualizar' => ['modulo' => 'Proveedores', 'label' => 'Editar proveedores'],
+        'proveedores.eliminar' => ['modulo' => 'Proveedores', 'label' => 'Eliminar proveedores'],
+        'compras.ver' => ['modulo' => 'Compras', 'label' => 'Ver compras'],
+        'compras.crear' => ['modulo' => 'Compras', 'label' => 'Registrar factura'],
+        'compras.anular' => ['modulo' => 'Compras', 'label' => 'Anular factura'],
     ],
     'mapa' => [
         'Pedido' => 'pedidos', 'Mesa' => 'mesas', 'Caja' => 'caja',
         'TurnoCaja' => 'turnos', 'Cliente' => 'clientes', 'Reserva' => 'reservas',
         'Insumo' => 'insumos', 'CuentaPorPagar' => 'cxp',
+        'Proveedor' => 'proveedores', 'Compra' => 'compras',
     ],
     'plantillas' => [
         'admin' => '*',
@@ -65,6 +73,8 @@ return [
             'reservas.ver', 'reservas.crear', 'reservas.actualizar', 'reservas.eliminar', 'reservas.confirmar', 'reservas.cancelar',
             'insumos.ver', 'insumos.crear', 'insumos.actualizar', 'insumos.eliminar', 'insumos.registrar_compra', 'insumos.registrar_merma', 'insumos.ajuste_fisico',
             'cxp.ver', 'cxp.crear', 'cxp.actualizar', 'cxp.eliminar', 'cxp.registrar_pago',
+            'proveedores.ver', 'proveedores.crear', 'proveedores.actualizar', 'proveedores.eliminar',
+            'compras.ver', 'compras.crear', 'compras.anular',
         ],
         'cajero' => [
             'pedidos.ver', 'pedidos.crear', 'pedidos.actualizar', 'pedidos.cobrar', 'pedidos.enviar_cocina', 'pedidos.aplicar_descuento', 'pedidos.canjear_puntos', 'pedidos.gestionar_delivery',

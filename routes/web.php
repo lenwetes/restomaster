@@ -55,6 +55,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('reportes/exportar-pdf', [ReporteExportController::class, 'pdf'])->middleware('role:gerente')->name('reportes.pdf');
     Route::get('reportes/exportar-csv', [ReporteExportController::class, 'csv'])->middleware('role:gerente')->name('reportes.csv');
     Volt::route('cxp', 'cxp.index')->middleware('role:gerente')->name('cxp');
+    Volt::route('proveedores', 'proveedores.index')->middleware('role:gerente,admin')->name('proveedores');
     Volt::route('reservas', 'reservas.index')->middleware('role:mesero,cajero,gerente')->name('reservas');
     Volt::route('configuracion', 'configuracion.index')->middleware('role:admin')->name('configuracion');
     Volt::route('impresion', 'impresion.index')->middleware('role:gerente,admin')->name('impresion');

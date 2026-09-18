@@ -28,6 +28,8 @@ class Insumo extends Model
         'proveedor_nombre',
         'proveedor_nit',
         'proveedor_telefono',
+        'proveedor_id',
+        'precio_referencia_mercado',
         'ubicacion_almacen',
         'temperatura_almacen',
         'imagen',
@@ -41,8 +43,17 @@ class Insumo extends Model
             'stock_minimo' => 'decimal:3',
             'capacidad_maxima' => 'decimal:3',
             'costo_unitario' => 'decimal:2',
+            'precio_referencia_mercado' => 'decimal:2',
             'activo' => 'boolean',
         ];
+    }
+
+    /**
+     * Proveedor vinculado a este insumo.
+     */
+    public function proveedor(): BelongsTo
+    {
+        return $this->belongsTo(Proveedor::class, 'proveedor_id');
     }
 
     /**

@@ -17,6 +17,7 @@ class CuentaPorPagar extends Model
         'proveedor_nombre',
         'proveedor_nit',
         'numero_factura',
+        'compra_id',
         'insumo_id',
         'concepto',
         'monto_total',
@@ -46,6 +47,11 @@ class CuentaPorPagar extends Model
     public function insumo(): BelongsTo
     {
         return $this->belongsTo(Insumo::class, 'insumo_id');
+    }
+
+    public function compra(): BelongsTo
+    {
+        return $this->belongsTo(Compra::class, 'compra_id');
     }
 
     public function pagos(): HasMany
