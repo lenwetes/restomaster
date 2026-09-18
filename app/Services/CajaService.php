@@ -262,6 +262,8 @@ class CajaService
         }
 
         return DB::transaction(function () use ($turno, $tipo, $monto, $concepto, $metodoPago, $comprobante, $autorizadoPor, $user) {
+            $turno = TurnoCaja::whereKey($turno->id)->lockForUpdate()->firstOrFail();
+
             if ($turno->estado !== 'abierto') {
                 throw new InvalidArgumentException('No se pueden registrar movimientos en un turno cerrado o cancelado.');
             }

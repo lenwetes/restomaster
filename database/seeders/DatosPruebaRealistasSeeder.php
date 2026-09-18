@@ -24,6 +24,7 @@ use App\Services\PermisoService;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DatosPruebaRealistasSeeder extends Seeder
 {
@@ -74,8 +75,8 @@ class DatosPruebaRealistasSeeder extends Seeder
         $barraRole = Role::firstOrCreate(['slug' => 'barra'], ['nombre' => 'Bartender / Barra']);
         $deliveryRole = Role::firstOrCreate(['slug' => 'delivery'], ['nombre' => 'Repartidor Delivery']);
 
-        // Contraseña unificada para demo
-        $rawPassword = env('DEMO_USERS_PASSWORD', 'restomaster2026');
+        // Contraseña unificada para demo (aleatoria si no se define por entorno; nunca default débil commiteado)
+        $rawPassword = env('DEMO_USERS_PASSWORD') ?: Str::password(16);
         $unifiedPassword = Hash::make($rawPassword);
 
         // 3. Equipo de Trabajo (Colombianos reales con nombres, teléfonos y correos)

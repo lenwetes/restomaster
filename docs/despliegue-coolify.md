@@ -46,7 +46,7 @@ En la pestaña **Environment Variables** de tu aplicación en Coolify, puedes co
 | `DB_PASSWORD` | *(generar con `openssl rand -base64 42`)* | Contraseña de base de datos — obligatoria, sin valor por defecto |
 | `AUTO_MIGRATE` | `true` | Ejecuta migraciones automáticamente al iniciar |
 | `AUTO_SEED` | `true` | Crea usuarios principales y configuración inicial |
-| `DEMO_USERS_PASSWORD`| `password` | Contraseña unificada para los 4 usuarios base |
+| `DEMO_USERS_PASSWORD`| *(vacío = aleatoria segura)* | Contraseña unificada para los 4 usuarios base |
 | `APP_PORT` | `8004` | Puerto directo en el VPS (http://IP_VPS:8004) |
 
 ---

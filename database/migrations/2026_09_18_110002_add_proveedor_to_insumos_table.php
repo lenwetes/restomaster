@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::table('insumos', function (Blueprint $table) {
             $table->foreignId('proveedor_id')->nullable()->constrained('proveedores')->nullOnDelete();
             $table->decimal('precio_referencia_mercado', 12, 2)->nullable();
+            $table->index('proveedor_id');
         });
     }
 

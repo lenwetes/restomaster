@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('zona')->default('salon');
             $table->string('estado')->default('libre');
             $table->timestamps();
+            $table->unique(['sucursal_id', 'numero']);
         });
     }
 

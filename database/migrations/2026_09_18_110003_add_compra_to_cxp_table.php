@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('cuentas_por_pagar', function (Blueprint $table) {
-            $table->foreignId('compra_id')->nullable()->constrained('compras')->nullOnDelete();
+            $table->foreignId('compra_id')->nullable()->constrained('compras')->restrictOnDelete();
+            $table->index('compra_id');
         });
     }
 

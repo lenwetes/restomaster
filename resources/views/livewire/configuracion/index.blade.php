@@ -93,6 +93,8 @@ new class extends Component
 
     public function guardarDian(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $validated = $this->validate([
             'dianForm.razon_social' => ['required', 'string', 'max:255'],
             'dianForm.nit' => ['nullable', 'string', 'max:30'],
@@ -116,6 +118,8 @@ new class extends Component
 
     public function guardarEmpresa(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $validated = $this->validate([
             'empresaForm.razon_social' => ['required', 'string', 'max:255'],
             'empresaForm.nit' => ['nullable', 'string', 'max:30'],
@@ -139,6 +143,8 @@ new class extends Component
 
     public function guardarTicket(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $this->validate([
             'ticketForm.nombre_comercial' => ['required', 'string', 'max:100'],
             'ticketForm.razon_social' => ['nullable', 'string', 'max:150'],
@@ -159,6 +165,8 @@ new class extends Component
 
     public function restablecerTicket(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $svc = app(ConfiguracionService::class);
         $defaults = $svc->valoresPorDefectoTicket80mm();
         $this->ticketForm = $defaults;
@@ -172,6 +180,8 @@ new class extends Component
 
     public function probarConexionDb(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $this->validate([
             'dbForm.host' => ['required', 'string'],
             'dbForm.port' => ['required', 'integer'],
@@ -194,8 +204,20 @@ new class extends Component
     {
         $this->authorize('administrar-configuracion');
 
+        $validated = $this->validate([
+            'dbForm.host' => ['required', 'string', 'max:253'],
+            'dbForm.port' => ['required', 'integer', 'min:1', 'max:65535'],
+            'dbForm.database' => ['required', 'string', 'max:63', 'regex:/^[A-Za-z0-9_.:-]+$/'],
+            'dbForm.username' => ['required', 'string', 'max:63'],
+            'dbForm.password' => ['nullable', 'string', 'max:255'],
+            'dbForm.sslmode' => ['nullable', 'in:disable,allow,prefer,require,verify-ca,verify-full'],
+        ]);
+
         $svc = app(ConfiguracionService::class);
-        foreach ($this->dbForm as $k => $v) {
+        foreach ($validated['dbForm'] as $k => $v) {
+            if ($k === 'password' && ($v === null || $v === '')) {
+                continue; // No sobrescribir la clave cifrada existente con vacío.
+            }
             $svc->guardar('database_external', $k, $v);
         }
 
@@ -205,6 +227,8 @@ new class extends Component
 
     public function crearBackup(): void
     {
+        $this->authorize('administrar-configuracion');
+
         Artisan::call('restomaster:backup');
         session()->flash('status', 'Copia de seguridad generada con éxito.');
         $this->dispatch('notificacion', ['mensaje' => 'Backup de BD generado con éxito', 'tipo' => 'success']);
@@ -212,6 +236,8 @@ new class extends Component
 
     public function eliminarBackup(string $nombre): void
     {
+        $this->authorize('administrar-configuracion');
+
         $svc = app(ConfiguracionService::class);
         $svc->eliminarBackup($nombre);
         session()->flash('status', "Copia {$nombre} eliminada.");
@@ -233,15 +259,31 @@ new class extends Component
             ]);
         }
 
+        $contenido = (string) file_get_contents($this->archivoBackup->getRealPath());
+
+        // Solo se aceptan volcados generados por restomaster:backup (firma de cabecera).
+        abort_unless(
+            str_starts_with(ltrim($contenido), '-- RestoMaster POS Enterprise'),
+            422,
+            'El archivo no es un respaldo válido generado por el sistema.'
+        );
+
+        // Denylist de sentencias peligrosas fuera del formato de volcado (solo INSERT).
+        abort_if(
+            (bool) preg_match('/^\s*(DROP\s+DATABASE|CREATE\s+(USER|ROLE|EXTENSION)|ALTER\s+SYSTEM|COPY\s+.*FROM\s+PROGRAM|\\\\!)/mi', $contenido),
+            422,
+            'El archivo contiene sentencias no permitidas en un respaldo.'
+        );
+
         try {
-            $contenido = file_get_contents($this->archivoBackup->getRealPath());
             DB::unprepared($contenido);
             $this->reset('archivoBackup');
             session()->flash('status', 'Base de datos restaurada exitosamente desde el archivo de respaldo.');
             $this->dispatch('notificacion', ['mensaje' => 'Respaldo importado y restaurado', 'tipo' => 'success']);
         } catch (\Throwable $e) {
-            session()->flash('error', 'Error al restaurar: ' . $e->getMessage());
-            $this->dispatch('notificacion', ['mensaje' => 'Fallo al restaurar: ' . $e->getMessage(), 'tipo' => 'error']);
+            \Illuminate\Support\Facades\Log::error('Fallo al restaurar respaldo: '.$e->getMessage());
+            session()->flash('error', 'Error al restaurar: archivo inválido o corrupto.');
+            $this->dispatch('notificacion', ['mensaje' => 'Fallo al restaurar: archivo inválido o corrupto.', 'tipo' => 'error']);
         }
     }
 
@@ -311,6 +353,8 @@ new class extends Component
 
     public function guardarImpresora(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $this->validate([
             'impresoraForm.nombre' => ['required', 'string', 'max:100'],
             'impresoraForm.tipo_conexion' => ['required', 'in:red,red_ip,usb,usb_local,driver_sistema,driver_navegador,serie,virtual,virtual_simulador'],
@@ -337,6 +381,8 @@ new class extends Component
 
     public function toggleImpresora(int $id): void
     {
+        $this->authorize('administrar-configuracion');
+
         $imp = Impresora::findOrFail($id);
         $imp->update(['activa' => !$imp->activa]);
         $estado = $imp->activa ? 'activada' : 'desactivada';
@@ -354,6 +400,8 @@ new class extends Component
 
     public function toggleWebhook(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $this->validate(['reservasForm.webhook_activo' => ['boolean']]);
         app(ConfiguracionService::class)->guardar('reservas', 'webhook_activo', (bool) $this->reservasForm['webhook_activo']);
         session()->flash('status', 'Estado del webhook actualizado.');
@@ -361,6 +409,8 @@ new class extends Component
 
     public function regenerarToken(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $this->webhookToken = app(ConfiguracionService::class)->regenerarWebhookToken();
         session()->flash('status', 'Token de webhook regenerado.');
         $this->dispatch('notificacion', ['mensaje' => 'Nuevo token generado', 'tipo' => 'info']);
@@ -368,6 +418,8 @@ new class extends Component
 
     public function restablecerFabrica(): void
     {
+        $this->authorize('administrar-configuracion');
+
         $svc = app(ConfiguracionService::class);
         $svc->restablecerConfiguraciones();
         $this->mount();

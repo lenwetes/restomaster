@@ -849,8 +849,9 @@ new class extends Component
                         </div>
                     @endforeach
 
-                    <button type="submit" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary">
-                        Guardar factura
+                    <button type="submit" wire:loading.attr="disabled" wire:target="guardarFactura" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary disabled:opacity-50">
+                        <span wire:loading.remove wire:target="guardarFactura">Guardar factura</span>
+                        <span wire:loading wire:target="guardarFactura">Guardando…</span>
                     </button>
                 </form>
             </div>

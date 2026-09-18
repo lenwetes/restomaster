@@ -122,6 +122,13 @@ new class extends Component
     {
         $this->autorizarAdmin();
 
+        // Nadie puede quitarse a sí mismo el rol de administrador.
+        abort_if(
+            (int) $this->enEdicion === (int) Auth::id() && (int) $this->edicion['role_id'] !== (int) Auth::user()?->role_id,
+            422,
+            'No puedes cambiar tu propio rol de administrador.'
+        );
+
         $this->validate([
             'edicion.nombre' => 'required|string|min:3',
             'edicion.email' => ['required', 'email', Rule::unique('users', 'email')->ignore($this->enEdicion)],
@@ -134,6 +141,19 @@ new class extends Component
         ]);
 
         try {
+            $trabajador = User::findOrFail($this->enEdicion);
+
+            if (! $this->edicion['activo'] && $trabajador->activo) {
+                abort_if($trabajador->id === Auth::id(), 422, 'No puedes desactivarte a ti mismo.');
+                if ($trabajador->role?->slug === 'admin') {
+                    $otrosAdmins = User::where('id', '!=', $trabajador->id)
+                        ->where('activo', true)
+                        ->whereHas('role', fn ($q) => $q->where('slug', 'admin'))
+                        ->count();
+                    abort_if($otrosAdmins === 0, 422, 'No se puede desactivar al último administrador activo.');
+                }
+            }
+
             $trabajador = app(TrabajadorService::class)->actualizar(
                 User::findOrFail($this->enEdicion),
                 array_merge($this->edicion, [
@@ -162,6 +182,16 @@ new class extends Component
         $this->autorizarAdmin();
 
         $trabajador = User::findOrFail($userId);
+
+        // Proteger al último administrador activo (propio o ajeno).
+        if ($trabajador->activo && $trabajador->role?->slug === 'admin') {
+            $otrosAdmins = User::where('id', '!=', $trabajador->id)
+                ->where('activo', true)
+                ->whereHas('role', fn ($q) => $q->where('slug', 'admin'))
+                ->count();
+            abort_if($otrosAdmins === 0, 422, 'No se puede desactivar al último administrador activo.');
+        }
+        abort_if($trabajador->id === Auth::id() && $trabajador->activo, 422, 'No puedes desactivarte a ti mismo.');
 
         if ($trabajador->activo) {
             app(TrabajadorService::class)->desactivar($trabajador);

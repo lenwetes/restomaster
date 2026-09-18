@@ -132,7 +132,8 @@ class PedidoService
             }
 
             // C2 & M2 & P0-06 FIX: Descuento acotado al subtotal, puntos acotados al remanente y fórmula unificada
-            $descuentoAplicado = min($subtotal, $descuentoSolicitado);
+            // Tope absoluto configurable (config/pos.php) aunque el usuario tenga permiso de descuento.
+            $descuentoAplicado = min($subtotal, $descuentoSolicitado, (float) config('pos.max_descuento', 50000));
             $remanente = max(0, $subtotal - $descuentoAplicado);
             $descuentoPuntosAplicado = min($remanente, $descuentoPuntos);
             $total = max(0, $subtotal + $costoEnvio - $descuentoAplicado - $descuentoPuntosAplicado);

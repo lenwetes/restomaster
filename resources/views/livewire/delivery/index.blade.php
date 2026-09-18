@@ -636,9 +636,12 @@ new class extends Component
                                 @if($efectivoPendiente > 0)
                                     <button
                                         wire:click="liquidarRepartidor({{ $moto->id }})"
-                                        class="px-3 py-1.5 rounded-xl bg-primary text-on-primary text-[11px] font-black hover:bg-primary-container active:scale-95 transition-all shadow-sm"
+                                        wire:loading.attr="disabled"
+                                        wire:target="liquidarRepartidor({{ $moto->id }})"
+                                        class="px-3 py-1.5 min-h-[44px] rounded-xl bg-primary text-on-primary text-[11px] font-black hover:bg-primary-container active:scale-95 transition-all shadow-sm disabled:opacity-50"
                                     >
-                                        Liquidar en Caja
+                                        <span wire:loading.remove wire:target="liquidarRepartidor({{ $moto->id }})">Liquidar en Caja</span>
+                                        <span wire:loading wire:target="liquidarRepartidor({{ $moto->id }})">Liquidando…</span>
                                     </button>
                                 @endif
                             </div>

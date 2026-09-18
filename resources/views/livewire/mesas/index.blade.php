@@ -176,6 +176,8 @@ new class extends Component
 
     public function atenderPedidoQr(int $pedidoId): void
     {
+        $this->authorize('cambiarEstado', Mesa::class);
+
         try {
             $pedidoService = app(\App\Services\PedidoService::class);
             $pedido = $pedidoService->asignarMeseroAPedidoQr($pedidoId, Auth::user());
@@ -201,6 +203,9 @@ new class extends Component
     public function autoasignarMesa(int $mesaId): void
     {
         $mesa = Mesa::findOrFail($mesaId);
+        $this->authorize('cambiarEstado', $mesa);
+        abort_if(Auth::user()?->sucursal_id && $mesa->sucursal_id !== Auth::user()->sucursal_id, 403, 'Mesa de otra sucursal.');
+
         app(\App\Services\MesaService::class)->autoasignarMesa($mesa, Auth::user());
 
         $this->mensajeFlash = "¡Te has asignado la Mesa #{$mesa->numero}!";

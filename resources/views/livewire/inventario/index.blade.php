@@ -1156,8 +1156,10 @@ class extends Component {
                         Cancelar
                     </button>
                     <button wire:click="registrarMerma"
-                            class="h-10 px-5 rounded-xl bg-error hover:bg-error/90 text-on-error font-bold text-sm shadow-md">
-                        Confirmar Merma
+                            wire:loading.attr="disabled" wire:target="registrarMerma"
+                            class="h-10 px-5 rounded-xl bg-error hover:bg-error/90 text-on-error font-bold text-sm shadow-md disabled:opacity-50">
+                        <span wire:loading.remove wire:target="registrarMerma">Confirmar Merma</span>
+                        <span wire:loading wire:target="registrarMerma">Actualizando stock…</span>
                     </button>
                 </div>
             </div>
@@ -1223,8 +1225,10 @@ class extends Component {
                         Cancelar
                     </button>
                     <button wire:click="registrarCompra"
-                            class="h-10 px-5 rounded-xl bg-secondary hover:bg-secondary-fixed-dim text-on-secondary font-bold text-sm shadow-md">
-                        Ingresar a Inventario
+                            wire:loading.attr="disabled" wire:target="registrarCompra"
+                            class="h-10 px-5 rounded-xl bg-secondary hover:bg-secondary-fixed-dim text-on-secondary font-bold text-sm shadow-md disabled:opacity-50">
+                        <span wire:loading.remove wire:target="registrarCompra">Ingresar a Inventario</span>
+                        <span wire:loading wire:target="registrarCompra">Actualizando stock…</span>
                     </button>
                 </div>
             </div>

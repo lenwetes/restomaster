@@ -6,6 +6,63 @@
 ---
 
 ## Última Actualización
+2026-09-18 18:55 | Antigravity | 🧪 **SUITE DE PRUEBAS UNITARIAS E INTEGRALES PARA VERIFICAR EL HARDENING DE BASE DE DATOS**:
+- **Nueva Suite Creada:** `tests/Feature/HardeningDatabaseIntegridadTest.php` (10 tests, 27 aserciones directas).
+- **Cobertura de Pruebas Implementadas:**
+  1. `test_mesas_impide_numeros_duplicados_en_la_misma_sucursal`: Valida que `Mesa::create` con el mismo número en la misma sucursal arroje `QueryException` (violación de unicidad compuesta).
+  2. `test_mesas_permite_mismo_numero_en_sucursales_distintas`: Valida que dos sedes puedan operar mesas con el mismo identificador (`Mesa-01`).
+  3. `test_cajas_permite_mismo_codigo_en_distintas_sucursales`: Valida que sedes diferentes puedan registrar su propia `CAJ-01`.
+  4. `test_cajas_impide_mismo_codigo_en_la_misma_sucursal`: Valida el rechazo de cajas homónimas en la misma sucursal.
+  5. `test_productos_impide_slugs_duplicados`: Valida la unicidad estricta de `slug` en productos del menú.
+  6. `test_compras_no_se_pueden_eliminar_si_tienen_lineas_asociadas_restrict_on_delete`: Valida `restrictOnDelete` en `compra_lineas -> compras`.
+  7. `test_compras_no_se_pueden_eliminar_si_tienen_cuentas_por_pagar_asociadas_restrict_on_delete`: Valida `restrictOnDelete` en `cuentas_por_pagar -> compras`.
+  8. `test_cuentas_por_pagar_insumo_id_permite_desasociar_sin_borrar_cuenta`: Valida desasociación segura sin borrado físico.
+  9. `test_indices_criticos_compuestos_y_fk_existen_en_esquema`: Valida mediante `Schema::hasIndex()` la presencia de índices en `mesas(sucursal_id, estado)`, `mesas(sucursal_id, zona)`, `pedidos(sucursal_id, estado)`, `compra_lineas(compra_id, insumo_id)` y `cuentas_por_pagar(compra_id, insumo_id)`.
+  10. `test_check_constraints_en_postgresql_rechazan_valores_negativos`: Ejecuta pruebas transaccionales con `SAVEPOINT` contra PostgreSQL real validando que el motor aborte inserciones con:
+      - `pedidos.total < 0`
+      - `items_pedido.cantidad <= 0`
+      - `movimientos_caja.monto <= 0`
+      - `recetas.merma_esperada_pct > 100`
+      - `insumos.costo_unitario < 0`
+      - `compras.subtotal < 0`
+- **Resultados de Verificación:**
+  - Suite de Hardening: **10 de 10 tests pasados (27 aserciones)**.
+  - Suite Completa del Proyecto: **445 de 445 tests pasados al 100% (1701 aserciones, 0 fallos)**.
+  - Laravel Pint: 0 violaciones (`vendor/bin/pint --test passed`).
+- **Archivos:** `tests/Feature/HardeningDatabaseIntegridadTest.php`, `coordination.md`.
+
+---
+
+2026-09-18 18:40 | Antigravity | 🛡️ **HARDENING INTEGRAL DE BASE DE DATOS Y MIGRACIONES EN POSTGRESQL 18**:
+- **Diagnóstico y Auditoría Ejecutada:**
+  - Se identificó la falta de índices en 29 Foreign Keys en PostgreSQL (donde el motor no indexa automáticamente FKs, forzando Sequential Scans y bloqueos `ShareRowExclusiveLock`).
+  - Se identificó la ausencia total de `CHECK constraints` (0 en todo el esquema), dejando la integridad financiera y de stock vulnerable a estados negativos.
+  - Se detectaron cascadas de borrado peligrosas en compras y CxP, y sentencias `DELETE` destructivas en migraciones.
+  - Se detectó falta de unicidad compuesta en `mesas` y `cajas`, y falta de unicidad en `productos.slug`.
+- **Acciones y Migraciones Implementadas:**
+  1. `database/migrations/2026_09_18_110001_create_compras_tables.php`:
+     - Cambiado `cascadeOnDelete()` a `restrictOnDelete()` en `compra_lineas.compra_id`.
+     - Añadidos índices a `compras(user_id)`, `compras(fecha, estado)`, `compra_lineas(compra_id)` y `compra_lineas(insumo_id)`.
+     - Añadidos CHECK constraints para montos y cantidades positivas. Migrado a `timestampsTz()`.
+  2. `database/migrations/2026_09_18_110002_add_proveedor_to_insumos_table.php` & `2026_09_18_110003_add_compra_to_cxp_table.php`:
+     - Añadidos índices explícitos en `proveedor_id` y `compra_id`.
+     - `compra_id` asegurado con `restrictOnDelete()`.
+  3. `database/migrations/2026_09_18_123000_add_fk_insumo_to_cxp_table.php`:
+     - Eliminado `DELETE FROM cuentas_por_pagar`. Idempotencia garantizada para PG y SQLite.
+  4. `database/migrations/2026_09_18_190000_harden_db_postgresql_integrity_and_indexes.php`:
+     - Indexadas las 29 Foreign Keys huérfanas en PostgreSQL (0 FKs desprotegidas en catálogo `pg_constraint`).
+     - Añadidos índices compuestos para operaciones de alta frecuencia en POS y Cocina KDS: `mesas(sucursal_id, estado)`, `mesas(sucursal_id, zona)`, `pedidos(sucursal_id, estado)`.
+     - Añadidas restricciones únicas compuestas: `mesas(sucursal_id, numero)`, `cajas(sucursal_id, codigo)` y `productos(slug)`.
+     - Añadidos 12 constraints `CHECK` inmutables en PostgreSQL para totales de pedidos, cantidades positivas en comanda, saldos deudores en CxP, montos de caja y mermas en escandallos.
+     - Estandarizados los timestamps de las tablas restantes a `timestamptz`.
+- **Verificación:**
+  - Catálogo `pg_constraint`: 0 FKs sin indexar, 12 CHECK constraints activos.
+  - Suite de pruebas de Laravel: **435 tests PASADOS (1674 aserciones, 100% verde)**.
+  - Laravel Pint: 0 violaciones de estilo (`vendor/bin/pint --test passed`).
+- **Archivos:** `database/migrations/2026_09_18_110001_create_compras_tables.php`, `database/migrations/2026_09_18_110002_add_proveedor_to_insumos_table.php`, `database/migrations/2026_09_18_110003_add_compra_to_cxp_table.php`, `database/migrations/2026_09_18_123000_add_fk_insumo_to_cxp_table.php`, `database/migrations/2026_09_18_190000_harden_db_postgresql_integrity_and_indexes.php`, `coordination.md`.
+
+---
+
 2026-09-18 17:55 | Antigravity | 🎯 **RESOLUCIÓN DEL BUG 'NO HACE NADA AL CONFIRMAR Y EMITIR' EN TERMINAL DE COBRO POS**:
 - **Causa raíz diagnosticada:**
   1. **Desincronización por sobreescritura de ítems repetidos en carrito:** Al poblar el carrito desde la base de datos (`$pedidoExistente->items`), se indexaba directamente por `$item->producto_id` asignando `'cantidad' => (int) $item->cantidad` en lugar de acumular (`+=`). Si un pedido de mesa tenía múltiples registros del mismo producto (tandas o adiciones sucesivas, e.g. Costillas de Cerdo x3 o Ensalada x2 en el Pedido #73), los registros posteriores sobreescribían a los anteriores, calculando un total en pantalla de **$411.000** en vez del total real en DB de **$541.000** (exactamente una diferencia de $130.000).

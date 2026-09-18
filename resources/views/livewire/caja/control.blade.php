@@ -920,16 +920,22 @@ new class extends Component
                     @if($tipoMovimiento === 'ingreso')
                         <button 
                             wire:click="registrarMovimiento" 
-                            class="rounded-xl bg-secondary py-3 text-xs font-black text-on-secondary shadow-md hover:bg-secondary-fixed-dim"
+                            wire:loading.attr="disabled"
+                            wire:target="registrarMovimiento"
+                            class="rounded-xl bg-secondary py-3 text-xs font-black text-on-secondary shadow-md hover:bg-secondary-fixed-dim disabled:opacity-50"
                         >
-                            ✓ Registrar Ingreso
+                            <span wire:loading.remove wire:target="registrarMovimiento">✓ Registrar Ingreso</span>
+                            <span wire:loading wire:target="registrarMovimiento">Registrando…</span>
                         </button>
                     @else
                         <button 
                             wire:click="registrarMovimiento" 
-                            class="rounded-xl bg-error py-3 text-xs font-black text-on-error shadow-md hover:opacity-90"
+                            wire:loading.attr="disabled"
+                            wire:target="registrarMovimiento"
+                            class="rounded-xl bg-error py-3 text-xs font-black text-on-error shadow-md hover:opacity-90 disabled:opacity-50"
                         >
-                            ✓ Registrar Salida
+                            <span wire:loading.remove wire:target="registrarMovimiento">✓ Registrar Salida</span>
+                            <span wire:loading wire:target="registrarMovimiento">Registrando…</span>
                         </button>
                     @endif
                 </div>
@@ -1039,9 +1045,13 @@ new class extends Component
                     </button>
                     <button 
                         wire:click="ejecutarCierreTurno" 
-                        class="rounded-xl bg-primary py-3 text-xs font-black text-on-primary shadow-md hover:bg-primary-container"
+                        wire:loading.attr="disabled"
+                        wire:target="ejecutarCierreTurno"
+                        @disabled($turno->estado !== 'abierto')
+                        class="rounded-xl bg-primary py-3 text-xs font-black text-on-primary shadow-md hover:bg-primary-container disabled:opacity-50"
                     >
-                        ✓ Confirmar y Emitir Reporte Z
+                        <span wire:loading.remove wire:target="ejecutarCierreTurno">✓ Confirmar y Emitir Reporte Z</span>
+                        <span wire:loading wire:target="ejecutarCierreTurno">Cerrando turno…</span>
                     </button>
                 </div>
             </div>

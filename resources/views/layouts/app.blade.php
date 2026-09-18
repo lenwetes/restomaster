@@ -121,5 +121,9 @@
                 </main>
             </div>
         </div>
+
+        <!-- Toast global de notificaciones (eventos Livewire 'notificacion') -->
+        <div id="app-toasts" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 items-end"></div>
+        @stack('scripts')
     </body>
 </html>
