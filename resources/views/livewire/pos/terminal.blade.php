@@ -105,6 +105,10 @@ new class extends Component
     // Modo Nuevo Pedido / Adición sobre mesa con comanda previa despachada
     public bool $modoNuevaAdicion = false;
 
+    /**
+     * @param  string  $property
+     * @return mixed
+     */
     public function __get($property)
     {
         if ($property === 'montoPagado') {
