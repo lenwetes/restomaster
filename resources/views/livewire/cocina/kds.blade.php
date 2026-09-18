@@ -67,22 +67,24 @@ new class extends Component
             'iniciado_en' => now(),
         ]);
 
-        if ($item->pedido && $item->pedido->estado === 'creado') {
-            $item->pedido->update(['estado' => 'en_cocina']);
+        if ($item->pedido_id) {
+            Pedido::where('id', $item->pedido_id)
+                ->where('estado', 'creado')
+                ->update(['estado' => 'en_cocina']);
         }
     }
 
     public function marcarListo(int $itemId): void
     {
         $item = ItemPedido::with(['pedido.mesa', 'pedido.mesero'])->findOrFail($itemId);
-        abort_if(Auth::user()?->sucursal_id && $item->pedido?->sucursal_id && $item->pedido->sucursal_id !== Auth::user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
+        $sucursalId = $item->relationLoaded('pedido') ? $item->pedido?->sucursal_id : Pedido::where('id', $item->pedido_id)->value('sucursal_id');
+        abort_if(Auth::user()?->sucursal_id && $sucursalId && $sucursalId !== Auth::user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
 
         $pedidoService = app(PedidoService::class);
         $pedidoService->marcarItemListo($item);
 
-        $item->loadMissing(['pedido.mesa', 'pedido.mesero']);
-        $pedido = $item->pedido?->fresh(['mesa', 'mesero', 'items']);
+        $pedido = Pedido::with(['mesa', 'mesero', 'items'])->find($item->pedido_id);
         $mesaNombre = $pedido?->mesa ? "Mesa {$pedido->mesa->numero}" : ($pedido?->codigo ?? 'Comanda');
         $this->dispatch('notificacion', [
             'mensaje' => "✓ Plato '{$item->nombre_producto}' marcado LISTO para {$mesaNombre}.",
@@ -119,13 +121,13 @@ new class extends Component
             }
         }
 
-        $pedido = $pedido->fresh(['mesa', 'mesero', 'items']);
-        $mesaNombre = $pedido->mesa ? "Mesa {$pedido->mesa->numero}" : $pedido->codigo;
+        $pedido = Pedido::with(['mesa', 'mesero', 'items'])->find($pedidoId);
+        $mesaNombre = $pedido?->mesa ? "Mesa {$pedido->mesa->numero}" : ($pedido?->codigo ?? 'Comanda');
         $this->dispatch('notificacion', [
             'mensaje' => "🛎️ ¡Comanda de {$mesaNombre} marcada completamente LISTA para servir!",
             'tipo' => 'success',
         ]);
-        $this->dispatch('comanda-actualizada', pedidoId: $pedido->id);
+        $this->dispatch('comanda-actualizada', pedidoId: $pedido?->id);
     }
 
     public function marcarComandaEntregada(int $pedidoId): void
@@ -141,12 +143,13 @@ new class extends Component
             }
         }
 
-        $mesaNombre = $pedido->mesa ? "Mesa {$pedido->mesa->numero}" : $pedido->codigo;
+        $pedido = Pedido::with('mesa')->find($pedidoId);
+        $mesaNombre = $pedido?->mesa ? "Mesa {$pedido->mesa->numero}" : ($pedido?->codigo ?? 'Comanda');
         $this->dispatch('notificacion', [
             'mensaje' => "🍽️ Comanda de {$mesaNombre} entregada / servida a la mesa.",
             'tipo' => 'info',
         ]);
-        $this->dispatch('comanda-actualizada', pedidoId: $pedido->id);
+        $this->dispatch('comanda-actualizada', pedidoId: $pedido?->id);
     }
 
     public function with(): array

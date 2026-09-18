@@ -188,8 +188,7 @@ class PedidoService
         // Descontar materia prima e insumos de la receta en inventario
         app(InventarioService::class)->descontarPorItemPedido($item);
 
-        $item->loadMissing('pedido');
-        $pedido = $item->pedido;
+        $pedido = $item->relationLoaded('pedido') ? $item->pedido : Pedido::find($item->pedido_id);
         if ($pedido) {
             $itemsPendientes = $pedido->items()
                 ->whereNotIn('estado_cocina', ['listo', 'entregado', 'servido', 'cancelado'])
@@ -202,7 +201,7 @@ class PedidoService
 
         Cache::flush();
 
-        return $item->fresh();
+        return $item;
     }
 
     /**
@@ -212,8 +211,7 @@ class PedidoService
     {
         $item->update(['estado_cocina' => 'entregado']);
 
-        $item->loadMissing('pedido');
-        $pedido = $item->pedido;
+        $pedido = $item->relationLoaded('pedido') ? $item->pedido : Pedido::find($item->pedido_id);
         if ($pedido) {
             $itemsNoEntregados = $pedido->items()
                 ->whereNotIn('estado_cocina', ['entregado', 'servido', 'cancelado'])
@@ -224,7 +222,7 @@ class PedidoService
             }
         }
 
-        return $item->fresh();
+        return $item;
     }
 
     /**
