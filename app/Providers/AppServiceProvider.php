@@ -19,6 +19,7 @@ use App\Policies\MesaPolicy;
 use App\Policies\PedidoPolicy;
 use App\Policies\ReservaPolicy;
 use App\Policies\TurnoCajaPolicy;
+use App\Services\PermisoService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -52,6 +53,17 @@ class AppServiceProvider extends ServiceProvider
             if ($user->hasRole('admin')) {
                 return true;
             }
+        });
+
+        // Permisos explícitos por usuario (3 estados): deny→false, grant→true, sin fila→null (legacy)
+        Gate::before(function (User $user, string $ability, array $arguments) {
+            $key = app(PermisoService::class)->resolverKey($ability, $arguments[0] ?? null);
+
+            if ($key === null) {
+                return null;
+            }
+
+            return $user->permisoExplicito($key);
         });
 
         // Registro de Policies de Dominio

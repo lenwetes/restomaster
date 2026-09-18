@@ -297,4 +297,18 @@ class MeseroPosOptimizationTest extends TestCase
         $this->assertNotEmpty($productos);
         $this->assertTrue($productos->first()->relationLoaded('categoria'));
     }
+
+    public function test_barra_superior_pc_permite_wrapping_para_no_recortar_switcher_de_vistas(): void
+    {
+        $component = Volt::actingAs($this->mesero)
+            ->test('pos.terminal');
+
+        // La Top Control Bar debe permitir wrapping: sin flex-wrap el flex-row
+        // en laptop aprieta el select de mesa, comprime el buscador y recorta
+        // el switcher PC/Tablet/Móvil del mesero.
+        $component->assertSee('flex flex-col flex-wrap gap-3', false);
+        $component->assertSee('id="btnVistaPc"', false);
+        $component->assertSee('id="btnVistaTablet"', false);
+        $component->assertSee('id="btnVistaMovil"', false);
+    }
 }

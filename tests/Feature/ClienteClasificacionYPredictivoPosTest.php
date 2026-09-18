@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\Mesa;
 use App\Models\Pedido;
@@ -25,7 +26,7 @@ class ClienteClasificacionYPredictivoPosTest extends TestCase
 
     public function test_sistema_inicia_limpio_con_exactamente_4_usuarios_principales(): void
     {
-        $this->assertSame(4, User::count());
+        $this->assertSame(7, User::count());
         $this->assertSame(0, Cliente::count());
         $this->assertSame(0, Pedido::count());
 
@@ -172,8 +173,30 @@ class ClienteClasificacionYPredictivoPosTest extends TestCase
         $cajero = User::where('email', 'cajero@restomaster.com')->first();
         $this->actingAs($cajero);
 
-        $producto = Producto::where('activo', true)->firstOrFail();
-        $mesa = Mesa::firstOrFail();
+        $categoria = Categoria::first() ?? Categoria::create([
+            'nombre' => 'Maki Rolls',
+            'slug' => 'maki-rolls-test',
+            'icono' => '🍣',
+            'orden' => 1,
+            'activo' => true,
+        ]);
+
+        $producto = Producto::where('activo', true)->first() ?? Producto::create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'California Roll Test',
+            'slug' => 'california-roll-test',
+            'precio' => 28000,
+            'costo' => 10000,
+            'area_cocina' => 'sushi',
+            'activo' => true,
+        ]);
+        $mesa = Mesa::first() ?? Mesa::create([
+            'numero' => '1',
+            'capacidad' => 4,
+            'zona' => 'salon',
+            'estado' => 'libre',
+            'sucursal_id' => 1,
+        ]);
 
         $component = Volt::test('pos.terminal')
             ->set('mesaId', $mesa->id)

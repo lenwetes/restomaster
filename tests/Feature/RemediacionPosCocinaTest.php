@@ -176,8 +176,10 @@ class RemediacionPosCocinaTest extends TestCase
 
     public function test_r6_procesar_cobro_incluye_items_agregados_al_carrito(): void
     {
-        // Pedido activo con 1 item del producto A (85.000)
+        // Pedido activo con 1 item del producto A (85.000), ya servido para habilitar el cobro
         $pedidoActivo = $this->crearPedidoActivoConItemProductoA();
+        $pedidoActivo->items()->update(['estado_cocina' => 'entregado']);
+        $pedidoActivo->update(['estado' => 'entregado']);
 
         $component = Volt::actingAs($this->mesero)
             ->test('pos.terminal')

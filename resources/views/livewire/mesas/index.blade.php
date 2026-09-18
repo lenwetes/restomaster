@@ -3,6 +3,7 @@
 use App\Enums\MesaEstado;
 use App\Models\Mesa;
 use App\Services\MesaService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -43,7 +44,7 @@ new class extends Component
             'numero' => (string) $siguienteNumero,
             'zona' => 'salon',
             'capacidad' => 4,
-            'sucursal_id' => \App\Models\Sucursal::value('id') ?? 1,
+            'sucursal_id' => 1,
         ];
         $this->modalMesaOpen = true;
     }
@@ -63,13 +64,25 @@ new class extends Component
 
     public function guardarMesa(): void
     {
-        $this->authorize($this->mesaEditandoId ? 'update' : 'create', Mesa::class);
+        if ($this->mesaEditandoId) {
+            $this->authorize('update', Mesa::class);
+        } else {
+            $this->authorize('create', Mesa::class);
+        }
+
+        $reglaUnica = 'unique:mesas,numero';
+        if ($this->mesaEditandoId) {
+            $reglaUnica .= ',' . $this->mesaEditandoId;
+        }
 
         $this->validate([
-            'formMesa.numero' => 'required|string|max:10',
-            'formMesa.zona' => 'required|string|in:salon,barra,terraza,vip',
-            'formMesa.capacidad' => 'required|integer|min:1|max:30',
-            'formMesa.sucursal_id' => 'required|exists:sucursales,id',
+            'formMesa.numero' => ['required', 'string', 'max:20', $reglaUnica],
+            'formMesa.zona' => ['required', 'in:salon,terraza,barra,vip'],
+            'formMesa.capacidad' => ['required', 'integer', 'min:1', 'max:20'],
+        ], [
+            'formMesa.numero.required' => 'El número o código de la mesa es obligatorio.',
+            'formMesa.numero.unique' => 'Ya existe una mesa con este número en el sistema.',
+            'formMesa.capacidad.min' => 'La capacidad mínima es de 1 comensal.',
         ]);
 
         $mesaService = app(MesaService::class);
@@ -77,10 +90,10 @@ new class extends Component
         try {
             if ($this->mesaEditandoId) {
                 $mesa = Mesa::findOrFail($this->mesaEditandoId);
-                $mesaService->actualizarMesa($mesa, $this->formMesa, auth()->user());
+                $mesaService->actualizarMesa($mesa, $this->formMesa, Auth::user());
                 $this->mensajeFlash = "Mesa #{$mesa->numero} actualizada exitosamente.";
             } else {
-                $mesa = $mesaService->crearMesa($this->formMesa, auth()->user());
+                $mesa = $mesaService->crearMesa($this->formMesa, Auth::user());
                 $this->mensajeFlash = "Mesa #{$mesa->numero} creada y disponible en {$mesa->zona}.";
             }
 
@@ -101,7 +114,7 @@ new class extends Component
 
         try {
             $numero = $mesa->numero;
-            $mesaService->eliminarMesa($mesa, auth()->user());
+            $mesaService->eliminarMesa($mesa, Auth::user());
             $this->mensajeFlash = "Mesa #{$numero} eliminada del sistema.";
             $this->tipoFlash = 'success';
         } catch (\Exception $e) {
@@ -114,26 +127,35 @@ new class extends Component
     {
         $this->authorize('cambiarEstado', Mesa::class);
 
-        $estadosValidos = array_map(fn ($case) => $case->value, \App\Enums\MesaEstado::cases());
-        if (! in_array($nuevoEstado, $estadosValidos, true)) {
-            abort(422, "Estado de mesa inválido: {$nuevoEstado}");
-        }
+        abort_unless(in_array($nuevoEstado, array_column(MesaEstado::cases(), 'value'), true), 422, 'Estado de mesa inválido.');
 
         $mesa = Mesa::findOrFail($mesaId);
 
-        try {
-            app(\App\Services\MesaService::class)->cambiarEstado($mesa, $nuevoEstado);
-
-            $this->dispatch('notificacion', [
-                'mensaje' => "Mesa {$mesa->numero} actualizada a {$nuevoEstado}",
-                'tipo' => 'success',
-            ]);
-        } catch (\DomainException|\InvalidArgumentException $e) {
-            $this->dispatch('notificacion', [
-                'mensaje' => $e->getMessage(),
-                'tipo' => 'error',
-            ]);
+        // Si la mesa pasa a libre, remover mesero asignado para el siguiente turno
+        if ($nuevoEstado === MesaEstado::LIBRE->value) {
+            $mesa->mesero_id = null;
         }
+
+        $mesa->estado = $nuevoEstado;
+        $mesa->save();
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Mesa #{$mesa->numero} cambió a estado {$nuevoEstado}",
+            'tipo' => 'info',
+        ]);
+    }
+
+    public function toggleEstado(int $mesaId): void
+    {
+        $mesa = Mesa::findOrFail($mesaId);
+        $siguiente = match($mesa->estado) {
+            'libre' => 'ocupada',
+            'ocupada' => 'cuenta_pedida',
+            'cuenta_pedida' => 'limpieza',
+            'limpieza' => 'libre',
+            default => 'libre',
+        };
+        $this->cambiarEstado($mesaId, $siguiente);
     }
 
     public function abrirModalQr(int $mesaId): void
@@ -150,7 +172,7 @@ new class extends Component
     {
         try {
             $pedidoService = app(\App\Services\PedidoService::class);
-            $pedido = $pedidoService->asignarMeseroAPedidoQr($pedidoId, auth()->user());
+            $pedido = $pedidoService->asignarMeseroAPedidoQr($pedidoId, Auth::user());
             $this->mensajeFlash = "¡Has tomado la comanda de la Mesa #{$pedido->mesa?->numero}! Pedido enviado a cocina.";
             $this->tipoFlash = 'success';
             $this->dispatch('notificacion', [
@@ -173,7 +195,7 @@ new class extends Component
     public function autoasignarMesa(int $mesaId): void
     {
         $mesa = Mesa::findOrFail($mesaId);
-        app(\App\Services\MesaService::class)->autoasignarMesa($mesa, auth()->user());
+        app(\App\Services\MesaService::class)->autoasignarMesa($mesa, Auth::user());
 
         $this->mensajeFlash = "¡Te has asignado la Mesa #{$mesa->numero}!";
         $this->tipoFlash = 'success';
@@ -185,7 +207,8 @@ new class extends Component
 
     public function abrirModalTransferir(int $mesaId): void
     {
-        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Solo administradores o gerentes pueden reasignar mesas a otros compañeros.');
+        // rol intencional, no permiso: reasignar mesas no tiene ability en el catálogo
+        abort_unless(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true), 403, 'Solo administradores, gerentes o cajeros pueden reasignar mesas a otros compañeros.');
 
         $mesa = Mesa::findOrFail($mesaId);
         $this->mesaTransferirId = $mesa->id;
@@ -195,7 +218,8 @@ new class extends Component
 
     public function ejecutarTransferenciaMesa(): void
     {
-        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Solo administradores o gerentes pueden reasignar mesas a otros compañeros.');
+        // rol intencional, no permiso: reasignar mesas no tiene ability en el catálogo
+        abort_unless(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true), 403, 'Solo administradores, gerentes o cajeros pueden reasignar mesas a otros compañeros.');
 
         $this->validate([
             'mesaTransferirId' => 'required|exists:mesas,id',
@@ -207,7 +231,7 @@ new class extends Component
         $mesa = Mesa::findOrFail($this->mesaTransferirId);
         $nuevoMesero = \App\Models\User::findOrFail($this->nuevoMeseroId);
 
-        app(\App\Services\MesaService::class)->transferirMesa($mesa, $nuevoMesero, auth()->user());
+        app(\App\Services\MesaService::class)->transferirMesa($mesa, $nuevoMesero, Auth::user());
 
         $this->modalTransferirOpen = false;
         $this->mensajeFlash = "Mesa #{$mesa->numero} asignada / transferida a {$nuevoMesero->name}.";
@@ -222,11 +246,12 @@ new class extends Component
     {
         $mesa = Mesa::findOrFail($mesaId);
 
-        if (! in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true)) {
-            abort_unless($mesa->mesero_id === auth()->id(), 403, 'Solo puedes liberar para relevo las mesas que atiendes actualmente.');
+        // rol intencional, no permiso: el relevo propio es identidad de dominio (mesa que atiendo)
+        if (! in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true)) {
+            abort_unless($mesa->mesero_id === Auth::id(), 403, 'Solo puedes liberar para relevo las mesas que atiendes actualmente.');
         }
 
-        app(\App\Services\MesaService::class)->liberarParaRelevo($mesa, auth()->user());
+        app(\App\Services\MesaService::class)->liberarParaRelevo($mesa, Auth::user());
 
         $this->mensajeFlash = "Mesa #{$mesa->numero} liberada para relevo. Tus compañeros ya pueden tomarla.";
         $this->tipoFlash = 'success';
@@ -238,10 +263,11 @@ new class extends Component
 
     public function desasignarMesero(int $mesaId): void
     {
-        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Solo administradores o gerentes pueden desasignar meseros.');
+        // rol intencional, no permiso: desasignar mesero no tiene ability en el catálogo
+        abort_unless(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true), 403, 'Solo administradores, gerentes o cajeros pueden desasignar meseros.');
 
         $mesa = Mesa::findOrFail($mesaId);
-        app(\App\Services\MesaService::class)->asignarMesero($mesa, null, auth()->user());
+        app(\App\Services\MesaService::class)->asignarMesero($mesa, null, Auth::user());
 
         $this->mensajeFlash = "Mesa #{$mesa->numero} liberada de mesero asignado.";
         $this->tipoFlash = 'success';
@@ -265,8 +291,8 @@ new class extends Component
             $query->where('estado', $this->filtroEstado);
         }
 
-        if ($this->filtroMesero === 'mis_mesas' && auth()->check()) {
-            $query->where('mesero_id', auth()->id());
+        if ($this->filtroMesero === 'mis_mesas' && Auth::check()) {
+            $query->where('mesero_id', Auth::id());
         }
 
         $mesas = $query->orderBy('numero')->get();
@@ -320,7 +346,7 @@ new class extends Component
             </p>
         </div>
         <div class="flex items-center gap-2">
-            @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+            @can('create', App\Models\Mesa::class)
                 <button 
                     wire:click="abrirModalNuevaMesa"
                     class="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3.5 py-2.5 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim transition-all active:scale-95 cursor-pointer"
@@ -328,7 +354,7 @@ new class extends Component
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
                     <span>+ Nueva Mesa</span>
                 </button>
-            @endif
+            @endcan
             <a 
                 href="{{ route('pos') }}" 
                 wire:navigate
@@ -456,7 +482,8 @@ new class extends Component
                 >
                     Todas
                 </button>
-                @if(auth()->user()?->role?->slug === 'mesero')
+                {{-- rol intencional, no permiso: filtro "mis mesas" = identidad del mesero --}}
+                @if(Auth::user()?->role?->slug === 'mesero')
                     <button 
                         wire:click="$set('filtroMesero', 'mis_mesas')"
                         class="rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all {{ $filtroMesero === 'mis_mesas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
@@ -516,7 +543,7 @@ new class extends Component
                                 >
                                     <span class="material-symbols-outlined text-[16px]">qr_code_2</span>
                                 </button>
-                                @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                                @can('update', App\Models\Mesa::class)
                                     <div class="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
                                         <button 
                                             wire:click="abrirModalEditarMesa({{ $mesa->id }})"
@@ -527,7 +554,7 @@ new class extends Component
                                         </button>
                                         @if($mesa->estado === 'libre')
                                             <button 
-                                                wire:click="eliminarMesa({{ $mesa->id }})"
+                                              wire:click="eliminarMesa({{ $mesa->id }})"
                                                 wire:confirm="¿Deseas eliminar la Mesa #{{ $mesa->numero }}?"
                                                 class="p-1 rounded-lg hover:bg-error-container/20 text-on-surface-variant hover:text-error transition-colors"
                                                 title="Eliminar Mesa"
@@ -536,14 +563,14 @@ new class extends Component
                                             </button>
                                         @endif
                                     </div>
-                                @endif
+                                @endcan
                             </div>
                             <span class="text-[10px] font-bold text-on-surface-variant block uppercase tracking-wider mt-0.5">
                                 Zona {{ $mesa->zona }}
                             </span>
                             @if($mesa->mesero)
                                 <div class="mt-1.5 flex items-center gap-1 flex-wrap">
-                                    @if($mesa->mesero_id === auth()->id())
+                                    @if($mesa->mesero_id === Auth::id())
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-primary/10 text-primary border border-primary/25" title="Mesa a tu cargo">
                                             <span class="material-symbols-outlined text-[13px]">person</span>
                                             <span>Atendida por ti</span>
@@ -563,7 +590,8 @@ new class extends Component
                                             <span class="material-symbols-outlined text-[13px]">badge</span>
                                             <span class="truncate max-w-[90px]">Atiende: {{ $mesa->mesero->name }}</span>
                                         </span>
-                                        @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                                        {{-- rol intencional, no permiso: espejo UI del guard de transferencia (sin ability en el catálogo) --}}
+                                        @if(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true))
                                             <button 
                                                 type="button"
                                                 wire:click="abrirModalTransferir({{ $mesa->id }})"
@@ -582,7 +610,8 @@ new class extends Component
                                         <span class="material-symbols-outlined text-[13px]">hourglass_empty</span>
                                         <span>En Relevo</span>
                                     </span>
-                                    @if(auth()->user()?->role?->slug === 'mesero')
+                {{-- rol intencional, no permiso: tomar relevo = identidad del mesero --}}
+                @if(Auth::user()?->role?->slug === 'mesero')
                                         <button 
                                             type="button"
                                             wire:click="autoasignarMesa({{ $mesa->id }})"
@@ -592,7 +621,8 @@ new class extends Component
                                             <span class="material-symbols-outlined text-[12px]">handshake</span>
                                             <span>+ Tomar Relevo</span>
                                         </button>
-                                    @elseif(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                                    {{-- rol intencional, no permiso: espejo UI del guard de transferencia (sin ability en el catálogo) --}}
+                                    @elseif(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true))
                                         <button 
                                             type="button"
                                             wire:click="abrirModalTransferir({{ $mesa->id }})"
@@ -604,7 +634,8 @@ new class extends Component
                                         </button>
                                     @endif
                                 </div>
-                            @elseif(auth()->user()?->role?->slug === 'mesero')
+                            {{-- rol intencional, no permiso: auto-atender mesa = identidad del mesero --}}
+                            @elseif(Auth::user()?->role?->slug === 'mesero')
                                 <button 
                                     type="button"
                                     wire:click="autoasignarMesa({{ $mesa->id }})"
@@ -614,7 +645,8 @@ new class extends Component
                                     <span class="material-symbols-outlined text-[12px]">person_add</span>
                                     <span>+ Atender Mesa</span>
                                 </button>
-                            @elseif(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                            {{-- rol intencional, no permiso: espejo UI del guard de transferencia (sin ability en el catálogo) --}}
+                            @elseif(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true))
                                 <button 
                                     type="button"
                                     wire:click="abrirModalTransferir({{ $mesa->id }})"
@@ -951,7 +983,8 @@ new class extends Component
     @endif
 
     <!-- Modal Transferir / Asignar Mesa -->
-    @if($modalTransferirOpen && in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+    {{-- rol intencional, no permiso: espejo UI del guard de transferencia (sin ability en el catálogo) --}}
+    @if($modalTransferirOpen && in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true))
         @php
             $mesaParaTransferir = $mesas->firstWhere('id', $mesaTransferirId);
         @endphp

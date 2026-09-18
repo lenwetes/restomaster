@@ -63,7 +63,7 @@
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 border border-stone-200 text-xs font-bold text-stone-700 transition-all"
                     >
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <span>Mi Estación ({{ auth()->user()->name }})</span>
+                        <span>Mi Estación ({{ Auth::user()->name }})</span>
                         <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
                     </a>
                 @else

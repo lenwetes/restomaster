@@ -7,6 +7,7 @@ use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\DeliveryService;
 use App\Services\PedidoService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
@@ -119,7 +120,7 @@ new class extends Component
         $this->authorize('liquidarRepartidor', [Pedido::class, $repartidorId]);
         $repartidor = User::findOrFail($repartidorId);
 
-        $sucursalId = auth()->user()?->sucursal_id;
+        $sucursalId = Auth::user()?->sucursal_id;
         $turnoActivo = TurnoCaja::with('caja')
             ->where('estado', 'abierto')
             ->when($sucursalId, function ($query, $sucursalId) {

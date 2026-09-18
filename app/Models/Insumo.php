@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,6 +16,7 @@ class Insumo extends Model
     protected $table = 'insumos';
 
     protected $fillable = [
+        'categoria_id',
         'nombre',
         'codigo',
         'categoria',
@@ -88,6 +90,38 @@ class Insumo extends Model
         }
 
         return min(100, round(((float) $this->stock_actual / $max) * 100, 1));
+    }
+
+    /**
+     * Categoría a la que pertenece este insumo.
+     */
+    public function categoriaInsumo(): BelongsTo
+    {
+        return $this->belongsTo(CategoriaInsumo::class, 'categoria_id');
+    }
+
+    /**
+     * Ícono visual heredado de la categoría o fallback neutro.
+     */
+    public function getIconoAttribute(): string
+    {
+        return $this->categoriaInsumo?->icono ?: 'inventory_2';
+    }
+
+    /**
+     * Color cromático heredado de la categoría o fallback neutro.
+     */
+    public function getColorAttribute(): string
+    {
+        return $this->categoriaInsumo?->color ?: '#6366f1';
+    }
+
+    /**
+     * Nombre legible de la categoría.
+     */
+    public function getNombreCategoriaAttribute(): string
+    {
+        return $this->categoriaInsumo?->nombre ?: ($this->categoria ?: 'Sin categoría');
     }
 
     /**

@@ -4,6 +4,7 @@ use App\Models\Caja;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\CajaService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -98,7 +99,7 @@ new class extends Component
             'formEditarCaja.codigo' => 'required|string|max:20|unique:cajas,codigo,'.$caja->id,
         ]);
 
-        app(CajaService::class)->actualizarCaja($caja, $this->formEditarCaja, auth()->user());
+        app(CajaService::class)->actualizarCaja($caja, $this->formEditarCaja, Auth::user());
         $this->cajaEditandoId = null;
 
         $this->dispatch('notificacion', [
@@ -112,7 +113,7 @@ new class extends Component
         $caja = Caja::findOrFail($id);
         $this->authorize('update', $caja);
 
-        app(CajaService::class)->alternarEstadoCaja($caja, auth()->user());
+        app(CajaService::class)->alternarEstadoCaja($caja, Auth::user());
 
         $this->dispatch('notificacion', [
             'mensaje' => "Terminal {$caja->nombre} ahora está ".($caja->fresh()->activa ? 'activa' : 'inactiva').'.',
@@ -127,7 +128,7 @@ new class extends Component
 
         try {
             $nombre = $caja->nombre;
-            app(CajaService::class)->eliminarCaja($caja, auth()->user());
+            app(CajaService::class)->eliminarCaja($caja, Auth::user());
 
             if ($this->cajaSeleccionadaId === $id) {
                 $this->cajaSeleccionadaId = Caja::value('id');
@@ -164,7 +165,7 @@ new class extends Component
             'formCaja.codigo' => 'required|string|max:20|unique:cajas,codigo',
         ]);
 
-        $caja = app(CajaService::class)->crearCaja($this->formCaja, auth()->user());
+        $caja = app(CajaService::class)->crearCaja($this->formCaja, Auth::user());
         $this->cajaSeleccionadaId = $caja->id;
         $this->modalNuevaCajaOpen = false;
 
@@ -176,7 +177,9 @@ new class extends Component
 
     public function mount(): void
     {
-        $userSucursalId = auth()->user()?->sucursal_id;
+        app(CajaService::class)->asegurarIndiceParcialTurnos();
+
+        $userSucursalId = Auth::user()?->sucursal_id;
         $cajasQuery = Caja::query();
         if ($userSucursalId) {
             $cajasQuery->where('sucursal_id', $userSucursalId);
@@ -199,6 +202,7 @@ new class extends Component
 
     public function abrirModalApertura(): void
     {
+        app(CajaService::class)->asegurarIndiceParcialTurnos();
         $this->mostrarModalApertura = true;
     }
 
@@ -211,13 +215,13 @@ new class extends Component
             'fondoInicial' => 'required|numeric|min:0',
         ]);
 
-        $sucursalId = auth()->user()?->sucursal_id;
+        $sucursalId = Auth::user()?->sucursal_id;
         $caja = Caja::when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
             ->findOrFail($this->cajaSeleccionadaId);
         $cajaService = app(CajaService::class);
 
         try {
-            $turno = $cajaService->abrirTurno($caja, auth()->user(), $this->fondoInicial, $this->notasApertura);
+            $turno = $cajaService->abrirTurno($caja, Auth::user(), $this->fondoInicial, $this->notasApertura);
             $this->turnoId = $turno->id;
             $this->mostrarModalApertura = false;
             $this->notasApertura = '';
@@ -227,7 +231,11 @@ new class extends Component
                 'tipo' => 'success',
             ]);
         } catch (\Exception $e) {
-            $this->addError('fondoInicial', $e->getMessage());
+            if ($e instanceof \Illuminate\Database\QueryException && str_contains($e->getMessage(), 'turnos_caja_caja_id_abierto_unique')) {
+                $this->addError('fondoInicial', "La caja {$caja->nombre} ya tiene un turno abierto actualmente.");
+            } else {
+                $this->addError('fondoInicial', $e->getMessage());
+            }
         }
     }
 
@@ -244,7 +252,7 @@ new class extends Component
     public function abrirGavetaManual(): void
     {
         $this->authorize('guardarMovimiento', TurnoCaja::class);
-        app(\App\Services\ImpresionService::class)->despacharAperturaGaveta(auth()->user());
+        app(\App\Services\ImpresionService::class)->despacharAperturaGaveta(Auth::user());
 
         $this->dispatch('notificacion', [
             'mensaje' => 'Señal de apertura enviada a la gaveta de dinero.',
@@ -254,10 +262,11 @@ new class extends Component
 
     private function obtenerTurnoValido(): TurnoCaja
     {
-        $userSucursalId = auth()->user()?->sucursal_id;
+        $userSucursalId = Auth::user()?->sucursal_id;
         $query = TurnoCaja::where('id', $this->turnoId);
 
-        if ($userSucursalId && ! in_array(auth()->user()?->role?->slug, ['admin'], true)) {
+        // rol intencional, no permiso: alcance por sucursal (identidad de dominio, no catálogo)
+        if ($userSucursalId && ! in_array(Auth::user()?->role?->slug, ['admin'], true)) {
             $query->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
         }
 
@@ -280,7 +289,8 @@ new class extends Component
 
         $this->validate($rules);
 
-        $usuarioActual = auth()->user();
+        $usuarioActual = Auth::user();
+        // rol intencional, no permiso: segregación cajero/supervisor al auto-autorizar (identidad de dominio, no catálogo)
         if (in_array($this->tipoMovimiento, ['egreso', 'retiro'])
             && strcasecmp(trim($this->autorizadoPor), trim($usuarioActual?->name ?? '')) === 0
             && ! in_array($usuarioActual?->role?->slug, ['admin', 'gerente'])) {
@@ -334,7 +344,7 @@ new class extends Component
         $cajaService = app(CajaService::class);
 
         try {
-            $turno = $cajaService->cerrarTurno($turno, $this->montoContado, auth()->user(), $this->notasCierre);
+            $turno = $cajaService->cerrarTurno($turno, $this->montoContado, Auth::user(), $this->notasCierre);
             $this->reporteZ = $cajaService->generarReporteZ($turno);
             $this->mostrarModalCierre = false;
             $this->mostrarModalReporteZ = true;
@@ -400,7 +410,7 @@ new class extends Component
             </p>
         </div>
         <div class="flex items-center gap-2">
-            @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+            @can('create', App\Models\Caja::class)
                 <button
                     wire:click="abrirModalGestionTerminales"
                     class="inline-flex items-center gap-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-surface-container-highest px-3.5 py-2 text-xs font-extrabold text-on-surface transition-all active:scale-95"
@@ -415,7 +425,7 @@ new class extends Component
                     <span class="material-symbols-outlined text-[16px]">add_box</span>
                     <span>+ Nueva Terminal</span>
                 </button>
-            @endif
+            @endcan
             <a
                 href="{{ route('pos') }}"
                 wire:navigate
@@ -792,15 +802,23 @@ new class extends Component
                 <div class="mt-6 grid grid-cols-2 gap-2">
                     <button 
                         wire:click="$set('mostrarModalApertura', false)" 
-                        class="rounded-xl border border-surface-container-high bg-surface-container py-3 text-xs font-extrabold text-on-surface-variant hover:text-on-surface"
+                        wire:loading.attr="disabled"
+                        wire:target="abrirTurno"
+                        class="rounded-xl border border-surface-container-high bg-surface-container py-3 text-xs font-extrabold text-on-surface-variant hover:text-on-surface disabled:opacity-50"
                     >
                         Cancelar
                     </button>
                     <button 
                         wire:click="abrirTurno" 
-                        class="rounded-xl bg-primary py-3 text-xs font-black text-on-primary shadow-md hover:bg-primary-container"
+                        wire:loading.attr="disabled"
+                        wire:target="abrirTurno"
+                        class="rounded-xl bg-primary py-3 text-xs font-black text-on-primary shadow-md hover:bg-primary-container disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
                     >
-                        ✓ Confirmar Apertura
+                        <span wire:loading.remove wire:target="abrirTurno">✓ Confirmar Apertura</span>
+                        <span wire:loading wire:target="abrirTurno" class="inline-flex items-center gap-1.5">
+                            <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"></span>
+                            <span>Abriendo...</span>
+                        </span>
                     </button>
                 </div>
             </div>
@@ -1251,7 +1269,7 @@ new class extends Component
                                         </button>
 
                                         <!-- BOTÓN ELIMINAR (SOLO ADMIN) -->
-                                        @if(auth()->user()?->role?->slug === 'admin')
+                                        @can('delete', App\Models\Caja::class)
                                             @if($cajaItem->turnos_count === 0)
                                                 <button 
                                                     wire:click="eliminarCaja({{ $cajaItem->id }})" 
@@ -1272,7 +1290,7 @@ new class extends Component
                                                     <span>Eliminar</span>
                                                 </button>
                                             @endif
-                                        @endif
+                                        @endcan
                                     </div>
                                 </div>
                             @endif

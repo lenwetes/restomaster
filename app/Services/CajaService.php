@@ -10,6 +10,7 @@ use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -123,6 +124,48 @@ class CajaService
     }
 
     /**
+     * Asegura de manera auto-reparable (self-healing) que la base de datos
+     * cuente con el índice único condicional (WHERE estado = 'abierto')
+     * y elimina restricciones rígidas previas de tabla si existiesen.
+     */
+    public function asegurarIndiceParcialTurnos(): void
+    {
+        try {
+            $driver = DB::getDriverName();
+            if ($driver === 'pgsql') {
+                $tieneConstraintRigido = (bool) DB::selectOne(
+                    "SELECT 1 FROM pg_constraint WHERE conname = 'turnos_caja_caja_id_abierto_unique'"
+                );
+
+                if ($tieneConstraintRigido) {
+                    $this->forzarReparacionIndiceParcial();
+                }
+            } elseif ($driver === 'sqlite') {
+                DB::statement('DROP INDEX IF EXISTS turnos_caja_caja_id_abierto_unique');
+                DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS turnos_caja_caja_id_abierto_unique ON turnos_caja (caja_id) WHERE estado = 'abierto'");
+            }
+        } catch (\Throwable) {
+            // Best effort para no bloquear si el usuario no tiene permisos DDL
+        }
+    }
+
+    /**
+     * Fuerza la corrección del índice único de turnos en PostgreSQL.
+     */
+    public function forzarReparacionIndiceParcial(): void
+    {
+        try {
+            if (DB::getDriverName() === 'pgsql') {
+                DB::statement('ALTER TABLE turnos_caja DROP CONSTRAINT IF EXISTS turnos_caja_caja_id_abierto_unique');
+                DB::statement('DROP INDEX IF EXISTS turnos_caja_caja_id_abierto_unique');
+                DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS turnos_caja_caja_id_abierto_unique ON turnos_caja (caja_id) WHERE estado = 'abierto'");
+            }
+        } catch (\Throwable) {
+            // Ignorar errores si no hay permisos DDL en tiempo de ejecución
+        }
+    }
+
+    /**
      * Open a new shift for a cash register.
      */
     public function abrirTurno(Caja $caja, User $cajero, float $fondoInicial, ?string $notas = null): TurnoCaja
@@ -131,41 +174,57 @@ class CajaService
             throw new AuthorizationException('El usuario no tiene permisos para abrir turnos de caja.');
         }
 
-        return DB::transaction(function () use ($caja, $cajero, $fondoInicial, $notas) {
-            $turnoExistente = TurnoCaja::where('caja_id', $caja->id)
-                ->where('estado', 'abierto')
-                ->first();
+        $this->asegurarIndiceParcialTurnos();
 
-            if ($turnoExistente) {
-                throw new InvalidArgumentException("La caja {$caja->nombre} ya tiene un turno abierto (#{$turnoExistente->id}).");
+        $intentos = 0;
+        while (true) {
+            $intentos++;
+            try {
+                return DB::transaction(function () use ($caja, $cajero, $fondoInicial, $notas) {
+                    $turnoExistente = TurnoCaja::where('caja_id', $caja->id)
+                        ->where('estado', 'abierto')
+                        ->first();
+
+                    if ($turnoExistente) {
+                        throw new InvalidArgumentException("La caja {$caja->nombre} ya tiene un turno abierto (#{$turnoExistente->id}).");
+                    }
+
+                    $turno = TurnoCaja::create([
+                        'caja_id' => $caja->id,
+                        'user_id' => $cajero->id,
+                        'apertura_en' => now(),
+                        'monto_inicial' => $fondoInicial,
+                        'monto_esperado_efectivo' => $fondoInicial,
+                        'estado' => 'abierto',
+                        'notas_apertura' => $notas,
+                    ]);
+
+                    // Asiento contable de fondo inicial
+                    if ($fondoInicial > 0) {
+                        AsientoContable::create([
+                            'fecha' => now()->toDateString(),
+                            'tipo' => 'ingreso',
+                            'cuenta' => 'caja_general',
+                            'concepto' => "Fondo inicial de apertura turno #{$turno->id} ({$caja->nombre})",
+                            'monto' => $fondoInicial,
+                            'referencia_tipo' => 'apertura_turno',
+                            'referencia_id' => $turno->id,
+                            'user_id' => $cajero->id,
+                        ]);
+                    }
+
+                    return $turno;
+                });
+            } catch (QueryException $e) {
+                if ($intentos === 1 && str_contains($e->getMessage(), 'turnos_caja_caja_id_abierto_unique')) {
+                    $this->forzarReparacionIndiceParcial();
+
+                    continue;
+                }
+
+                throw $e;
             }
-
-            $turno = TurnoCaja::create([
-                'caja_id' => $caja->id,
-                'user_id' => $cajero->id,
-                'apertura_en' => now(),
-                'monto_inicial' => $fondoInicial,
-                'monto_esperado_efectivo' => $fondoInicial,
-                'estado' => 'abierto',
-                'notas_apertura' => $notas,
-            ]);
-
-            // Asiento contable de fondo inicial
-            if ($fondoInicial > 0) {
-                AsientoContable::create([
-                    'fecha' => now()->toDateString(),
-                    'tipo' => 'ingreso',
-                    'cuenta' => 'caja_general',
-                    'concepto' => "Fondo inicial de apertura turno #{$turno->id} ({$caja->nombre})",
-                    'monto' => $fondoInicial,
-                    'referencia_tipo' => 'apertura_turno',
-                    'referencia_id' => $turno->id,
-                    'user_id' => $cajero->id,
-                ]);
-            }
-
-            return $turno;
-        });
+        }
     }
 
     /**

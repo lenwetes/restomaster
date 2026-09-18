@@ -3,6 +3,7 @@
 use App\Livewire\Actions\Logout;
 use App\Services\NotificacionService;
 use App\Services\PedidoService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -17,7 +18,7 @@ new class extends Component
     {
         try {
             $pedidoService = app(PedidoService::class);
-            $pedido = $pedidoService->asignarMeseroAPedidoQr($pedidoId, auth()->user());
+            $pedido = $pedidoService->asignarMeseroAPedidoQr($pedidoId, Auth::user());
             $this->notificacionFlash = "¡Has tomado la comanda de la Mesa #{$pedido->mesa?->numero}! Pedido en preparación.";
             $this->tipoNotificacionFlash = 'success';
             $this->dispatch('notificacion', [
@@ -49,7 +50,7 @@ new class extends Component
 
     public function with(): array
     {
-        $notificaciones = app(NotificacionService::class)->obtenerResumen(auth()->user());
+        $notificaciones = app(NotificacionService::class)->obtenerResumen(Auth::user());
 
         return [
             'notificaciones' => $notificaciones,
@@ -78,19 +79,19 @@ new class extends Component
                 <span class="material-symbols-outlined text-on-surface-variant text-[16px]">expand_more</span>
             </div>
 
-            @if(auth()->user()?->role?->slug === 'mesero')
+            @if(Auth::user()?->role?->slug === 'mesero')
                 <!-- Mesero Active Badge -->
                 <div class="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2 sm:px-3 py-1 rounded-full border border-primary/20 shrink-0">
                     <span class="material-symbols-outlined text-[16px]">room_service</span>
-                    <span class="text-xs font-black hidden sm:inline">Mesero: {{ auth()->user()->name }}</span>
+                    <span class="text-xs font-black hidden sm:inline">Mesero: {{ Auth::user()->name }}</span>
                     <span class="text-xs font-black sm:hidden">Mesero</span>
                     <span class="w-2 h-2 rounded-full bg-secondary animate-pulse ml-0.5" title="En servicio"></span>
                 </div>
-            @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+            @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
                 <!-- Cocina Active Badge -->
                 <div class="inline-flex items-center gap-1.5 bg-secondary/15 text-secondary px-2 sm:px-3 py-1 rounded-full border border-secondary/30 shrink-0">
                     <span class="material-symbols-outlined text-[16px]">restaurant</span>
-                    <span class="text-xs font-black hidden sm:inline">Cocina KDS: {{ auth()->user()->name }}</span>
+                    <span class="text-xs font-black hidden sm:inline">Cocina KDS: {{ Auth::user()->name }}</span>
                     <span class="text-xs font-black sm:hidden">Cocina</span>
                     <span class="w-2 h-2 rounded-full bg-secondary animate-pulse ml-0.5" title="En preparación"></span>
                 </div>
@@ -312,11 +313,11 @@ new class extends Component
                     <x-slot name="trigger">
                         <button class="inline-flex h-10 items-center gap-2 rounded-full bg-surface-container-low pl-2 pr-3 py-1 border border-surface-container-highest hover:bg-surface-container transition-colors">
                             <div class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs uppercase shadow-sm">
-                                {{ substr(auth()->user()->name, 0, 1) }}
+                                {{ substr(Auth::user()->name, 0, 1) }}
                             </div>
                             <div class="flex flex-col text-left hidden sm:flex">
-                                <span class="text-xs font-bold text-on-surface leading-tight truncate max-w-[110px]">{{ auth()->user()->name }}</span>
-                                <span class="text-[10px] text-primary font-semibold uppercase">{{ auth()->user()->role?->nombre ?? 'Chef Master' }}</span>
+                                <span class="text-xs font-bold text-on-surface leading-tight truncate max-w-[110px]">{{ Auth::user()->name }}</span>
+                                <span class="text-[10px] text-primary font-semibold uppercase">{{ Auth::user()->role?->nombre ?? 'Chef Master' }}</span>
                             </div>
                             <span class="material-symbols-outlined text-on-surface-variant text-[16px]">expand_more</span>
                         </button>
@@ -324,10 +325,10 @@ new class extends Component
 
                     <x-slot name="content">
                         <div class="px-4 py-2 text-xs border-b border-surface-container-highest bg-surface-container-low">
-                            <p class="font-bold text-on-surface">{{ auth()->user()->name }}</p>
-                            <p class="text-on-surface-variant truncate">{{ auth()->user()->email }}</p>
+                            <p class="font-bold text-on-surface">{{ Auth::user()->name }}</p>
+                            <p class="text-on-surface-variant truncate">{{ Auth::user()->email }}</p>
                             <span class="mt-1 inline-block rounded bg-primary-container px-1.5 py-0.5 text-[10px] font-bold text-on-primary uppercase">
-                                {{ auth()->user()->role?->nombre ?? 'Usuario' }}
+                                {{ Auth::user()->role?->nombre ?? 'Usuario' }}
                             </span>
                         </div>
 
@@ -336,7 +337,7 @@ new class extends Component
                             <span>Mi Perfil</span>
                         </x-dropdown-link>
 
-                        @if (auth()->user()?->role?->slug === 'admin')
+                        @if (Auth::user()?->role?->slug === 'admin')
                             <x-dropdown-link :href="route('trabajadores')" wire:navigate class="flex items-center gap-2 text-xs py-2 text-on-surface">
                                 <span class="material-symbols-outlined text-[18px] text-on-surface-variant">manage_accounts</span>
                                 <span>Configuración de Perfiles</span>
@@ -372,9 +373,9 @@ new class extends Component
             <!-- Subtitle Section -->
             <div class="px-4 py-2.5">
                 <span class="text-[11px] uppercase font-bold tracking-wider text-on-surface-variant">
-                    @if(auth()->user()?->role?->slug === 'mesero')
+                    @if(Auth::user()?->role?->slug === 'mesero')
                         Servicio en Salón
-                    @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+                    @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
                         Producción & KDS
                     @else
                         Módulos de Servicio
@@ -384,7 +385,7 @@ new class extends Component
 
             <!-- Navigation Links -->
             <nav class="flex flex-col gap-1 px-3">
-                @if(auth()->user()?->role?->slug === 'mesero')
+                @if(Auth::user()?->role?->slug === 'mesero')
                     <!-- Card de Terminal Mesero -->
                     <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20 shadow-xs">
                         <div class="flex items-center gap-2.5">
@@ -436,7 +437,7 @@ new class extends Component
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
                     </a>
-                @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+                @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
                     <!-- Card de Cocina KDS -->
                     <div class="mb-2 p-3 rounded-2xl bg-secondary/15 border border-secondary/30 shadow-xs">
                         <div class="flex items-center gap-2.5">
@@ -541,7 +542,7 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">INV</span>
                 </a>
 
-                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
                     <!-- Carta & Menú (MEN-01) -->
                     <a 
                         href="{{ route('menu') }}" 
@@ -595,20 +596,22 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
                 </a>
 
-                <!-- Reportes DIAN (REP-01) -->
-                <a 
-                    href="{{ route('reportes') }}" 
-                    wire:navigate
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
-                >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">monitoring</span>
-                        <span>Reportes DIAN</span>
-                    </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">REP</span>
-                </a>
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Reportes DIAN (REP-01) -->
+                    <a 
+                        href="{{ route('reportes') }}" 
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">monitoring</span>
+                            <span>Reportes DIAN</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">REP</span>
+                    </a>
+                @endif
 
-                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
                     <!-- Impresión & Spooler (IMP-01) -->
                     <a 
                         href="{{ route('impresion') }}" 
@@ -623,7 +626,7 @@ new class extends Component
                     </a>
                 @endif
 
-                @if (auth()->user()?->role?->slug === 'admin')
+                @if (Auth::user()?->role?->slug === 'admin')
                     <!-- Configuración (CFG-01) -->
                     <a 
                         href="{{ route('configuracion') }}" 
@@ -700,7 +703,7 @@ new class extends Component
 
             <!-- Mobile Drawer Links -->
             <div class="mt-3 flex-1 space-y-1 overflow-y-auto px-3">
-                @if(auth()->user()?->role?->slug === 'mesero')
+                @if(Auth::user()?->role?->slug === 'mesero')
                     <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20">
                         <div class="flex items-center gap-2.5">
                             <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm">
@@ -751,7 +754,7 @@ new class extends Component
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
                     </a>
-                @elseif(in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true))
+                @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
                     <div class="mb-2 p-3 rounded-2xl bg-secondary/15 border border-secondary/30">
                         <div class="flex items-center gap-2.5">
                             <div class="w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-sm shadow-sm">
@@ -855,7 +858,7 @@ new class extends Component
                     <span class="text-[10px] font-bold">INV</span>
                 </a>
 
-                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
                     <a 
                         href="{{ route('menu') }}" 
                         @click="mobileMenuOpen = false" 
@@ -909,20 +912,22 @@ new class extends Component
                     <span class="text-[10px] font-bold">RES</span>
                 </a>
 
-                <a 
-                    href="{{ route('reportes') }}" 
-                    @click="mobileMenuOpen = false" 
-                    wire:navigate 
-                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
-                >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">monitoring</span>
-                        <span>Reportes DIAN</span>
-                    </div>
-                    <span class="text-[10px] font-bold">REP</span>
-                </a>
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <a 
+                        href="{{ route('reportes') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">monitoring</span>
+                            <span>Reportes DIAN</span>
+                        </div>
+                        <span class="text-[10px] font-bold">REP</span>
+                    </a>
+                @endif
 
-                @if (in_array(auth()->user()?->role?->slug, ['admin', 'gerente']))
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
                     <a 
                         href="{{ route('impresion') }}" 
                         @click="mobileMenuOpen = false" 
@@ -937,7 +942,7 @@ new class extends Component
                     </a>
                 @endif
 
-                @if (auth()->user()?->role?->slug === 'admin')
+                @if (Auth::user()?->role?->slug === 'admin')
                     <a 
                         href="{{ route('configuracion') }}" 
                         @click="mobileMenuOpen = false" 

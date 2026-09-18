@@ -5,6 +5,7 @@ use App\Models\DireccionCliente;
 use App\Models\MovimientoPuntos;
 use App\Services\ClienteService;
 use App\Services\FidelizacionService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
@@ -222,7 +223,7 @@ new class extends Component
         $cliente = Cliente::findOrFail($this->clienteSeleccionadoId);
         $puntos = $this->tipoAjuste === 'suma' ? $this->puntosAjuste : -$this->puntosAjuste;
 
-        app(FidelizacionService::class)->ajustarPuntos($cliente, $puntos, $this->motivoAjuste, auth()->user());
+        app(FidelizacionService::class)->ajustarPuntos($cliente, $puntos, $this->motivoAjuste, Auth::user());
         $this->mostrarModalPuntos = false;
         $this->dispatch('notificacion', ['mensaje' => 'Puntos actualizados correctamente.', 'tipo' => 'success']);
     }

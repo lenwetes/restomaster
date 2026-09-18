@@ -3,16 +3,20 @@
 use App\Http\Controllers\ReporteExportController;
 use App\Http\Controllers\ReservaPublicaController;
 use App\Http\Controllers\ReservaWebhookController;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
 Route::view('/', 'welcome');
 
 Route::get('dashboard', function () {
-    if (auth()->user()?->role?->slug === 'mesero') {
+    /** @var User|null $user */
+    $user = Auth::user();
+    if ($user?->role?->slug === 'mesero') {
         return redirect()->route('pos');
     }
-    if (in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true)) {
+    if (in_array($user?->role?->slug, ['cocina', 'barra'], true)) {
         return redirect()->route('cocina');
     }
 
@@ -40,9 +44,9 @@ Volt::route('carta', 'menu.carta-publica')->middleware('throttle:60,1')->name('c
 Route::middleware(['auth'])->group(function () {
     Volt::route('mesas', 'mesas.index')->middleware('role:mesero,cajero,gerente')->name('mesas');
     Volt::route('pos', 'pos.terminal')->middleware('role:mesero,cajero,gerente')->name('pos');
-    Volt::route('cocina', 'cocina.kds')->middleware('role:cocina,barra,gerente')->name('cocina');
+    Volt::route('cocina', 'cocina.kds')->middleware('role:admin,gerente,cocina,barra,cajero')->name('cocina');
     Volt::route('caja', 'caja.control')->middleware('role:cajero,gerente')->name('caja');
-    Volt::route('inventario', 'inventario.index')->middleware('role:gerente')->name('inventario');
+    Volt::route('inventario', 'inventario.index')->middleware('role:gerente,cajero')->name('inventario');
     Volt::route('clientes', 'clientes.index')->middleware('role:cajero,gerente')->name('clientes');
     Volt::route('delivery', 'delivery.index')->middleware('role:cajero,delivery,repartidor,gerente')->name('delivery');
     Volt::route('trabajadores', 'trabajadores.index')->middleware('role:admin')->name('trabajadores');

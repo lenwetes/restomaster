@@ -35,6 +35,7 @@ class MenuService
                     'nombre' => $categoria->nombre,
                     'slug' => $categoria->slug,
                     'icono' => $categoria->icono,
+                    'color' => $categoria->color ?? '#e11d48',
                     'productos' => $categoria->productos
                         ->map(fn (Producto $producto) => [
                             'id' => $producto->id,
@@ -79,6 +80,7 @@ class MenuService
             'nombre' => $nombre,
             'slug' => $slug,
             'icono' => $datos['icono'] ?? '🍣',
+            'color' => $datos['color'] ?? '#e11d48',
             'orden' => (int) ($datos['orden'] ?? 0),
             'activo' => $datos['activo'] ?? true,
         ]);
@@ -90,7 +92,7 @@ class MenuService
             entidad: 'categoria',
             entidadId: $categoria->id,
             descripcion: "Se creó la categoría {$nombre}",
-            datos: ['nombre' => $nombre, 'icono' => $categoria->icono, 'orden' => $categoria->orden],
+            datos: ['nombre' => $nombre, 'icono' => $categoria->icono, 'color' => $categoria->color, 'orden' => $categoria->orden],
         );
 
         return $categoria;
@@ -117,7 +119,7 @@ class MenuService
             $categoria->slug = $slug;
         }
 
-        foreach (['icono', 'orden', 'activo'] as $campo) {
+        foreach (['icono', 'color', 'orden', 'activo'] as $campo) {
             if (array_key_exists($campo, $datos)) {
                 $categoria->{$campo} = $datos[$campo];
             }

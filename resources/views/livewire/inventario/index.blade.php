@@ -4,10 +4,14 @@ use Livewire\Volt\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use App\Models\Insumo;
+use App\Models\CategoriaInsumo;
 use App\Models\Producto;
 use App\Models\Receta;
 use App\Models\MovimientoInventario;
 use App\Services\InventarioService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 new
 #[Layout('layouts.app')]
@@ -18,12 +22,22 @@ class extends Component {
     public string $selectedFiltro = 'todos'; // todos, criticos, por_agotar, optimo
     public ?int $selectedInsumoId = null;
 
-    // Modals
+    // Modales Operativos
     public bool $modalMermaOpen = false;
     public bool $modalCompraOpen = false;
     public bool $modalAjusteOpen = false;
     public bool $modalNuevoInsumoOpen = false;
     public bool $modalRecetaOpen = false;
+    public bool $modalRestriccionOpen = false;
+    public string $mensajeRestriccion = '';
+
+    // Modal Gestión de Categorías de Insumos
+    public bool $modalCategoriasOpen = false;
+    public ?int $categoriaInsumoId = null;
+    public string $catNombre = '';
+    public string $catIcono = 'inventory_2';
+    public string $catColor = '#6366f1';
+    public string $catDescripcion = '';
 
     // Formulario Merma
     public float $mermaCantidad = 0.5;
@@ -42,7 +56,8 @@ class extends Component {
     // Formulario Nuevo Insumo
     public string $nuevoNombre = '';
     public string $nuevoCodigo = '';
-    public string $nuevaCategoria = 'pescados';
+    public ?int $nuevoCategoriaId = null;
+    public string $nuevaCategoria = '';
     public string $nuevaUnidad = 'kg';
     public float $nuevoStockActual = 0.0;
     public float $nuevoStockMinimo = 5.0;
@@ -70,10 +85,119 @@ class extends Component {
             $this->compraProveedor = $insumo->proveedor_nombre ?? '';
             $this->ajusteNuevoStock = (float) $insumo->stock_actual;
         }
+        $this->mensajeExito = null;
+    }
+
+    public function notificarAccesoRestringido(string $accion): void
+    {
+        $this->mensajeRestriccion = "Acción reservada exclusivamente para el Administrador o Gerente de Sucursal. Como cajero con facultades de consulta, puedes revisar existencias, costos y movimientos, pero los registros de compras, mermas y ajustes deben ser ejecutados o autorizados por un Gerente.";
+        $this->modalRestriccionOpen = true;
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Acceso restringido: El rol Cajero tiene permisos de solo lectura en Inventario. No puedes {$accion}.",
+            'tipo' => 'warning',
+        ]);
+    }
+
+    public function cerrarModalRestriccion(): void
+    {
+        $this->modalRestriccionOpen = false;
+    }
+
+    // GESTIÓN DE CATEGORÍAS DE INSUMOS
+    public function abrirModalCategorias(): void
+    {
+        if (Gate::denies('create', Insumo::class)) {
+            $this->notificarAccesoRestringido('gestionar categorías de inventario');
+            return;
+        }
+        $this->cancelarEdicionCategoria();
+        $this->modalCategoriasOpen = true;
+    }
+
+    public function editarCategoriaInsumo(int $id): void
+    {
+        if (Gate::denies('create', Insumo::class)) {
+            $this->notificarAccesoRestringido('gestionar categorías de inventario');
+            return;
+        }
+        $cat = CategoriaInsumo::findOrFail($id);
+        $this->categoriaInsumoId = $cat->id;
+        $this->catNombre = $cat->nombre;
+        $this->catIcono = $cat->icono;
+        $this->catColor = $cat->color;
+        $this->catDescripcion = $cat->descripcion ?? '';
+    }
+
+    public function cancelarEdicionCategoria(): void
+    {
+        $this->categoriaInsumoId = null;
+        $this->catNombre = '';
+        $this->catIcono = 'inventory_2';
+        $this->catColor = '#6366f1';
+        $this->catDescripcion = '';
+    }
+
+    public function guardarCategoriaInsumo(): void
+    {
+        if (Gate::denies('create', Insumo::class)) {
+            $this->notificarAccesoRestringido('gestionar categorías de inventario');
+            return;
+        }
+
+        $this->validate([
+            'catNombre' => 'required|min:2|max:60',
+            'catIcono' => 'required|string',
+            'catColor' => 'required|string',
+        ]);
+
+        if ($this->categoriaInsumoId) {
+            $cat = CategoriaInsumo::findOrFail($this->categoriaInsumoId);
+            $cat->update([
+                'nombre' => $this->catNombre,
+                'slug' => Str::slug($this->catNombre),
+                'icono' => $this->catIcono,
+                'color' => $this->catColor,
+                'descripcion' => $this->catDescripcion,
+            ]);
+            $this->mensajeExito = "Categoría '{$cat->nombre}' actualizada con éxito.";
+        } else {
+            $cat = CategoriaInsumo::create([
+                'nombre' => $this->catNombre,
+                'slug' => Str::slug($this->catNombre),
+                'icono' => $this->catIcono,
+                'color' => $this->catColor,
+                'descripcion' => $this->catDescripcion,
+            ]);
+            $this->mensajeExito = "Categoría '{$cat->nombre}' creada con éxito.";
+        }
+
+        $this->cancelarEdicionCategoria();
+    }
+
+    public function eliminarCategoriaInsumo(int $id): void
+    {
+        if (Gate::denies('delete', Insumo::class)) {
+            $this->notificarAccesoRestringido('eliminar categorías de inventario');
+            return;
+        }
+        $cat = CategoriaInsumo::findOrFail($id);
+        $nombre = $cat->nombre;
+        $cat->delete();
+        $this->mensajeExito = "Categoría '{$nombre}' eliminada.";
+        if ($this->categoriaInsumoId === $id) {
+            $this->cancelarEdicionCategoria();
+        }
     }
 
     public function abrirModalMerma(int $insumoId): void
     {
+        if (Gate::denies('registrarMerma', Insumo::class)) {
+            $this->notificarAccesoRestringido('registrar mermas operativas');
+
+            return;
+        }
+
         $this->selectInsumo($insumoId);
         $this->mermaCantidad = 0.5;
         $this->mermaMotivo = 'Merma operativa en estación de preparación';
@@ -82,6 +206,12 @@ class extends Component {
 
     public function abrirModalCompra(int $insumoId): void
     {
+        if (Gate::denies('registrarCompra', Insumo::class)) {
+            $this->notificarAccesoRestringido('ingresar compras y facturas de proveedor');
+
+            return;
+        }
+
         $this->selectInsumo($insumoId);
         $insumo = Insumo::find($insumoId);
         $this->compraCantidad = max(5.0, round(((float) $insumo->stock_minimo * 2) - (float) $insumo->stock_actual, 1));
@@ -93,11 +223,28 @@ class extends Component {
 
     public function abrirModalAjuste(int $insumoId): void
     {
+        if (Gate::denies('ajusteFisico', Insumo::class)) {
+            $this->notificarAccesoRestringido('realizar ajustes de conteo físico');
+
+            return;
+        }
+
         $this->selectInsumo($insumoId);
         $insumo = Insumo::find($insumoId);
         $this->ajusteNuevoStock = (float) $insumo->stock_actual;
         $this->ajusteMotivo = 'Conteo físico verificado por Jefe de Cocina';
         $this->modalAjusteOpen = true;
+    }
+
+    public function abrirModalNuevoInsumo(): void
+    {
+        if (Gate::denies('create', Insumo::class)) {
+            $this->notificarAccesoRestringido('crear nuevos insumos');
+
+            return;
+        }
+
+        $this->modalNuevoInsumoOpen = true;
     }
 
     public function registrarMerma(InventarioService $service): void
@@ -110,19 +257,17 @@ class extends Component {
             'mermaMotivo' => 'nullable|string|max:255',
         ]);
 
-        try {
-            $service->registrarMerma(
-                $this->selectedInsumoId,
-                $this->mermaCantidad,
-                $this->mermaMotivo,
-                auth()->id()
-            );
+        $insumo = Insumo::findOrFail($this->selectedInsumoId);
+        $service->registrarMerma(
+            $insumo,
+            (float) $this->mermaCantidad,
+            $this->mermaMotivo,
+            Auth::id() ?? 1
+        );
 
-            $this->modalMermaOpen = false;
-            $this->mensajeExito = "Merma de {$this->mermaCantidad} registrada correctamente.";
-        } catch (\DomainException $e) {
-            $this->addError('mermaCantidad', $e->getMessage());
-        }
+        $this->selectInsumo($insumo->id);
+        $this->modalMermaOpen = false;
+        $this->mensajeExito = "Merma de {$this->mermaCantidad} {$insumo->unidad_medida} registrada con éxito.";
     }
 
     public function registrarCompra(InventarioService $service): void
@@ -131,23 +276,25 @@ class extends Component {
 
         $this->validate([
             'selectedInsumoId' => 'required|exists:insumos,id',
-            'compraCantidad' => 'required|numeric|min:0.01',
+            'compraCantidad' => 'required|numeric|min:0.1',
             'compraCostoUnitario' => 'required|numeric|min:0',
             'compraProveedor' => 'nullable|string|max:255',
-            'compraFactura' => 'nullable|string|max:255',
+            'compraFactura' => 'nullable|string|max:100',
         ]);
 
+        $insumo = Insumo::findOrFail($this->selectedInsumoId);
         $service->registrarCompra(
-            $this->selectedInsumoId,
-            $this->compraCantidad,
-            $this->compraCostoUnitario,
+            $insumo,
+            (float) $this->compraCantidad,
+            (float) $this->compraCostoUnitario,
             $this->compraProveedor,
             $this->compraFactura,
-            auth()->id()
+            Auth::id() ?? 1
         );
 
+        $this->selectInsumo($insumo->id);
         $this->modalCompraOpen = false;
-        $this->mensajeExito = "Ingreso de {$this->compraCantidad} registrado y costo promedio actualizado.";
+        $this->mensajeExito = "Compra de {$this->compraCantidad} {$insumo->unidad_medida} ingresada al Kardex.";
     }
 
     public function registrarAjuste(InventarioService $service): void
@@ -160,13 +307,15 @@ class extends Component {
             'ajusteMotivo' => 'nullable|string|max:255',
         ]);
 
+        $insumo = Insumo::findOrFail($this->selectedInsumoId);
         $service->registrarAjuste(
-            $this->selectedInsumoId,
-            $this->ajusteNuevoStock,
-            $this->ajusteMotivo,
-            auth()->id()
+            (int) $insumo->id,
+            (float) $this->ajusteNuevoStock,
+            (string) ($this->ajusteMotivo ?? 'Ajuste físico de inventario'),
+            Auth::id() ?? 1
         );
 
+        $this->selectInsumo($insumo->id);
         $this->modalAjusteOpen = false;
         $this->mensajeExito = "Stock ajustado a {$this->ajusteNuevoStock} correctamente.";
     }
@@ -178,16 +327,18 @@ class extends Component {
         $this->validate([
             'nuevoNombre' => 'required|min:3',
             'nuevoCodigo' => 'required|unique:insumos,codigo',
-            'nuevaCategoria' => 'required',
-            'nuevaUnidad' => 'required',
             'nuevoStockMinimo' => 'required|numeric|min:0.1',
             'nuevoCostoUnitario' => 'required|numeric|min:0',
         ]);
 
+        $categoriaInsumo = $this->nuevoCategoriaId ? CategoriaInsumo::find($this->nuevoCategoriaId) : null;
+        $nombreCat = $categoriaInsumo ? $categoriaInsumo->nombre : ($this->nuevaCategoria ?: 'General');
+
         $insumo = Insumo::create([
+            'categoria_id' => $categoriaInsumo?->id,
             'nombre' => $this->nuevoNombre,
             'codigo' => strtoupper($this->nuevoCodigo),
-            'categoria' => $this->nuevaCategoria,
+            'categoria' => $nombreCat,
             'unidad_medida' => $this->nuevaUnidad,
             'stock_actual' => $this->nuevoStockActual,
             'stock_minimo' => $this->nuevoStockMinimo,
@@ -199,12 +350,16 @@ class extends Component {
 
         $this->selectedInsumoId = $insumo->id;
         $this->modalNuevoInsumoOpen = false;
+        $this->nuevoNombre = '';
+        $this->nuevoCodigo = '';
+        $this->nuevaCategoria = '';
+        $this->nuevoCategoriaId = null;
         $this->mensajeExito = "Insumo {$insumo->nombre} catalogado con éxito.";
     }
 
     public function with(InventarioService $service): array
     {
-        $query = Insumo::where('activo', true);
+        $query = Insumo::with(['categoriaInsumo'])->where('activo', true);
 
         if ($this->search !== '') {
             $query->where(function ($q) {
@@ -215,7 +370,10 @@ class extends Component {
         }
 
         if ($this->selectedCategoria !== 'todas') {
-            $query->where('categoria', $this->selectedCategoria);
+            $query->where(function ($q) {
+                $q->where('categoria_id', $this->selectedCategoria)
+                  ->orWhere('categoria', $this->selectedCategoria);
+            });
         }
 
         if ($this->selectedFiltro === 'criticos') {
@@ -231,25 +389,84 @@ class extends Component {
             ->get();
 
         $selectedInsumo = $this->selectedInsumoId 
-            ? Insumo::with(['recetas.producto', 'movimientos.pedido', 'movimientos.user'])->find($this->selectedInsumoId)
+            ? Insumo::with(['categoriaInsumo', 'recetas.producto', 'movimientos.pedido', 'movimientos.user'])->find($this->selectedInsumoId)
             : $insumos->first();
 
         $kpis = $service->obtenerKpis();
+
+        $categoriasBd = CategoriaInsumo::where('activo', true)->orderBy('orden')->orderBy('nombre')->get();
+        $categorias = [];
+        if ($categoriasBd->isNotEmpty()) {
+            $categorias['todas'] = [
+                'id' => 'todas',
+                'label' => 'Todas',
+                'icono' => 'apps',
+                'color' => '#64748b',
+            ];
+            foreach ($categoriasBd as $cat) {
+                $categorias[(string) $cat->id] = [
+                    'id' => (string) $cat->id,
+                    'label' => $cat->nombre,
+                    'icono' => $cat->icono,
+                    'color' => $cat->color,
+                ];
+            }
+        }
+
+        $paletaColores = [
+            '#ef4444' => 'Rojo',
+            '#f97316' => 'Naranja',
+            '#f59e0b' => 'Ámbar',
+            '#eab308' => 'Amarillo',
+            '#84cc16' => 'Lima',
+            '#10b981' => 'Esmeralda',
+            '#14b8a6' => 'Teal',
+            '#06b6d4' => 'Cian',
+            '#0ea5e9' => 'Cielo',
+            '#3b82f6' => 'Azul',
+            '#6366f1' => 'Índigo',
+            '#8b5cf6' => 'Violeta',
+            '#a855f7' => 'Púrpura',
+            '#d946ef' => 'Fucsia',
+            '#ec4899' => 'Rosa',
+            '#64748b' => 'Pizarra',
+        ];
+
+        $iconosDisponibles = [
+            'inventory_2' => 'Almacén',
+            'restaurant' => 'Cocina',
+            'lunch_dining' => 'Carnes',
+            'local_pizza' => 'Pizzas',
+            'set_meal' => 'Pescados',
+            'egg' => 'Lácteos & Huevos',
+            'bakery_dining' => 'Panadería',
+            'nutrition' => 'Vegetales',
+            'grain' => 'Granos',
+            'soup_kitchen' => 'Salsas',
+            'local_bar' => 'Bebidas',
+            'liquor' => 'Licores',
+            'wine_bar' => 'Vinos',
+            'coffee' => 'Café',
+            'water_drop' => 'Aceites',
+            'package_2' => 'Empaques',
+            'icecream' => 'Postres',
+            'ac_unit' => 'Cámara Fría',
+            'device_thermostat' => 'Refrigeración',
+            'shopping_bag' => 'Despacho',
+            'sanitizer' => 'Limpieza',
+            'eco' => 'Orgánico',
+            'star' => 'Especial',
+            'label' => 'General',
+        ];
 
         return [
             'insumos' => $insumos,
             'selectedInsumo' => $selectedInsumo,
             'kpis' => $kpis,
-            'categorias' => [
-                'todas' => 'Todas',
-                'pescados' => 'Pescados & Mariscos',
-                'arroz_granos' => 'Arroz & Granos',
-                'algas_nori' => 'Algas & Nori',
-                'vegetales' => 'Frutas & Vegetales',
-                'lacteos_quesos' => 'Lácteos & Quesos',
-                'salsas_condimentos' => 'Salsas & Condimentos',
-                'packaging' => 'Packaging & Empaques',
-            ],
+            'categorias' => $categorias,
+            'categoriasBd' => $categoriasBd,
+            'paletaColores' => $paletaColores,
+            'iconosDisponibles' => $iconosDisponibles,
         ];
     }
 }; ?>
@@ -295,6 +512,12 @@ class extends Component {
 
         <!-- Action Buttons -->
         <div class="flex items-center gap-2 flex-wrap self-start lg:self-center">
+            @if(Auth::user()?->role?->slug === 'cajero')
+                <div class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-800 text-xs font-bold shadow-xs">
+                    <span class="material-symbols-outlined text-[18px] text-amber-700">lock</span>
+                    <span>Modo Consulta (Solo Lectura)</span>
+                </div>
+            @endif
             <button wire:click="abrirModalAjuste({{ $selectedInsumoId ?? 1 }})"
                     class="h-11 px-4 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-surface-container-highest text-on-surface font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-sm">
                 <span class="material-symbols-outlined text-[18px] text-primary">rule</span>
@@ -310,7 +533,12 @@ class extends Component {
                 <span class="material-symbols-outlined text-[18px] text-secondary">receipt</span>
                 <span>Factura Proveedor</span>
             </button>
-            <button wire:click="$set('modalNuevoInsumoOpen', true)"
+            <button wire:click="abrirModalCategorias"
+                    class="h-11 px-4 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-surface-container-highest text-on-surface font-semibold text-sm flex items-center gap-2 transition-all active:scale-95 shadow-sm">
+                <span class="material-symbols-outlined text-[18px] text-primary">palette</span>
+                <span>Categorías</span>
+            </button>
+            <button wire:click="abrirModalNuevoInsumo"
                     class="h-11 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-bold text-sm shadow-md shadow-primary/20 flex items-center gap-2 transition-all active:scale-95">
                 <span class="material-symbols-outlined text-[20px]">add_circle</span>
                 <span>+ Nuevo Insumo</span>
@@ -423,7 +651,7 @@ class extends Component {
                 <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
                 <input wire:model.live.debounce.300ms="search" 
                        type="text"
-                       placeholder="Buscar por insumo, código SKU (ej. SKU-PES-01), o proveedor..."
+                       placeholder="Buscar por insumo, código SKU (ej. SKU-001), o proveedor..."
                        class="w-full h-11 pl-11 pr-4 rounded-xl bg-surface-container-low focus:bg-surface-container border border-surface-container-high text-on-surface placeholder-on-surface-variant/70 text-sm outline-none transition-all" />
             </div>
 
@@ -449,18 +677,28 @@ class extends Component {
             </div>
         </div>
 
-        <!-- Categories Scrollable Pills -->
-        <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-            @foreach ($categorias as $key => $label)
-                <button wire:click="$set('selectedCategoria', '{{ $key }}')"
-                        class="h-9 px-4 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5
-                        {{ $selectedCategoria === $key 
-                            ? 'bg-primary text-on-primary shadow-sm' 
-                            : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface border border-surface-container-high' }}">
-                    <span>{{ $label }}</span>
-                </button>
-            @endforeach
-        </div>
+        @if (count($categorias) > 1)
+            <!-- Categories Scrollable Pills con Color e Ícono Personalizados -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                @foreach ($categorias as $key => $catData)
+                    @php
+                        $isSelected = (string) $selectedCategoria === (string) $key;
+                        $catColor = $catData['color'] ?? '#6366f1';
+                        $catIcon = $catData['icono'] ?? 'category';
+                    @endphp
+                    <button wire:click="$set('selectedCategoria', '{{ $key }}')"
+                            @style(['background-color: ' . $catColor => $isSelected, 'color: #ffffff' => $isSelected, 'border-color: ' . $catColor => $isSelected, 'border-color: ' . $catColor . '35' => !$isSelected])
+                            class="h-9 px-4 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 border
+                            {{ $isSelected 
+                                ? 'shadow-sm' 
+                                : 'bg-surface-container-low text-on-surface hover:bg-surface-container' }}">
+                        <span class="material-symbols-outlined text-[16px] {{ $isSelected ? 'text-white' : '' }}" 
+                              @style(['color: ' . $catColor => !$isSelected])>{{ $catIcon }}</span>
+                        <span>{{ $catData['label'] }}</span>
+                    </button>
+                @endforeach
+            </div>
+        @endif
     </section>
 
     <!-- Main Content Split Layout (Table / Live Traceability Card) -->
@@ -505,22 +743,10 @@ class extends Component {
                                 {{ $isSelected ? 'bg-primary/5 border-l-4 border-primary' : ($isCritico ? 'bg-error-container/15 hover:bg-error-container/25' : 'hover:bg-surface-container-low/60') }}">
                                 <td class="py-3.5 px-4 rounded-l-xl">
                                     <div class="flex items-center gap-3">
-                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
-                                            {{ $isCritico ? 'bg-error-container text-error' : 'bg-surface-container text-primary' }}">
+                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-2xs border transition-all"
+                                             @style(['background-color: ' . $insumo->color . '20', 'border-color: ' . $insumo->color . '40', 'color: ' . $insumo->color])>
                                             <span class="material-symbols-outlined text-[22px]">
-                                                @if ($insumo->categoria === 'pescados')
-                                                    phishing
-                                                @elseif ($insumo->categoria === 'arroz_granos')
-                                                    rice_bowl
-                                                @elseif ($insumo->categoria === 'vegetales')
-                                                    nutrition
-                                                @elseif ($insumo->categoria === 'lacteos_quesos')
-                                                    egg
-                                                @elseif ($insumo->categoria === 'packaging')
-                                                    inventory_2
-                                                @else
-                                                    set_meal
-                                                @endif
+                                                {{ $insumo->icono }}
                                             </span>
                                         </div>
                                         <div class="flex flex-col min-w-0">
@@ -530,8 +756,12 @@ class extends Component {
                                                     <span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
                                                 @endif
                                             </span>
-                                            <span class="text-xs text-on-surface-variant flex items-center gap-1">
+                                            <span class="text-xs text-on-surface-variant flex items-center gap-1.5 flex-wrap">
                                                 <span class="font-mono text-primary font-bold">{{ $insumo->codigo }}</span>
+                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                                                      @style(['background-color: ' . $insumo->color . '15', 'border-color: ' . $insumo->color . '30', 'color: ' . $insumo->color])>
+                                                    {{ $insumo->nombre_categoria }}
+                                                </span>
                                                 · {{ $insumo->ubicacion_almacen ?? 'Almacén general' }}
                                             </span>
                                         </div>
@@ -550,7 +780,7 @@ class extends Component {
                                         <div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
                                             <div class="h-full rounded-full transition-all duration-500
                                                 {{ $isCritico ? 'bg-error' : ($isPorAgotar ? 'bg-tertiary' : 'bg-secondary') }}"
-                                                style="width: {{ $insumo->porcentaje_stock }}%;"></div>
+                                                @style(['width: ' . min(100, max(0, (float) $insumo->porcentaje_stock)) . '%'])></div>
                                         </div>
                                         @if ($isCritico)
                                             <span class="text-[11px] text-error font-extrabold flex items-center gap-0.5">
@@ -640,8 +870,9 @@ class extends Component {
                             <h3 class="text-xl font-extrabold text-on-surface leading-tight mt-0.5">
                                 {{ $selectedInsumo->nombre }}
                             </h3>
-                            <span class="text-xs text-on-surface-variant font-medium">
-                                {{ ucfirst($selectedInsumo->categoria) }} · {{ $selectedInsumo->ubicacion_almacen ?? 'Almacén general' }}
+                            <span class="text-xs text-on-surface-variant font-medium flex items-center gap-1.5 mt-0.5">
+                                <span class="w-2 h-2 rounded-full" @style(['background-color: ' . $selectedInsumo->color])></span>
+                                <span>{{ $selectedInsumo->nombre_categoria }} · {{ $selectedInsumo->ubicacion_almacen ?? 'Almacén general' }}</span>
                             </span>
                         </div>
                         @if ($isSelCritico)
@@ -655,20 +886,12 @@ class extends Component {
                         @endif
                     </div>
 
-                    <!-- Visual Insumo Image Banner -->
-                    <div class="relative w-full h-32 rounded-2xl overflow-hidden bg-surface-container-low border border-surface-container-high flex items-center justify-center">
-                        <div class="absolute inset-0 bg-gradient-to-t from-surface-container-highest/60 via-transparent to-transparent z-10"></div>
-                        <div class="flex flex-col items-center justify-center text-on-surface-variant/40 z-0">
-                            <span class="material-symbols-outlined text-6xl">
-                                @if ($selectedInsumo->categoria === 'pescados')
-                                    phishing
-                                @elseif ($selectedInsumo->categoria === 'arroz_granos')
-                                    rice_bowl
-                                @elseif ($selectedInsumo->categoria === 'vegetales')
-                                    nutrition
-                                @else
-                                    kitchen
-                                @endif
+                    <!-- Visual Insumo Image Banner con color e ícono heredados -->
+                    <div class="relative w-full h-32 rounded-2xl overflow-hidden border flex items-center justify-center transition-all"
+                         @style(['background: linear-gradient(135deg, ' . $selectedInsumo->color . '22 0%, ' . $selectedInsumo->color . '0a 100%)', 'border-color: ' . $selectedInsumo->color . '40'])>
+                        <div class="flex flex-col items-center justify-center" @style(['color: ' . $selectedInsumo->color])>
+                            <span class="material-symbols-outlined text-6xl drop-shadow-xs">
+                                {{ $selectedInsumo->icono }}
                             </span>
                         </div>
                         <div class="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-on-surface z-20 text-xs">
@@ -1024,7 +1247,7 @@ class extends Component {
                         </div>
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Código SKU *</label>
-                            <input type="text" wire:model="nuevoCodigo" placeholder="SKU-PES-05"
+                            <input type="text" wire:model="nuevoCodigo" placeholder="SKU-001"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-mono text-sm uppercase focus:border-primary outline-none" />
                             @error('nuevoCodigo') <span class="text-error text-xs">{{ $message }}</span> @enderror
                         </div>
@@ -1032,17 +1255,20 @@ class extends Component {
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Categoría</label>
-                            <select wire:model="nuevaCategoria"
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-xs text-on-surface-variant font-bold uppercase">Categoría *</label>
+                                <button type="button" wire:click="abrirModalCategorias" class="text-[11px] text-primary hover:underline font-bold flex items-center gap-0.5 cursor-pointer">
+                                    <span class="material-symbols-outlined text-[13px]">palette</span> + Nueva
+                                </button>
+                            </div>
+                            <select wire:model="nuevoCategoriaId"
                                     class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none">
-                                <option value="pescados">Pescados & Mariscos</option>
-                                <option value="arroz_granos">Arroz & Granos</option>
-                                <option value="algas_nori">Algas & Nori</option>
-                                <option value="vegetales">Frutas & Vegetales</option>
-                                <option value="lacteos_quesos">Lácteos & Quesos</option>
-                                <option value="salsas_condimentos">Salsas & Condimentos</option>
-                                <option value="packaging">Packaging & Empaques</option>
+                                <option value="">-- Seleccionar Categoría --</option>
+                                @foreach ($categoriasBd as $catItem)
+                                    <option value="{{ $catItem->id }}">{{ $catItem->nombre }}</option>
+                                @endforeach
                             </select>
+                            @error('nuevoCategoriaId') <span class="text-error text-xs">{{ $message }}</span> @enderror
                         </div>
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Unidad de Medida</label>
@@ -1091,6 +1317,228 @@ class extends Component {
                     <button wire:click="guardarNuevoInsumo"
                             class="h-10 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-bold text-sm shadow-md">
                         Crear Insumo
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL: RESTRICCIÓN DE ACCESO (SOLO LECTURA PARA CAJERO / PSEUDO-MANAGER) -->
+    @if ($modalRestriccionOpen)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true">
+            <div class="bg-surface-container-lowest border border-surface-container-highest rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+                <div class="flex items-center gap-3 border-b border-surface-container-high pb-3">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-700 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[24px]">lock</span>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-on-surface">Función Restringida</h3>
+                        <span class="text-xs text-on-surface-variant font-bold">Inventario en Modo Consulta</span>
+                    </div>
+                </div>
+
+                <p class="text-xs text-on-surface leading-relaxed">
+                    {{ $mensajeRestriccion }}
+                </p>
+
+                <div class="p-3 rounded-2xl bg-surface-container-low border border-surface-container-highest text-[11px] text-on-surface-variant flex items-start gap-2">
+                    <span class="material-symbols-outlined text-[18px] text-primary shrink-0">info</span>
+                    <span>Como Cajero (Pseudo-Manager), tienes autorización para consultar existencias, costos y catálogo de insumos en tiempo real para apoyar la operación de sala y cocina.</span>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button wire:click="$set('modalRestriccionOpen', false)" class="h-10 px-5 rounded-xl bg-primary text-on-primary font-bold text-xs hover:bg-primary-container transition active:scale-95">
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL: GESTIÓN DE CATEGORÍAS PROPIAS DE INSUMOS -->
+    @if ($modalCategoriasOpen)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-inverse-surface/40 backdrop-blur-sm animate-fade-in" role="dialog" aria-modal="true">
+            <div class="bg-surface-container-lowest border border-surface-container-highest rounded-3xl p-6 max-w-4xl w-full shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+                <!-- Header -->
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shadow-sm">
+                            <span class="material-symbols-outlined text-[24px]">palette</span>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-on-surface">Gestión de Categorías de Insumos</h3>
+                            <p class="text-xs text-on-surface-variant font-medium">Crea categorías con color e ícono personalizados. Los insumos heredarán automáticamente su identidad visual.</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('modalCategoriasOpen', false)" class="w-9 h-9 rounded-xl hover:bg-surface-container text-on-surface-variant flex items-center justify-center transition">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <!-- Content: 2 Columns -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-y-auto pr-1 flex-1">
+                    <!-- Form (7 cols) -->
+                    <div class="lg:col-span-7 space-y-4 bg-surface-container-low p-4 rounded-2xl border border-surface-container-high">
+                        <div class="flex items-center justify-between pb-2 border-b border-surface-container-high">
+                            <h4 class="text-sm font-black text-on-surface flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary text-[18px]">{{ $categoriaInsumoId ? 'edit' : 'add_circle' }}</span>
+                                {{ $categoriaInsumoId ? 'Editar Categoría' : 'Nueva Categoría' }}
+                            </h4>
+                            @if ($categoriaInsumoId)
+                                <button type="button" wire:click="cancelarEdicionCategoria" class="text-xs text-on-surface-variant hover:text-primary font-bold">
+                                    + Crear nueva en su lugar
+                                </button>
+                            @endif
+                        </div>
+
+                        <!-- Nombre -->
+                        <div>
+                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Nombre de la Categoría *</label>
+                            <input type="text" wire:model="catNombre" placeholder="Ej: Mariscos & Pescados, Lácteos, Salsas..."
+                                   class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface text-sm font-semibold focus:border-primary outline-none" />
+                            @error('catNombre') <span class="text-error text-xs font-semibold">{{ $message }}</span> @enderror
+                        </div>
+
+                        <!-- Descripción -->
+                        <div>
+                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Descripción (Opcional)</label>
+                            <input type="text" wire:model="catDescripcion" placeholder="Breve nota para el equipo de almacén o cocina"
+                                   class="w-full h-10 px-3 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
+                        </div>
+
+                        <!-- Paleta de Color -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-xs text-on-surface-variant font-bold uppercase">Color de la Categoría</label>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[11px] font-mono text-on-surface-variant font-bold">{{ $catColor }}</span>
+                                    <input type="color" wire:model.live="catColor" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" title="Elegir color libre" />
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($paletaColores as $hex => $nombreColor)
+                                    <button type="button"
+                                            wire:click="$set('catColor', '{{ $hex }}')"
+                                            class="w-7 h-7 rounded-xl transition-all relative flex items-center justify-center shadow-xs {{ $catColor === $hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105 opacity-90 hover:opacity-100' }}"
+                                            @style(['background-color: ' . $hex])
+                                            title="{{ $nombreColor }} ({{ $hex }})">
+                                        @if ($catColor === $hex)
+                                            <span class="material-symbols-outlined text-white text-[14px] drop-shadow">check</span>
+                                        @endif
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <!-- Selector de Íconos -->
+                        <div>
+                            <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1.5">Ícono de Identidad</label>
+                            <div class="grid grid-cols-6 sm:grid-cols-8 gap-2 max-h-36 overflow-y-auto p-2 bg-surface-container-lowest rounded-xl border border-surface-container-high">
+                                @foreach ($iconosDisponibles as $icoKey => $icoNombre)
+                                    <button type="button"
+                                            wire:click="$set('catIcono', '{{ $icoKey }}')"
+                                            class="h-9 rounded-lg flex items-center justify-center transition {{ $catIcono === $icoKey ? 'text-white shadow-md font-bold' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                                            @style(['background-color: ' . $catColor => $catIcono === $icoKey])
+                                            title="{{ $icoNombre }}">
+                                        <span class="material-symbols-outlined text-[20px]">{{ $icoKey }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        <!-- Vista Previa Visual en Vivo -->
+                        <div class="p-3 rounded-xl border border-dashed border-surface-container-highest bg-surface-container-lowest/60 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm font-bold"
+                                     @style(['background-color: ' . $catColor])>
+                                    <span class="material-symbols-outlined text-[22px]">{{ $catIcono }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-[10px] uppercase font-black tracking-wider text-on-surface-variant">Vista Previa Insumo</span>
+                                    <div class="text-sm font-bold text-on-surface flex items-center gap-1.5">
+                                        <span>{{ $catNombre ?: 'Nombre de la Categoría' }}</span>
+                                        <span class="text-[11px] px-2 py-0.5 rounded-md font-semibold text-white" @style(['background-color: ' . $catColor])>
+                                            Ej: Salmón Fresco
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="text-[11px] text-on-surface-variant font-semibold">Heredará este estilo</span>
+                        </div>
+
+                        <!-- Acciones Formulario -->
+                        <div class="flex items-center justify-end gap-2 pt-2">
+                            @if ($categoriaInsumoId)
+                                <button type="button" wire:click="cancelarEdicionCategoria"
+                                        class="h-9 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold">
+                                    Cancelar
+                                </button>
+                            @endif
+                            <button type="button" wire:click="guardarCategoriaInsumo"
+                                    class="h-9 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary text-xs font-bold shadow-sm transition active:scale-95 flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px]">{{ $categoriaInsumoId ? 'save' : 'add' }}</span>
+                                {{ $categoriaInsumoId ? 'Guardar Cambios' : 'Crear Categoría' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- List of Categories (5 cols) -->
+                    <div class="lg:col-span-5 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">
+                                Categorías Registradas ({{ count($categoriasBd) }})
+                            </h4>
+                        </div>
+
+                        <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                            @forelse ($categoriasBd as $cat)
+                                <div class="p-3 rounded-2xl border transition bg-surface-container-low flex items-center justify-between {{ $categoriaInsumoId === $cat->id ? 'border-primary ring-2 ring-primary/20' : 'border-surface-container-high hover:border-outline-variant' }}">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs"
+                                             @style(['background-color: ' . $cat->color])>
+                                            <span class="material-symbols-outlined text-[18px]">{{ $cat->icono }}</span>
+                                        </div>
+                                        <div>
+                                            <h5 class="text-xs font-bold text-on-surface">{{ $cat->nombre }}</h5>
+                                            <div class="flex items-center gap-2 text-[11px] text-on-surface-variant">
+                                                <span>{{ $cat->insumos()->count() }} insumos</span>
+                                                <span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+                                                <span class="font-mono text-[10px]">{{ $cat->color }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <button type="button"
+                                                wire:click="editarCategoriaInsumo({{ $cat->id }})"
+                                                class="w-7 h-7 rounded-lg hover:bg-surface-container-high text-on-surface-variant hover:text-primary flex items-center justify-center transition"
+                                                title="Editar">
+                                            <span class="material-symbols-outlined text-[16px]">edit</span>
+                                        </button>
+                                        <button type="button"
+                                                wire:click="eliminarCategoriaInsumo({{ $cat->id }})"
+                                                wire:confirm="¿Seguro que deseas eliminar '{{ $cat->nombre }}'? Los insumos asociados no se eliminarán, pero quedarán sin categoría vinculada."
+                                                class="w-7 h-7 rounded-lg hover:bg-error/10 text-on-surface-variant hover:text-error flex items-center justify-center transition"
+                                                title="Eliminar">
+                                            <span class="material-symbols-outlined text-[16px]">delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="text-center py-8 px-4 border border-dashed border-surface-container-highest rounded-2xl bg-surface-container-low/40">
+                                    <span class="material-symbols-outlined text-[32px] text-on-surface-variant/40 mb-1">category</span>
+                                    <p class="text-xs font-semibold text-on-surface-variant">Aún no hay categorías propias registradas.</p>
+                                    <p class="text-[11px] text-on-surface-variant/70 mt-1">Crea la primera para organizar tus materias primas con colores e íconos.</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="flex items-center justify-between pt-3 border-t border-surface-container-high">
+                    <span class="text-xs text-on-surface-variant">Los cambios se aplican inmediatamente en las tarjetas y filtros de inventario.</span>
+                    <button wire:click="$set('modalCategoriasOpen', false)" class="h-9 px-4 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-bold transition">
+                        Cerrar
                     </button>
                 </div>
             </div>

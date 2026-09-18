@@ -3,6 +3,7 @@
 use App\Models\Categoria;
 use App\Models\Producto;
 use App\Services\MenuService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -16,6 +17,7 @@ new class extends Component
     public array $categoriaForm = [
         'nombre' => '',
         'icono' => '🍣',
+        'color' => '#e11d48',
         'orden' => 0,
     ];
 
@@ -30,19 +32,19 @@ new class extends Component
 
     private function autorizarGestionMenu(): void
     {
-        abort_unless(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Acción reservada al Administrador y Gerente.');
+        abort_unless(in_array(Auth::user()?->role?->slug, ['admin', 'gerente'], true), 403, 'Acción reservada al Administrador y Gerente.');
     }
 
     public function puedeGestionarMenu(): bool
     {
-        return in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true);
+        return in_array(Auth::user()?->role?->slug, ['admin', 'gerente'], true);
     }
 
     public function abrirNuevaCategoria(): void
     {
         $this->autorizarGestionMenu();
         $this->categoriaEnEdicion = null;
-        $this->categoriaForm = ['nombre' => '', 'icono' => '🍣', 'orden' => 0];
+        $this->categoriaForm = ['nombre' => '', 'icono' => '🍣', 'color' => '#e11d48', 'orden' => 0];
         $this->mostrarModalCategoria = true;
     }
 
@@ -54,6 +56,7 @@ new class extends Component
         $this->categoriaForm = [
             'nombre' => $categoria->nombre,
             'icono' => $categoria->icono ?? '🍣',
+            'color' => $categoria->color ?? '#e11d48',
             'orden' => (int) $categoria->orden,
         ];
         $this->mostrarModalCategoria = true;
@@ -65,6 +68,7 @@ new class extends Component
         $this->validate([
             'categoriaForm.nombre' => 'required|string|min:2|max:100',
             'categoriaForm.icono' => 'nullable|string|max:5',
+            'categoriaForm.color' => 'nullable|string|max:20',
             'categoriaForm.orden' => 'nullable|integer|min:0',
         ]);
 
@@ -253,11 +257,13 @@ new class extends Component
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         @foreach($categorias as $categoria)
-            <div class="bg-surface-container-lowest rounded-3xl p-5 border border-outline-variant/20 shadow-sm flex flex-col justify-between {{ $categoria->activo ? '' : 'opacity-60 bg-surface-container-low' }}">
+            <div class="bg-surface-container-lowest rounded-3xl p-5 border border-outline-variant/20 shadow-sm flex flex-col justify-between transition-all hover:shadow-md {{ $categoria->activo ? '' : 'opacity-60 bg-surface-container-low' }}"
+                 @style(['border-top: 4px solid ' . ($categoria->color ?? '#e11d48')])>
                 <div>
                     <div class="flex items-start justify-between gap-2">
                         <div class="flex items-center gap-3">
-                            <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-fixed text-xl border border-primary-fixed-dim shadow-xs">
+                            <div class="flex h-11 w-11 items-center justify-center rounded-2xl text-xl shadow-xs"
+                                 @style(['background-color: ' . ($categoria->color ?? '#e11d48') . '1f', 'border: 1.5px solid ' . ($categoria->color ?? '#e11d48') . '40'])>
                                 {{ $categoria->icono ?? '🍣' }}
                             </div>
                             <div>
@@ -267,7 +273,10 @@ new class extends Component
                                         {{ $categoria->productos->count() }} ítems
                                     </span>
                                 </h3>
-                                <span class="text-[10px] font-mono text-on-surface-variant">slug: {{ $categoria->slug }}</span>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] font-mono text-on-surface-variant">slug: {{ $categoria->slug }}</span>
+                                    <span class="inline-block w-2.5 h-2.5 rounded-full shadow-xs" @style(['background-color: ' . ($categoria->color ?? '#e11d48')]) title="Color POS: {{ $categoria->color ?? '#e11d48' }}"></span>
+                                </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-1">
@@ -463,6 +472,47 @@ new class extends Component
                         <label class="text-xs font-bold text-on-surface-variant">Nombre de la Categoría:</label>
                         <input type="text" wire:model="categoriaForm.nombre" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2.5 text-xs text-on-surface focus:border-primary focus:ring-0" placeholder="Ej: Rollos Especiales, Bebidas, Postres..." />
                         @error('categoriaForm.nombre') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                    </div>
+
+                    <!-- Selector de Color para POS -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="text-xs font-bold text-on-surface-variant">Color Identificador (Botones y Tarjetas POS):</label>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] font-mono text-on-surface-variant font-bold" x-text="$wire.categoriaForm.color || '#e11d48'"></span>
+                                <input type="color" wire:model.live="categoriaForm.color" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" title="Color libre" />
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 p-2 rounded-xl bg-surface-container-low border border-outline-variant/20">
+                            @php
+                                $coloresPos = [
+                                    '#e11d48' => 'Rojo Frambuesa',
+                                    '#ea580c' => 'Naranja',
+                                    '#f59e0b' => 'Ámbar',
+                                    '#10b981' => 'Esmeralda',
+                                    '#06b6d4' => 'Cian',
+                                    '#3b82f6' => 'Azul',
+                                    '#6366f1' => 'Índigo',
+                                    '#8b5cf6' => 'Violeta',
+                                    '#ec4899' => 'Rosa',
+                                    '#64748b' => 'Pizarra',
+                                ];
+                            @endphp
+                            @foreach ($coloresPos as $hexColor => $nombreColor)
+                                <button
+                                    type="button"
+                                    wire:click="$set('categoriaForm.color', '{{ $hexColor }}')"
+                                    class="w-7 h-7 rounded-lg transition-all relative flex items-center justify-center shadow-xs cursor-pointer {{ ($categoriaForm['color'] ?? '#e11d48') === $hexColor ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105 opacity-80 hover:opacity-100' }}"
+                                    @style(['background-color: ' . $hexColor])
+                                    title="{{ $nombreColor }}"
+                                >
+                                    @if (($categoriaForm['color'] ?? '#e11d48') === $hexColor)
+                                        <span class="material-symbols-outlined text-white text-[13px] drop-shadow">check</span>
+                                    @endif
+                                </button>
+                            @endforeach
+                        </div>
+                        <span class="text-[10px] text-on-surface-variant mt-1 block">Los meseros y cajeros verán este color en el POS para identificar la categoría de un vistazo.</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 items-end">

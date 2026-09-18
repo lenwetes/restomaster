@@ -4,6 +4,7 @@ use App\Models\Impresora;
 use App\Services\ConfiguracionService;
 use App\Services\ImpresionService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
@@ -346,7 +347,7 @@ new class extends Component
     {
         $impresora = Impresora::findOrFail($id);
         $svc = app(ImpresionService::class);
-        $trabajo = $svc->probarImpresora($impresora, auth()->user());
+        $trabajo = $svc->probarImpresora($impresora, Auth::user());
 
         $this->dispatch('notificacion', ['mensaje' => "Test de impresión #{$trabajo->id} enviado a {$impresora->nombre}", 'tipo' => 'info']);
     }

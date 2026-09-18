@@ -410,8 +410,8 @@ new #[Layout('layouts.publico')] class extends Component
                     <input 
                         type="text" 
                         wire:model.live.debounce.250ms="busqueda" 
-                        placeholder="Buscar roll, salmón, atún..." 
-                        aria-label="Buscar productos en la carta de sushi"
+                        placeholder="Buscar plato, bebida o producto..." 
+                        aria-label="Buscar productos en la carta"
                         class="w-full pl-9 pr-3 py-1.5 rounded-xl border border-stone-200 bg-stone-50 text-xs text-stone-900 placeholder-stone-400 focus:border-primary focus:ring-0 outline-none"
                     />
                 </div>

@@ -3,6 +3,7 @@
 use App\Models\Reserva;
 use App\Services\ReservaService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -411,7 +412,7 @@ new class extends Component
             $mesaIds = ! empty($this->mesaSeleccionadaIds)
                 ? array_map('intval', (array) $this->mesaSeleccionadaIds)
                 : null;
-            app(ReservaService::class)->confirmar($reserva, auth()->user(), $mesaIds);
+            app(ReservaService::class)->confirmar($reserva, Auth::user(), $mesaIds);
             session()->flash('status', "Reserva de {$reserva->nombre_contacto} confirmada.");
             $this->cerrarDetalle();
         } catch (\Throwable $e) {

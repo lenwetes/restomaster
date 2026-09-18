@@ -17,20 +17,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             SucursalSeeder::class,
-            AdminUserSeeder::class,
-            MesaSeeder::class,
-            MenuSeeder::class,
-            CajaSeeder::class,
-            InventarioSeeder::class,
-            ClienteSeeder::class,
             ConfiguracionSeeder::class,
-            ImpresoraSeeder::class,
+            AdminUserSeeder::class,
         ]);
-
-        if (env('SEED_DEMO_OPERACIONES', false)) {
-            $this->call([
-                DemoOperacionesSeeder::class,
-            ]);
-        }
     }
 }

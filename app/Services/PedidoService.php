@@ -37,6 +37,9 @@ class PedidoService
             } while (Pedido::where('codigo', $codigo)->exists());
 
             $mesa = ! empty($datos['mesa_id']) ? Mesa::find($datos['mesa_id']) : null;
+            if ($mesa) {
+                app(MesaService::class)->validarDisponiblePara($mesa, $usuario);
+            }
             $sucursalId = $datos['sucursal_id']
                 ?? $mesa?->sucursal_id
                 ?? $usuario?->sucursal_id
@@ -234,6 +237,10 @@ class PedidoService
             $pedido = Pedido::where('id', $pedido->id)->lockForUpdate()->firstOrFail();
             abort_if($pedido->estado === 'pagado', 400, 'El pedido ya se encuentra pagado.');
 
+            // La comanda sigue activa en cocina: solo se cobra servido o cancelado
+            $comandaActiva = $pedido->items()->whereIn('estado_cocina', ['en_preparacion', 'listo'])->exists();
+            abort_if($comandaActiva, 422, 'La comanda sigue activa en cocina: solo se puede cobrar cuando todo fue servido o cancelado.');
+
             $propina = max(0.0, round($propina, 2));
             $porcentajePropina = $porcentajePropina !== null ? max(0.0, (float) $porcentajePropina) : null;
             $totalConPropina = (float) $pedido->total + $propina;
@@ -267,11 +274,22 @@ class PedidoService
                 'pagado_en' => now(),
             ]);
 
-            // Si tiene mesa asignada, pasa a 'por_limpiar'
+            // Si tiene mesa asignada, pasa a 'por_limpiar' y libera al mesero
             if ($pedido->mesa_id) {
                 $mesa = Mesa::find($pedido->mesa_id);
                 if ($mesa) {
-                    $mesa->update(['estado' => MesaEstado::POR_LIMPIAR->value]);
+                    $meseroAnteriorId = $mesa->mesero_id;
+                    $mesa->update(['estado' => MesaEstado::POR_LIMPIAR->value, 'mesero_id' => null]);
+
+                    if ($meseroAnteriorId) {
+                        app(AuditoriaService::class)->registrar(
+                            accion: 'mesas.liberada_cobro',
+                            entidad: 'mesa',
+                            entidadId: $mesa->id,
+                            descripcion: "Mesa #{$mesa->numero} liberada al cobrar el pedido {$pedido->codigo}.",
+                            datos: ['mesa_id' => $mesa->id, 'pedido_id' => $pedido->id, 'mesero_anterior_id' => $meseroAnteriorId]
+                        );
+                    }
                 }
             }
 

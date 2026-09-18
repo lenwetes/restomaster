@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\MesaEstado;
 use App\Models\Caja;
+use App\Models\Categoria;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
@@ -15,8 +16,10 @@ use App\Services\ImpresionService;
 use App\Services\MesaService;
 use App\Services\PedidoService;
 use App\Services\ReporteService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class MeseroAsignacionYPropinasTest extends TestCase
@@ -87,7 +90,23 @@ class MeseroAsignacionYPropinasTest extends TestCase
             'sucursal_id' => $this->sucursal->id,
         ]);
 
-        $this->producto = Producto::first();
+        $categoria = Categoria::first() ?? Categoria::create([
+            'nombre' => 'Maki Rolls',
+            'slug' => 'maki-rolls-test',
+            'icono' => '🍣',
+            'orden' => 1,
+            'activo' => true,
+        ]);
+
+        $this->producto = Producto::first() ?? Producto::create([
+            'categoria_id' => $categoria->id,
+            'nombre' => 'California Roll Test',
+            'slug' => 'california-roll-test',
+            'precio' => 28000,
+            'costo' => 10000,
+            'area_cocina' => 'sushi',
+            'activo' => true,
+        ]);
     }
 
     public function test_mesero_puede_autoasignarse_mesa_libre(): void
@@ -399,9 +418,10 @@ class MeseroAsignacionYPropinasTest extends TestCase
     public function test_companero_puede_tomar_relevo_de_mesa_ocupada_y_recibe_comanda_activa(): void
     {
         $pedidoService = app(PedidoService::class);
+        $mesaService = app(MesaService::class);
 
-        // Mesa ocupada con pedido activo y liberada para relevo
-        $this->mesa->update(['mesero_id' => null, 'estado' => MesaEstado::OCUPADA->value]);
+        // Mesa ocupada atendida por mesero 1 con pedido activo
+        $this->mesa->update(['mesero_id' => $this->mesero1->id, 'estado' => MesaEstado::OCUPADA->value]);
 
         $pedido = $pedidoService->crearPedido(
             ['tipo' => 'mesa', 'mesa_id' => $this->mesa->id, 'sucursal_id' => $this->sucursal->id],
@@ -409,7 +429,13 @@ class MeseroAsignacionYPropinasTest extends TestCase
             $this->mesero1
         );
 
-        // Compañero mesero 2 toma el relevo
+        // Mesero 1 libera para relevo antes de entregar el turno
+        $mesaService->liberarParaRelevo($this->mesa->fresh(), $this->mesero1);
+
+        $this->mesa->refresh();
+        $this->assertNull($this->mesa->mesero_id);
+
+        // Compañero mesero 2 toma el relevo y recibe la comanda activa
         Volt::actingAs($this->mesero2)
             ->test('mesas.index')
             ->call('autoasignarMesa', $this->mesa->id)
@@ -504,5 +530,148 @@ class MeseroAsignacionYPropinasTest extends TestCase
             ->assertSee('Tabla de Desempeño y Liquidación de Propinas')
             ->assertSee('Ventas Salón')
             ->assertSee('Propinas Recaudadas');
+    }
+
+    public function test_cobro_bloqueado_cuando_comanda_sigue_activa_en_cocina(): void
+    {
+        $pedidoService = app(PedidoService::class);
+
+        $this->mesa->update([
+            'mesero_id' => $this->mesero1->id,
+            'estado' => MesaEstado::OCUPADA->value,
+        ]);
+
+        $pedido = $pedidoService->crearPedido(
+            ['tipo' => 'mesa', 'mesa_id' => $this->mesa->id, 'sucursal_id' => $this->sucursal->id],
+            [['producto_id' => $this->producto->id, 'cantidad' => 1, 'precio_unitario' => (float) $this->producto->precio]],
+            $this->mesero1
+        );
+
+        $pedidoService->enviarACocina($pedido);
+
+        try {
+            $pedidoService->cobrarPedido($pedido->fresh(), 'efectivo', (float) $pedido->fresh()->total, null, 0.0, 0.0);
+            $this->fail('Cobrar con comanda activa en cocina debería lanzar 422.');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+            $this->assertStringContainsString('comanda', $e->getMessage());
+        }
+    }
+
+    public function test_cobro_con_todo_servido_libera_mesero_de_la_mesa(): void
+    {
+        $pedidoService = app(PedidoService::class);
+
+        $this->mesa->update([
+            'mesero_id' => $this->mesero1->id,
+            'estado' => MesaEstado::OCUPADA->value,
+        ]);
+
+        $pedido = $pedidoService->crearPedido(
+            ['tipo' => 'mesa', 'mesa_id' => $this->mesa->id, 'sucursal_id' => $this->sucursal->id],
+            [['producto_id' => $this->producto->id, 'cantidad' => 1, 'precio_unitario' => (float) $this->producto->precio]],
+            $this->mesero1
+        );
+
+        $pedido->items()->update(['estado_cocina' => 'entregado']);
+        $pedido->update(['estado' => 'entregado']);
+
+        $pedidoCobrado = $pedidoService->cobrarPedido(
+            $pedido->fresh(), 'efectivo', (float) $pedido->fresh()->total, null, 0.0, 0.0
+        );
+
+        $this->assertSame('pagado', $pedidoCobrado->estado);
+        $this->mesa->refresh();
+        $this->assertNull($this->mesa->mesero_id);
+        $this->assertSame(MesaEstado::POR_LIMPIAR->value, $this->mesa->estado);
+    }
+
+    public function test_cobro_rapido_sin_enviar_a_cocina_sigue_permitido(): void
+    {
+        $pedidoService = app(PedidoService::class);
+
+        $pedido = $pedidoService->crearPedido(
+            ['tipo' => 'mostrador', 'sucursal_id' => $this->sucursal->id],
+            [['producto_id' => $this->producto->id, 'cantidad' => 1, 'precio_unitario' => (float) $this->producto->precio]],
+            $this->cajero
+        );
+
+        $pedidoCobrado = $pedidoService->cobrarPedido(
+            $pedido, 'efectivo', (float) $pedido->total, null, 0.0, 0.0
+        );
+
+        $this->assertSame('pagado', $pedidoCobrado->estado);
+    }
+
+    public function test_mesero_no_puede_crear_pedido_en_mesa_asignada_a_otro_mesero(): void
+    {
+        $pedidoService = app(PedidoService::class);
+
+        $this->mesa->update([
+            'mesero_id' => $this->mesero1->id,
+            'estado' => MesaEstado::OCUPADA->value,
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+
+        $pedidoService->crearPedido(
+            ['tipo' => 'mesa', 'mesa_id' => $this->mesa->id, 'sucursal_id' => $this->sucursal->id],
+            [['producto_id' => $this->producto->id, 'cantidad' => 1, 'precio_unitario' => (float) $this->producto->precio]],
+            $this->mesero2
+        );
+    }
+
+    public function test_autoasignar_mesa_de_otro_mesero_queda_bloqueado(): void
+    {
+        $mesaService = app(MesaService::class);
+
+        $this->mesa->update([
+            'mesero_id' => $this->mesero1->id,
+            'estado' => MesaEstado::OCUPADA->value,
+        ]);
+
+        $this->expectException(AuthorizationException::class);
+
+        $mesaService->autoasignarMesa($this->mesa, $this->mesero2);
+    }
+
+    public function test_cajero_puede_cobrar_mesa_atendida_por_mesero(): void
+    {
+        $pedidoService = app(PedidoService::class);
+
+        $this->mesa->update([
+            'mesero_id' => $this->mesero1->id,
+            'estado' => MesaEstado::OCUPADA->value,
+        ]);
+
+        $pedido = $pedidoService->crearPedido(
+            ['tipo' => 'mesa', 'mesa_id' => $this->mesa->id, 'sucursal_id' => $this->sucursal->id],
+            [['producto_id' => $this->producto->id, 'cantidad' => 1, 'precio_unitario' => (float) $this->producto->precio]],
+            $this->mesero1
+        );
+
+        $pedido->items()->update(['estado_cocina' => 'entregado']);
+
+        $this->actingAs($this->cajero);
+
+        $pedidoCobrado = $pedidoService->cobrarPedido(
+            $pedido->fresh(), 'efectivo', (float) $pedido->fresh()->total, null, 0.0, 0.0
+        );
+
+        $this->assertSame('pagado', $pedidoCobrado->estado);
+    }
+
+    public function test_dropdown_pos_muestra_mesero_asignado_de_la_mesa(): void
+    {
+        $this->mesero1->update(['name' => 'Carlos Atencion Mesa']);
+
+        $this->mesa->update([
+            'mesero_id' => $this->mesero1->id,
+            'estado' => MesaEstado::OCUPADA->value,
+        ]);
+
+        Volt::actingAs($this->mesero2)
+            ->test('pos.terminal')
+            ->assertSee('· Carlos Atencion Mesa', false);
     }
 }

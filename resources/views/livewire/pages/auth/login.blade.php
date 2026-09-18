@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Forms\LoginForm;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -27,13 +28,13 @@ new #[Layout('layouts.guest')] class extends Component
 
         Session::regenerate();
 
-        if (auth()->user()?->role?->slug === 'mesero') {
+        if (Auth::user()?->role?->slug === 'mesero') {
             session()->forget('url.intended');
             $this->redirect(route('pos', absolute: false), navigate: true);
             return;
         }
 
-        if (in_array(auth()->user()?->role?->slug, ['cocina', 'barra'], true)) {
+        if (in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true)) {
             session()->forget('url.intended');
             $this->redirect(route('cocina', absolute: false), navigate: true);
             return;

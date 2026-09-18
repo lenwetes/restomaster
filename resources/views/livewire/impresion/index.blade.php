@@ -3,6 +3,7 @@
 use App\Models\Impresora;
 use App\Models\TrabajoImpresion;
 use App\Services\ImpresionService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -47,7 +48,7 @@ new class extends Component
     {
         $impresora = Impresora::findOrFail($impresoraId);
         $servicio = app(ImpresionService::class);
-        $trabajo = $servicio->probarImpresora($impresora, auth()->user());
+        $trabajo = $servicio->probarImpresora($impresora, Auth::user());
 
         $this->trabajoSeleccionadoId = $trabajo->id;
         $this->mensajeFlash = "Test de impresión enviado a {$impresora->nombre}.";
@@ -92,7 +93,7 @@ new class extends Component
     {
         $trabajo = TrabajoImpresion::findOrFail($trabajoId);
         $servicio = app(ImpresionService::class);
-        $servicio->reimprimir($trabajo, auth()->user(), 'Reimpresión manual desde Spooler IMP-01');
+        $servicio->reimprimir($trabajo, Auth::user(), 'Reimpresión manual desde Spooler IMP-01');
 
         $this->mensajeFlash = "Trabajo #{$trabajo->id} re-encolado para impresión inmediata.";
         $this->tipoFlash = 'success';
@@ -303,7 +304,7 @@ new class extends Component
                 <span class="text-3xl font-black tracking-tight text-on-surface">{{ $kpis['impresoras_activas'] }}</span>
                 <span class="text-[11px] font-bold text-secondary">estaciones</span>
             </div>
-            <span class="text-[11px] text-on-surface-variant mt-1">Sushi, Calientes, Bar, Caja</span>
+            <span class="text-[11px] text-on-surface-variant mt-1">Cocina Fría, Calientes, Bar, Caja</span>
         </div>
     </div>
 
@@ -585,7 +586,7 @@ new class extends Component
                 <div class="space-y-3 text-xs">
                     <div>
                         <label class="block text-[11px] text-on-surface-variant font-bold uppercase mb-1">Nombre Descriptivo *</label>
-                        <input type="text" wire:model="formImpresora.nombre" placeholder="Ej: Térmica Sushi Bar"
+                        <input type="text" wire:model="formImpresora.nombre" placeholder="Ej: Térmica Cocina / Bar"
                                class="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-xs focus:border-primary outline-none" />
                         @error('formImpresora.nombre') <span class="text-error text-[10px]">{{ $message }}</span> @enderror
                     </div>
@@ -606,7 +607,7 @@ new class extends Component
                             <select wire:model="formImpresora.area"
                                     class="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-xs focus:border-primary outline-none">
                                 <option value="caja_principal">Caja Principal</option>
-                                <option value="cocina_sushi">Cocina Sushi</option>
+                                <option value="cocina_sushi">Cocina Fría / Platos Fríos</option>
                                 <option value="cocina_calientes">Cocina Calientes</option>
                                 <option value="barra">Barra de Bebidas</option>
                                 <option value="todas">Todas las Áreas</option>

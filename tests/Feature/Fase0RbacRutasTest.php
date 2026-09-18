@@ -44,13 +44,15 @@ class Fase0RbacRutasTest extends TestCase
         $this->actingAs($cocinero)->get(route('pos'))->assertForbidden();
     }
 
-    public function test_cajero_accede_a_caja_y_pos_pero_no_a_inventario(): void
+    public function test_cajero_accede_a_caja_pos_cocina_e_inventario_pero_no_a_reportes(): void
     {
         $cajero = $this->crearUsuario('cajero');
 
         $this->actingAs($cajero)->get(route('caja'))->assertOk();
         $this->actingAs($cajero)->get(route('pos'))->assertOk();
-        $this->actingAs($cajero)->get(route('inventario'))->assertForbidden();
+        $this->actingAs($cajero)->get(route('cocina'))->assertOk();
+        $this->actingAs($cajero)->get(route('inventario'))->assertOk();
+        $this->actingAs($cajero)->get(route('reportes'))->assertForbidden();
     }
 
     public function test_gerente_accede_a_inventario_caja_y_reportes_operatorios(): void

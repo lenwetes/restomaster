@@ -183,6 +183,25 @@ class InventarioService
     }
 
     /**
+     * Ajuste manual por conteo físico de inventario (alias ergonómico).
+     */
+    public function ajusteFisico(
+        Insumo|int $insumo,
+        float $nuevoStock,
+        ?string $motivo = null,
+        ?int $userId = null
+    ): MovimientoInventario {
+        $insumoId = $insumo instanceof Insumo ? $insumo->id : $insumo;
+
+        return $this->registrarAjuste(
+            $insumoId,
+            $nuevoStock,
+            $motivo ?? 'Ajuste físico de inventario',
+            $userId
+        );
+    }
+
+    /**
      * Ajuste manual por conteo físico de inventario.
      */
     public function registrarAjuste(

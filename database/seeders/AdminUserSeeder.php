@@ -29,7 +29,7 @@ class AdminUserSeeder extends Seeder
         $rawPassword = env('DEMO_USERS_PASSWORD') ?: Str::password(16);
 
         if ($this->command && app()->isLocal()) {
-            $this->command->info('Usuarios del sistema configurados correctamente.');
+            $this->command->info('Usuarios del sistema configurados correctamente para cada rol.');
         }
 
         $unifiedPassword = Hash::make($rawPassword);
@@ -40,6 +40,16 @@ class AdminUserSeeder extends Seeder
                 'name' => 'Administrador RestoMaster',
                 'role_id' => $adminRole?->id,
                 'telefono' => '+57 300 987 6543',
+                'sucursal_id' => $sucursal?->id,
+                'activo' => true,
+                'password' => $unifiedPassword,
+                'email_verified_at' => now(),
+            ],
+            [
+                'email' => 'gerente@restomaster.com',
+                'name' => 'Gerente de Operaciones',
+                'role_id' => $gerenteRole?->id,
+                'telefono' => '+57 300 111 2233',
                 'sucursal_id' => $sucursal?->id,
                 'activo' => true,
                 'password' => $unifiedPassword,
@@ -70,6 +80,26 @@ class AdminUserSeeder extends Seeder
                 'name' => 'Chef de Cocina KDS',
                 'role_id' => $cocinaRole?->id,
                 'telefono' => '+57 300 444 5566',
+                'sucursal_id' => $sucursal?->id,
+                'activo' => true,
+                'password' => $unifiedPassword,
+                'email_verified_at' => now(),
+            ],
+            [
+                'email' => 'barra@restomaster.com',
+                'name' => 'Bartender Barra Bebidas',
+                'role_id' => $barraRole?->id,
+                'telefono' => '+57 300 555 6677',
+                'sucursal_id' => $sucursal?->id,
+                'activo' => true,
+                'password' => $unifiedPassword,
+                'email_verified_at' => now(),
+            ],
+            [
+                'email' => 'delivery@restomaster.com',
+                'name' => 'Repartidor Delivery',
+                'role_id' => $deliveryRole?->id,
+                'telefono' => '+57 300 666 7788',
                 'sucursal_id' => $sucursal?->id,
                 'activo' => true,
                 'password' => $unifiedPassword,

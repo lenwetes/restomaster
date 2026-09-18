@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 #[Fillable(['role_id', 'sucursal_id', 'name', 'email', 'telefono', 'activo', 'password'])]
 #[Hidden(['password', 'remember_token'])]
@@ -18,6 +19,8 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    protected ?array $permisosMemo = null;
 
     /**
      * Get the attributes that should be cast.
@@ -114,5 +117,28 @@ class User extends Authenticatable
     public function pedidosAtendidos(): HasMany
     {
         return $this->hasMany(Pedido::class, 'mesero_id');
+    }
+
+    public function permisoExplicito(string $key): ?bool
+    {
+        try {
+            $this->permisosMemo ??= DB::table('permission_user')
+                ->where('user_id', $this->id)
+                ->pluck('tipo', 'permission')
+                ->all();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (! array_key_exists($key, $this->permisosMemo)) {
+            return null;
+        }
+
+        return $this->permisosMemo[$key] === 'grant';
+    }
+
+    public function olvidarPermisosMemo(): void
+    {
+        $this->permisosMemo = null;
     }
 }

@@ -5,7 +5,9 @@ use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Services\PedidoService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Volt\Component;
 
@@ -135,7 +137,7 @@ new class extends Component
         }
     }
 
-    public function updatedMesaId($value): void
+    public function updatedMesaId(mixed $value): void
     {
         $this->limpiarCarrito();
         if ($value) {
@@ -427,7 +429,7 @@ new class extends Component
         $this->actualizarMontoPagadoConPropina();
     }
 
-    public function updatedMontoPropina($value): void
+    public function updatedMontoPropina(mixed $value): void
     {
         $this->montoPropina = max(0.0, (float) $value);
         $this->porcentajePropina = $this->total > 0 ? round(($this->montoPropina / $this->total) * 100, 1) : 0.0;
@@ -443,7 +445,7 @@ new class extends Component
         }
     }
 
-    public function updatedDescuento($value): void
+    public function updatedDescuento(mixed $value): void
     {
         if ((float) $value > 0) {
             $this->authorize('aplicarDescuento', Pedido::class);
@@ -454,7 +456,7 @@ new class extends Component
         $this->actualizarMontoPagadoConPropina();
     }
 
-    public function updatedMetodoPago($value): void
+    public function updatedMetodoPago(mixed $value): void
     {
         if (in_array(strtolower((string) $value), ['tarjeta', 'transferencia', 'datafono', 'datáfono', 'mixto'], true)) {
             $this->montoPagado = $this->totalConPropina;
@@ -488,7 +490,7 @@ new class extends Component
 
         if ($this->tipo === 'mesa' && $this->mesaId) {
             $mesa = Mesa::find($this->mesaId);
-            abort_if($mesa && auth()->user()?->sucursal_id && $mesa->sucursal_id !== auth()->user()->sucursal_id, 403, 'Mesa no pertenece a su sucursal.');
+            abort_if($mesa && Auth::user()?->sucursal_id && $mesa->sucursal_id !== Auth::user()->sucursal_id, 403, 'Mesa no pertenece a su sucursal.');
         }
 
         $pedidoExistente = ($this->tipo === 'mesa' && $this->mesaId)
@@ -496,7 +498,7 @@ new class extends Component
             : null;
 
         if ($pedidoExistente) {
-            abort_if(auth()->user()?->sucursal_id && $pedidoExistente->sucursal_id && $pedidoExistente->sucursal_id !== auth()->user()->sucursal_id, 403, 'No autorizado para modificar pedidos de otra sucursal.');
+            abort_if(Auth::user()?->sucursal_id && $pedidoExistente->sucursal_id && $pedidoExistente->sucursal_id !== Auth::user()->sucursal_id, 403, 'No autorizado para modificar pedidos de otra sucursal.');
             if (! $pedidoExistente->cliente_id && $this->clienteId) {
                 $pedidoExistente->update([
                     'cliente_id' => $this->clienteId,
@@ -538,7 +540,7 @@ new class extends Component
             $pedido = $pedidoService->crearPedido([
                 'tipo' => $this->tipo,
                 'estado' => 'en_cocina',
-                'sucursal_id' => auth()->user()?->sucursal_id ?? $mesaObj?->sucursal_id ?? 1,
+                'sucursal_id' => Auth::user()?->sucursal_id ?? $mesaObj?->sucursal_id ?? 1,
                 'estado_delivery' => $this->tipo === 'delivery' ? 'pendiente' : null,
                 'mesa_id' => $this->tipo === 'mesa' ? $this->mesaId : null,
                 'cliente_id' => $this->clienteId,
@@ -550,7 +552,7 @@ new class extends Component
                 'descuento' => $this->descuento,
                 'descuento_puntos' => $this->descuentoPuntos,
                 'puntos_canjeados' => $this->puntosCanjeados,
-            ], array_values($this->carrito), auth()->user());
+            ], array_values($this->carrito), Auth::user());
         }
 
         if ($this->puntosCanjeados > 0 && $this->clienteId) {
@@ -564,7 +566,8 @@ new class extends Component
 
         session()->flash('notificacion', "¡Comanda {$pedido->codigo} enviada a cocina con éxito!");
 
-        if (auth()->user()?->role?->slug === 'mesero') {
+        // rol intencional, no permiso: el mesero vuelve a su comandera tras enviar
+        if (Auth::user()?->role?->slug === 'mesero') {
             $this->mesaId = null;
             $this->redirect(route('pos'), navigate: true);
 
@@ -580,15 +583,14 @@ new class extends Component
             return;
         }
 
-        $userSucursalId = auth()->user()?->sucursal_id;
+        $userSucursalId = Auth::user()?->sucursal_id;
         $turnoActivo = \App\Models\TurnoCaja::where('estado', 'abierto')
             ->when($userSucursalId, fn ($q) => $q->whereHas('caja', fn ($cq) => $cq->where('sucursal_id', $userSucursalId)))
             ->latest()
             ->first();
 
         if (! $turnoActivo) {
-            $userRole = auth()->user()?->role?->slug;
-            if (in_array($userRole, ['cajero', 'gerente', 'admin'], true)) {
+            if (Gate::allows('abrir', App\Models\TurnoCaja::class)) {
                 $caja = \App\Models\Caja::where('activa', true)
                     ->when($userSucursalId, fn ($q) => $q->where('sucursal_id', $userSucursalId))
                     ->first() ?? \App\Models\Caja::where('activa', true)->first();
@@ -615,7 +617,7 @@ new class extends Component
 
     public function abrirModalAperturaPosManual(): void
     {
-        $userSucursalId = auth()->user()?->sucursal_id;
+        $userSucursalId = Auth::user()?->sucursal_id;
         $caja = \App\Models\Caja::where('activa', true)
             ->when($userSucursalId, fn ($q) => $q->where('sucursal_id', $userSucursalId))
             ->first() ?? \App\Models\Caja::where('activa', true)->first();
@@ -634,14 +636,14 @@ new class extends Component
             'baseAperturaPos' => 'required|numeric|min:0',
         ]);
 
-        $sucursalId = auth()->user()?->sucursal_id;
+        $sucursalId = Auth::user()?->sucursal_id;
         $caja = \App\Models\Caja::when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
             ->findOrFail($this->cajaAperturaId);
 
         try {
             $turno = app(\App\Services\CajaService::class)->abrirTurno(
                 $caja,
-                auth()->user(),
+                Auth::user(),
                 $this->baseAperturaPos,
                 $this->notasAperturaPos
             );
@@ -674,6 +676,18 @@ new class extends Component
         $this->montoPagado = $cantidad;
     }
 
+    public function comandaActivaBloqueaCobro(): bool
+    {
+        if ($this->tipo !== 'mesa' || ! $this->mesaId) {
+            return false;
+        }
+
+        $pedidoActivo = Pedido::where('mesa_id', $this->mesaId)->activos()->latest()->first();
+
+        return (bool) $pedidoActivo
+            && $pedidoActivo->items()->whereIn('estado_cocina', ['en_preparacion', 'listo'])->exists();
+    }
+
     public function procesarCobro(): void
     {
         $this->authorize('cobrar', Pedido::class);
@@ -693,7 +707,7 @@ new class extends Component
 
         if ($this->tipo === 'mesa' && $this->mesaId) {
             $mesa = Mesa::find($this->mesaId);
-            abort_if($mesa && auth()->user()?->sucursal_id && $mesa->sucursal_id !== auth()->user()->sucursal_id, 403, 'Mesa no pertenece a su sucursal.');
+            abort_if($mesa && Auth::user()?->sucursal_id && $mesa->sucursal_id !== Auth::user()->sucursal_id, 403, 'Mesa no pertenece a su sucursal.');
         }
 
         $pedidoExistente = ($this->tipo === 'mesa' && $this->mesaId)
@@ -701,7 +715,7 @@ new class extends Component
             : null;
 
         if ($pedidoExistente) {
-            abort_if(auth()->user()?->sucursal_id && $pedidoExistente->sucursal_id && $pedidoExistente->sucursal_id !== auth()->user()->sucursal_id, 403, 'No autorizado para cobrar pedidos de otra sucursal.');
+            abort_if(Auth::user()?->sucursal_id && $pedidoExistente->sucursal_id && $pedidoExistente->sucursal_id !== Auth::user()->sucursal_id, 403, 'No autorizado para cobrar pedidos de otra sucursal.');
             if (! $pedidoExistente->cliente_id && $this->clienteId) {
                 $pedidoExistente->update([
                     'cliente_id' => $this->clienteId,
@@ -746,7 +760,7 @@ new class extends Component
             $pedido = $pedidoService->crearPedido([
                 'tipo' => $this->tipo,
                 'estado' => 'creado',
-                'sucursal_id' => auth()->user()?->sucursal_id ?? $mesaObj?->sucursal_id ?? 1,
+                'sucursal_id' => Auth::user()?->sucursal_id ?? $mesaObj?->sucursal_id ?? 1,
                 'estado_delivery' => $this->tipo === 'delivery' ? 'pendiente' : null,
                 'mesa_id' => $this->tipo === 'mesa' ? $this->mesaId : null,
                 'cliente_id' => $this->clienteId,
@@ -759,7 +773,7 @@ new class extends Component
                 'descuento_puntos' => $this->descuentoPuntos,
                 'puntos_canjeados' => $this->puntosCanjeados,
                 'idempotencia_uuid' => $this->idempotenciaUuid,
-            ], array_values($this->carrito), auth()->user());
+            ], array_values($this->carrito), Auth::user());
         }
 
         $propina = max(0.0, (float) $this->montoPropina);
@@ -787,14 +801,22 @@ new class extends Component
             }
         }
 
-        $this->pedidoCompletado = $pedidoService->cobrarPedido(
-            $pedido,
-            $this->metodoPago,
-            $this->montoPagado,
-            strtolower((string) $this->metodoPago) === 'mixto' ? (float) $this->montoEfectivoMixto : null,
-            $propina,
-            $this->porcentajePropina
-        );
+        $this->pedidoCompletado = null;
+
+        try {
+            $this->pedidoCompletado = $pedidoService->cobrarPedido(
+                $pedido,
+                $this->metodoPago,
+                $this->montoPagado,
+                strtolower((string) $this->metodoPago) === 'mixto' ? (float) $this->montoEfectivoMixto : null,
+                $propina,
+                $this->porcentajePropina
+            );
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            $this->addError('montoPagado', $e->getMessage());
+
+            return;
+        }
 
         $this->mostrarModalCobro = false;
         $this->mostrarTicket = true;
@@ -807,7 +829,8 @@ new class extends Component
         $this->mostrarTicket = false;
         $this->pedidoCompletado = null;
 
-        if (auth()->user()?->role?->slug === 'mesero') {
+        // rol intencional, no permiso: el mesero vuelve a su comandera al cerrar el ticket
+        if (Auth::user()?->role?->slug === 'mesero') {
             $this->mesaId = null;
             $this->limpiarCarrito();
             $this->redirect(route('pos'), navigate: true);
@@ -824,7 +847,7 @@ new class extends Component
             return;
         }
 
-        $sucursalId = auth()->user()?->sucursal_id;
+        $sucursalId = Auth::user()?->sucursal_id;
         $pedido = Pedido::where('mesa_id', $this->mesaId)
             ->where('canal_origen', 'qr_mesa')
             ->where('estado', 'solicitado_qr')
@@ -838,7 +861,7 @@ new class extends Component
         if ($pedido) {
             try {
                 $pedidoService = app(PedidoService::class);
-                $pedido = $pedidoService->asignarMeseroAPedidoQr($pedido->id, auth()->user());
+                $pedido = $pedidoService->asignarMeseroAPedidoQr($pedido->id, Auth::user());
                 session()->flash('notificacion', "¡Has tomado el pedido de la Mesa #{$pedido->mesa?->numero}! Comanda en preparación.");
             } catch (\DomainException $e) {
                 session()->flash('error', $e->getMessage());
@@ -889,6 +912,7 @@ new class extends Component
                         'id' => $c->id,
                         'icono' => $c->icono,
                         'nombre' => $c->nombre,
+                        'color' => $c->color ?? '#e11d48',
                         'productos_count' => (int) $c->productos_count,
                     ])
                     ->all();
@@ -896,7 +920,7 @@ new class extends Component
         );
 
         $mesasCache = Cache::remember('pos.terminal.mesas', 60, function (): array {
-            return Mesa::orderBy('numero')
+            return Mesa::with('mesero:id,name')->orderBy('numero')
                 ->get()
                 ->map(fn (Mesa $m) => [
                     'id' => $m->id,
@@ -904,13 +928,16 @@ new class extends Component
                     'numero' => $m->numero,
                     'capacidad' => $m->capacidad,
                     'estado' => $m->estado,
+                    'zona' => $m->zona,
                     'ubicacion' => $m->ubicacion,
                     'activa' => (bool) $m->activa,
+                    'mesero_id' => $m->mesero_id,
+                    'mesero_nombre' => $m->mesero?->name,
                 ])
                 ->all();
         });
 
-        $userSucursalId = auth()->user()?->sucursal_id;
+        $userSucursalId = Auth::user()?->sucursal_id;
         $mesasColeccion = collect($mesasCache);
         if ($userSucursalId) {
             $mesasColeccion = $mesasColeccion->filter(fn ($m) => ($m['sucursal_id'] ?? null) == $userSucursalId);
@@ -1020,12 +1047,13 @@ new class extends Component
                                 <span class="material-symbols-outlined text-[18px]">badge</span>
                             </div>
                             <div class="min-w-0">
-                                <p class="text-xs font-black text-on-surface truncate leading-tight">{{ auth()->user()->name }}</p>
+                                <p class="text-xs font-black text-on-surface truncate leading-tight">{{ Auth::user()->name }}</p>
                                 <p class="text-[9px] text-primary font-bold uppercase tracking-wider">Comandera de Bolsillo</p>
                             </div>
                         </div>
 
-                        @if(auth()->user()?->role?->slug === 'mesero')
+                        {{-- rol intencional, no permiso: selector de vistas exclusivo de la comandera del mesero --}}
+                        @if(Auth::user()?->role?->slug === 'mesero')
                             <!-- Selector de Vistas Táctiles en Móvil -->
                             <div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-surface-container-high shrink-0" role="group" aria-label="Selector de vistas">
                                 <button type="button" wire:click="cambiarVista('pc')" id="btnVistaPc" class="px-2 py-1 rounded-lg text-[10px] font-black text-on-surface-variant hover:text-on-surface cursor-pointer" title="Vista PC">
@@ -1080,8 +1108,10 @@ new class extends Component
                                 >
                                     <option value="">Seleccionar mesa del salón...</option>
                                     @foreach($mesas as $m)
-                                        <option value="{{ $m->id }}">
-                                            Mesa {{ $m->numero }} (Zona {{ $m->zona }} - {{ ucfirst($m->estado) }})
+                                        {{-- rol intencional, no permiso: guard de mesa ajena (identidad de dominio) --}}
+                                        @php $mesaAjenaMovil = $m->mesero_id && (int) $m->mesero_id !== (int) Auth::id() && Auth::user()?->role?->slug === 'mesero'; @endphp
+                                        <option value="{{ $m->id }}" @disabled($mesaAjenaMovil)>
+                                            Mesa {{ $m->numero }} (Zona {{ $m->zona }} - {{ ucfirst($m->estado) }}){{ $m->mesero_nombre ? ' · '.$m->mesero_nombre : '' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -1215,11 +1245,16 @@ new class extends Component
                                 <span>Todo</span>
                             </button>
                             @foreach($categorias as $cat)
+                                @php $catColor = $cat->color ?? '#e11d48'; @endphp
                                 <button 
                                     type="button" 
                                     wire:click="$set('categoriaSeleccionada', {{ $cat->id }})"
-                                    class="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black transition-all border cursor-pointer active:scale-95 {{ $categoriaSeleccionada === $cat->id ? 'bg-primary text-on-primary border-primary shadow-xs' : 'bg-surface-container-low text-on-surface-variant border-surface-container-high hover:bg-surface-container' }}"
+                                    class="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black transition-all border cursor-pointer active:scale-95 {{ $categoriaSeleccionada === $cat->id ? 'text-white shadow-xs' : 'bg-surface-container-low text-on-surface-variant border-surface-container-high hover:bg-surface-container' }}"
+                                    @style(['background-color: ' . $catColor => $categoriaSeleccionada === $cat->id, 'border-color: ' . $catColor => $categoriaSeleccionada === $cat->id])
                                 >
+                                    @if($categoriaSeleccionada !== $cat->id)
+                                        <span class="w-2 h-2 rounded-full shrink-0" @style(['background-color: ' . $catColor])></span>
+                                    @endif
                                     <span>{{ $cat->icono }}</span>
                                     <span>{{ $cat->nombre }}</span>
                                     <span class="rounded-full px-1 text-[9px] font-mono {{ $categoriaSeleccionada === $cat->id ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant' }}">
@@ -1285,10 +1320,13 @@ new class extends Component
                     class="p-3 space-y-2 bg-surface-container-low/30 overflow-y-auto max-h-[54vh] pr-2 scroll-smooth pos-scroll-vertical"
                 >
                     @forelse($productos as $prod)
-                        <div class="rounded-2xl border bg-surface-container-lowest p-3 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-all {{ isset($carrito[$prod->id]) ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : 'border-surface-container-highest' }}">
+                        @php $prodColor = $prod->categoria?->color ?? '#e11d48'; @endphp
+                        <div class="rounded-2xl border bg-surface-container-lowest p-3 flex items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-all {{ isset($carrito[$prod->id]) ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : 'border-surface-container-highest' }}"
+                             @style(['border-left: 4.5px solid ' . $prodColor])>
                             <!-- Visual & Detalles del Plato -->
                             <div class="flex items-center gap-3 min-w-0 flex-1">
-                                <div class="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-2xl shrink-0 shadow-2xs">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 shadow-2xs"
+                                     @style(['background-color: ' . $prodColor . '1a'])>
                                     {{ $prod->categoria?->icono ?? '🍣' }}
                                 </div>
                                 <div class="min-w-0 flex-1">
@@ -1585,10 +1623,10 @@ new class extends Component
         <!-- ========================================================================= -->
         <div class="space-y-4 {{ $vistaMesero === 'tablet' ? 'max-w-5xl mx-auto' : 'w-full' }}">
             <!-- Top Control Bar (Stitch POS-01 Aura Gastro Expressive OS) -->
-            <div class="flex flex-col gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex flex-col flex-wrap gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 shadow-sm lg:flex-row lg:items-center lg:justify-between">
                 <!-- Order Mode Toggle Pills -->
                 <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1">
+                    <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1 whitespace-nowrap shrink-0">
                         <span class="material-symbols-outlined text-[16px] text-primary">room_service</span>
                         Modo:
                     </span>
@@ -1609,7 +1647,8 @@ new class extends Component
                     <span class="material-symbols-outlined text-[16px]">takeout_dining</span>
                     <span>Para Llevar</span>
                 </button>
-                @if(auth()->user()?->role?->slug !== 'mesero')
+                {{-- rol intencional, no permiso: el botón Delivery se oculta solo al mesero (identidad de flujo, sin ability 1:1) --}}
+                @if(Auth::user()?->role?->slug !== 'mesero')
                     <button 
                         wire:click="$set('tipo', 'delivery')" 
                         type="button"
@@ -1625,24 +1664,28 @@ new class extends Component
         <!-- Table or Customer Selector -->
         @if($tipo === 'mesa')
             <div class="flex items-center gap-2">
-                <label for="mesaId" class="text-xs font-bold text-on-surface-variant flex items-center gap-1">
+                <label for="mesaId" class="text-xs font-bold text-on-surface-variant flex items-center gap-1 whitespace-nowrap shrink-0">
                     <span class="material-symbols-outlined text-[16px] text-secondary">pin</span>
                     Mesa:
                 </label>
+                {{-- rol intencional, no permiso: resaltado de ayuda exclusivo del mesero sin mesa --}}
                 <select 
                     wire:model.live="mesaId" 
                     id="mesaId" 
-                    class="h-9 rounded-xl border bg-surface-container-low px-3 text-xs font-bold text-on-surface focus:border-primary focus:ring-0 {{ !$mesaId && auth()->user()?->role?->slug === 'mesero' ? 'border-primary/60 ring-2 ring-primary/20' : 'border-surface-container-high' }}"
+                    class="h-9 w-auto max-w-[240px] sm:max-w-xs truncate rounded-xl border bg-surface-container-low px-3 text-xs font-bold text-on-surface focus:border-primary focus:ring-0 {{ !$mesaId && Auth::user()?->role?->slug === 'mesero' ? 'border-primary/60 ring-2 ring-primary/20' : 'border-surface-container-high' }}"
                 >
                     <option value="">Seleccionar mesa del salón...</option>
                     @foreach($mesas as $m)
-                        <option value="{{ $m->id }}">
-                            Mesa {{ $m->numero }} (Zona {{ $m->zona }} - {{ $m->estado }})
+                        {{-- rol intencional, no permiso: guard de mesa ajena (identidad de dominio) --}}
+                        @php $mesaAjena = $m->mesero_id && (int) $m->mesero_id !== (int) Auth::id() && Auth::user()?->role?->slug === 'mesero'; @endphp
+                        <option value="{{ $m->id }}" @disabled($mesaAjena)>
+                            Mesa {{ $m->numero }} (Zona {{ $m->zona }} - {{ $m->estado }}){{ $m->mesero_nombre ? ' · '.$m->mesero_nombre : '' }}
                         </option>
                     @endforeach
                 </select>
-                @if(!$mesaId && auth()->user()?->role?->slug === 'mesero')
-                    <span class="text-[11px] text-primary font-bold animate-pulse hidden sm:inline">← Elige una mesa</span>
+                {{-- rol intencional, no permiso: aviso contextual exclusivo del mesero sin mesa --}}
+                @if(!$mesaId && Auth::user()?->role?->slug === 'mesero')
+                    <span class="text-[11px] text-primary font-bold animate-pulse hidden sm:inline whitespace-nowrap shrink-0">← Elige una mesa</span>
                 @endif
             </div>
         @endif
@@ -1759,7 +1802,7 @@ new class extends Component
         </div>
 
         <!-- Search input & View Switcher & Caja Indicator -->
-        <div class="flex items-center gap-2 w-full lg:w-auto flex-wrap sm:flex-nowrap">
+        <div class="flex items-center gap-2 w-full lg:w-auto flex-wrap">
             <!-- Indicador de Caja / Turno -->
             <div class="shrink-0">
                 @if($turnoActivo)
@@ -1774,7 +1817,7 @@ new class extends Component
                         <span class="text-[10px] font-mono text-on-surface-variant font-bold">#{{ $turnoActivo->id }}</span>
                     </a>
                 @else
-                    @if(in_array(auth()->user()?->role?->slug, ['cajero', 'gerente', 'admin']))
+                    @can('abrir', App\Models\TurnoCaja::class)
                         <button 
                             type="button"
                             wire:click="abrirModalAperturaPosManual"
@@ -1789,11 +1832,11 @@ new class extends Component
                             <span class="material-symbols-outlined text-[16px] text-error">lock</span>
                             <span>Caja Cerrada</span>
                         </div>
-                    @endif
+                    @endcan
                 @endif
             </div>
 
-            <div class="relative flex-1 sm:w-56 lg:w-60">
+            <div class="relative flex-1 min-w-[180px] sm:w-56 lg:w-60">
                 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
                 <input 
                     type="text" 
@@ -1803,7 +1846,8 @@ new class extends Component
                 />
             </div>
 
-            @if(auth()->user()?->role?->slug === 'mesero')
+            {{-- rol intencional, no permiso: selector de vistas exclusivo de la comandera del mesero --}}
+            @if(Auth::user()?->role?->slug === 'mesero')
                 <!-- Selector de Tres Vistas Táctiles Exclusivo Mesero (Tablet, PC, Móvil) -->
                 <div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-xl border border-surface-container-high shrink-0" role="group" aria-label="Selector de vistas">
                     <!-- Botón PC -->
@@ -1889,11 +1933,16 @@ new class extends Component
 
                     <!-- Botones por Categoría -->
                     @foreach($categorias as $cat)
+                        @php $catColor = $cat->color ?? '#e11d48'; @endphp
                         <button 
                             wire:click="$set('categoriaSeleccionada', {{ $cat->id }})"
                             type="button"
-                            class="flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all border cursor-pointer active:scale-95 {{ $categoriaSeleccionada === $cat->id ? 'bg-primary text-on-primary border-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant border-surface-container-high hover:bg-surface-container hover:text-on-surface' }}"
+                            class="flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all border cursor-pointer active:scale-95 {{ $categoriaSeleccionada === $cat->id ? 'text-white shadow-sm' : 'bg-surface-container-low text-on-surface-variant border-surface-container-high hover:bg-surface-container hover:text-on-surface' }}"
+                            @style(['background-color: ' . $catColor => $categoriaSeleccionada === $cat->id, 'border-color: ' . $catColor => $categoriaSeleccionada === $cat->id])
                         >
+                            @if($categoriaSeleccionada !== $cat->id)
+                                <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" @style(['background-color: ' . $catColor])></span>
+                            @endif
                             <span class="text-sm">{{ $cat->icono }}</span>
                             <span>{{ $cat->nombre }}</span>
                             <span class="ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-mono {{ $categoriaSeleccionada === $cat->id ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant' }}">
@@ -1916,7 +1965,8 @@ new class extends Component
                 </button>
 
                 <!-- Botón Crear Producto: Para Administrador y Gerente (Invisible para el resto de usuarios) -->
-                @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                {{-- rol intencional, no permiso: crear producto es gestión de carta, sin ability en el catálogo --}}
+                @if(in_array(Auth::user()?->role?->slug, ['admin', 'gerente'], true))
                     <div class="shrink-0 border-l border-surface-container-highest pl-2">
                         <a 
                             href="{{ route('menu') }}"
@@ -1936,14 +1986,19 @@ new class extends Component
             <!-- Product Grid Adaptable por Tipo de Vista -->
             <div class="grid gap-3 {{ $vistaMesero === 'movil' ? 'grid-cols-1 sm:grid-cols-2' : ($vistaMesero === 'tablet' ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 xl:grid-cols-4') }}">
                 @forelse($productos as $prod)
+                    @php $prodColor = $prod->categoria?->color ?? '#e11d48'; @endphp
                     <button 
                         wire:click="agregarProducto({{ $prod->id }})"
-                        class="group relative flex flex-col justify-between rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 text-left shadow-sm transition-all duration-150 hover:border-primary hover:shadow-md active:scale-95"
+                        class="group relative flex flex-col justify-between rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3.5 text-left shadow-sm transition-all duration-150 hover:border-primary hover:shadow-md active:scale-95 overflow-hidden"
+                        @style(['border-top: 4px solid ' . $prodColor])
                     >
                         <div>
                             <!-- Header: Icon & Kitchen Area Chip -->
                             <div class="flex items-start justify-between gap-1">
-                                <span class="text-2xl">{{ $prod->categoria?->icono ?? '🍣' }}</span>
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-2xs"
+                                     @style(['background-color: ' . $prodColor . '1a'])>
+                                    {{ $prod->categoria?->icono ?? '🍣' }}
+                                </div>
                                 <span class="rounded-md border border-surface-container-high bg-surface-container-low px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">
                                     {{ $prod->area_cocina }}
                                 </span>
@@ -1963,7 +2018,8 @@ new class extends Component
                             <span class="text-xs font-black text-on-surface tracking-tight">
                                 ${{ number_format((float) $prod->precio, 0, ',', '.') }}
                             </span>
-                            <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-on-primary group-hover:bg-primary-container transition-colors font-bold text-base shadow-sm">
+                            <span class="flex h-8 w-8 items-center justify-center rounded-xl text-white group-hover:opacity-90 transition-colors font-bold text-base shadow-sm"
+                                  @style(['background-color: ' . $prodColor])>
                                 +
                             </span>
                         </div>
@@ -1972,7 +2028,8 @@ new class extends Component
                     <div class="col-span-full rounded-2xl border border-dashed border-surface-container-highest p-12 text-center text-on-surface-variant flex flex-col items-center justify-center gap-3">
                         <span class="material-symbols-outlined text-[36px] text-on-surface-variant/40">ramen_dining</span>
                         <p class="text-xs font-semibold">No hay productos o servicios en esta categoría.</p>
-                        @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                        {{-- rol intencional, no permiso: crear producto es gestión de carta, sin ability en el catálogo --}}
+                        @if(in_array(Auth::user()?->role?->slug, ['admin', 'gerente'], true))
                             <a href="{{ route('menu') }}" wire:navigate class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold shadow hover:bg-primary/90 transition">
                                 <span class="material-symbols-outlined text-[16px]">add_circle</span>
                                 <span>Crear Producto para esta Categoría</span>
@@ -2156,7 +2213,8 @@ new class extends Component
                         <span>Cobrar Pedido</span>
                     </button>
                 </div>
-                @if(auth()->user()?->role?->slug === 'mesero')
+                {{-- rol intencional, no permiso: hint contextual del flujo mesero --}}
+                @if(Auth::user()?->role?->slug === 'mesero')
                     <p class="text-[10px] text-center text-on-surface-variant font-medium pt-1">
                         <span class="font-bold text-primary">Modo Mesero:</span> Envía comandas o cobra directo en mesa
                     </p>
@@ -2415,7 +2473,9 @@ new class extends Component
                     </button>
                     <button 
                         wire:click="procesarCobro" 
-                        class="rounded-xl bg-secondary py-3 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim"
+                        @disabled($this->comandaActivaBloqueaCobro())
+                        title="{{ $this->comandaActivaBloqueaCobro() ? 'La comanda sigue activa en cocina: solo se puede cobrar cuando todo fue servido o cancelado.' : 'Confirmar cobro' }}"
+                        class="rounded-xl bg-secondary py-3 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim disabled:opacity-40"
                     >
                         ✓ Confirmar y Emitir
                     </button>
@@ -2452,7 +2512,7 @@ new class extends Component
                     </div>
                     <div class="flex justify-between">
                         <span>CAJERO:</span>
-                        <span>{{ auth()->user()->name }}</span>
+                        <span>{{ Auth::user()->name }}</span>
                     </div>
                     @if($pedidoCompletado->mesero)
                         <div class="flex justify-between font-bold text-primary">

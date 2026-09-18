@@ -10,6 +10,7 @@
 /.idea
 /.nova
 /.phpunit.cache
+/.superpowers/
 /.vscode
 /.zed
 /auth.json
@@ -28,4 +29,5 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 *.sql
+!database/dumps/*.sql
 *.bak

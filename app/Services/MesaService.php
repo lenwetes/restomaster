@@ -6,6 +6,7 @@ use App\Enums\MesaEstado;
 use App\Models\Mesa;
 use App\Models\Sucursal;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -156,10 +157,26 @@ class MesaService
     }
 
     /**
+     * Regla única: un mesero no opera mesas asignadas a otro mesero.
+     * Cajero/gerente/admin y contextos sin actor (QR público, sistema) pasan.
+     */
+    public function validarDisponiblePara(Mesa $mesa, ?User $usuario = null): void
+    {
+        $actor = $usuario ?? auth()->user();
+
+        if ($mesa->mesero_id && $actor && $actor->isMesero() && (int) $mesa->mesero_id !== (int) $actor->id) {
+            $nombre = $mesa->mesero?->name ?? 'otro mesero';
+            throw new AuthorizationException("Mesa #{$mesa->numero} atendida por {$nombre}: pídele que la libere o solicita una transferencia.");
+        }
+    }
+
+    /**
      * Autoasignar una mesa al mesero autenticado o seleccionado.
      */
     public function autoasignarMesa(Mesa $mesa, User $mesero): Mesa
     {
+        $this->validarDisponiblePara($mesa, $mesero);
+
         $mesa->update(['mesero_id' => $mesero->id]);
 
         // Si la mesa tiene pedidos activos, reasignarlos al nuevo mesero
