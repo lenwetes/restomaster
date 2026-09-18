@@ -6,6 +6,48 @@
 ---
 
 ## Última Actualización
+2026-09-18 12:55 | Antigravity | 🇨🇴 **POBLADO COMPLETO DE BASE DE DATOS PARA PRUEBAS REALES EN ENTORNO COLOMBIANO (COP, MEDELLÍN)**:
+- **Funcionalidad implementada:**
+  1. **Seeder de Datos Realistas (`database/seeders/DatosPruebaRealistasSeeder.php`):**
+     - **Sucursal Principal:** *RestoMaster Provenza · Medellín* (Cra 35 # 8A-19, El Poblado).
+     - **Personal Completo (14 colaboradores colombianos con roles, emails, teléfonos y contraseñas):**
+       - 1 Administrador: *Alejandro Restrepo Gómez* (`admin@restomaster.com`, +57 300 458 9201).
+       - 1 Gerente: *Valentina Jaramillo Morales* (`gerente@restomaster.com`, +57 310 829 4411).
+       - 2 Cajeros: *Sebastián Castaño Rivera* (`cajero@restomaster.com`, +57 314 736 1092) y *Mariana Zapata Betancur* (`mariana.caja@restomaster.com`, +57 301 552 8490).
+       - 4 Meseros: *Juan David Montoya Londoño*, *Daniela Cárdenas Gil*, *Mateo Henao Álvarez*, *Camila Salazar Duque*.
+       - 3 Cocina & Barra: *Carlos Mario Echeverri* (Chef Ejecutivo), *Esteban Quintero Giraldo* (Sous Chef), *Andrés Felipe Vélez* (Head Bartender).
+       - 3 Repartidores Delivery: *Brayan Stiven Muñoz Ríos*, *Jhoan Alexis Arango Peña*, *Kevin Andrés Pineda Higuita*.
+       - Contraseña para todo el personal demo: `restomaster2026`.
+     - **Terminales y Turnos de Caja en Pesos Colombianos (COP):**
+       - `CAJ-01` (Salón Principal): Turno abierto con base inicial de $200.000 COP asignado a Sebastián Castaño.
+       - `CAJ-02` (Barra & Terraza): Turno abierto con base inicial de $150.000 COP asignado a Mariana Zapata.
+     - **Inventario Completo (8 Categorías + 21 Insumos con Stock y Categorías Personalizadas):**
+       - Categorías: Pescados & Mariscos, Carnes & Aves, Granos & Secos, Vegetales & Frescos, Salsas & Condimentos, Licores & Destilados, Bebidas & Refrescos, Lácteos & Quesos.
+       - Insumos: Salmón Fresco Noruego, Atún Rojo Sashimi, Langostinos Tigre, Lomo de Res Angus, Arroz Koshihikari, Queso Crema Philadelphia, Aguacate Hass, Sake Junmai, Ginebra Tanqueray, Cervezas BBC y Club Colombia, etc. Todos con costo unitario, stock actual, mínimo, alerta y unidad de medida gastronómica.
+     - **Carta y Menú Gastronómico (8 Categorías con Color e Ícono + 20 Productos):**
+       - Rolls Especiales, Nigiris & Sashimis, Entradas Nikkei, Woks & Sopas Ramen, Robata Grill & Carnes, Coctelería de Autor, Cervezas & Refrescos, Postres & Dulces.
+       - Productos con precios realistas colombianos ($18.000 - $68.000 COP), código interno, color, descripción e indicador de disponibilidad.
+     - **Escandallos y Recetas (43 Fórmulas Gastronómicas):**
+       - Deducción precisa de gramajes, mermas e insumos por cada plato servido en cocina y trago servido en barra.
+     - **Mesas en 4 Zonas (16 Mesas):**
+       - Salón (Mesas 1 a 6), Terraza Climatizada (Mesas 7 a 10), Barra Nikkei (Mesas B1 a B4), Salón VIP (VIP-1, VIP-2).
+     - **Clientes Colombianos (8 Clientes):**
+       - Con Cédula de Ciudadanía, teléfonos +57, direcciones en El Poblado, Laureles y Envigado, clasificación RFM (VIP, Frecuente, Ocasional), saldo de puntos acumulados y consentimiento de Habeas Data firmado.
+     - **Pedidos y Comandas para Pruebas en Vivo:**
+       - 18 pedidos históricos pagados (totalizando más de $4.800.000 COP en ventas) con desglose en efectivo, tarjetas, transferencias Nequi/Bancolombia y propinas voluntarias del 10% para meseros.
+       - 3 pedidos activos en salón con comandas en progreso en la cocina KDS (Mesa 3, Mesa 7 y Barra B2).
+       - 2 pedidos para Delivery con repartidor asignado y dirección en Medellín.
+     - **Reservas de Mesa (5 Reservas):**
+       - Programadas para hoy y los próximos días en Terraza, Salón y VIP, con comensales, peticiones especiales y anticipos registrados.
+     - **Cuentas por Pagar a Proveedores (3 Facturas CXP):**
+       - Pescados del Pacífico S.A.S., Carnes San Martín Medellín, Cervecería Bavaria.
+  2. **Comando Artisan Dedicado:**
+     - `php artisan restomaster:seed-demo` (alias `php artisan db:seed-demo`) para ejecutar o refrescar la carga de datos sin romper el estado base de los tests ni borrar los usuarios de sistema.
+- **Verificación:**
+  - `php artisan restomaster:seed-demo`: Ejecutado en 1.011 ms con 0 errores.
+  - `vendor/bin/pint --test`: 0 infracciones de estilo.
+  - `php artisan test`: **408 de 408 tests pasando al 100% en verde (1524 aserciones)**.
+
 2026-09-18 12:38 | Antigravity | 🛡️ **RESOLUCIÓN COMPLETA DE ERRORES DE INTELEPHENSE Y BLADE LINTER (current_problems)**:
 - **Problemas corregidos:**
   1. `inventario/index.blade.php:311`: `"Undefined method 'ajusteFisico'"` en `$service` -> Migrado a `$service->registrarAjuste(...)` que es el método canónico nativo en [app/Services/InventarioService.php](file:///d:/Proyectos/restomaster/app/Services/InventarioService.php).
