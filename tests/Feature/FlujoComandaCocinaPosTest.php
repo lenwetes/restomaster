@@ -346,4 +346,74 @@ class FlujoComandaCocinaPosTest extends TestCase
         $this->assertEquals(0.0, (float) $pos->instance()->montoPagado);
         $this->assertEquals(0.0, $pos->instance()->cambio);
     }
+
+    public function test_cobro_mesa_con_items_repetidos_sincroniza_total_y_emite_cobro(): void
+    {
+        // 1. Crear un pedido con múltiples registros del mismo producto (adiciones sucesivas)
+        $pedido = Pedido::create([
+            'codigo' => 'ORD-TEST-REPETIDOS-01',
+            'tipo' => 'mesa',
+            'estado' => 'entregado',
+            'mesa_id' => $this->mesa->id,
+            'sucursal_id' => $this->mesa->sucursal_id,
+            'usuario_id' => $this->mesero->id,
+            'subtotal' => 90000.0, // 2x Churrasco (45.000 c/u)
+            'total' => 90000.0,
+        ]);
+        $this->mesa->update(['estado' => 'ocupada', 'mesero_id' => $this->mesero->id]);
+
+        // Registro 1 de churrasco (cantidad 1)
+        ItemPedido::create([
+            'pedido_id' => $pedido->id,
+            'producto_id' => $this->platoParrilla->id,
+            'nombre_producto' => $this->platoParrilla->nombre,
+            'cantidad' => 1,
+            'precio_unitario' => 45000.0,
+            'subtotal' => 45000.0,
+            'area_cocina' => 'caliente',
+            'estado_cocina' => 'entregado',
+        ]);
+
+        // Registro 2 de churrasco (cantidad 1, agregado posteriormente)
+        ItemPedido::create([
+            'pedido_id' => $pedido->id,
+            'producto_id' => $this->platoParrilla->id,
+            'nombre_producto' => $this->platoParrilla->nombre,
+            'cantidad' => 1,
+            'precio_unitario' => 45000.0,
+            'subtotal' => 45000.0,
+            'area_cocina' => 'caliente',
+            'estado_cocina' => 'entregado',
+        ]);
+
+        // 2. Mesero entra al POS con la mesa seleccionada
+        $pos = Volt::actingAs($this->mesero)
+            ->test('pos.terminal')
+            ->set('mesaId', $this->mesa->id);
+
+        // El carrito debe haber acumulado 2 unidades del producto repetido, dando total 90.000
+        $this->assertEquals(2, $pos->get('carrito')[$this->platoParrilla->id]['cantidad']);
+        $this->assertEquals(90000.0, $pos->instance()->total);
+
+        // 3. Abrir modal de cobro
+        $pos->call('abrirModalCobro');
+        $this->assertTrue($pos->get('mostrarModalCobro'));
+        $this->assertEquals(90000.0, (float) $pos->get('montoPagado'));
+
+        // 4. Confirmar y emitir cobro en efectivo
+        $pos->set('metodoPago', 'efectivo')
+            ->call('procesarCobro')
+            ->assertHasNoErrors();
+
+        // 5. Verificar que el modal de cobro se cerró, el ticket se activó y el pedido está pagado
+        $this->assertFalse($pos->get('mostrarModalCobro'));
+        $this->assertTrue($pos->get('mostrarTicket'));
+        $this->assertNotNull($pos->instance()->pedidoCompletado);
+        $this->assertEquals('pagado', $pos->instance()->pedidoCompletado->estado);
+
+        $pedido->refresh();
+        $this->assertEquals('pagado', $pedido->estado);
+        $this->mesa->refresh();
+        $this->assertEquals('por_limpiar', $this->mesa->estado);
+    }
 }

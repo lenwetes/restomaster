@@ -6,6 +6,29 @@
 ---
 
 ## Última Actualización
+2026-09-18 17:55 | Antigravity | 🎯 **RESOLUCIÓN DEL BUG 'NO HACE NADA AL CONFIRMAR Y EMITIR' EN TERMINAL DE COBRO POS**:
+- **Causa raíz diagnosticada:**
+  1. **Desincronización por sobreescritura de ítems repetidos en carrito:** Al poblar el carrito desde la base de datos (`$pedidoExistente->items`), se indexaba directamente por `$item->producto_id` asignando `'cantidad' => (int) $item->cantidad` en lugar de acumular (`+=`). Si un pedido de mesa tenía múltiples registros del mismo producto (tandas o adiciones sucesivas, e.g. Costillas de Cerdo x3 o Ensalada x2 en el Pedido #73), los registros posteriores sobreescribían a los anteriores, calculando un total en pantalla de **$411.000** en vez del total real en DB de **$541.000** (exactamente una diferencia de $130.000).
+  2. **Validación silenciosa de monto insuficiente:** Al dar clic en "Confirmar y Emitir", `procesarCobro()` comparaba el monto entregado en pantalla (`$montoPagado = 411000`) contra el total real en DB (`$pedido->total = 541000`). Al ser `$montoPagado < $totalConPropina`, ejecutaba `$this->addError('montoPagado', ...); return;`.
+  3. **Falta de feedback visual en el modal de cobro:** El modal Blade (`mostrarModalCobro`) **no tenía renderizado de `@error('montoPagado')` ni `@if($errors->any())`**. Por tanto, Livewire re-renderizaba el modal exactamente igual sin ningún mensaje, produciendo el efecto de "no hace nada".
+  4. **Captura restrictiva de excepciones:** `procesarCobro` solo capturaba `\Symfony\Component\HttpKernel\Exception\HttpException`, de modo que cualquier excepción de dominio (`DomainException`, `InvalidArgumentException`, o errores de turno de caja) causaba un error 500 no capturado en la petición AJAX.
+  5. **Restricción en `enviarACocina` para adiciones:** En `PedidoService.php`, `enviarACocina()` bloqueaba pedidos con estado `entregado`, impidiendo que pedidos con platos ya servidos pudieran enviar nuevas rondas o adiciones a cocina.
+- **Solución implementada:**
+  1. `resources/views/livewire/pos/terminal.blade.php`:
+     - Creado método helper `cargarCarritoDesdePedido(Pedido $pedido)` que acumula correctamente las cantidades de ítems repetidos (`$this->carrito[$prodId]['cantidad'] += $cant`). Usado en `mount()`, `updatedMesaId()`, `abrirModalCobro()`, `cancelarModoAdicion()` y `procesarCobro()`.
+     - Creado helper `obtenerCantidadesPorProducto(Pedido $pedido): Collection` que calcula la suma real por `producto_id` usando `groupBy` y `SUM(cantidad)`, evitando que `keyBy('producto_id')` ignore registros múltiples.
+     - En `abrirModalCobro()`, sincroniza siempre el carrito completo con la comanda real activa de la mesa antes de abrir el modal y establece `$this->montoPagado = $this->totalConPropina`.
+     - En `procesarCobro()`, sanitiza y redondea montos para moneda COP (`round()`), agrega mensaje de error explicativo y despacha notificación toast (`dispatch('notificacion')`).
+     - Atrapa `\Throwable $e` en lugar de solo `HttpException`, reportando cualquier fallo con feedback visual al usuario.
+     - En la vista del modal de cobro: añadido banner de error destacado `@error('montoPagado')` y `$errors->any()`, atributos `type="button"` y `wire:loading.attr="disabled"` con spinner animado de `Procesando...`.
+  2. `app/Services/PedidoService.php`:
+     - En `enviarACocina()`, se eliminó `'entregado'` de la restricción `abort_if`, permitiendo que pedidos con comanda previa despachada puedan enviar sus nuevas rondas a cocina.
+  3. `tests/Feature/FlujoComandaCocinaPosTest.php`:
+     - Añadido test integral `test_cobro_mesa_con_items_repetidos_sincroniza_total_y_emite_cobro`: valida comanda con productos repetidos, acumulación en carrito, total exacto en POS, apertura de cobro, emisión en efectivo y cierre de mesa en `por_limpiar` (100% tests pasando: 5/5, 58 assertions).
+- **Archivos:** `resources/views/livewire/pos/terminal.blade.php`, `app/Services/PedidoService.php`, `tests/Feature/FlujoComandaCocinaPosTest.php`, `coordination.md`
+
+---
+
 2026-09-18 17:30 | Antigravity | 🛡️ **RESOLUCIÓN DE PROPERTYNOTFOUNDEXCEPTION [$montoPagado] EN TERMINAL POS**:
 - **Causa raíz:**
   - En `resources/views/livewire/pos/terminal.blade.php`, `$montoPagado` (así como `$montoEfectivoMixto`, `$montoPropina` y `$baseAperturaPos`) estaban declaradas con tipado estricto `public float $montoPagado = 0.0;`.

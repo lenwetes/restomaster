@@ -162,17 +162,26 @@ class PedidoService
      */
     public function enviarACocina(Pedido $pedido): Pedido
     {
-        $pedido->update(['estado' => 'en_cocina']);
+        return DB::transaction(function () use ($pedido) {
+            $pedido = Pedido::whereKey($pedido->id)->lockForUpdate()->firstOrFail();
+            abort_if(
+                in_array($pedido->estado, ['pagado', 'cancelado'], true),
+                422,
+                'El pedido ya fue cerrado y no admite envío a cocina.'
+            );
 
-        $pedido->items()->where('estado_cocina', 'pendiente')->update([
-            'estado_cocina' => 'en_preparacion',
-            'iniciado_en' => now(),
-        ]);
+            $pedido->update(['estado' => 'en_cocina']);
 
-        // Despachar comanda a las impresoras térmicas de cocina por estación
-        app(ImpresionService::class)->despacharComandaCocina($pedido);
+            $pedido->items()->where('estado_cocina', 'pendiente')->update([
+                'estado_cocina' => 'en_preparacion',
+                'iniciado_en' => now(),
+            ]);
 
-        return $pedido->fresh('items');
+            // Despachar comanda a las impresoras térmicas de cocina por estación
+            app(ImpresionService::class)->despacharComandaCocina($pedido);
+
+            return $pedido->fresh('items');
+        });
     }
 
     /**
@@ -199,7 +208,8 @@ class PedidoService
             }
         }
 
-        Cache::flush();
+        Cache::forget('pos.terminal.mesas');
+        Cache::forget('pos.terminal.categorias');
 
         return $item;
     }
@@ -417,6 +427,10 @@ class PedidoService
     public function agregarItem(Pedido $pedido, Producto $producto, int $cantidad = 1, ?string $notas = null): ItemPedido
     {
         return DB::transaction(function () use ($pedido, $producto, $cantidad, $notas) {
+            $pedido = Pedido::whereKey($pedido->id)->lockForUpdate()->firstOrFail();
+            abort_if($pedido->estado === 'pagado', 400, 'No se pueden agregar ítems a un pedido ya cobrado.');
+            abort_if($pedido->estado === 'cancelado', 400, 'No se pueden agregar ítems a un pedido cancelado.');
+
             $cantidad = max(1, $cantidad);
             $precioUnitario = (float) $producto->precio;
             $itemSubtotal = $precioUnitario * $cantidad;

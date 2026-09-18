@@ -134,6 +134,35 @@ new class extends Component
         }
     }
 
+    public function cargarCarritoDesdePedido(Pedido $pedido): void
+    {
+        $this->limpiarCarrito();
+        foreach ($pedido->items as $item) {
+            $prodId = (int) $item->producto_id;
+            $cant = (int) $item->cantidad;
+            if (isset($this->carrito[$prodId])) {
+                $this->carrito[$prodId]['cantidad'] += $cant;
+            } else {
+                $this->carrito[$prodId] = [
+                    'producto_id' => $prodId,
+                    'nombre' => $item->nombre_producto,
+                    'precio' => (float) $item->precio_unitario,
+                    'cantidad' => $cant,
+                    'notas' => $item->notas ?? '',
+                    'area_cocina' => $item->area_cocina,
+                ];
+            }
+        }
+    }
+
+    public function obtenerCantidadesPorProducto(Pedido $pedido): \Illuminate\Support\Collection
+    {
+        return $pedido->items()
+            ->selectRaw('producto_id, SUM(cantidad) as total_cantidad')
+            ->groupBy('producto_id')
+            ->pluck('total_cantidad', 'producto_id');
+    }
+
     public function mount(): void
     {
         $this->modoNuevaAdicion = false;
@@ -150,16 +179,7 @@ new class extends Component
             // If table has an active order, load it
             $pedidoExistente = Pedido::where('mesa_id', $this->mesaId)->activos()->latest()->first();
             if ($pedidoExistente) {
-                foreach ($pedidoExistente->items as $item) {
-                    $this->carrito[$item->producto_id] = [
-                        'producto_id' => $item->producto_id,
-                        'nombre' => $item->nombre_producto,
-                        'precio' => (float) $item->precio_unitario,
-                        'cantidad' => (int) $item->cantidad,
-                        'notas' => $item->notas ?? '',
-                        'area_cocina' => $item->area_cocina,
-                    ];
-                }
+                $this->cargarCarritoDesdePedido($pedidoExistente);
             }
         }
     }
@@ -171,16 +191,7 @@ new class extends Component
         if ($value) {
             $pedidoExistente = Pedido::where('mesa_id', (int) $value)->activos()->latest()->first();
             if ($pedidoExistente) {
-                foreach ($pedidoExistente->items as $item) {
-                    $this->carrito[$item->producto_id] = [
-                        'producto_id' => $item->producto_id,
-                        'nombre' => $item->nombre_producto,
-                        'precio' => (float) $item->precio_unitario,
-                        'cantidad' => (int) $item->cantidad,
-                        'notas' => $item->notas ?? '',
-                        'area_cocina' => $item->area_cocina,
-                    ];
-                }
+                $this->cargarCarritoDesdePedido($pedidoExistente);
             }
         }
     }
@@ -791,7 +802,7 @@ new class extends Component
 
     public function sumarMonto(float $cantidad): void
     {
-        $this->montoPagado = $cantidad;
+        $this->montoPagado = max(0.0, (float) $this->montoPagado + max(0.0, $cantidad));
     }
 
     public function obtenerPedidoActivoMesa(): ?Pedido
@@ -825,15 +836,14 @@ new class extends Component
             return false;
         }
 
-        $itemsDb = $pedido->items()->get()->keyBy('producto_id');
+        $cantidadesDb = $this->obtenerCantidadesPorProducto($pedido);
 
         foreach ($this->carrito as $prodId => $itemCarrito) {
             $cantCarrito = (int) $itemCarrito['cantidad'];
-            if (! $itemsDb->has($prodId)) {
+            if (! $cantidadesDb->has($prodId)) {
                 return false;
             }
-            $itemDb = $itemsDb->get($prodId);
-            if ($cantCarrito > (int) $itemDb->cantidad) {
+            if ($cantCarrito > (int) $cantidadesDb->get($prodId)) {
                 return false;
             }
         }
@@ -882,16 +892,7 @@ new class extends Component
         $this->limpiarCarrito();
         $pedidoExistente = $this->obtenerPedidoActivoMesa();
         if ($pedidoExistente) {
-            foreach ($pedidoExistente->items as $item) {
-                $this->carrito[$item->producto_id] = [
-                    'producto_id' => $item->producto_id,
-                    'nombre' => $item->nombre_producto,
-                    'precio' => (float) $item->precio_unitario,
-                    'cantidad' => (int) $item->cantidad,
-                    'notas' => $item->notas ?? '',
-                    'area_cocina' => $item->area_cocina,
-                ];
-            }
+            $this->cargarCarritoDesdePedido($pedidoExistente);
         }
     }
 
@@ -906,16 +907,15 @@ new class extends Component
             return count($this->carrito);
         }
 
-        $itemsDb = $pedido->items()->get()->keyBy('producto_id');
+        $cantidadesDb = $this->obtenerCantidadesPorProducto($pedido);
         $nuevos = 0;
 
         foreach ($this->carrito as $prodId => $itemCarrito) {
             $cantCarrito = (int) $itemCarrito['cantidad'];
-            if (! $itemsDb->has($prodId)) {
+            if (! $cantidadesDb->has($prodId)) {
                 $nuevos += $cantCarrito;
             } else {
-                $itemDb = $itemsDb->get($prodId);
-                $diff = $cantCarrito - (int) $itemDb->cantidad;
+                $diff = $cantCarrito - (int) $cantidadesDb->get($prodId);
                 if ($diff > 0) {
                     $nuevos += $diff;
                 }
@@ -980,16 +980,7 @@ new class extends Component
         if (empty($this->carrito)) {
             $pedidoActivo = $this->obtenerPedidoActivoMesa();
             if ($pedidoActivo) {
-                foreach ($pedidoActivo->items as $item) {
-                    $this->carrito[$item->producto_id] = [
-                        'producto_id' => $item->producto_id,
-                        'nombre' => $item->nombre_producto,
-                        'precio' => (float) $item->precio_unitario,
-                        'cantidad' => (int) $item->cantidad,
-                        'notas' => $item->notas ?? '',
-                        'area_cocina' => $item->area_cocina,
-                    ];
-                }
+                $this->cargarCarritoDesdePedido($pedidoActivo);
             }
         }
 
@@ -1038,24 +1029,16 @@ new class extends Component
                 }
                 $this->modoNuevaAdicion = false;
             } else {
-                $itemsExistentes = $pedidoExistente->items()->get()->keyBy('producto_id');
+                $cantidadesDb = $this->obtenerCantidadesPorProducto($pedidoExistente);
 
                 foreach ($this->carrito as $productoId => $itemCarrito) {
                     $cantidadCarrito = (int) $itemCarrito['cantidad'];
-                    if ($itemsExistentes->has($productoId)) {
-                        $itemDb = $itemsExistentes->get($productoId);
-                        $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
-                        if ($diferencia > 0) {
-                            $producto = Producto::find($productoId);
-                            if ($producto) {
-                                $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
-                                $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
-                            }
-                        }
-                    } else {
+                    $cantidadExistente = (int) $cantidadesDb->get($productoId, 0);
+                    $diferencia = $cantidadCarrito - $cantidadExistente;
+                    if ($diferencia > 0) {
                         $producto = Producto::find($productoId);
                         if ($producto) {
-                            $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
+                            $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
                             $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
                         }
                     }
@@ -1107,8 +1090,16 @@ new class extends Component
             $this->montoEfectivoMixto = min(max(0, (float) $this->montoEfectivoMixto), $totalConPropina);
         }
 
-        if ($this->montoPagado < $totalConPropina) {
-            $this->addError('montoPagado', 'El monto pagado no puede ser menor al total.');
+        $montoPagadoNum = round((float) $this->montoPagado);
+        $totalConPropinaNum = round($totalConPropina);
+
+        if ($montoPagadoNum < $totalConPropinaNum) {
+            $msg = 'El monto entregado ($'.number_format($montoPagadoNum, 0, ',', '.').') no puede ser menor al total a cancelar ($'.number_format($totalConPropinaNum, 0, ',', '.').').';
+            $this->addError('montoPagado', $msg);
+            $this->dispatch('notificacion', [
+                'mensaje' => $msg,
+                'tipo' => 'warning',
+            ]);
 
             return;
         }
@@ -1126,13 +1117,17 @@ new class extends Component
             $this->pedidoCompletado = $pedidoService->cobrarPedido(
                 $pedido,
                 $this->metodoPago,
-                $this->montoPagado,
+                $montoPagadoNum,
                 strtolower((string) $this->metodoPago) === 'mixto' ? (float) $this->montoEfectivoMixto : null,
                 $propina,
                 $this->porcentajePropina
             );
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        } catch (\Throwable $e) {
             $this->addError('montoPagado', $e->getMessage());
+            $this->dispatch('notificacion', [
+                'mensaje' => 'No se pudo procesar el cobro: ' . $e->getMessage(),
+                'tipo' => 'error',
+            ]);
 
             return;
         }
@@ -2907,21 +2902,50 @@ new class extends Component
                     @endif
                 </div>
 
+                <!-- Error Feedback in Billing Modal -->
+                @error('montoPagado')
+                    <div class="mt-4 rounded-2xl bg-error/15 border border-error/30 p-3 text-xs font-bold text-error flex items-center gap-2 animate-fade-in shadow-xs">
+                        <span class="material-symbols-outlined text-[20px] text-error shrink-0">error</span>
+                        <span class="flex-1">{{ $message }}</span>
+                    </div>
+                @enderror
+
+                @if($errors->any() && !$errors->has('montoPagado'))
+                    <div class="mt-4 rounded-2xl bg-error/15 border border-error/30 p-3 text-xs font-bold text-error space-y-1 animate-fade-in shadow-xs">
+                        @foreach($errors->all() as $error)
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[18px] text-error shrink-0">warning</span>
+                                <span>{{ $error }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
                 <!-- Modal Action Buttons -->
                 <div class="mt-6 grid grid-cols-2 gap-2">
                     <button 
+                        type="button"
                         wire:click="$set('mostrarModalCobro', false)" 
-                        class="rounded-xl border border-surface-container-high bg-surface-container py-3 text-xs font-extrabold text-on-surface-variant hover:text-on-surface"
+                        class="rounded-xl border border-surface-container-high bg-surface-container py-3 text-xs font-extrabold text-on-surface-variant hover:text-on-surface cursor-pointer"
                     >
                         Cancelar
                     </button>
                     <button 
+                        type="button"
                         wire:click="procesarCobro" 
+                        wire:loading.attr="disabled"
                         @disabled($this->comandaActivaBloqueaCobro())
                         title="{{ $this->comandaActivaBloqueaCobro() ? 'La comanda sigue activa en cocina: solo se puede cobrar cuando todo fue servido o cancelado.' : 'Confirmar cobro' }}"
-                        class="rounded-xl bg-secondary py-3 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim disabled:opacity-40"
+                        class="rounded-xl bg-secondary py-3 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed transition-all"
                     >
-                        ✓ Confirmar y Emitir
+                        <span wire:loading.remove wire:target="procesarCobro">✓ Confirmar y Emitir</span>
+                        <span wire:loading wire:target="procesarCobro" class="inline-flex items-center gap-1.5">
+                            <svg class="animate-spin h-4 w-4 text-on-secondary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Procesando...</span>
+                        </span>
                     </button>
                 </div>
             </div>
