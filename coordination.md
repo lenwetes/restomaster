@@ -6,6 +6,23 @@
 ---
 
 ## Última Actualización
+2026-09-18 13:23 | Antigravity | 🎨 **CORRECCIÓN VISUAL DE ÍCONOS DE CATEGORÍA Y BADGES DE ÁREA DE COCINA EN POS & KDS**:
+- **Causa raíz:**
+  1. En las tarjetas de productos y botones de navegación del POS (`pos/terminal.blade.php`, `menu/carta-publica.blade.php`, `delivery/pedido-publico.blade.php`), los identificadores de íconos tipo Material Symbols (`dinner_dining`, `lunch_dining`, `local_bar`, `local_cafe`, `icecream`) se renderizaban como texto plano dentro del contenedor circular `w-10 h-10` con `overflow-hidden`, provocando que el texto se recortara y mostrara cadenas rotas (`hen_dining`, `ch_dining`, `ocal_bar`, `cal_cafe`, `cecream`).
+  2. En platos fríos y postres (`Ceviche`, `Ensalada César`, `Torta Tres Leches`), `area_cocina` mantenía el valor residual `'sushi'`, mostrándose la insignia `SUSHI` en lugar de `COCINA FRÍA` o `POSTRES`.
+  3. Múltiples vistas conservaban fallbacks hardcodeados a emojis de sushi (`?? '🍣'` y `?? '🍱'`).
+- **Solución implementada:**
+  1. En [database/seeders/DatosPruebaRealistasSeeder.php](file:///d:/Proyectos/restomaster/database/seeders/DatosPruebaRealistasSeeder.php):
+     - Asignados emojis gastronómicos claros y universales a las 9 categorías del menú: `🥗` (Entradas & Picadas), `🥩` (Cortes & Parrilla), `🍗` (Pollos & Costillas), `🐟` (Pescados & Mariscos), `🍝` (Pastas & Lasañas), `🍔` (Hamburguesas), `🍸` (Coctelería), `🥤` (Bebidas & Jugos), `🍰` (Postres).
+     - Asignada área de cocina adecuada para cada plato: `'fria'` para Ceviche y Ensalada César, `'postres'` para Volcán y Torta Tres Leches.
+  2. En [resources/views/livewire/pos/terminal.blade.php](file:///d:/Proyectos/restomaster/resources/views/livewire/pos/terminal.blade.php):
+     - Detección inteligente con regex: si el ícono es un slug de Material Symbols (`/^[a-z0-9_]+$/`), se envuelve en `<span class="material-symbols-outlined">`. Si es un emoji, se renderiza con tamaño armónico y centrado sin desbordamiento.
+     - Sanitizado el badge de área de cocina: mapea `'sushi'`, `'fria'`, `'cocina_fria'` a `'Cocina Fría'`, `'postres'` a `'Postres'`, `'caliente'` a `'Caliente'` y `'barra'` a `'Barra'`.
+  3. En [resources/views/livewire/menu/index.blade.php](file:///d:/Proyectos/restomaster/resources/views/livewire/menu/index.blade.php):
+     - Regla de validación de ícono ampliada de `max:5` a `max:50` para admitir tanto emojis como nombres de Material Symbols.
+  4. Sustituidos todos los fallbacks residuales `?? '🍣'` por `?? '🍽️'` en POS, Carta Pública, Delivery Público y KDS.
+- **Verificación:** Base de datos resembrada con `php artisan restomaster:seed-demo`. Cachés limpiadas con `view:clear` y `optimize:clear`. Pint 0 violaciones.
+
 2026-09-18 13:12 | Antigravity | 🥩 **TRANSICIÓN COMPLETA A CATÁLOGO DE RESTAURANTE GENERAL & PARRILLA (SIN SUSHI)**:
 - **Cambios realizados:**
   1. **Catálogo Gastronómico de Restaurante General (9 Categorías Menú + 26 Productos):**

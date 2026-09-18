@@ -55,7 +55,7 @@ new class extends Component
         $this->categoriaEnEdicion = $id;
         $this->categoriaForm = [
             'nombre' => $categoria->nombre,
-            'icono' => $categoria->icono ?? '🍣',
+            'icono' => $categoria->icono ?? '🍽️',
             'color' => $categoria->color ?? '#e11d48',
             'orden' => (int) $categoria->orden,
         ];
@@ -67,7 +67,7 @@ new class extends Component
         $this->autorizarGestionMenu();
         $this->validate([
             'categoriaForm.nombre' => 'required|string|min:2|max:100',
-            'categoriaForm.icono' => 'nullable|string|max:5',
+            'categoriaForm.icono' => 'nullable|string|max:50',
             'categoriaForm.color' => 'nullable|string|max:20',
             'categoriaForm.orden' => 'nullable|integer|min:0',
         ]);
@@ -264,7 +264,11 @@ new class extends Component
                         <div class="flex items-center gap-3">
                             <div class="flex h-11 w-11 items-center justify-center rounded-2xl text-xl shadow-xs"
                                  @style(['background-color: ' . ($categoria->color ?? '#e11d48') . '1f', 'border: 1.5px solid ' . ($categoria->color ?? '#e11d48') . '40'])>
-                                {{ $categoria->icono ?? '🍣' }}
+                                @if(preg_match('/^[a-z0-9_]+$/', $categoria->icono ?? ''))
+                                    <span class="material-symbols-outlined text-[22px]">{{ $categoria->icono }}</span>
+                                @else
+                                    <span>{{ $categoria->icono ?? '🍽️' }}</span>
+                                @endif
                             </div>
                             <div>
                                 <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">

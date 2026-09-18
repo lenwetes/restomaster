@@ -396,8 +396,12 @@ new #[Layout('layouts.publico')] class extends Component
                             wire:click="seleccionarCategoria('{{ $catPill->slug }}')" 
                             class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 {{ $categoriaSeleccionada === $catPill->slug ? 'bg-primary text-white shadow-md' : 'bg-stone-50 text-stone-500 hover:text-stone-900 border border-stone-200' }}"
                         >
-                            <span>{{ $catPill->icono ?? '🍣' }}</span>
-                            <span>{{ $catPill->nombre }}</span>
+                            @if(preg_match('/^[a-z0-9_]+$/', $catPill->icono ?? ''))
+                            <span class="material-symbols-outlined text-[15px]">{{ $catPill->icono }}</span>
+                        @else
+                            <span>{{ $catPill->icono ?? '🍽️' }}</span>
+                        @endif
+                        <span>{{ $catPill->nombre }}</span>
                         </button>
                     @endforeach
                 </div>
@@ -429,8 +433,12 @@ new #[Layout('layouts.publico')] class extends Component
                             <!-- Category Section Header -->
                             <div class="flex items-center justify-between border-b border-stone-200 pb-2">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xl">{{ $cat->icono ?? '🍱' }}</span>
-                                    <h2 class="text-lg font-black text-stone-900 tracking-tight">{{ $cat->nombre }}</h2>
+                                @if(preg_match('/^[a-z0-9_]+$/', $cat->icono ?? ''))
+                                    <span class="material-symbols-outlined text-xl">{{ $cat->icono }}</span>
+                                @else
+                                    <span class="text-xl">{{ $cat->icono ?? '🍽️' }}</span>
+                                @endif
+                                <h2 class="text-lg font-black text-stone-900 tracking-tight">{{ $cat->nombre }}</h2>
                                     <span class="px-2 py-0.5 rounded-full bg-stone-200 text-[10px] font-bold text-stone-500">
                                         {{ $cat->productos->count() }}
                                     </span>

@@ -579,15 +579,15 @@ class DatosPruebaRealistasSeeder extends Seeder
 
         // 7. Categorías de la Carta / Menú para Restaurante General (con Color distintivo para el POS e Ícono)
         $catMenuData = [
-            ['nombre' => 'Entradas & Picadas', 'slug' => 'entradas-picadas', 'color' => '#f97316', 'icono' => 'tapas', 'orden' => 1],
-            ['nombre' => 'Cortes a la Parrilla & Asados', 'slug' => 'cortes-parrilla', 'color' => '#dc2626', 'icono' => 'outdoor_grill', 'orden' => 2],
-            ['nombre' => 'Pollos Dorados & Costillas BBQ', 'slug' => 'pollos-costillas', 'color' => '#ea580c', 'icono' => 'dinner_dining', 'orden' => 3],
-            ['nombre' => 'Pescados & Mariscos de la Casa', 'slug' => 'pescados-mariscos-casa', 'color' => '#0284c7', 'icono' => 'set_meal', 'orden' => 4],
-            ['nombre' => 'Pastas Artesanales & Lasañas', 'slug' => 'pastas-artesanales', 'color' => '#10b981', 'icono' => 'ramen_dining', 'orden' => 5],
-            ['nombre' => 'Hamburguesas Gourmet & Sandwiches', 'slug' => 'hamburguesas-sandwiches', 'color' => '#8b5cf6', 'icono' => 'lunch_dining', 'orden' => 6],
-            ['nombre' => 'Coctelería Clásica & de Autor', 'slug' => 'cocteleria-barra', 'color' => '#ec4899', 'icono' => 'local_bar', 'orden' => 7],
-            ['nombre' => 'Bebidas, Jugos Naturales & Cervezas', 'slug' => 'bebidas-jugos', 'color' => '#06b6d4', 'icono' => 'local_cafe', 'orden' => 8],
-            ['nombre' => 'Postres Artesanales de la Casa', 'slug' => 'postres-casa', 'color' => '#d97706', 'icono' => 'icecream', 'orden' => 9],
+            ['nombre' => 'Entradas & Picadas', 'slug' => 'entradas-picadas', 'color' => '#f97316', 'icono' => '🥗', 'orden' => 1],
+            ['nombre' => 'Cortes a la Parrilla & Asados', 'slug' => 'cortes-parrilla', 'color' => '#dc2626', 'icono' => '🥩', 'orden' => 2],
+            ['nombre' => 'Pollos Dorados & Costillas BBQ', 'slug' => 'pollos-costillas', 'color' => '#ea580c', 'icono' => '🍗', 'orden' => 3],
+            ['nombre' => 'Pescados & Mariscos de la Casa', 'slug' => 'pescados-mariscos-casa', 'color' => '#0284c7', 'icono' => '🐟', 'orden' => 4],
+            ['nombre' => 'Pastas Artesanales & Lasañas', 'slug' => 'pastas-artesanales', 'color' => '#10b981', 'icono' => '🍝', 'orden' => 5],
+            ['nombre' => 'Hamburguesas Gourmet & Sandwiches', 'slug' => 'hamburguesas-sandwiches', 'color' => '#8b5cf6', 'icono' => '🍔', 'orden' => 6],
+            ['nombre' => 'Coctelería Clásica & de Autor', 'slug' => 'cocteleria-barra', 'color' => '#ec4899', 'icono' => '🍸', 'orden' => 7],
+            ['nombre' => 'Bebidas, Jugos Naturales & Cervezas', 'slug' => 'bebidas-jugos', 'color' => '#06b6d4', 'icono' => '🥤', 'orden' => 8],
+            ['nombre' => 'Postres Artesanales de la Casa', 'slug' => 'postres-casa', 'color' => '#d97706', 'icono' => '🍰', 'orden' => 9],
         ];
 
         $catsMenu = [];
@@ -638,7 +638,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'descripcion' => 'Camarones jumbo tiernos en salsa rosada criolla con cebolla morada, cilantro fresco y chips de plátano verde.',
                 'precio' => 38000.00,
                 'costo' => 14000.00,
-                'area_cocina' => 'sushi', // Cocina Fría & Entradas
+                'area_cocina' => 'fria', // Cocina Fría & Entradas
                 'recetas' => [
                     ['insumo' => 'INS-CAM-01', 'cant' => 0.150],
                     ['insumo' => 'INS-LIM-TAH', 'cant' => 0.050],
@@ -652,7 +652,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'descripcion' => 'Mix de lechugas frescas, pechuga a la parrilla dorada, queso parmesano en lajas, croutons y aderezo césar.',
                 'precio' => 32000.00,
                 'costo' => 10500.00,
-                'area_cocina' => 'sushi', // Cocina Fría
+                'area_cocina' => 'fria', // Cocina Fría
                 'recetas' => [
                     ['insumo' => 'INS-LECH-MIX', 'cant' => 0.120],
                     ['insumo' => 'INS-PEC-01', 'cant' => 0.120],
@@ -971,7 +971,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'descripcion' => 'Bizcochuelo esponjoso tibio con centro líquido fundente de chocolate y bola de helado de vainilla.',
                 'precio' => 22000.00,
                 'costo' => 7500.00,
-                'area_cocina' => 'caliente',
+                'area_cocina' => 'postres',
                 'recetas' => [],
             ],
             [
@@ -982,7 +982,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                 'descripcion' => 'Bizcochuelo casero bañado en mezcla cremosa de tres leches con toque de canela y merengue tostado.',
                 'precio' => 18000.00,
                 'costo' => 6000.00,
-                'area_cocina' => 'sushi', // Repostería / Cocina Fría
+                'area_cocina' => 'postres', // Repostería / Postres
                 'recetas' => [
                     ['insumo' => 'INS-CRE-LEC', 'cant' => 0.080],
                 ],

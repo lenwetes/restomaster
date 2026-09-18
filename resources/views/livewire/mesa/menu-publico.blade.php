@@ -440,7 +440,11 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                         class="shrink-0 px-3 py-1 rounded-full text-[11px] font-extrabold transition cursor-pointer flex items-center gap-1
                             {{ $categoriaSeleccionada === $cat->id ? 'bg-primary text-white shadow-xs' : 'bg-stone-100 text-stone-600 hover:bg-stone-200' }}"
                     >
-                        <span>{{ $cat->icono ?? '🍱' }}</span>
+                        @if(preg_match('/^[a-z0-9_]+$/', $cat->icono ?? ''))
+                            <span class="material-symbols-outlined text-[14px]">{{ $cat->icono }}</span>
+                        @else
+                            <span>{{ $cat->icono ?? '🍽️' }}</span>
+                        @endif
                         <span>{{ $cat->nombre }}</span>
                     </button>
                 @endforeach
@@ -467,7 +471,11 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                         @if ($producto->imagen)
                             <img src="{{ $producto->imagen }}" alt="{{ $producto->nombre }}" class="w-full h-full object-cover">
                         @else
-                            <span>{{ $producto->categoria?->icono ?? '🍣' }}</span>
+                            @if(preg_match('/^[a-z0-9_]+$/', $producto->categoria?->icono ?? ''))
+                                <span class="material-symbols-outlined text-3xl">{{ $producto->categoria->icono }}</span>
+                            @else
+                                <span>{{ $producto->categoria?->icono ?? '🍽️' }}</span>
+                            @endif
                         @endif
                     </div>
 

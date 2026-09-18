@@ -122,7 +122,11 @@ new #[Layout('layouts.publico')] class extends Component
                         wire:click="seleccionarCategoria('{{ $catPill->slug }}')" 
                         class="px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shrink-0 flex items-center gap-1.5 {{ $categoriaSeleccionada === $catPill->slug ? 'bg-[#ff5436] text-white shadow-md' : 'bg-white text-stone-500 hover:text-stone-900 border border-stone-200 hover:border-stone-300' }}"
                     >
-                        <span>{{ $catPill->icono ?? '🍣' }}</span>
+                        @if(preg_match('/^[a-z0-9_]+$/', $catPill->icono ?? ''))
+                            <span class="material-symbols-outlined text-[15px]">{{ $catPill->icono }}</span>
+                        @else
+                            <span>{{ $catPill->icono ?? '🍽️' }}</span>
+                        @endif
                         <span>{{ $catPill->nombre }}</span>
                     </button>
                 @endforeach
@@ -151,7 +155,11 @@ new #[Layout('layouts.publico')] class extends Component
                     <!-- Section Title -->
                     <div class="flex items-center justify-between border-b border-stone-200 pb-2">
                         <div class="flex items-center gap-2.5">
-                            <span class="text-2xl">{{ $cat->icono ?? '🍱' }}</span>
+                            @if(preg_match('/^[a-z0-9_]+$/', $cat->icono ?? ''))
+                                <span class="material-symbols-outlined text-2xl">{{ $cat->icono }}</span>
+                            @else
+                                <span class="text-2xl">{{ $cat->icono ?? '🍽️' }}</span>
+                            @endif
                             <h2 class="text-xl font-black text-stone-900 tracking-tight">{{ $cat->nombre }}</h2>
                             <span class="px-2 py-0.5 rounded-full bg-stone-100 border border-stone-200 text-[10px] font-bold text-stone-500">
                                 {{ $cat->productos->count() }}

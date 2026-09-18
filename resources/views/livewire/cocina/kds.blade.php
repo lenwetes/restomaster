@@ -877,7 +877,11 @@ new class extends Component
                             <div class="flex items-center gap-3 min-w-0 flex-1">
                                 <div class="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-2xs"
                                      @style(['background-color: ' . $dCatColor])>
-                                    {{ $dItem->producto?->categoria?->icono ?? '🍣' }}
+                                    @if(preg_match('/^[a-z0-9_]+$/', $dItem->producto?->categoria?->icono ?? ''))
+                                        <span class="material-symbols-outlined text-[16px] text-white">{{ $dItem->producto->categoria->icono }}</span>
+                                    @else
+                                        <span>{{ $dItem->producto?->categoria?->icono ?? '🍽️' }}</span>
+                                    @endif
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-2">

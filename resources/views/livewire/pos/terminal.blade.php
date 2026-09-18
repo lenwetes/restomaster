@@ -1255,7 +1255,11 @@ new class extends Component
                                     @if($categoriaSeleccionada !== $cat->id)
                                         <span class="w-2 h-2 rounded-full shrink-0" @style(['background-color: ' . $catColor])></span>
                                     @endif
-                                    <span>{{ $cat->icono }}</span>
+                                    @if(preg_match('/^[a-z0-9_]+$/', $cat->icono ?? ''))
+                                        <span class="material-symbols-outlined text-[15px]">{{ $cat->icono }}</span>
+                                    @else
+                                        <span>{{ $cat->icono ?: '🍽️' }}</span>
+                                    @endif
                                     <span>{{ $cat->nombre }}</span>
                                     <span class="rounded-full px-1 text-[9px] font-mono {{ $categoriaSeleccionada === $cat->id ? 'bg-white/20 text-white' : 'bg-surface-container text-on-surface-variant' }}">
                                         {{ $cat->productos_count ?? 0 }}
@@ -1293,7 +1297,11 @@ new class extends Component
                         @if($catActiva)
                             <div class="px-3 py-1 bg-primary/5 border-t border-primary/20 flex items-center justify-between text-[11px]">
                                 <div class="flex items-center gap-1.5 min-w-0">
-                                    <span class="text-xs">{{ $catActiva->icono }}</span>
+                                    @if(preg_match('/^[a-z0-9_]+$/', $catActiva->icono ?? ''))
+                                        <span class="material-symbols-outlined text-[14px]">{{ $catActiva->icono }}</span>
+                                    @else
+                                        <span class="text-xs">{{ $catActiva->icono ?: '🍽️' }}</span>
+                                    @endif
                                     <span class="font-bold text-on-surface truncate">
                                         Filtrado: <span class="text-primary font-black">{{ $catActiva->nombre }}</span>
                                     </span>
@@ -1325,15 +1333,28 @@ new class extends Component
                              @style(['border-left: 4.5px solid ' . $prodColor])>
                             <!-- Visual & Detalles del Plato -->
                             <div class="flex items-center gap-3 min-w-0 flex-1">
-                                <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 shadow-2xs"
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-2xs"
                                      @style(['background-color: ' . $prodColor . '1a'])>
-                                    {{ $prod->categoria?->icono ?? '🍣' }}
+                                    @if(preg_match('/^[a-z0-9_]+$/', $prod->categoria?->icono ?? ''))
+                                        <span class="material-symbols-outlined text-[24px]" @style(['color: ' . $prodColor])>{{ $prod->categoria->icono }}</span>
+                                    @else
+                                        <span class="text-2xl leading-none">{{ $prod->categoria?->icono ?: '🍽️' }}</span>
+                                    @endif
                                 </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex items-center gap-1.5">
                                         <h4 class="text-xs font-black text-on-surface truncate">{{ $prod->nombre }}</h4>
+                                        @php
+                                            $mobileAreaLabel = match(strtolower($prod->area_cocina ?? 'caliente')) {
+                                                'sushi', 'fria', 'cocina_fria' => 'Cocina Fría',
+                                                'caliente', 'calientes', 'cocina' => 'Caliente',
+                                                'barra', 'bebidas' => 'Barra',
+                                                'postres' => 'Postres',
+                                                default => ucfirst($prod->area_cocina),
+                                            };
+                                        @endphp
                                         <span class="rounded px-1 py-0.2 text-[8px] font-bold uppercase tracking-wider bg-surface-container text-on-surface-variant shrink-0">
-                                            {{ $prod->area_cocina }}
+                                            {{ $mobileAreaLabel }}
                                         </span>
                                     </div>
                                     <p class="text-[10px] text-on-surface-variant line-clamp-1 mt-0.5">
@@ -1500,7 +1521,11 @@ new class extends Component
                                         class="p-2.5 rounded-2xl border text-left transition-all relative overflow-hidden group cursor-pointer active:scale-95 {{ $categoriaSeleccionada === $cat->id ? 'border-primary bg-primary text-on-primary shadow-sm' : 'border-surface-container-high bg-surface-container-low text-on-surface hover:bg-surface-container hover:border-primary/40' }}"
                                     >
                                         <div class="flex items-start justify-between">
-                                            <span class="text-2xl mb-1 block">{{ $cat->icono }}</span>
+                                            @if(preg_match('/^[a-z0-9_]+$/', $cat->icono ?? ''))
+                                                <span class="material-symbols-outlined text-2xl mb-1 block">{{ $cat->icono }}</span>
+                                            @else
+                                                <span class="text-2xl mb-1 block leading-none">{{ $cat->icono ?: '🍽️' }}</span>
+                                            @endif
                                             <span class="text-[10px] font-mono px-1.5 py-0.2 rounded-full font-bold {{ $categoriaSeleccionada === $cat->id ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container-highest text-on-surface-variant' }}">
                                                 {{ $cat->productos_count ?? 0 }}
                                             </span>
@@ -1943,7 +1968,11 @@ new class extends Component
                             @if($categoriaSeleccionada !== $cat->id)
                                 <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" @style(['background-color: ' . $catColor])></span>
                             @endif
-                            <span class="text-sm">{{ $cat->icono }}</span>
+                            @if(preg_match('/^[a-z0-9_]+$/', $cat->icono ?? ''))
+                                <span class="material-symbols-outlined text-[18px]">{{ $cat->icono }}</span>
+                            @else
+                                <span class="text-sm leading-none">{{ $cat->icono ?: '🍽️' }}</span>
+                            @endif
                             <span>{{ $cat->nombre }}</span>
                             <span class="ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-mono {{ $categoriaSeleccionada === $cat->id ? 'bg-white/20 text-white' : 'bg-surface-container-high text-on-surface-variant' }}">
                                 {{ $cat->productos_count ?? 0 }}
@@ -1995,12 +2024,25 @@ new class extends Component
                         <div>
                             <!-- Header: Icon & Kitchen Area Chip -->
                             <div class="flex items-start justify-between gap-1">
-                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 shadow-2xs"
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-2xs"
                                      @style(['background-color: ' . $prodColor . '1a'])>
-                                    {{ $prod->categoria?->icono ?? '🍣' }}
+                                    @if(preg_match('/^[a-z0-9_]+$/', $prod->categoria?->icono ?? ''))
+                                        <span class="material-symbols-outlined text-[22px]" @style(['color: ' . $prodColor])>{{ $prod->categoria->icono }}</span>
+                                    @else
+                                        <span class="text-xl leading-none">{{ $prod->categoria?->icono ?: '🍽️' }}</span>
+                                    @endif
                                 </div>
+                                @php
+                                    $desktopAreaLabel = match(strtolower($prod->area_cocina ?? 'caliente')) {
+                                        'sushi', 'fria', 'cocina_fria' => 'Cocina Fría',
+                                        'caliente', 'calientes', 'cocina' => 'Caliente',
+                                        'barra', 'bebidas' => 'Barra',
+                                        'postres' => 'Postres',
+                                        default => ucfirst($prod->area_cocina),
+                                    };
+                                @endphp
                                 <span class="rounded-md border border-surface-container-high bg-surface-container-low px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-on-surface-variant">
-                                    {{ $prod->area_cocina }}
+                                    {{ $desktopAreaLabel }}
                                 </span>
                             </div>
 
