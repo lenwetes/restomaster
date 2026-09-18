@@ -66,16 +66,16 @@ new class extends Component
     // Shopping cart
     public array $carrito = [];
 
-    public float $descuento = 0.0;
+    public $descuento = 0.0;
 
     // Checkout modal and ticket
     public bool $mostrarModalCobro = false;
 
     public string $metodoPago = 'efectivo';
 
-    public float $montoPagado = 0.0;
+    public $montoPagado = 0.0;
 
-    public float $montoEfectivoMixto = 0.0;
+    public $montoEfectivoMixto = 0.0;
 
     public ?Pedido $pedidoCompletado = null;
 
@@ -84,9 +84,9 @@ new class extends Component
     // Propina voluntaria
     public string $tipoPropina = 'cero'; // 'cero', 'diez_porciento', 'personalizada'
 
-    public float $montoPropina = 0.0;
+    public $montoPropina = 0.0;
 
-    public float $porcentajePropina = 0.0;
+    public $porcentajePropina = 0.0;
 
     // Tres vistas ergonómicas para rol mesero: 'pc', 'tablet', 'movil'
     public string $vistaMesero = 'pc';
@@ -96,7 +96,7 @@ new class extends Component
     // Modal de Apertura Rápida de Turno de Caja desde POS
     public bool $mostrarModalAperturaPos = false;
 
-    public float $baseAperturaPos = 150000.0;
+    public $baseAperturaPos = 150000.0;
 
     public string $notasAperturaPos = '';
 
@@ -104,6 +104,24 @@ new class extends Component
 
     // Modo Nuevo Pedido / Adición sobre mesa con comanda previa despachada
     public bool $modoNuevaAdicion = false;
+
+    public function __get($property)
+    {
+        if ($property === 'montoPagado') {
+            return $this->montoPagado = 0.0;
+        }
+        if ($property === 'montoEfectivoMixto') {
+            return $this->montoEfectivoMixto = 0.0;
+        }
+        if ($property === 'montoPropina') {
+            return $this->montoPropina = 0.0;
+        }
+        if ($property === 'baseAperturaPos') {
+            return $this->baseAperturaPos = 0.0;
+        }
+
+        return parent::__get($property);
+    }
 
     public function cambiarVista(string $vista): void
     {
@@ -419,7 +437,9 @@ new class extends Component
 
     public function getCambioProperty(): float
     {
-        return max(0.0, $this->montoPagado - $this->totalConPropina);
+        $pagado = is_numeric($this->montoPagado) ? (float) $this->montoPagado : 0.0;
+
+        return max(0.0, $pagado - $this->totalConPropina);
     }
 
     public function seleccionarPropina(string $tipo): void
@@ -435,6 +455,16 @@ new class extends Component
         $this->actualizarMontoPagadoConPropina();
     }
 
+    public function updatedMontoPagado(mixed $value): void
+    {
+        $this->montoPagado = (is_numeric($value) && (float) $value >= 0) ? (float) $value : 0.0;
+    }
+
+    public function updatedMontoEfectivoMixto(mixed $value): void
+    {
+        $this->montoEfectivoMixto = (is_numeric($value) && (float) $value >= 0) ? (float) $value : 0.0;
+    }
+
     public function updatedMontoPropina(mixed $value): void
     {
         $this->montoPropina = max(0.0, (float) $value);
@@ -446,7 +476,7 @@ new class extends Component
     {
         if (in_array(strtolower((string) $this->metodoPago), ['tarjeta', 'transferencia', 'datafono', 'datáfono', 'mixto'], true)) {
             $this->montoPagado = $this->totalConPropina;
-        } elseif ($this->metodoPago === 'efectivo' && $this->montoPagado < $this->totalConPropina) {
+        } elseif ($this->metodoPago === 'efectivo' && (float) $this->montoPagado < $this->totalConPropina) {
             $this->montoPagado = $this->totalConPropina;
         }
     }

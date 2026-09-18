@@ -6,6 +6,24 @@
 ---
 
 ## Última Actualización
+2026-09-18 17:30 | Antigravity | 🛡️ **RESOLUCIÓN DE PROPERTYNOTFOUNDEXCEPTION [$montoPagado] EN TERMINAL POS**:
+- **Causa raíz:**
+  - En `resources/views/livewire/pos/terminal.blade.php`, `$montoPagado` (así como `$montoEfectivoMixto`, `$montoPropina` y `$baseAperturaPos`) estaban declaradas con tipado estricto `public float $montoPagado = 0.0;`.
+  - Al estar vinculadas con `wire:model.live="montoPagado"` a inputs HTML (`<input type="number">`), cuando el cajero o mesero borraba el campo (enviando cadena vacía `""` o `null`), PHP arrojaba un `TypeError`.
+  - En el mecanismo interno de Livewire (`HandleComponents::setComponentPropertyAwareOfTypes`), cuando ocurre un `TypeError` al asignar cadena vacía o null a una propiedad tipada, Livewire ejecuta `unset($component->$property)`.
+  - Al destruirse la propiedad en la instancia de Livewire, cualquier llamada subsiguiente en el ciclo de vida (como el cálculo de `$this->cambio` en `getCambioProperty`) activaba el método mágico `__get('montoPagado')`, el cual arrojaba `Livewire\Exceptions\PropertyNotFoundException: Property [$montoPagado] not found on component: [pos.terminal]`.
+- **Solución implementada:**
+  1. `resources/views/livewire/pos/terminal.blade.php`:
+     - Se retiró el typehint estricto `float` en las propiedades vinculadas a inputs interactivos (`$montoPagado`, `$montoEfectivoMixto`, `$montoPropina`, `$porcentajePropina`, `$descuento`, `$baseAperturaPos`), evitando que Livewire capture un `TypeError` y destruya la propiedad con `unset()`.
+     - Implementado método mágico de protección `__get($property)` que re-inicializa a `0.0` y retorna el valor en caso de que alguna propiedad sea desasociada accidentalmente.
+     - Añadidos hooks `updatedMontoPagado` y `updatedMontoEfectivoMixto` para sanitizar inputs a valores numéricos válidos (`>= 0`).
+     - Actualizado `getCambioProperty` para evaluar `is_numeric($this->montoPagado) ? (float) $this->montoPagado : 0.0`.
+  2. `tests/Feature/FlujoComandaCocinaPosTest.php`:
+     - Añadido test `test_pos_terminal_monto_pagado_resiliente_y_calculo_cambio` que valida strings vacías `""`, valores `null`, números, y simulación de `unset` manual verificando que no se dispare ninguna excepción.
+- **Archivos:** `resources/views/livewire/pos/terminal.blade.php`, `tests/Feature/FlujoComandaCocinaPosTest.php`, `coordination.md`
+
+---
+
 2026-09-18 17:20 | Antigravity | ⚡ **RESOLUCIÓN DE LAZYLOADINGVIOLATIONEXCEPTION EN KDS Y SERVICIO DE PEDIDOS**:
 - **Causa raíz:**
   - Al marcar un plato como listo desde la tarjeta individual de la comanda en KDS (`marcarListo` / `marcarPlatoListo`), se llamaba a `PedidoService::marcarItemListo($item)`.

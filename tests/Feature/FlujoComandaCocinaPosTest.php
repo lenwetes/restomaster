@@ -319,4 +319,31 @@ class FlujoComandaCocinaPosTest extends TestCase
             Model::preventLazyLoading(false);
         }
     }
+
+    public function test_pos_terminal_monto_pagado_resiliente_y_calculo_cambio(): void
+    {
+        $pos = Volt::actingAs($this->mesero)
+            ->test('pos.terminal');
+
+        // 1. Verificar valor inicial y cambio inicial
+        $this->assertEquals(0.0, $pos->get('montoPagado'));
+        $this->assertEquals(0.0, $pos->instance()->cambio);
+
+        // 2. Simular input vacío de texto (como al borrar con backspace)
+        $pos->set('montoPagado', '');
+        $this->assertEquals(0.0, $pos->instance()->cambio);
+
+        // 3. Simular input null
+        $pos->set('montoPagado', null);
+        $this->assertEquals(0.0, $pos->instance()->cambio);
+
+        // 4. Simular monto válido ingresado por cajero
+        $pos->set('montoPagado', '50000');
+        $this->assertEquals(50000.0, (float) $pos->get('montoPagado'));
+
+        // 5. Simular unset de propiedad por Livewire y verificar que __get no arroja PropertyNotFoundException
+        unset($pos->instance()->montoPagado);
+        $this->assertEquals(0.0, (float) $pos->instance()->montoPagado);
+        $this->assertEquals(0.0, $pos->instance()->cambio);
+    }
 }
