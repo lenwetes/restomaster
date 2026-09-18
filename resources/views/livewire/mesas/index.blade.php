@@ -4,6 +4,7 @@ use App\Enums\MesaEstado;
 use App\Models\Mesa;
 use App\Services\MesaService;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
 new class extends Component
@@ -33,6 +34,11 @@ new class extends Component
     public string $qrUrl = '';
     public ?string $mensajeFlash = null;
     public ?string $tipoFlash = 'success';
+
+    // Cancelar Mesa State
+    public bool $modalCancelarOpen = false;
+    public ?int $mesaCancelarId = null;
+    public string $motivoCancelacion = '';
 
     public function abrirModalNuevaMesa(): void
     {
@@ -277,6 +283,63 @@ new class extends Component
         ]);
     }
 
+    public function abrirModalCancelar(int $mesaId): void
+    {
+        $user = Auth::user();
+        $mesa = Mesa::findOrFail($mesaId);
+
+        // Mesero solo puede cancelar su propia mesa; admin/gerente/cajero cualquiera
+        if (! in_array($user?->role?->slug, ['admin', 'gerente', 'cajero'], true)) {
+            abort_unless($mesa->mesero_id === Auth::id(), 403, 'Solo puedes cancelar las mesas que atiendes.');
+        }
+
+        $this->mesaCancelarId = $mesa->id;
+        $this->motivoCancelacion = '';
+        $this->modalCancelarOpen = true;
+    }
+
+    public function confirmarCancelacion(): void
+    {
+        $user = Auth::user();
+        $mesa = Mesa::findOrFail($this->mesaCancelarId);
+
+        // Doble verificación server-side
+        if (! in_array($user?->role?->slug, ['admin', 'gerente', 'cajero'], true)) {
+            abort_unless($mesa->mesero_id === Auth::id(), 403, 'Solo puedes cancelar las mesas que atiendes.');
+        }
+
+        try {
+            app(\App\Services\MesaService::class)->cancelarMesa($mesa, $user, trim($this->motivoCancelacion));
+            $this->modalCancelarOpen = false;
+            $this->mesaCancelarId = null;
+            $this->motivoCancelacion = '';
+            $this->mensajeFlash = "Mesa #{$mesa->numero} cancelada y liberada correctamente.";
+            $this->tipoFlash = 'success';
+            $this->dispatch('notificacion', [
+                'mensaje' => $this->mensajeFlash,
+                'tipo' => 'success',
+            ]);
+        } catch (\DomainException $e) {
+            $this->mensajeFlash = $e->getMessage();
+            $this->tipoFlash = 'error';
+            $this->modalCancelarOpen = false;
+            $this->dispatch('notificacion', [
+                'mensaje' => $e->getMessage(),
+                'tipo' => 'warning',
+            ]);
+        } catch (\Throwable $e) {
+            $this->mensajeFlash = 'Error al cancelar la mesa: ' . $e->getMessage();
+            $this->tipoFlash = 'error';
+            $this->modalCancelarOpen = false;
+        }
+    }
+
+    #[On('comanda-actualizada')]
+    public function refrescarMesas(): void
+    {
+        // Forzar re-renderizado automático al completarse pedidos en cocina
+    }
+
     public function with(): array
     {
         $query = Mesa::query()->with(['sucursal', 'mesero', 'pedidos' => function ($q) {
@@ -328,7 +391,7 @@ new class extends Component
     }
 }; ?>
 
-<div class="space-y-6">
+<div class="space-y-6" wire:poll.10s>
     <!-- Header Operativo (Aura Gastro Expressive OS) -->
     <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-surface-container-lowest p-5 rounded-3xl border border-surface-container-highest shadow-sm">
         <div>
@@ -509,21 +572,30 @@ new class extends Component
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         @forelse ($mesas as $mesa)
             @php
+                $pedidoActivo = $mesa->pedidos->first();
+                $tieneCocinaPendiente = $pedidoActivo ? $pedidoActivo->items->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->isNotEmpty() : false;
+                $tieneCocinaLista = $pedidoActivo ? $pedidoActivo->items->where('estado_cocina', 'listo')->isNotEmpty() : false;
+                $comandaListaServir = $pedidoActivo && ($pedidoActivo->estado === 'listo' || (! $tieneCocinaPendiente && $tieneCocinaLista));
+                $comandaEnCocina = $pedidoActivo && ($tieneCocinaPendiente || in_array($pedidoActivo->estado, ['en_cocina', 'en_preparacion', 'en_proceso']));
+
                 $cardBorder = match($mesa->estado) {
                     'libre' => 'border-secondary/30 hover:border-secondary hover:shadow-md',
-                    'ocupada' => 'border-primary/30 hover:border-primary hover:shadow-md',
+                    'ocupada' => $comandaListaServir 
+                        ? 'border-emerald-500 ring-2 ring-emerald-500/40 hover:shadow-lg' 
+                        : ($comandaEnCocina ? 'border-amber-400 hover:border-amber-500 hover:shadow-md' : 'border-primary/30 hover:border-primary hover:shadow-md'),
                     'por_limpiar' => 'border-tertiary/40 hover:border-tertiary hover:shadow-md',
                     'reservada' => 'border-secondary/30 hover:border-secondary hover:shadow-md',
                     default => 'border-surface-container-highest',
                 };
                 $badgeStyle = match($mesa->estado) {
                     'libre' => 'bg-secondary-container/60 text-on-secondary-container border-secondary/30',
-                    'ocupada' => 'bg-primary-fixed text-on-primary-fixed border-primary/30',
+                    'ocupada' => $comandaListaServir
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-black animate-pulse'
+                        : ($comandaEnCocina ? 'bg-amber-100 text-amber-800 border-amber-300 font-bold' : 'bg-primary-fixed text-on-primary-fixed border-primary/30'),
                     'por_limpiar' => 'bg-tertiary-container/30 text-tertiary border-tertiary/30',
                     'reservada' => 'bg-secondary-container/60 text-on-secondary-container border-secondary/30',
                     default => 'bg-surface-container text-on-surface-variant border-surface-container-high',
                 };
-                $pedidoActivo = $mesa->pedidos->first();
             @endphp
 
             <div class="relative flex flex-col justify-between rounded-3xl border bg-surface-container-lowest p-4 shadow-sm transition-all duration-200 hover:shadow-md {{ $cardBorder }}">
@@ -602,6 +674,18 @@ new class extends Component
                                                 <span>Transferir</span>
                                             </button>
                                         @endif
+                                        {{-- Botón Cancelar Mesa: admin/gerente/cajero siempre; mesero solo su propia mesa --}}
+                                        @if(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true) || $mesa->mesero_id === Auth::id())
+                                            <button 
+                                                type="button"
+                                                wire:click="abrirModalCancelar({{ $mesa->id }})"
+                                                class="text-[10px] font-extrabold text-error hover:underline flex items-center gap-0.5 cursor-pointer"
+                                                title="Cancelar mesa y liberar"
+                                            >
+                                                <span class="material-symbols-outlined text-[12px]">cancel</span>
+                                                <span>Cancelar</span>
+                                            </button>
+                                        @endif
                                     @endif
                                 </div>
                             @elseif($mesa->estado === 'ocupada')
@@ -631,6 +715,15 @@ new class extends Component
                                         >
                                             <span class="material-symbols-outlined text-[12px]">person_add</span>
                                             <span>Asignar</span>
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            wire:click="abrirModalCancelar({{ $mesa->id }})"
+                                            class="text-[10px] font-extrabold text-error hover:underline flex items-center gap-0.5 cursor-pointer"
+                                            title="Cancelar mesa y liberar"
+                                        >
+                                            <span class="material-symbols-outlined text-[12px]">cancel</span>
+                                            <span>Cancelar</span>
                                         </button>
                                     @endif
                                 </div>
@@ -696,9 +789,26 @@ new class extends Component
                                 <span class="text-on-surface font-mono">{{ $pedidoActivo->codigo }}</span>
                                 <span class="text-primary font-mono font-extrabold">${{ number_format($pedidoActivo->total, 0, ',', '.') }}</span>
                             </div>
-                            <div class="mt-1 flex items-center justify-between text-[10px] text-on-surface-variant font-medium">
-                                <span class="capitalize">Estado: {{ $pedidoActivo->estado }}</span>
-                                <span>{{ $pedidoActivo->items->count() }} items</span>
+                            <div class="mt-1 flex items-center justify-between text-[10px] font-medium">
+                                @if($comandaListaServir)
+                                    <span class="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300/60 animate-pulse">
+                                        <span class="material-symbols-outlined text-[13px]">room_service</span>
+                                        <span>🛎️ ¡Lista para Servir!</span>
+                                    </span>
+                                @elseif($comandaEnCocina)
+                                    <span class="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded-full border border-amber-300/60">
+                                        <span class="material-symbols-outlined text-[13px]">soup_kitchen</span>
+                                        <span>⏳ En Cocina</span>
+                                    </span>
+                                @elseif(in_array($pedidoActivo->estado, ['servido', 'entregado']))
+                                    <span class="inline-flex items-center gap-1 font-bold text-sky-800 bg-sky-100 dark:bg-sky-950/60 dark:text-sky-300 px-2 py-0.5 rounded-full border border-sky-300/60">
+                                        <span class="material-symbols-outlined text-[13px]">check_circle</span>
+                                        <span>🍽️ Servido</span>
+                                    </span>
+                                @else
+                                    <span class="text-on-surface-variant capitalize">Estado: {{ str_replace('_', ' ', $pedidoActivo->estado) }}</span>
+                                @endif
+                                <span class="text-on-surface-variant font-mono">{{ $pedidoActivo->items->count() }} items</span>
                             </div>
                             @if($pedidoActivo->usuario)
                                 <div class="mt-1 text-[10px] text-on-surface-variant flex items-center gap-1">
@@ -742,14 +852,34 @@ new class extends Component
                             <span>✓ Marcar Limpia</span>
                         </button>
                     @elseif($mesa->estado === 'ocupada')
-                        <a 
-                            href="{{ route('pos', ['mesa_id' => $mesa->id]) }}" 
-                            wire:navigate
-                            class="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-surface-container border border-primary/30 text-xs font-extrabold text-on-surface hover:bg-surface-container-high transition-all active:scale-95"
-                        >
-                            <span class="material-symbols-outlined text-[18px] text-primary">receipt_long</span>
-                            <span>Ver / Cobrar</span>
-                        </a>
+                        @if($comandaListaServir)
+                            <a 
+                                href="{{ route('pos', ['mesa_id' => $mesa->id]) }}" 
+                                wire:navigate
+                                class="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-xs font-black text-white shadow-md transition-all active:scale-95 animate-pulse"
+                            >
+                                <span class="material-symbols-outlined text-[18px]">room_service</span>
+                                <span>🛎️ ¡Lista! / Cobrar</span>
+                            </a>
+                        @elseif($comandaEnCocina)
+                            <a 
+                                href="{{ route('pos', ['mesa_id' => $mesa->id]) }}" 
+                                wire:navigate
+                                class="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-xs font-black text-amber-900 dark:text-amber-200 hover:bg-amber-500/25 transition-all active:scale-95"
+                            >
+                                <span class="material-symbols-outlined text-[18px] text-amber-600">soup_kitchen</span>
+                                <span>⏳ En Cocina (Ver)</span>
+                            </a>
+                        @else
+                            <a 
+                                href="{{ route('pos', ['mesa_id' => $mesa->id]) }}" 
+                                wire:navigate
+                                class="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-surface-container border border-primary/30 text-xs font-extrabold text-on-surface hover:bg-surface-container-high transition-all active:scale-95"
+                            >
+                                <span class="material-symbols-outlined text-[18px] text-primary">receipt_long</span>
+                                <span>Ver / Cobrar</span>
+                            </a>
+                        @endif
                     @else
                         <button 
                             wire:click="cambiarEstado({{ $mesa->id }}, 'libre')" 
@@ -1086,6 +1216,117 @@ new class extends Component
                         <span>Confirmar</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Modal Cancelar Mesa (Aura Gastro Expressive OS) --}}
+    @if($modalCancelarOpen && $mesaCancelarId)
+        @php
+            $mesaACancelar = $mesas->firstWhere('id', $mesaCancelarId);
+            $pedidoACancelar = $mesaACancelar?->pedidos->first();
+            $tieneItemsEnCocina = $pedidoACancelar
+                ? $pedidoACancelar->items->whereIn('estado_cocina', ['en_preparacion', 'listo'])->count()
+                : 0;
+        @endphp
+        <div x-data @keydown.escape.window="$wire.set('modalCancelarOpen', false)" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-cancelar-title" class="w-full max-w-md bg-surface-container-lowest rounded-3xl p-6 shadow-2xl border border-error/20 space-y-5">
+                {{-- Header --}}
+                <div class="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+                    <div class="flex items-center gap-2.5">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-error-container text-error">
+                            <span class="material-symbols-outlined text-[22px]">cancel</span>
+                        </div>
+                        <div>
+                            <h3 id="modal-cancelar-title" class="text-base font-black text-on-surface">Cancelar Mesa #{{ $mesaACancelar?->numero }}</h3>
+                            <p class="text-[11px] text-on-surface-variant">Zona {{ ucfirst($mesaACancelar?->zona ?? '') }} · {{ $mesaACancelar?->capacidad }} pax</p>
+                        </div>
+                    </div>
+                    <button wire:click="$set('modalCancelarOpen', false)" class="p-1.5 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface cursor-pointer">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                {{-- Contexto de la mesa --}}
+                @if($mesaACancelar?->mesero)
+                    <div class="flex items-center gap-3 p-3 rounded-2xl bg-surface-container-low border border-surface-container-high">
+                        <span class="material-symbols-outlined text-[20px] text-on-surface-variant">badge</span>
+                        <div>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Mesero asignado</p>
+                            <p class="text-xs font-black text-on-surface">{{ $mesaACancelar->mesero->name }}</p>
+                        </div>
+                    </div>
+                @endif
+
+                @if($pedidoACancelar)
+                    <div class="p-3 rounded-2xl border {{ $tieneItemsEnCocina > 0 ? 'bg-error-container/20 border-error/30' : 'bg-amber-500/10 border-amber-400/30' }}">
+                        <div class="flex items-start gap-2">
+                            <span class="material-symbols-outlined text-[18px] {{ $tieneItemsEnCocina > 0 ? 'text-error' : 'text-amber-700' }} mt-0.5">{{ $tieneItemsEnCocina > 0 ? 'dangerous' : 'warning' }}</span>
+                            <div>
+                                @if($tieneItemsEnCocina > 0)
+                                    <p class="text-xs font-black text-error">⛔ No se puede cancelar</p>
+                                    <p class="text-[11px] text-error/80 mt-0.5">El pedido {{ $pedidoACancelar->codigo }} tiene <strong>{{ $tieneItemsEnCocina }} ítem(s) en cocina</strong>. Finaliza la preparación primero.</p>
+                                @else
+                                    <p class="text-xs font-black text-amber-900">Pedido activo sin procesar</p>
+                                    <p class="text-[11px] text-amber-800 mt-0.5">El pedido <span class="font-mono font-black">{{ $pedidoACancelar->codigo }}</span> ({{ $pedidoACancelar->items->count() }} items · ${{ number_format($pedidoACancelar->total, 0, ',', '.') }}) será anulado.</p>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    <div class="p-3 rounded-2xl bg-secondary-container/30 border border-secondary/20 text-xs text-secondary font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px]">info</span>
+                        <span>No hay comandas activas. Solo se liberará al mesero y la mesa volverá a estado libre.</span>
+                    </div>
+                @endif
+
+                {{-- Motivo (opcional) --}}
+                @if(!$tieneItemsEnCocina)
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-1.5">Motivo de cancelación <span class="text-on-surface-variant font-normal">(opcional)</span></label>
+                        <textarea
+                            wire:model="motivoCancelacion"
+                            rows="2"
+                            placeholder="Ej. Cliente se fue, error de apertura, mesa duplicada..."
+                            class="w-full rounded-xl bg-surface-container-low border border-outline-variant/40 px-3.5 py-2.5 text-xs text-on-surface resize-none focus:border-primary focus:ring-1 focus:ring-primary"
+                        ></textarea>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-surface-container-low text-[11px] text-on-surface-variant flex items-start gap-2">
+                        <span class="material-symbols-outlined text-[16px] text-primary shrink-0 mt-0.5">verified_user</span>
+                        <span>Esta acción quedará registrada en el log de auditoría del sistema con tu nombre y la hora exacta.</span>
+                    </div>
+
+                    {{-- Botones de acción --}}
+                    <div class="flex items-center gap-2 pt-2 border-t border-outline-variant/20">
+                        <button
+                            type="button"
+                            wire:click="$set('modalCancelarOpen', false)"
+                            class="flex-1 py-2.5 px-4 rounded-xl border border-surface-container-high bg-surface-container-low text-xs font-extrabold text-on-surface hover:bg-surface-container transition cursor-pointer"
+                        >
+                            No, mantener mesa
+                        </button>
+                        <button
+                            type="button"
+                            wire:click="confirmarCancelacion"
+                            wire:loading.attr="disabled"
+                            wire:loading.class="opacity-60 cursor-wait"
+                            class="flex-1 py-2.5 px-4 rounded-xl bg-error text-on-error text-xs font-black shadow hover:opacity-90 active:scale-98 transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">cancel</span>
+                            <span>Sí, cancelar mesa</span>
+                        </button>
+                    </div>
+                @else
+                    {{-- Solo botón cerrar si tiene items en cocina --}}
+                    <button
+                        type="button"
+                        wire:click="$set('modalCancelarOpen', false)"
+                        class="w-full py-2.5 px-4 rounded-xl bg-surface-container text-xs font-extrabold text-on-surface hover:bg-surface-container-high transition cursor-pointer"
+                    >
+                        Entendido, cerrar
+                    </button>
+                @endif
             </div>
         </div>
     @endif

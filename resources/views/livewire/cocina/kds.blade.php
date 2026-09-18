@@ -80,6 +80,25 @@ new class extends Component
 
         $pedidoService = app(PedidoService::class);
         $pedidoService->marcarItemListo($item);
+
+        $pedido = $item->pedido?->fresh(['mesa', 'mesero', 'items']);
+        $mesaNombre = $pedido?->mesa ? "Mesa {$pedido->mesa->numero}" : ($pedido?->codigo ?? 'Comanda');
+        $this->dispatch('notificacion', [
+            'mensaje' => "✓ Plato '{$item->nombre_producto}' marcado LISTO para {$mesaNombre}.",
+            'tipo' => 'success',
+        ]);
+        $this->dispatch('comanda-actualizada', pedidoId: $pedido?->id);
+    }
+
+    public function obtenerAreasFiltradas(string $area): array
+    {
+        return match ($area) {
+            'fria', 'sushi' => ['fria', 'sushi', 'postres', 'cocina_fria'],
+            'caliente' => ['caliente', 'calientes', 'cocina'],
+            'barra' => ['barra', 'bebidas'],
+            'postres' => ['postres', 'fria'],
+            default => [$area],
+        };
     }
 
     public function marcarTodaComandaLista(int $pedidoId): void
@@ -88,13 +107,23 @@ new class extends Component
         abort_if(Auth::user()?->sucursal_id && $pedido->sucursal_id && $pedido->sucursal_id !== Auth::user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $pedidoService = app(PedidoService::class);
 
+        $areas = $this->areaSeleccionada === 'todas' ? [] : $this->obtenerAreasFiltradas($this->areaSeleccionada);
+
         foreach ($pedido->items as $item) {
-            if ($this->areaSeleccionada === 'todas' || $item->area_cocina === $this->areaSeleccionada) {
+            if ($this->areaSeleccionada === 'todas' || in_array($item->area_cocina, $areas, true)) {
                 if (Gate::allows('cocinar', [Pedido::class, $item->area_cocina])) {
                     $pedidoService->marcarItemListo($item);
                 }
             }
         }
+
+        $pedido = $pedido->fresh(['mesa', 'mesero', 'items']);
+        $mesaNombre = $pedido->mesa ? "Mesa {$pedido->mesa->numero}" : $pedido->codigo;
+        $this->dispatch('notificacion', [
+            'mensaje' => "🛎️ ¡Comanda de {$mesaNombre} marcada completamente LISTA para servir!",
+            'tipo' => 'success',
+        ]);
+        $this->dispatch('comanda-actualizada', pedidoId: $pedido->id);
     }
 
     public function marcarComandaEntregada(int $pedidoId): void
@@ -108,17 +137,25 @@ new class extends Component
                 $pedidoService->marcarItemEntregado($item);
             }
         }
+
+        $mesaNombre = $pedido->mesa ? "Mesa {$pedido->mesa->numero}" : $pedido->codigo;
+        $this->dispatch('notificacion', [
+            'mensaje' => "🍽️ Comanda de {$mesaNombre} entregada / servida a la mesa.",
+            'tipo' => 'info',
+        ]);
+        $this->dispatch('comanda-actualizada', pedidoId: $pedido->id);
     }
 
     public function with(): array
     {
-        // 1. COLA EN VIVO DE COCINA (KDS)
+        // 1. COLA EN VIVO DE COCINA (KDS): Incluye pedidos creados, en cocina, en preparacion y listos
         $query = Pedido::query()
-            ->whereIn('estado', ['en_cocina', 'creado', 'listo'])
+            ->whereIn('estado', ['en_cocina', 'en_preparacion', 'creado', 'listo'])
             ->whereHas('items', function ($q) {
                 $q->whereIn('estado_cocina', ['pendiente', 'en_preparacion', 'listo']);
                 if ($this->areaSeleccionada !== 'todas') {
-                    $q->where('area_cocina', $this->areaSeleccionada);
+                    $areas = $this->obtenerAreasFiltradas($this->areaSeleccionada);
+                    $q->whereIn('area_cocina', $areas);
                 }
             });
 
@@ -126,9 +163,10 @@ new class extends Component
             $query->where('sucursal_id', Auth::user()->sucursal_id);
         }
 
-        $query->with(['mesa', 'items' => function ($q) {
+        $query->with(['mesa', 'usuario', 'mesero', 'items' => function ($q) {
             if ($this->areaSeleccionada !== 'todas') {
-                $q->where('area_cocina', $this->areaSeleccionada);
+                $areas = $this->obtenerAreasFiltradas($this->areaSeleccionada);
+                $q->whereIn('area_cocina', $areas);
             }
         }])
             ->orderBy('created_at', 'asc');
@@ -139,7 +177,7 @@ new class extends Component
         $conteosQuery = ItemPedido::query()
             ->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])
             ->whereHas('pedido', function ($q) {
-                $q->whereIn('estado', ['en_cocina', 'creado', 'listo']);
+                $q->whereIn('estado', ['en_cocina', 'en_preparacion', 'creado', 'listo']);
                 if (Auth::user()?->sucursal_id) {
                     $q->where('sucursal_id', Auth::user()->sucursal_id);
                 }
@@ -150,11 +188,16 @@ new class extends Component
             ->groupBy('area_cocina')
             ->pluck('total', 'area_cocina');
 
+        $conteoFria = (int) ($conteosArea['fria'] ?? 0) + (int) ($conteosArea['sushi'] ?? 0) + (int) ($conteosArea['postres'] ?? 0) + (int) ($conteosArea['cocina_fria'] ?? 0);
+        $conteoCaliente = (int) ($conteosArea['caliente'] ?? 0) + (int) ($conteosArea['calientes'] ?? 0) + (int) ($conteosArea['cocina'] ?? 0);
+        $conteoBarra = (int) ($conteosArea['barra'] ?? 0) + (int) ($conteosArea['bebidas'] ?? 0);
+
         $conteo = [
             'total' => $pedidos->count(),
-            'sushi' => (int) ($conteosArea['sushi'] ?? 0),
-            'caliente' => (int) ($conteosArea['caliente'] ?? 0),
-            'barra' => (int) ($conteosArea['barra'] ?? 0),
+            'fria' => $conteoFria,
+            'sushi' => $conteoFria,
+            'caliente' => $conteoCaliente,
+            'barra' => $conteoBarra,
         ];
 
         // 2. HISTORIAL MULTIDIMENSIONAL DE COMANDAS
@@ -320,11 +363,11 @@ new class extends Component
                     </button>
                     <button
                         type="button"
-                        wire:click="$set('areaSeleccionada', 'sushi')"
-                        class="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer {{ $areaSeleccionada === 'sushi' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
+                        wire:click="$set('areaSeleccionada', 'fria')"
+                        class="flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-extrabold transition-all cursor-pointer {{ in_array($areaSeleccionada, ['fria', 'sushi']) ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
                     >
                         <span>🥗</span>
-                        <span>Cocina Fría ({{ $conteo['sushi'] }})</span>
+                        <span>Cocina Fría & Postres ({{ $conteo['fria'] }})</span>
                     </button>
                     <button
                         type="button"

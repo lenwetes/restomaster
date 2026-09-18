@@ -13,6 +13,7 @@ use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -189,12 +190,14 @@ class PedidoService
 
         $pedido = $item->pedido;
         $itemsPendientes = $pedido->items()
-            ->whereNotIn('estado_cocina', ['listo', 'entregado', 'cancelado'])
+            ->whereNotIn('estado_cocina', ['listo', 'entregado', 'servido', 'cancelado'])
             ->count();
 
-        if ($itemsPendientes === 0 && in_array($pedido->estado, ['creado', 'en_cocina'])) {
+        if ($itemsPendientes === 0 && in_array($pedido->estado, ['creado', 'en_cocina', 'en_preparacion'])) {
             $pedido->update(['estado' => 'listo']);
         }
+
+        Cache::flush();
 
         return $item->fresh();
     }
@@ -208,7 +211,7 @@ class PedidoService
 
         $pedido = $item->pedido;
         $itemsNoEntregados = $pedido->items()
-            ->whereNotIn('estado_cocina', ['entregado', 'cancelado'])
+            ->whereNotIn('estado_cocina', ['entregado', 'servido', 'cancelado'])
             ->count();
 
         if ($itemsNoEntregados === 0 && $pedido->estado !== 'pagado') {
@@ -237,9 +240,10 @@ class PedidoService
             $pedido = Pedido::where('id', $pedido->id)->lockForUpdate()->firstOrFail();
             abort_if($pedido->estado === 'pagado', 400, 'El pedido ya se encuentra pagado.');
 
-            // La comanda sigue activa en cocina: solo se cobra servido o cancelado
-            $comandaActiva = $pedido->items()->whereIn('estado_cocina', ['en_preparacion', 'listo'])->exists();
-            abort_if($comandaActiva, 422, 'La comanda sigue activa en cocina: solo se puede cobrar cuando todo fue servido o cancelado.');
+            // La comanda sigue en preparación en cocina: solo se cobra cuando cocina termine la preparación
+            $comandaEnCocina = in_array($pedido->estado, ['en_cocina', 'en_preparacion'])
+                && $pedido->items()->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->exists();
+            abort_if($comandaEnCocina, 422, 'La comanda sigue en preparación en cocina: solo se puede cobrar cuando cocina termine la preparación.');
 
             $propina = max(0.0, round($propina, 2));
             $porcentajePropina = $porcentajePropina !== null ? max(0.0, (float) $porcentajePropina) : null;
@@ -272,6 +276,11 @@ class PedidoService
                 'monto_pago_tarjeta' => $montoTarjeta,
                 'cambio' => $cambio,
                 'pagado_en' => now(),
+            ]);
+
+            $pedido->items()->whereIn('estado_cocina', ['pendiente', 'listo'])->update([
+                'estado_cocina' => 'entregado',
+                'listo_en' => now(),
             ]);
 
             // Si tiene mesa asignada, pasa a 'por_limpiar' y libera al mesero

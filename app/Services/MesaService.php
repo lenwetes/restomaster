@@ -301,4 +301,67 @@ class MesaService
 
         return $mesa->fresh(['mesero']);
     }
+
+    /**
+     * Cancelar una mesa truncada: libera al mesero, cancela pedidos sin
+     * items enviados a cocina, y la regresa al estado 'libre'.
+     *
+     * Reglas de negocio:
+     * - No se puede cancelar si hay pedidos con items en cocina (en_preparacion / listo).
+     * - Los pedidos en estado 'creado' o 'solicitado_qr' sin items en cocina se anulan.
+     * - Si hay pedido pagado activo se lanza excepción (ya fue cobrado).
+     */
+    public function cancelarMesa(Mesa $mesa, User $autorizadoPor, string $motivo = ''): Mesa
+    {
+        $pedidosActivos = $mesa->pedidos()->activos()->with('items')->get();
+
+        foreach ($pedidosActivos as $pedido) {
+            // No se puede cancelar si hay items en preparación o listos en cocina
+            $itemsEnCocina = $pedido->items
+                ->whereIn('estado_cocina', ['en_preparacion', 'listo'])
+                ->count();
+
+            if ($itemsEnCocina > 0) {
+                throw new \DomainException(
+                    "No se puede cancelar la Mesa #{$mesa->numero}: el pedido {$pedido->codigo} tiene {$itemsEnCocina} ítem(s) en cocina. Finaliza la preparación antes de cancelar."
+                );
+            }
+
+            if ($pedido->estado === 'pagado') {
+                throw new \DomainException(
+                    "No se puede cancelar la Mesa #{$mesa->numero}: el pedido {$pedido->codigo} ya fue cobrado."
+                );
+            }
+        }
+
+        // Seguro cancelar: anular pedidos en estado inicial
+        foreach ($pedidosActivos as $pedido) {
+            $pedido->items()->update(['estado_cocina' => 'cancelado']);
+            $pedido->update(['estado' => 'cancelado']);
+        }
+
+        $meseroAnterior = $mesa->mesero?->name ?? 'Sin asignar';
+        $mesa->update([
+            'estado'     => MesaEstado::LIBRE->value,
+            'mesero_id'  => null,
+        ]);
+
+        Cache::forget('pos.terminal.mesas');
+
+        app(AuditoriaService::class)->registrar(
+            usuario: $autorizadoPor,
+            accion: 'mesas.cancelada',
+            entidad: 'mesa',
+            entidadId: $mesa->id,
+            descripcion: "Mesa #{$mesa->numero} cancelada y liberada por {$autorizadoPor->name}. Mesero anterior: {$meseroAnterior}." . ($motivo ? " Motivo: {$motivo}" : ''),
+            datos: [
+                'mesa_id'             => $mesa->id,
+                'mesero_anterior'     => $meseroAnterior,
+                'pedidos_cancelados'  => $pedidosActivos->pluck('codigo')->toArray(),
+                'motivo'              => $motivo,
+            ]
+        );
+
+        return $mesa->fresh(['mesero']);
+    }
 }

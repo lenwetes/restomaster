@@ -6,8 +6,36 @@
 ---
 
 ## Última Actualización
-2026-09-18 13:23 | Antigravity | 🎨 **CORRECCIÓN VISUAL DE ÍCONOS DE CATEGORÍA Y BADGES DE ÁREA DE COCINA EN POS & KDS**:
-- **Causa raíz:**
+2026-09-18 16:10 | Antigravity | 🚀 **CICLO OPERATIVO INTEGRAL COMANDAS - COCINA (KDS) - POS - COBRO**:
+- **Causa raíz de KDS vacío:**
+  - Los pedidos en curso (Mesa 3 `ORD-20260918-0991` y Barra B2 `ORD-20260918-0993`) tenían estado `'en_preparacion'`.
+  - La consulta en `resources/views/livewire/cocina/kds.blade.php` filtraba únicamente `whereIn('estado', ['en_cocina', 'creado', 'listo'])`, omitiendo `'en_preparacion'`. Además, las categorías de platos asignaban `'caliente'` y `'fria'`, mientras que los filtros de estación solo evaluaban literales anteriores.
+- **Flujo de comanda y cobro implementado (100% de acuerdo a la especificación del usuario):**
+  1. **Envío de Comanda (POS):**
+     - Al enviar una comanda a cocina, el botón **"Enviar Cocina"** queda automáticamente deshabilitado (`@disabled($this->comandaYaEnviadaACocina())`).
+     - Solo se reactiva si el mesero agrega nuevos platos o aumenta cantidades en el carrito (`cantidadNuevosItemsParaCocina() > 0`), mostrando el badge dinámico `+N plato(s) nuevo(s) por enviar a cocina`.
+  2. **Bloqueo de Cobro mientras cocina prepara (POS & PedidoService):**
+     - Mientras la orden esté en cocina (`en_cocina`, `en_preparacion`) con platos pendientes o en preparación, el botón **"Cobrar Pedido"** queda bloqueado tanto en la interfaz táctil como a nivel de servidor (`abrirModalCobro`, `procesarCobro` y `PedidoService::cobrarPedido`).
+     - Muestra un banner visual: `⏳ En preparación en cocina: Cobro bloqueado hasta que cocina termine`.
+  3. **Visualización en Cocina (KDS):**
+     - Añadido `'en_preparacion'` a la cola en vivo de KDS.
+     - Implementado mapeo multivariante en `obtenerAreasFiltradas()` para las estaciones: `'fria'` (incluye postres, ensaladas, ceviches), `'caliente'` (incluye parrilla, carnes, frituras) y `'barra'` (cócteles, jugos, cervezas).
+  4. **Notificación al Mesero al terminar cocina:**
+     - Al presionar **"Marcar Listo"** o **"Marcar Toda Comanda Lista"**, el KDS despacha en tiempo real el evento `notificacion` y `comanda-actualizada`, limpiando la caché global de notificaciones.
+     - Si todos los platos están listos, el pedido transiciona a `'listo'`.
+  5. **Desbloqueo de Cobro y Entrega:**
+     - Una vez la cocina termina la preparación (`'listo'` o `'servido'`), el botón **"Cobrar Pedido"** se desbloquea en el POS con estilo esmeralda táctil y badge `🛎️ ¡Comanda lista en cocina! Habilitado para servir y cobrar`.
+     - En el mapa de mesas (`/mesas`), la tarjeta de la mesa se resalta con anillo esmeralda y botón palpitante `🛎️ ¡Lista para Servir! / Cobrar`.
+     - Al cobrarse el pedido, los items pasan a `'entregado'` y la mesa queda en `'por_limpiar'`.
+- **Archivos intervenidos:**
+  - `resources/views/livewire/cocina/kds.blade.php`
+  - `app/Services/PedidoService.php`
+  - `resources/views/livewire/pos/terminal.blade.php`
+  - `resources/views/livewire/mesas/index.blade.php`
+  - `tests/Feature/FlujoComandaCocinaPosTest.php` (test integral de 16 aserciones de punta a punta)
+- **Verificación:** Suite de 3 archivos de pruebas ejecutada con éxito (`CocinaRoleRestrictionTest`, `RemediacionPosCocinaTest`, `FlujoComandaCocinaPosTest` — 9 tests, 49 aserciones pasadas). Pint validado con 0 advertencias.
+
+---
   1. En las tarjetas de productos y botones de navegación del POS (`pos/terminal.blade.php`, `menu/carta-publica.blade.php`, `delivery/pedido-publico.blade.php`), los identificadores de íconos tipo Material Symbols (`dinner_dining`, `lunch_dining`, `local_bar`, `local_cafe`, `icecream`) se renderizaban como texto plano dentro del contenedor circular `w-10 h-10` con `overflow-hidden`, provocando que el texto se recortara y mostrara cadenas rotas (`hen_dining`, `ch_dining`, `ocal_bar`, `cal_cafe`, `cecream`).
   2. En platos fríos y postres (`Ceviche`, `Ensalada César`, `Torta Tres Leches`), `area_cocina` mantenía el valor residual `'sushi'`, mostrándose la insignia `SUSHI` en lugar de `COCINA FRÍA` o `POSTRES`.
   3. Múltiples vistas conservaban fallbacks hardcodeados a emojis de sushi (`?? '🍣'` y `?? '🍱'`).
