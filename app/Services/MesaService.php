@@ -342,8 +342,8 @@ class MesaService
 
         $meseroAnterior = $mesa->mesero?->name ?? 'Sin asignar';
         $mesa->update([
-            'estado'     => MesaEstado::LIBRE->value,
-            'mesero_id'  => null,
+            'estado' => MesaEstado::LIBRE->value,
+            'mesero_id' => null,
         ]);
 
         Cache::forget('pos.terminal.mesas');
@@ -353,12 +353,12 @@ class MesaService
             accion: 'mesas.cancelada',
             entidad: 'mesa',
             entidadId: $mesa->id,
-            descripcion: "Mesa #{$mesa->numero} cancelada y liberada por {$autorizadoPor->name}. Mesero anterior: {$meseroAnterior}." . ($motivo ? " Motivo: {$motivo}" : ''),
+            descripcion: "Mesa #{$mesa->numero} cancelada y liberada por {$autorizadoPor->name}. Mesero anterior: {$meseroAnterior}.".($motivo ? " Motivo: {$motivo}" : ''),
             datos: [
-                'mesa_id'             => $mesa->id,
-                'mesero_anterior'     => $meseroAnterior,
-                'pedidos_cancelados'  => $pedidosActivos->pluck('codigo')->toArray(),
-                'motivo'              => $motivo,
+                'mesa_id' => $mesa->id,
+                'mesero_anterior' => $meseroAnterior,
+                'pedidos_cancelados' => $pedidosActivos->pluck('codigo')->toArray(),
+                'motivo' => $motivo,
             ]
         );
 

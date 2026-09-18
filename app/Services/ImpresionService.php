@@ -27,7 +27,17 @@ class ImpresionService
     public function despacharComandaCocina(Pedido $pedido, ?User $usuario = null): array
     {
         $pedido->loadMissing(['items.producto', 'mesa']);
-        $itemsPorArea = $pedido->items->groupBy(function ($item) {
+
+        // Solo despachar a comandera térmica items pendientes o en preparación
+        $itemsCocina = $pedido->items->filter(function ($item) {
+            return in_array($item->estado_cocina, ['pendiente', 'en_preparacion'], true);
+        });
+
+        if ($itemsCocina->isEmpty()) {
+            return [];
+        }
+
+        $itemsPorArea = $itemsCocina->groupBy(function ($item) {
             return $item->area_cocina ?: 'sushi';
         });
 

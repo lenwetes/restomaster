@@ -102,6 +102,9 @@ new class extends Component
 
     public ?int $cajaAperturaId = null;
 
+    // Modo Nuevo Pedido / Adición sobre mesa con comanda previa despachada
+    public bool $modoNuevaAdicion = false;
+
     public function cambiarVista(string $vista): void
     {
         if (in_array($vista, ['pc', 'tablet', 'movil'])) {
@@ -111,6 +114,8 @@ new class extends Component
 
     public function mount(): void
     {
+        $this->modoNuevaAdicion = false;
+
         if (request()->has('vista') && in_array(request()->query('vista'), ['pc', 'tablet', 'movil'])) {
             $this->vistaMesero = request()->query('vista');
         }
@@ -139,6 +144,7 @@ new class extends Component
 
     public function updatedMesaId(mixed $value): void
     {
+        $this->modoNuevaAdicion = false;
         $this->limpiarCarrito();
         if ($value) {
             $pedidoExistente = Pedido::where('mesa_id', (int) $value)->activos()->latest()->first();
@@ -476,7 +482,25 @@ new class extends Component
         }
 
         if (empty($this->carrito)) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'El carrito está vacío. Agrega productos antes de enviar a cocina.',
+                'tipo' => 'warning',
+            ]);
+
             return;
+        }
+
+        // Bloqueo estricto: evitar re-enviar la misma comanda si no hay platos nuevos
+        if ($this->tipo === 'mesa' && $this->mesaId) {
+            $pedidoExistente = Pedido::where('mesa_id', $this->mesaId)->activos()->latest()->first();
+            if ($pedidoExistente && $this->cantidadNuevosItemsParaCocina() === 0) {
+                $this->dispatch('notificacion', [
+                    'mensaje' => 'Esta comanda ya fue enviada a cocina. No hay productos nuevos para enviar.',
+                    'tipo' => 'warning',
+                ]);
+
+                return;
+            }
         }
 
         $pedidoService = app(PedidoService::class);
@@ -505,23 +529,34 @@ new class extends Component
                     'nombre_cliente' => $this->nombreCliente,
                 ]);
             }
-            $itemsExistentes = $pedidoExistente->items()->get()->keyBy('producto_id');
 
-            foreach ($this->carrito as $productoId => $itemCarrito) {
-                $cantidadCarrito = (int) $itemCarrito['cantidad'];
-                if ($itemsExistentes->has($productoId)) {
-                    $itemDb = $itemsExistentes->get($productoId);
-                    $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
-                    if ($diferencia > 0) {
-                        $producto = Producto::find($productoId);
-                        if ($producto) {
-                            $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
-                        }
-                    }
-                } else {
+            if ($this->modoNuevaAdicion) {
+                foreach ($this->carrito as $productoId => $itemCarrito) {
                     $producto = Producto::find($productoId);
                     if ($producto) {
-                        $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
+                        $pedidoService->agregarItem($pedidoExistente, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
+                    }
+                }
+                $this->modoNuevaAdicion = false;
+            } else {
+                $itemsExistentes = $pedidoExistente->items()->get()->keyBy('producto_id');
+
+                foreach ($this->carrito as $productoId => $itemCarrito) {
+                    $cantidadCarrito = (int) $itemCarrito['cantidad'];
+                    if ($itemsExistentes->has($productoId)) {
+                        $itemDb = $itemsExistentes->get($productoId);
+                        $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
+                        if ($diferencia > 0) {
+                            $producto = Producto::find($productoId);
+                            if ($producto) {
+                                $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
+                            }
+                        }
+                    } else {
+                        $producto = Producto::find($productoId);
+                        if ($producto) {
+                            $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
+                        }
                     }
                 }
             }
@@ -579,7 +614,33 @@ new class extends Component
 
     public function abrirModalCobro(): void
     {
-        if (empty($this->carrito)) {
+        if ($this->modoNuevaAdicion && $this->tipo === 'mesa' && $this->mesaId) {
+            $pedidoActivo = $this->obtenerPedidoActivoMesa();
+            if ($pedidoActivo) {
+                if (! empty($this->carrito)) {
+                    $pedidoService = app(PedidoService::class);
+                    foreach ($this->carrito as $productoId => $itemCarrito) {
+                        $producto = Producto::find($productoId);
+                        if ($producto) {
+                            $itemAgregado = $pedidoService->agregarItem($pedidoActivo, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
+                            $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
+                        }
+                    }
+                }
+                $this->modoNuevaAdicion = false;
+                $this->limpiarCarrito();
+                foreach ($pedidoActivo->fresh()->items as $item) {
+                    $this->carrito[$item->producto_id] = [
+                        'producto_id' => $item->producto_id,
+                        'nombre' => $item->nombre_producto,
+                        'precio' => (float) $item->precio_unitario,
+                        'cantidad' => (int) $item->cantidad,
+                        'notas' => $item->notas ?? '',
+                        'area_cocina' => $item->area_cocina,
+                    ];
+                }
+            }
+        } elseif (empty($this->carrito)) {
             $pedidoActivo = $this->obtenerPedidoActivoMesa();
             if ($pedidoActivo) {
                 foreach ($pedidoActivo->items as $item) {
@@ -706,7 +767,7 @@ new class extends Component
         }
 
         return Pedido::where('mesa_id', $this->mesaId)
-            ->whereIn('estado', ['creado', 'en_cocina', 'en_preparacion', 'listo', 'servido'])
+            ->activos()
             ->latest()
             ->first();
     }
@@ -718,12 +779,16 @@ new class extends Component
             return false;
         }
 
-        if (! in_array($pedido->estado, ['en_cocina', 'en_preparacion', 'listo', 'servido'], true)) {
+        if ($this->modoNuevaAdicion) {
             return false;
         }
 
         if (empty($this->carrito)) {
             return true;
+        }
+
+        if (! in_array($pedido->estado, ['en_cocina', 'en_preparacion', 'en_proceso', 'listo', 'entregado', 'servido'], true)) {
+            return false;
         }
 
         $itemsDb = $pedido->items()->get()->keyBy('producto_id');
@@ -742,8 +807,66 @@ new class extends Component
         return true;
     }
 
+    public function comandaDespachadaPorCocina(): bool
+    {
+        if ($this->tipo !== 'mesa' || ! $this->mesaId) {
+            return false;
+        }
+
+        $pedido = $this->obtenerPedidoActivoMesa();
+        if (! $pedido) {
+            return false;
+        }
+
+        if (in_array($pedido->estado, ['listo', 'entregado', 'servido'], true)) {
+            return true;
+        }
+
+        $tieneItems = $pedido->items()->exists();
+        $tienePendientesCocina = $pedido->items()->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->exists();
+
+        return $tieneItems && ! $tienePendientesCocina;
+    }
+
+    public function iniciarNuevoPedido(): void
+    {
+        $this->limpiarCarrito();
+        $this->modoNuevaAdicion = true;
+
+        $mesa = $this->mesaId ? Mesa::find($this->mesaId) : null;
+        $destino = $mesa ? "Mesa {$mesa->numero}" : 'la comanda';
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Nuevo pedido para {$destino}: agrega los nuevos productos para enviar a cocina.",
+            'tipo' => 'info',
+        ]);
+    }
+
+    public function cancelarModoAdicion(): void
+    {
+        $this->modoNuevaAdicion = false;
+        $this->limpiarCarrito();
+        $pedidoExistente = $this->obtenerPedidoActivoMesa();
+        if ($pedidoExistente) {
+            foreach ($pedidoExistente->items as $item) {
+                $this->carrito[$item->producto_id] = [
+                    'producto_id' => $item->producto_id,
+                    'nombre' => $item->nombre_producto,
+                    'precio' => (float) $item->precio_unitario,
+                    'cantidad' => (int) $item->cantidad,
+                    'notas' => $item->notas ?? '',
+                    'area_cocina' => $item->area_cocina,
+                ];
+            }
+        }
+    }
+
     public function cantidadNuevosItemsParaCocina(): int
     {
+        if ($this->modoNuevaAdicion) {
+            return (int) array_sum(array_column($this->carrito, 'cantidad'));
+        }
+
         $pedido = $this->obtenerPedidoActivoMesa();
         if (! $pedido) {
             return count($this->carrito);
@@ -805,6 +928,21 @@ new class extends Component
     {
         $this->authorize('cobrar', Pedido::class);
 
+        if ($this->modoNuevaAdicion && $this->tipo === 'mesa' && $this->mesaId) {
+            $pedidoActivo = $this->obtenerPedidoActivoMesa();
+            if ($pedidoActivo && ! empty($this->carrito)) {
+                $pedidoService = app(PedidoService::class);
+                foreach ($this->carrito as $productoId => $itemCarrito) {
+                    $producto = Producto::find($productoId);
+                    if ($producto) {
+                        $itemAgregado = $pedidoService->agregarItem($pedidoActivo, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
+                        $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
+                    }
+                }
+                $this->modoNuevaAdicion = false;
+            }
+        }
+
         if (empty($this->carrito)) {
             $pedidoActivo = $this->obtenerPedidoActivoMesa();
             if ($pedidoActivo) {
@@ -855,25 +993,37 @@ new class extends Component
                     'nombre_cliente' => $this->nombreCliente,
                 ]);
             }
-            $itemsExistentes = $pedidoExistente->items()->get()->keyBy('producto_id');
 
-            foreach ($this->carrito as $productoId => $itemCarrito) {
-                $cantidadCarrito = (int) $itemCarrito['cantidad'];
-                if ($itemsExistentes->has($productoId)) {
-                    $itemDb = $itemsExistentes->get($productoId);
-                    $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
-                    if ($diferencia > 0) {
-                        $producto = Producto::find($productoId);
-                        if ($producto) {
-                            $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
-                            $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
-                        }
-                    }
-                } else {
+            if ($this->modoNuevaAdicion) {
+                foreach ($this->carrito as $productoId => $itemCarrito) {
                     $producto = Producto::find($productoId);
                     if ($producto) {
-                        $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
+                        $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
                         $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
+                    }
+                }
+                $this->modoNuevaAdicion = false;
+            } else {
+                $itemsExistentes = $pedidoExistente->items()->get()->keyBy('producto_id');
+
+                foreach ($this->carrito as $productoId => $itemCarrito) {
+                    $cantidadCarrito = (int) $itemCarrito['cantidad'];
+                    if ($itemsExistentes->has($productoId)) {
+                        $itemDb = $itemsExistentes->get($productoId);
+                        $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
+                        if ($diferencia > 0) {
+                            $producto = Producto::find($productoId);
+                            if ($producto) {
+                                $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
+                                $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
+                            }
+                        }
+                    } else {
+                        $producto = Producto::find($productoId);
+                        if ($producto) {
+                            $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
+                            $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
+                        }
                     }
                 }
             }
@@ -1722,6 +1872,21 @@ new class extends Component
 
                                 <!-- Lista de items móvil -->
                                 <div class="mt-3 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-none max-h-[42vh]">
+                                    @if($modoNuevaAdicion)
+                                        <div class="rounded-2xl border border-primary/30 bg-primary/10 p-2 flex items-center justify-between text-xs animate-fade-in">
+                                            <div class="flex items-center gap-1 text-primary font-black text-[11px]">
+                                                <span class="material-symbols-outlined text-[15px]">add_circle</span>
+                                                <span>Nuevo Pedido / Adición</span>
+                                            </div>
+                                            <button 
+                                                wire:click="cancelarModoAdicion" 
+                                                type="button"
+                                                class="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                                            >
+                                                Ver cuenta total
+                                            </button>
+                                        </div>
+                                    @endif
                                     @forelse($carrito as $pId => $item)
                                         <div class="rounded-2xl border border-surface-container-high bg-surface-container-low p-2.5">
                                             <div class="flex items-center justify-between">
@@ -1754,18 +1919,32 @@ new class extends Component
                                     <span class="text-primary font-mono text-lg">${{ number_format($this->total, 0, ',', '.') }}</span>
                                 </div>
                                 <div class="grid grid-cols-2 gap-2">
-                                    <button 
-                                        wire:click="enviarACocina"
-                                        @disabled(empty($carrito) || ($tipo === 'mesa' && !$mesaId) || ($tipo === 'mesa' && $this->comandaYaEnviadaACocina()))
-                                        class="flex h-11 items-center justify-center gap-1.5 rounded-xl border text-xs font-black shadow-sm disabled:opacity-40 cursor-pointer active:scale-95 {{ $this->comandaYaEnviadaACocina() ? 'bg-surface-container/50 border-surface-container-high text-on-surface-variant cursor-not-allowed' : 'bg-surface-container border-primary/40 text-primary hover:bg-surface-container-high' }}"
-                                        title="{{ $this->comandaYaEnviadaACocina() ? 'Comanda ya enviada a cocina.' : 'Enviar comanda a cocina' }}"
-                                    >
-                                        <span class="material-symbols-outlined text-[18px]">skillet</span>
-                                        <span>{{ $this->comandaYaEnviadaACocina() ? '✓ En Cocina' : ($this->cantidadNuevosItemsParaCocina() > 0 && $this->obtenerPedidoActivoMesa() ? 'Enviar +'.$this->cantidadNuevosItemsParaCocina().' Cocina' : 'Enviar Cocina') }}</span>
-                                    </button>
+                                    @if($this->comandaDespachadaPorCocina() && $this->cantidadNuevosItemsParaCocina() === 0)
+                                        <button 
+                                            wire:click="iniciarNuevoPedido"
+                                            type="button"
+                                            class="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-surface-container text-xs font-extrabold text-primary shadow-sm hover:bg-surface-container-high transition-all active:scale-95 cursor-pointer"
+                                            title="Comanda anterior despachada. Iniciar nuevo pedido para esta mesa."
+                                        >
+                                            <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                                            <span>+ Nuevo Pedido</span>
+                                        </button>
+                                    @else
+                                        <button 
+                                            wire:click="enviarACocina"
+                                            type="button"
+                                            @disabled(empty($carrito) || ($tipo === 'mesa' && !$mesaId) || ($tipo === 'mesa' && $this->comandaYaEnviadaACocina()))
+                                            class="flex h-11 items-center justify-center gap-1.5 rounded-xl border text-xs font-black shadow-sm disabled:opacity-40 cursor-pointer active:scale-95 {{ $this->comandaYaEnviadaACocina() ? 'bg-surface-container/50 border-surface-container-high text-on-surface-variant cursor-not-allowed' : 'bg-surface-container border-primary/40 text-primary hover:bg-surface-container-high' }}"
+                                            title="{{ $this->comandaYaEnviadaACocina() ? 'Comanda ya enviada a cocina.' : 'Enviar comanda a cocina' }}"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px]">{{ $this->comandaYaEnviadaACocina() ? 'check_circle' : 'skillet' }}</span>
+                                            <span>{{ $this->comandaYaEnviadaACocina() ? '✓ En Cocina' : ($this->cantidadNuevosItemsParaCocina() > 0 && $this->obtenerPedidoActivoMesa() ? 'Enviar +'.$this->cantidadNuevosItemsParaCocina().' Cocina' : 'Enviar Cocina') }}</span>
+                                        </button>
+                                    @endif
                                     <button 
                                         wire:click="abrirModalCobro"
-                                        @disabled(empty($carrito) || $this->comandaActivaBloqueaCobro())
+                                        type="button"
+                                        @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro())
                                         class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 {{ $this->comandaActivaBloqueaCobro() ? 'bg-amber-500/20 text-amber-900 border border-amber-500/40 cursor-not-allowed' : ($this->comandaListaParaCobrar() ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-primary text-on-primary hover:bg-primary-container') }}"
                                         title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina. Solo se puede cobrar cuando cocina termine.' : 'Cobrar Pedido' }}"
                                     >
@@ -1779,7 +1958,7 @@ new class extends Component
                                     </p>
                                 @elseif($this->comandaListaParaCobrar())
                                     <p class="text-[10px] text-center font-bold text-emerald-800 bg-emerald-500/15 py-1 px-2 rounded-lg border border-emerald-500/30">
-                                        🛎️ ¡Comanda lista en cocina! Habilitado para cobrar
+                                        🛎️ ¡Comanda despachada / lista en cocina! Habilitado para cobrar
                                     </p>
                                 @endif
                             </div>
@@ -2276,6 +2455,21 @@ new class extends Component
 
             <!-- Cart Items List: Ocupa todo el espacio dinámico (flex-1 min-h-0) sin huecos en blanco -->
             <div class="flex-1 min-h-0 overflow-y-auto mt-3 pr-1 space-y-2">
+                @if($modoNuevaAdicion)
+                    <div class="rounded-2xl border border-primary/30 bg-primary/10 p-2.5 flex items-center justify-between text-xs animate-fade-in">
+                        <div class="flex items-center gap-1.5 text-primary font-black">
+                            <span class="material-symbols-outlined text-[16px]">add_circle</span>
+                            <span>Nuevo Pedido / Adición</span>
+                        </div>
+                        <button 
+                            wire:click="cancelarModoAdicion" 
+                            type="button"
+                            class="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                        >
+                            Ver cuenta total
+                        </button>
+                    </div>
+                @endif
                 @forelse($carrito as $pId => $item)
                     <div class="rounded-2xl border border-surface-container-high bg-surface-container-low p-2.5">
                         <div class="flex items-center justify-between">
@@ -2384,18 +2578,32 @@ new class extends Component
 
                 <!-- Dual Tactical Touch Buttons -->
                 <div class="grid grid-cols-2 gap-2 pt-1">
-                    <button 
-                        wire:click="enviarACocina"
-                        @disabled(empty($carrito) || ($tipo === 'mesa' && !$mesaId) || ($tipo === 'mesa' && $this->comandaYaEnviadaACocina()))
-                        class="flex h-12 items-center justify-center gap-1.5 rounded-xl border text-xs font-extrabold shadow-sm disabled:opacity-40 transition-all active:scale-95 cursor-pointer {{ $this->comandaYaEnviadaACocina() ? 'bg-surface-container/50 border-surface-container-high text-on-surface-variant cursor-not-allowed' : 'bg-surface-container border-primary/40 text-primary hover:bg-surface-container-high' }}"
-                        title="{{ $this->comandaYaEnviadaACocina() ? 'Comanda ya enviada a cocina. Agrega nuevos productos para reactivar el envío.' : 'Enviar comanda a cocina' }}"
-                    >
-                        <span class="material-symbols-outlined text-[18px]">skillet</span>
-                        <span>{{ $this->comandaYaEnviadaACocina() ? '✓ En Cocina' : ($this->cantidadNuevosItemsParaCocina() > 0 && $this->obtenerPedidoActivoMesa() ? 'Enviar +'.$this->cantidadNuevosItemsParaCocina().' a Cocina' : 'Enviar Cocina') }}</span>
-                    </button>
+                    @if($this->comandaDespachadaPorCocina() && $this->cantidadNuevosItemsParaCocina() === 0)
+                        <button 
+                            wire:click="iniciarNuevoPedido"
+                            type="button"
+                            class="flex h-12 items-center justify-center gap-1.5 rounded-xl border border-primary/40 bg-surface-container text-xs font-extrabold text-primary shadow-sm hover:bg-surface-container-high transition-all active:scale-95 cursor-pointer"
+                            title="Comanda anterior despachada. Haz clic para iniciar un nuevo pedido o adición para esta mesa."
+                        >
+                            <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                            <span>+ Nuevo Pedido</span>
+                        </button>
+                    @else
+                        <button 
+                            wire:click="enviarACocina"
+                            type="button"
+                            @disabled(empty($carrito) || ($tipo === 'mesa' && !$mesaId) || ($tipo === 'mesa' && $this->comandaYaEnviadaACocina()))
+                            class="flex h-12 items-center justify-center gap-1.5 rounded-xl border text-xs font-extrabold shadow-sm disabled:opacity-40 transition-all active:scale-95 cursor-pointer {{ $this->comandaYaEnviadaACocina() ? 'bg-surface-container/50 border-surface-container-high text-on-surface-variant cursor-not-allowed' : 'bg-surface-container border-primary/40 text-primary hover:bg-surface-container-high' }}"
+                            title="{{ $this->comandaYaEnviadaACocina() ? 'Comanda ya enviada a cocina. Agrega nuevos productos para reactivar el envío.' : 'Enviar comanda a cocina' }}"
+                        >
+                            <span class="material-symbols-outlined text-[18px]">{{ $this->comandaYaEnviadaACocina() ? 'check_circle' : 'skillet' }}</span>
+                            <span>{{ $this->comandaYaEnviadaACocina() ? '✓ En Cocina' : ($this->cantidadNuevosItemsParaCocina() > 0 && $this->obtenerPedidoActivoMesa() ? 'Enviar +'.$this->cantidadNuevosItemsParaCocina().' a Cocina' : 'Enviar Cocina') }}</span>
+                        </button>
+                    @endif
                     <button 
                         wire:click="abrirModalCobro"
-                        @disabled(empty($carrito) || $this->comandaActivaBloqueaCobro())
+                        type="button"
+                        @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro())
                         class="flex h-12 items-center justify-center gap-1.5 rounded-xl text-xs font-extrabold shadow-md disabled:opacity-40 transition-all active:scale-95 cursor-pointer {{ $this->comandaActivaBloqueaCobro() ? 'bg-amber-500/20 text-amber-900 border border-amber-500/40 cursor-not-allowed' : ($this->comandaListaParaCobrar() ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/30' : 'bg-primary text-on-primary hover:bg-primary-container') }}"
                         title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina. Solo se puede cobrar cuando cocina termine.' : 'Cobrar Pedido' }}"
                     >
@@ -2412,7 +2620,7 @@ new class extends Component
                 @elseif($this->comandaListaParaCobrar())
                     <div class="mt-1.5 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-3 py-1.5 text-[11px] font-bold text-emerald-800">
                         <span class="material-symbols-outlined text-[15px] text-emerald-600">notifications_active</span>
-                        <span>¡Comanda lista en cocina! Habilitado para servir y cobrar</span>
+                        <span>¡Comanda despachada / lista en cocina! Habilitado para servir y cobrar</span>
                     </div>
                 @endif
                 {{-- rol intencional, no permiso: hint contextual del flujo mesero --}}

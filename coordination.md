@@ -6,6 +6,24 @@
 ---
 
 ## Última Actualización
+2026-09-18 17:05 | Antigravity | 🛡️ **BLOQUEO DE REENVÍO DE COMANDA Y BOTÓN DINÁMICO '+ NUEVO PEDIDO' TRAS DESPACHO DE COCINA**:
+- **Problema abordado:**
+  - Tras enviar la comanda y ser despachada por cocina (estado `entregado` / `listo`), el botón de enviar comanda volvía a habilitarse para enviar exactamente el mismo ticket sin nuevos ítems.
+  - Al re-enviarse, cocina recibía una orden cuyos ítems ya figuraban como entregados/listos, provocando que el KDS la leyera como una orden vacía o inconsistente.
+- **Solución implementada:**
+  1. **POS Táctil (`resources/views/livewire/pos/terminal.blade.php`):**
+     - Detección exhaustiva de comanda despachada mediante `comandaDespachadaPorCocina()` (verifica si todos los ítems de cocina ya fueron `entregado` o `listo`).
+     - Al estar la orden despachada por cocina y sin nuevos ítems en carrito, el botón cambia automáticamente a **`+ Nuevo Pedido`** (`iniciarNuevoPedido()`), limpiando el carrito para permitir una adición o nueva ronda ordenada para la mesa.
+     - Si el mesero añade productos adicionales, el botón pasa a **`Enviar +N a Cocina`** enviando únicamente la adición.
+     - Bloqueo estricto server-side en `enviarACocina()`: si la comanda no tiene nuevos platos (`cantidadNuevosItemsParaCocina() === 0`), se rechaza la solicitud impidiendo el reenvío duplicado.
+  2. **Servicio de Impresión (`app/Services/ImpresionService.php`):**
+     - `despacharComandaCocina()` ahora filtra estrictamente ítems con estado `['pendiente', 'en_preparacion']`, evitando reimpresiones térmicas superfluas cuando todos los platos ya fueron despachados.
+  3. **Suite de Pruebas (`tests/Feature/FlujoComandaCocinaPosTest.php`):**
+     - Añadido test integral `test_bloqueo_reenvio_comanda_despachada_y_flujo_nuevo_pedido_adicion`: valida envío inicial, despacho en KDS, bloqueo de reenvío en POS, activación de `+ Nuevo Pedido`, adición limpia y recepción en cocina.
+- **Archivos:** `resources/views/livewire/pos/terminal.blade.php`, `app/Services/ImpresionService.php`, `tests/Feature/FlujoComandaCocinaPosTest.php`
+
+---
+
 2026-09-18 16:10 | Antigravity | 🚀 **CICLO OPERATIVO INTEGRAL COMANDAS - COCINA (KDS) - POS - COBRO**:
 - **Causa raíz de KDS vacío:**
   - Los pedidos en curso (Mesa 3 `ORD-20260918-0991` y Barra B2 `ORD-20260918-0993`) tenían estado `'en_preparacion'`.

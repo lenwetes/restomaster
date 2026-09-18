@@ -197,4 +197,74 @@ class FlujoComandaCocinaPosTest extends TestCase
         $this->mesa->refresh();
         $this->assertEquals('por_limpiar', $this->mesa->estado, 'La mesa debe quedar en estado por_limpiar.');
     }
+
+    public function test_bloqueo_reenvio_comanda_despachada_y_flujo_nuevo_pedido_adicion(): void
+    {
+        // 1. Crear comanda inicial enviada a cocina
+        $pos = Volt::actingAs($this->mesero)
+            ->test('pos.terminal')
+            ->set('mesaId', $this->mesa->id)
+            ->call('agregarProducto', $this->platoParrilla->id)
+            ->call('enviarACocina');
+
+        $pedido = Pedido::where('mesa_id', $this->mesa->id)->latest()->first();
+        $this->assertNotNull($pedido);
+        $this->assertEquals('en_cocina', $pedido->estado);
+
+        // 2. Cocina despacha la comanda (marca entregada)
+        $kds = Volt::actingAs($this->cocinero)
+            ->test('cocina.kds')
+            ->call('marcarComandaEntregada', $pedido->id);
+
+        $pedido->refresh();
+        $this->assertEquals('entregado', $pedido->estado, 'El pedido debe estar en estado entregado.');
+        foreach ($pedido->items as $item) {
+            $this->assertEquals('entregado', $item->estado_cocina);
+        }
+
+        // 3. Mesero entra nuevamente a la mesa en el POS
+        $pos = Volt::actingAs($this->mesero)
+            ->test('pos.terminal')
+            ->set('mesaId', $this->mesa->id);
+
+        // Regla: La comanda figura como despachada por cocina
+        $this->assertTrue($pos->instance()->comandaDespachadaPorCocina(), 'La comanda debe reportarse como despachada por cocina.');
+        $this->assertTrue($pos->instance()->comandaYaEnviadaACocina(), 'No debe permitir re-enviar la misma comanda.');
+        $this->assertEquals(0, $pos->instance()->cantidadNuevosItemsParaCocina(), 'No hay nuevos items agregados.');
+
+        // Regla: Intentar re-enviar la misma comanda debe ser BLOQUEADO y disparar advertencia
+        $pos->call('enviarACocina')
+            ->assertDispatched('notificacion');
+
+        // El pedido no debe haber cambiado su estado ni items
+        $pedido->refresh();
+        $this->assertEquals('entregado', $pedido->estado);
+
+        // 4. Mesero inicia "Nuevo Pedido" (adición para la mesa)
+        $pos->call('iniciarNuevoPedido');
+        $this->assertTrue($pos->get('modoNuevaAdicion'));
+        $this->assertEmpty($pos->get('carrito'), 'El carrito debe quedar limpio para tomar los nuevos productos.');
+
+        // 5. Mesero agrega 2 bebidas para la nueva ronda
+        $pos->call('agregarProducto', $this->bebidaBarra->id)
+            ->call('agregarProducto', $this->bebidaBarra->id);
+
+        $this->assertEquals(2, $pos->instance()->cantidadNuevosItemsParaCocina());
+        $this->assertFalse($pos->instance()->comandaYaEnviadaACocina(), 'La nueva adición debe ser enviable a cocina.');
+
+        // 6. Mesero envía la nueva ronda a cocina
+        $pos->call('enviarACocina');
+
+        // Verificar que solo se enviaron a cocina los 2 nuevos items
+        $pedido->refresh();
+        $this->assertEquals('en_cocina', $pedido->estado);
+        $this->assertEquals(2, $pedido->items()->where('estado_cocina', 'en_preparacion')->sum('cantidad'));
+        $this->assertEquals(1, $pedido->items()->where('estado_cocina', 'entregado')->sum('cantidad'));
+
+        // 7. En KDS solo deben aparecer los nuevos items por preparar
+        $kds = Volt::actingAs($this->cocinero)
+            ->test('cocina.kds');
+        $pedidosEnKds = $kds->viewData('pedidos');
+        $this->assertTrue($pedidosEnKds->contains('id', $pedido->id), 'El pedido con adición debe figurar en KDS.');
+    }
 }
