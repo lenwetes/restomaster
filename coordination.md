@@ -6,6 +6,26 @@
 ---
 
 ## Última Actualización
+2026-09-18 17:20 | Antigravity | ⚡ **RESOLUCIÓN DE LAZYLOADINGVIOLATIONEXCEPTION EN KDS Y SERVICIO DE PEDIDOS**:
+- **Causa raíz:**
+  - Al marcar un plato como listo desde la tarjeta individual de la comanda en KDS (`marcarListo` / `marcarPlatoListo`), se llamaba a `PedidoService::marcarItemListo($item)`.
+  - En la línea 191 de `PedidoService.php`, se evaluaba `$pedido = $item->pedido;`. Dado que `Model::preventLazyLoading(! app()->isProduction() && ! app()->runningUnitTests())` está activado en desarrollo/local (`AppServiceProvider`), el acceso a `$item->pedido` sin carga ansiosa arrojaba `Illuminate\Database\LazyLoadingViolationException: Attempted to lazy load [pedido] on model [App\Models\ItemPedido]`.
+  - Igualmente en `kds.blade.php`, `marcarListo`, `tomarItem`, `marcarTodaComandaLista` y `marcarComandaEntregada` no precargaban `pedido` o sus relaciones, y en `InventarioService` se evaluaba `$item->pedido?->usuario_id` sin verificación de relación cargada.
+- **Solución implementada:**
+  1. `app/Services/PedidoService.php`:
+     - En `marcarItemListo` y `marcarItemEntregado`, se invoca `$item->loadMissing('pedido')` antes de consultar `$item->pedido`, garantizando que la relación siempre esté cargada sin violar la restricción de lazy loading.
+  2. `resources/views/livewire/cocina/kds.blade.php`:
+     - `tomarItem` ahora consulta `ItemPedido::with('pedido')->findOrFail($itemId)`.
+     - `marcarListo` consulta `ItemPedido::with(['pedido.mesa', 'pedido.mesero'])->findOrFail($itemId)`.
+     - `marcarTodaComandaLista` y `marcarComandaEntregada` cargan `Pedido::with('items')` y establecen `$item->setRelation('pedido', $pedido)` en cada iteración.
+  3. `app/Services/InventarioService.php`:
+     - Salvaguarda para `user_id` en inventario usando `$item->relationLoaded('pedido') ? $item->pedido?->usuario_id : $item->pedido()->value('usuario_id')`.
+  4. `tests/Feature/FlujoComandaCocinaPosTest.php`:
+     - Añadido test específico `test_kds_marcar_plato_listo_sin_violacion_de_lazy_loading` que fuerza `Model::preventLazyLoading(true)` y ejecuta de punta a punta `tomarItem`, `marcarListo`, `marcarItemListo` y `marcarItemEntregado`.
+- **Archivos:** `app/Services/PedidoService.php`, `resources/views/livewire/cocina/kds.blade.php`, `app/Services/InventarioService.php`, `tests/Feature/FlujoComandaCocinaPosTest.php`, `coordination.md`
+
+---
+
 2026-09-18 17:05 | Antigravity | 🛡️ **BLOQUEO DE REENVÍO DE COMANDA Y BOTÓN DINÁMICO '+ NUEVO PEDIDO' TRAS DESPACHO DE COCINA**:
 - **Problema abordado:**
   - Tras enviar la comanda y ser despachada por cocina (estado `entregado` / `listo`), el botón de enviar comanda volvía a habilitarse para enviar exactamente el mismo ticket sin nuevos ítems.

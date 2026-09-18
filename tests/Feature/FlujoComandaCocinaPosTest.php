@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Caja;
 use App\Models\Categoria;
+use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
@@ -11,6 +12,8 @@ use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Services\CajaService;
+use App\Services\PedidoService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
@@ -266,5 +269,54 @@ class FlujoComandaCocinaPosTest extends TestCase
             ->test('cocina.kds');
         $pedidosEnKds = $kds->viewData('pedidos');
         $this->assertTrue($pedidosEnKds->contains('id', $pedido->id), 'El pedido con adición debe figurar en KDS.');
+    }
+
+    public function test_kds_marcar_plato_listo_sin_violacion_de_lazy_loading(): void
+    {
+        // Activar explícitamente la prevención estricta de lazy loading (como en entorno local/desarrollo)
+        Model::preventLazyLoading(true);
+
+        try {
+            // 1. Crear comanda inicial enviada a cocina
+            Volt::actingAs($this->mesero)
+                ->test('pos.terminal')
+                ->set('mesaId', $this->mesa->id)
+                ->call('agregarProducto', $this->platoParrilla->id)
+                ->call('enviarACocina');
+
+            $pedido = Pedido::where('mesa_id', $this->mesa->id)->latest()->first();
+            $this->assertNotNull($pedido);
+            $item = $pedido->items()->first();
+            $this->assertNotNull($item);
+
+            // 2. Cocinero toma el ítem y luego lo marca listo individualmente desde la tarjeta KDS
+            $kds = Volt::actingAs($this->cocinero)
+                ->test('cocina.kds');
+
+            // tomarItem: no debe disparar LazyLoadingViolationException
+            $kds->call('tomarItem', $item->id);
+            $item->refresh();
+            $this->assertEquals('en_preparacion', $item->estado_cocina);
+
+            // marcarListo: no debe disparar LazyLoadingViolationException
+            $kds->call('marcarListo', $item->id);
+            $item->refresh();
+            $this->assertEquals('listo', $item->estado_cocina);
+
+            // 3. marcarItemListo directamente en PedidoService con modelo no cargado previamente
+            $itemFresco = ItemPedido::findOrFail($item->id);
+            $this->assertFalse($itemFresco->relationLoaded('pedido'), 'La relación pedido no debe estar pre-cargada para probar el guard.');
+
+            $servicio = app(PedidoService::class);
+            $resultado = $servicio->marcarItemListo($itemFresco);
+            $this->assertEquals('listo', $resultado->estado_cocina);
+
+            // 4. marcarItemEntregado directamente en PedidoService con modelo no cargado previamente
+            $itemParaEntrega = ItemPedido::findOrFail($item->id);
+            $resultadoEntrega = $servicio->marcarItemEntregado($itemParaEntrega);
+            $this->assertEquals('entregado', $resultadoEntrega->estado_cocina);
+        } finally {
+            Model::preventLazyLoading(false);
+        }
     }
 }

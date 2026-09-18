@@ -61,7 +61,7 @@ class InventarioService
                     'costo_unitario' => $insumo->costo_unitario,
                     'costo_total' => round($cantidadConsumo * (float) $insumo->costo_unitario, 2),
                     'pedido_id' => $item->pedido_id,
-                    'user_id' => auth()->id() ?? $item->pedido?->usuario_id,
+                    'user_id' => auth()->id() ?? ($item->relationLoaded('pedido') ? $item->pedido?->usuario_id : $item->pedido()->value('usuario_id')),
                     'motivo' => "Consumo COC-01 #{$item->pedido_id}: {$item->cantidad}x {$item->nombre_producto}",
                     'referencia_documento' => "KDS-ITM-{$item->id}",
                 ]);

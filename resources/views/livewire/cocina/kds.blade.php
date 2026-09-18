@@ -59,7 +59,7 @@ new class extends Component
 
     public function tomarItem(int $itemId): void
     {
-        $item = ItemPedido::findOrFail($itemId);
+        $item = ItemPedido::with('pedido')->findOrFail($itemId);
         $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
 
         $item->update([
@@ -67,20 +67,21 @@ new class extends Component
             'iniciado_en' => now(),
         ]);
 
-        if ($item->pedido->estado === 'creado') {
+        if ($item->pedido && $item->pedido->estado === 'creado') {
             $item->pedido->update(['estado' => 'en_cocina']);
         }
     }
 
     public function marcarListo(int $itemId): void
     {
-        $item = ItemPedido::findOrFail($itemId);
+        $item = ItemPedido::with(['pedido.mesa', 'pedido.mesero'])->findOrFail($itemId);
         abort_if(Auth::user()?->sucursal_id && $item->pedido?->sucursal_id && $item->pedido->sucursal_id !== Auth::user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
 
         $pedidoService = app(PedidoService::class);
         $pedidoService->marcarItemListo($item);
 
+        $item->loadMissing(['pedido.mesa', 'pedido.mesero']);
         $pedido = $item->pedido?->fresh(['mesa', 'mesero', 'items']);
         $mesaNombre = $pedido?->mesa ? "Mesa {$pedido->mesa->numero}" : ($pedido?->codigo ?? 'Comanda');
         $this->dispatch('notificacion', [
@@ -103,7 +104,7 @@ new class extends Component
 
     public function marcarTodaComandaLista(int $pedidoId): void
     {
-        $pedido = Pedido::findOrFail($pedidoId);
+        $pedido = Pedido::with('items')->findOrFail($pedidoId);
         abort_if(Auth::user()?->sucursal_id && $pedido->sucursal_id && $pedido->sucursal_id !== Auth::user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $pedidoService = app(PedidoService::class);
 
@@ -112,6 +113,7 @@ new class extends Component
         foreach ($pedido->items as $item) {
             if ($this->areaSeleccionada === 'todas' || in_array($item->area_cocina, $areas, true)) {
                 if (Gate::allows('cocinar', [Pedido::class, $item->area_cocina])) {
+                    $item->setRelation('pedido', $pedido);
                     $pedidoService->marcarItemListo($item);
                 }
             }
@@ -128,12 +130,13 @@ new class extends Component
 
     public function marcarComandaEntregada(int $pedidoId): void
     {
-        $pedido = Pedido::findOrFail($pedidoId);
+        $pedido = Pedido::with('items')->findOrFail($pedidoId);
         abort_if(Auth::user()?->sucursal_id && $pedido->sucursal_id && $pedido->sucursal_id !== Auth::user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $pedidoService = app(PedidoService::class);
 
         foreach ($pedido->items as $item) {
             if (Gate::allows('cocinar', [Pedido::class, $item->area_cocina])) {
+                $item->setRelation('pedido', $pedido);
                 $pedidoService->marcarItemEntregado($item);
             }
         }

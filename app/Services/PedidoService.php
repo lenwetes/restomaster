@@ -188,13 +188,16 @@ class PedidoService
         // Descontar materia prima e insumos de la receta en inventario
         app(InventarioService::class)->descontarPorItemPedido($item);
 
+        $item->loadMissing('pedido');
         $pedido = $item->pedido;
-        $itemsPendientes = $pedido->items()
-            ->whereNotIn('estado_cocina', ['listo', 'entregado', 'servido', 'cancelado'])
-            ->count();
+        if ($pedido) {
+            $itemsPendientes = $pedido->items()
+                ->whereNotIn('estado_cocina', ['listo', 'entregado', 'servido', 'cancelado'])
+                ->count();
 
-        if ($itemsPendientes === 0 && in_array($pedido->estado, ['creado', 'en_cocina', 'en_preparacion'])) {
-            $pedido->update(['estado' => 'listo']);
+            if ($itemsPendientes === 0 && in_array($pedido->estado, ['creado', 'en_cocina', 'en_preparacion'])) {
+                $pedido->update(['estado' => 'listo']);
+            }
         }
 
         Cache::flush();
@@ -209,13 +212,16 @@ class PedidoService
     {
         $item->update(['estado_cocina' => 'entregado']);
 
+        $item->loadMissing('pedido');
         $pedido = $item->pedido;
-        $itemsNoEntregados = $pedido->items()
-            ->whereNotIn('estado_cocina', ['entregado', 'servido', 'cancelado'])
-            ->count();
+        if ($pedido) {
+            $itemsNoEntregados = $pedido->items()
+                ->whereNotIn('estado_cocina', ['entregado', 'servido', 'cancelado'])
+                ->count();
 
-        if ($itemsNoEntregados === 0 && $pedido->estado !== 'pagado') {
-            $pedido->update(['estado' => 'entregado']);
+            if ($itemsNoEntregados === 0 && $pedido->estado !== 'pagado') {
+                $pedido->update(['estado' => 'entregado']);
+            }
         }
 
         return $item->fresh();
