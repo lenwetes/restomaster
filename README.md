@@ -1,4 +1,4 @@
-# Sistema de Gestión para Restaurante de Sushi
+# Sistema de Gestión para Restaurante 
 
 Aplicativo web completo para gestionar un restaurante de sushi con soporte táctil para punto de venta (POS) y visualización móvil. **Stack: Laravel + PostgreSQL.**
 
