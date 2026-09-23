@@ -6,6 +6,20 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🐳 **FIX PG18 LAYOUT: mount padre + volumen fresco** (`docker-compose.yml`):
+- **Causa exacta (log de postgres):** imagen PG18 exige datos en subdirs versionados y mount en `/var/lib/postgresql`; teníamos `/var/lib/postgresql/data` + restos incompatibles en el volumen → exit instantáneo (por eso el healthcheck era irrelevante).
+- **Fix:** volumen montado en el padre + nombre nuevo `postgres_data_v18` (sin datos reales que perder: la app nunca arrancó). Pendiente push a ambas ramas + Redeploy.
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 🐳 **POSTGRES SIGUE FALLANDO: healthcheck DESCARTADO, falta log del contenedor**:
+- **Autocorrección:** el veredicto `unhealthy` llega ~1s después del `Started` con `start_period: 30s` vigente → Docker ni siquiera evalúa probes; el contenedor postgres **está SALIENDO (exit) al instante**. Mi fix del healthcheck apuntaba a la capa equivocada.
+- **Candidatos restantes (sin acceso al servidor, no verificables desde aquí):** password con `$` mutilada por interpolación, volumen con initdb parcial previo, `userns-remap` (named volumes sin permiso → muerte instantánea típica), disco/RAM del host.
+- **Evidencia necesaria:** Logs del servicio postgres en Coolify (1 línea lo delata). Pedidos al usuario + Plan B ofrecido (BD gestionada de Coolify en vez de postgres en compose).
+- **Lección:** no más pushes solo-docs a main (pueden disparar builds inútiles en Coolify); esta entrada queda local hasta el próximo fix real.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🐳 **FIX POSTGRES UNHEALTHY EN COOLIFY** (`docker-compose.yml`, commit `9e27df0` en ambas ramas):
 - **Síntoma:** imagen compila OK, pero `up -d` falla con `postgres ... is unhealthy` al instante (exit del dependency gate).
 - **Causa probable:** `pg_isready` sin password por TCP falla con auth scram + `start_period` de 10s corto para initdb.
