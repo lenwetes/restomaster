@@ -6,6 +6,11 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | ✅ **GITHUB VERIFICADO: AMBAS RAMAS AL DÍA** (`main` y `master` en `a282d6a`, `docker-compose.yml` nuevo en raíz de ambas — comprobado con `ls-remote` + `show`).
+- El error "Compose file not found at: /docker-compose.yml" es lado Coolify (el mensaje muestra la ruta CON slash inicial → el setting probablemente tiene `/docker-compose.yml` y debe ser `docker-compose.yml` relativo). Pendiente: ajuste en UI de Coolify + Redeploy por el usuario.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🐳 **YML COOLIFY + PUSH A AMBAS RAMAS** (`docker-compose.yml`, commit `182527a` en master y main):
 - **Error Coolify:** "Compose file not found at /docker-compose.yml (branch main)" — el archivo SÍ existe en ambas ramas con nombre exacto; es probable desajuste de settings (ruta con `/` inicial, rama o caché del recurso). Se reescribió el yml optimizado para Coolify de todos modos.
 - **Cambios del yml:** sin `ports:` en app (el proxy de Coolify enruta al 80; publicarlos interfiere), sin red custom ni labels (red default), `APP_KEY`/`DB_PASSWORD` con `:?` (falla rápido con mensaje claro), healthcheck del app, postgres 18-alpine (paridad con dev), volúmenes persistentes (storage + pgdata), `depends_on` healthy.
