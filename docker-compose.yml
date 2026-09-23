@@ -70,11 +70,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-adminresto} -d ${DB_DATABASE:-restomaster}"]
+      # Con password explícita (auth scram por TCP) + gracia amplia para initdb en discos lentos.
+      # OJO: $$ escapa el $ para que Compose NO lo interpole y llegue literal al shell del contenedor.
+      test: ["CMD-SHELL", "PGPASSWORD=\"$$POSTGRES_PASSWORD\" pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1"]
       interval: 5s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
 
 volumes:
   postgres_data:
