@@ -6,6 +6,12 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🖼️ **FIX IMÁGENES ROTAS: referencias a archivos borrados (culpa mía)**:
+- **Causa:** al cambiar de catálogo borré los 26 JPG realistas, pero la BD ya apuntaba a ellos (mi primer `seed-demo` los había vinculado) → 26 referencias colgadas.
+- **Fix:** re-descargadas las 26 (48/48 archivos ahora) + test endurecido (vinculado == productos con archivo existente, no == total archivos). Dev: 48/48 vinculados. Pint OK, test 2/2.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🎬 **DEMO EN UNA ACCIÓN + 22 IMÁGENES AI** (`restomaster:seed-demo`, `public/demo/platos/`, `AUTO_SEED_DEMO`):
 - **Comando único** reescrito: DatabaseSeeder → Menu/Caja/Mesa/Impresora/Inventario → DemoOperaciones → vínculo de imágenes. Todo idempotente (verificado 2 pasadas locales, 0 duplicados). Excluido `DatosPruebaRealistasSeeder` a propósito (borra productos no referenciados).
 - **Imágenes AI** (pollinations/flux, 800px, ~1.2MB total): convención `public/demo/platos/{slug}.jpg` auto-vinculada por slug; script re-ejecutable en `scripts/descargar-imagenes-demo.ps1`. Hallazgo: el catálogo dev (26, realistas) ≠ MenuSeeder (22) — imágenes generadas para MenuSeeder (fuente de deploys frescos).

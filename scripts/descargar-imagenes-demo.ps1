@@ -36,7 +36,32 @@ $platos = @(
     @('gin-tonic-citrico-frutos-rojos', 'citrus gin tonic with red berries' + $estiloBebida),
     @('mojito-clasico-de-ron-anejo', 'classic mojito cocktail with mint and lime' + $estiloBebida),
     @('cerveza-artesanal-ipa-330ml', 'craft IPA beer served in glass' + $estiloBebida),
-    @('soda-saborizada-maracuya-albahaca', 'passion fruit and basil flavored soda with ice' + $estiloBebida)
+    @('soda-saborizada-maracuya-albahaca', 'passion fruit and basil flavored soda with ice' + $estiloBebida),
+    @('picada-criolla-restomaster', 'Colombian picada criolla platter with grilled meats chorizo morcilla pork cracklings corn and plantain on wooden board' + $estiloComida),
+    @('trilogia-de-empanadas-artesanales', 'three golden Colombian empanadas with spicy aji dipping sauce' + $estiloComida),
+    @('ceviche-de-camaron-costeno', 'shrimp ceviche with patacon green plantain chips' + $estiloComida),
+    @('ensalada-cesar-con-pollo', 'Caesar salad with sliced grilled chicken and parmesan' + $estiloComida),
+    @('baby-beef-a-la-parrilla', 'grilled baby beef steak sliced showing juicy interior' + $estiloComida),
+    @('punta-de-anca-tradicional', 'grilled rump cap picanha style steak sliced' + $estiloComida),
+    @('costillas-de-cerdo-bbq', 'smoked BBQ pork ribs with glossy glaze' + $estiloComida),
+    @('pechuga-en-salsa-champinones', 'grilled chicken breast in creamy mushroom sauce' + $estiloComida),
+    @('alitas-bbq-o-crispy', 'crispy BBQ chicken wings pile with dip' + $estiloComida),
+    @('filete-de-robalo-al-ajillo', 'sea bass fillet in garlic butter with fresh herbs' + $estiloComida),
+    @('cazuela-de-camarones', 'shrimp casserole in creamy garlic white wine sauce served in clay bowl' + $estiloComida),
+    @('fettuccine-alfredo-con-pollo', 'fettuccine alfredo with chicken strips and parmesan' + $estiloComida),
+    @('hamburguesa-restomaster-angus', 'gourmet Angus beef burger with fries' + $estiloComida),
+    @('hamburguesa-crunchy-chicken', 'crispy chicken BBQ burger with coleslaw' + $estiloComida),
+    @('lasana-tradicional-bolonesa', 'traditional lasagna bolognese slice with melted cheese' + $estiloComida),
+    @('gin-tonic-botanico-clasico', 'botanical gin tonic cocktail with juniper and citrus' + $estiloBebida),
+    @('mojito-clasico-ron-anejo', 'classic mojito cocktail with mint and lime' + $estiloBebida),
+    @('moscow-mule-maracuya', 'moscow mule cocktail with passion fruit in copper mug' + $estiloBebida),
+    @('jugo-natural-lulo-mango-maracuya', 'tropical fruit juices lulo mango and passion fruit in glasses' + $estiloBebida),
+    @('limonada-de-coco-cremosita', 'creamy coconut lemonade in tall glass' + $estiloBebida),
+    @('cerveza-bbc-monserrate-roja', 'red craft beer served in glass' + $estiloBebida),
+    @('cerveza-club-colombia-dorada', 'golden lager beer served in glass' + $estiloBebida),
+    @('gaseosa-postobon-manzana', 'apple soda soft drink in glass with ice' + $estiloBebida),
+    @('volcan-tibio-de-chocolate', 'warm chocolate fondant volcano cake with vanilla ice cream' + $estiloComida),
+    @('torta-tres-leches-tradicional', 'tres leches cake slice with milk soak' + $estiloComida)
 )
 
 $fallidas = @()

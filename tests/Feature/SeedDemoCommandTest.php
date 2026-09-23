@@ -19,7 +19,12 @@ class SeedDemoCommandTest extends TestCase
 
         $archivos = File::glob(public_path('demo/platos/*.jpg')) ?: [];
         $this->assertNotEmpty($archivos, 'Debe existir la carpeta con imágenes demo.');
-        $this->assertEquals(count($archivos), Producto::where('imagen', 'like', '/demo/%')->count());
+
+        $conArchivo = Producto::all(['slug'])
+            ->filter(fn ($p) => File::exists(public_path("demo/platos/{$p->slug}.jpg")))
+            ->count();
+        $this->assertGreaterThanOrEqual(22, $conArchivo);
+        $this->assertEquals($conArchivo, Producto::where('imagen', 'like', '/demo/%')->count());
     }
 
     public function test_seed_demo_es_idempotente(): void
