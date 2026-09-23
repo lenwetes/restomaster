@@ -6,6 +6,23 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🔌 **ACCESO POR IP: re-agregado `ports: APP_PORT:80`** (sin dominio disponible):
+- Commit + push a ambas ramas (abajo). En Coolify fijar `APP_URL=http://IP:8004` y Redeploy; si el host tiene firewall, abrir el puerto (`ufw allow 8004/tcp`).
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 🌐 **APP CORRE PERO SIN ACCESO: falta dominio en Coolify** (solo local, sin push para no reiniciar prod):
+- Contenedores arriba; `IP:8004` da timeout porque el compose ya no publica puertos (el proxy de Coolify enruta al 80). Además no hay dominio configurado.
+- Indicado: agregar dominio (Add Domain) + fijar `APP_URL` al dominio + Redeploy. Acceso directo IP:puerto requeriría re-agregar `ports:` (no recomendado en Coolify).
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 🔑 **DB_PASSWORD CON TEXTO DE ERROR COMO VALOR** (solo local, sin push para no disparar builds):
+- Captura de Coolify: `DB_PASSWORD` = "DB_PASSWORD debe estar definida en el entorno" (mi mensaje `:?` pegado como valor, con espacios). Nunca fue una clave real.
+- Indicado al usuario: generar clave alfanumérica sin `$`/espacios/comillas, revisar `APP_KEY` (debe ser `base64:...` real, probablemente con el mismo problema), borrar volumen postgres (evita cluster con clave vieja o init parcial) y Redeploy.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🐳 **FIX PG18 LAYOUT: mount padre + volumen fresco** (`docker-compose.yml`):
 - **Causa exacta (log de postgres):** imagen PG18 exige datos en subdirs versionados y mount en `/var/lib/postgresql`; teníamos `/var/lib/postgresql/data` + restos incompatibles en el volumen → exit instantáneo (por eso el healthcheck era irrelevante).
 - **Fix:** volumen montado en el padre + nombre nuevo `postgres_data_v18` (sin datos reales que perder: la app nunca arrancó). Pendiente push a ambas ramas + Redeploy.

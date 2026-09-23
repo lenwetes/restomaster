@@ -18,6 +18,10 @@ services:
     restart: unless-stopped
     expose:
       - "80"
+    # Acceso directo por IP (sin dominio): publica el puerto en el host.
+    # Si algún día usas dominio + proxy de Coolify, puedes quitar este bloque.
+    ports:
+      - "${APP_PORT:-8004}:80"
     environment:
       APP_NAME: "${APP_NAME:-RestoMaster}"
       APP_ENV: "${APP_ENV:-production}"
