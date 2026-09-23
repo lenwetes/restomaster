@@ -44,7 +44,7 @@ LABEL description="Sushixpress Enterprise POS & Management Container for Coolify
 # and purge build dependencies in a single atomic layer.
 RUN sed -i 's/https/http/g' /etc/apk/repositories && \
     sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories && \
-    apk --retries 3 add --no-cache \
+    apk add --no-cache \
         ca-certificates \
         nginx \
         supervisor \
@@ -56,7 +56,7 @@ RUN sed -i 's/https/http/g' /etc/apk/repositories && \
         libpng \
         libzip \
         icu-libs && \
-    apk --retries 3 add --no-cache --virtual .build-deps \
+    apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
         postgresql-dev \
         freetype-dev \
