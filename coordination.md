@@ -6,6 +6,13 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 📊 **CURVA DE VENTAS VACÍA DE MADRUGADA** (`DashboardService::ventasPorHora`, diseño aprobado):
+- **Veredicto:** el render funciona; no mostraba nada porque las franjas eran fijas 08:00-23:00 y todas las ventas recientes son de 01:00-02:00 ($1.76M invisibles). Evidencia: agregación por hora en BD.
+- **Fix:** franjas 00:00-23:00 (1 línea + comentario); la vista itera genérico, pico/tooltips intactos.
+- **Tests:** `DashboardEjecutivoTest` 7/7 (nuevo: madrugada 02:00 visible con 24 franjas). Pint OK.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🎫 **HISTORIAL DE TICKETS COBRADOS POR TURNO** (`caja/control.blade.php`, diseño aprobado):
 - **Veredicto Fase 1 (sin bug de registro):** todo ticket reciente tiene `turno_caja_id` (cero huérfanos); turno 1 = 784+0+239+52+541 = $1.616.000 exactos en pantalla; turno 2 = 700+280 = $980k. `movimientos_caja` turno 1 = 0 → la tabla vacía estaba correcta (solo muestra movimientos manuales). Lo faltante era la lista de tickets.
 - **Cambios:** `with()` eager-load `pedidos` (orden `pagado_en`, con mesa+usuario); tarjeta "Tickets Cobrados del Turno · {codigo}" (hora, ticket, mesa/cliente, método, cambio, total + contador y suma); sigue al selector de turno; vacía con "Aún no hay tickets cobrados".

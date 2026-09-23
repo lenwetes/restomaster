@@ -323,4 +323,35 @@ class DashboardEjecutivoTest extends TestCase
         $this->assertEquals(4000.0, $top2['total_propinas']);
         $this->assertEquals(0, $top2['mesas_activas']);
     }
+
+    public function test_ventas_por_hora_cubre_madrugada_00_a_23(): void
+    {
+        $mesero = User::factory()->create([
+            'role_id' => Role::where('slug', 'mesero')->value('id'),
+            'sucursal_id' => $this->sucursal->id,
+            'activo' => true,
+        ]);
+
+        Pedido::create([
+            'codigo' => 'PED-MADRU-1',
+            'tipo' => 'mesa',
+            'estado' => 'pagado',
+            'usuario_id' => $mesero->id,
+            'sucursal_id' => $this->sucursal->id,
+            'subtotal' => 70000,
+            'total' => 70000,
+            'pagado_en' => now()->subDay()->startOfDay()->addHours(2),
+        ]);
+
+        $curva = $this->service->ventasPorHora('ayer', $this->sucursal->id);
+
+        $this->assertCount(24, $curva);
+        $this->assertSame('00:00', $curva[0]['hora']);
+        $this->assertSame('23:00', $curva[23]['hora']);
+
+        $porHora = collect($curva)->keyBy('hora');
+        $this->assertEquals(70000.0, $porHora['02:00']['ventas']);
+        $this->assertSame(1, $porHora['02:00']['transacciones']);
+        $this->assertGreaterThan(0, $porHora['02:00']['pct_altura']);
+    }
 }

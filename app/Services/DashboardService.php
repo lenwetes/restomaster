@@ -130,9 +130,9 @@ class DashboardService
             ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
             ->get(['pagado_en', 'total']);
 
-        // Franjas horarias operativas desde las 08:00 hasta las 23:00
+        // Franjas horarias operativas de 00:00 a 23:00 (incluye madrugada: bares venden pasada la medianoche)
         $franjas = [];
-        for ($h = 8; $h <= 23; $h++) {
+        for ($h = 0; $h <= 23; $h++) {
             $franjas[$h] = [
                 'hora' => sprintf('%02d:00', $h),
                 'hora_num' => $h,
