@@ -174,4 +174,18 @@ class DeliveryPublicoWebTest extends TestCase
         $responseCarta = $this->get('/carta');
         $responseCarta->assertStatus(200);
     }
+
+    public function test_welcome_y_reservas_publicas_cargan_correctamente(): void
+    {
+        $responseHome = $this->get('/');
+        $responseHome->assertStatus(200);
+        $responseHome->assertSee('RestoMaster');
+        $responseHome->assertSee('Delivery Express');
+        $responseHome->assertSee('Reserva de Mesa');
+
+        $responseReservas = $this->get('/reservas/crear');
+        $responseReservas->assertStatus(200);
+        $responseReservas->assertSee('Reserva tu Mesa en RestoMaster');
+        $responseReservas->assertSee('Paso 1: Fecha y Comensales');
+    }
 }
