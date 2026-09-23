@@ -59,8 +59,10 @@ new class extends Component
 }; ?>
 
 <div x-data="{ mobileMenuOpen: false }">
-    <!-- Top Fixed App Bar (Aura Gastro Expressive OS) -->
-    <header class="fixed top-0 left-0 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-surface-container-highest z-40 flex items-center justify-between px-4 lg:px-6 lg:left-64">
+    <header 
+        class="fixed top-0 left-0 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-surface-container-highest z-40 flex items-center justify-between px-4 lg:px-6 lg:left-64 transition-all duration-300 ease-in-out"
+        :class="$store.sidebar?.collapsed ? 'lg:!left-20' : 'lg:left-64'"
+    >
         <div class="flex items-center gap-3 min-w-0">
             <!-- Mobile Hamburger Toggle -->
             <button 
@@ -148,7 +150,7 @@ new class extends Component
                     x-transition:leave="transition-opacity ease-in duration-150"
                     x-transition:leave-start="opacity-100"
                     x-transition:leave-end="opacity-0"
-                    class="fixed inset-0 bg-stone-900/30 backdrop-blur-xs z-40 sm:hidden"
+                    class="fixed inset-0 bg-scrim/60 backdrop-blur-xs z-40 sm:hidden"
                     style="display: none;"
                 ></div>
 
@@ -357,44 +359,60 @@ new class extends Component
     </header>
 
     <!-- Desktop Sidebar (Aura Gastro Expressive OS) -->
-    <aside class="fixed inset-y-0 left-0 z-50 hidden w-64 flex-col justify-between bg-surface-container-lowest border-r border-surface-container-highest shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:flex">
-        <div class="flex flex-col flex-1 overflow-y-auto">
+    <aside 
+        class="fixed inset-y-0 left-0 z-50 hidden flex-col justify-between bg-surface-container-lowest border-r border-surface-container-highest shadow-[0_1px_8px_rgba(0,0,0,0.04)] lg:flex transition-all duration-300 ease-in-out overflow-x-hidden w-64"
+        :class="$store.sidebar?.collapsed ? '!w-20 sidebar-collapsed' : 'w-64'"
+    >
+        <div class="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
             <!-- Brand Logo Header -->
-            <div class="h-16 px-4 flex items-center gap-2.5 bg-surface-container-lowest border-b border-surface-container-highest/60">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-container-high border border-outline-variant/30 shadow-xs p-1">
+            <div class="h-16 px-4 flex items-center gap-2.5 bg-surface-container-lowest border-b border-surface-container-highest/60 shrink-0">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-container-high border border-outline-variant/30 shadow-xs p-1">
                     <x-application-logo class="w-full h-full" />
                 </div>
-                <div class="flex flex-col">
+                <div class="flex flex-col sidebar-text transition-opacity duration-200 min-w-0">
                     <span class="font-extrabold text-base text-primary leading-none tracking-tight">RESTOMASTER</span>
-                    <span class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold">Gourmet Restaurant POS & Ops</span>
+                    <span class="text-[10px] text-on-surface-variant uppercase tracking-wider font-semibold truncate">Gourmet POS & Ops</span>
                 </div>
             </div>
 
-            <!-- Subtitle Section -->
-            <div class="px-4 py-2.5">
-                <span class="text-[11px] uppercase font-bold tracking-wider text-on-surface-variant">
-                    @if(Auth::user()?->role?->slug === 'mesero')
-                        Servicio en Salón
-                    @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
-                        Producción & KDS
-                    @else
-                        Módulos de Servicio
-                    @endif
-                </span>
+            <!-- Subtitle Section / Collapsible Trigger Button -->
+            <div class="px-3 py-2.5 shrink-0">
+                <button 
+                    type="button"
+                    @click="$store.sidebar?.toggle()"
+                    class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-on-surface-variant hover:text-primary hover:bg-surface-container-high/60 transition-colors group cursor-pointer"
+                    :title="$store.sidebar?.collapsed ? 'Expandir barra lateral' : 'Contraer a solo iconos'"
+                >
+                    <span class="text-[11px] uppercase font-bold tracking-wider sidebar-text truncate">
+                        @if(Auth::user()?->role?->slug === 'mesero')
+                            Servicio en Salón
+                        @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
+                            Producción & KDS
+                        @else
+                            Módulos de Servicio
+                        @endif
+                    </span>
+                    <span 
+                        class="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:text-primary transition-transform duration-300"
+                        :class="$store.sidebar?.collapsed ? 'rotate-180 mx-auto' : ''"
+                    >
+                        dock_to_left
+                    </span>
+                </button>
             </div>
 
             <!-- Navigation Links -->
             <nav class="flex flex-col gap-1 px-3">
                 @if(Auth::user()?->role?->slug === 'mesero')
                     <!-- Card de Terminal Mesero -->
-                    <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20 shadow-xs">
+                    <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20 shadow-xs sidebar-card">
                         <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm">
+                            <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
                                 <span class="material-symbols-outlined text-[18px]">room_service</span>
                             </div>
-                            <div class="flex flex-col">
-                                <span class="text-xs font-black text-on-surface leading-tight">Terminal Mesero</span>
-                                <span class="text-[10px] text-primary font-bold uppercase tracking-wider">Comandas & Cobro</span>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-xs font-black text-on-surface leading-tight truncate">Terminal Mesero</span>
+                                <span class="text-[10px] text-primary font-bold uppercase tracking-wider truncate">Comandas & Cobro</span>
                             </div>
                         </div>
                     </div>
@@ -403,50 +421,53 @@ new class extends Component
                     <a 
                         href="{{ route('mesas') }}" 
                         wire:navigate
+                        title="Salón & Mesas"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('mesas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)] font-extrabold' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">table_restaurant</span>
-                            <span>Salón & Mesas</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">table_restaurant</span>
+                            <span class="sidebar-text truncate">Salón & Mesas</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">MES</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">MES</span>
                     </a>
 
                     <!-- Terminal POS (POS-01) -->
                     <a 
                         href="{{ route('pos') }}" 
                         wire:navigate
+                        title="Terminal POS"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('pos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)] font-extrabold' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">point_of_sale</span>
-                            <span>Terminal POS</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">point_of_sale</span>
+                            <span class="sidebar-text truncate">Terminal POS</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">POS</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">POS</span>
                     </a>
 
                     <!-- Reservas de Salón (RES-01) -->
                     <a 
                         href="{{ route('reservas') }}" 
                         wire:navigate
+                        title="Reservas"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)] font-extrabold' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">calendar_month</span>
-                            <span>Reservas</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">calendar_month</span>
+                            <span class="sidebar-text truncate">Reservas</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">RES</span>
                     </a>
                 @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
                     <!-- Card de Cocina KDS -->
-                    <div class="mb-2 p-3 rounded-2xl bg-secondary/15 border border-secondary/30 shadow-xs">
+                    <div class="mb-2 p-3 rounded-2xl bg-secondary/15 border border-secondary/30 shadow-xs sidebar-card">
                         <div class="flex items-center gap-2.5">
-                            <div class="w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                            <div class="w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
                                 <span class="material-symbols-outlined text-[18px]">skillet</span>
                             </div>
-                            <div class="flex flex-col">
-                                <span class="text-xs font-black text-on-surface leading-tight">Cocina KDS</span>
-                                <span class="text-[10px] text-secondary font-bold uppercase tracking-wider">Control de Comandas</span>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-xs font-black text-on-surface leading-tight truncate">Cocina KDS</span>
+                                <span class="text-[10px] text-secondary font-bold uppercase tracking-wider truncate">Control de Comandas</span>
                             </div>
                         </div>
                     </div>
@@ -455,104 +476,112 @@ new class extends Component
                     <a 
                         href="{{ route('cocina') }}" 
                         wire:navigate
+                        title="Pantalla KDS Cocina"
                         class="flex items-center justify-between rounded-xl px-3 h-12 text-sm font-bold transition-all duration-150 bg-secondary text-white shadow-[0_2px_8px_rgba(30,140,80,0.25)]"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[22px]">restaurant</span>
-                            <span class="font-extrabold">Pantalla KDS Cocina</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[22px] shrink-0">restaurant</span>
+                            <span class="font-extrabold sidebar-text truncate">Pantalla KDS Cocina</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20 sidebar-badge">ACTIVO</span>
                     </a>
                 @else
                 <!-- Dashboard (DASH-01) -->
                 <a 
                     href="{{ route('dashboard') }}" 
                     wire:navigate
+                    title="Panel de Control"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('dashboard') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">dashboard</span>
-                        <span>Panel de Control</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">dashboard</span>
+                        <span class="sidebar-text truncate">Panel de Control</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">DASH</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">DASH</span>
                 </a>
 
                 <!-- Salón & Mesas (MES-01) -->
                 <a 
                     href="{{ route('mesas') }}" 
                     wire:navigate
+                    title="Salón & Mesas"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('mesas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">table_restaurant</span>
-                        <span>Salón & Mesas</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">table_restaurant</span>
+                        <span class="sidebar-text truncate">Salón & Mesas</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">MES</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">MES</span>
                 </a>
 
                 <!-- Terminal POS (POS-01) -->
                 <a 
                     href="{{ route('pos') }}" 
                     wire:navigate
+                    title="Terminal POS"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('pos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">point_of_sale</span>
-                        <span>Terminal POS</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">point_of_sale</span>
+                        <span class="sidebar-text truncate">Terminal POS</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">POS</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">POS</span>
                 </a>
 
                 <!-- Cocina KDS (COC-01) -->
                 <a 
                     href="{{ route('cocina') }}" 
                     wire:navigate
+                    title="Cocina (KDS)"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('cocina') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">skillet</span>
-                        <span>Cocina (KDS)</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">skillet</span>
+                        <span class="sidebar-text truncate">Cocina (KDS)</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">COC</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">COC</span>
                 </a>
 
                 <!-- Caja & Turnos (CAJ-01) -->
                 <a 
                     href="{{ route('caja') }}" 
                     wire:navigate
+                    title="Caja & Turno"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('caja') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">payments</span>
-                        <span>Caja & Turno</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">payments</span>
+                        <span class="sidebar-text truncate">Caja & Turno</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">CAJ</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">CAJ</span>
                 </a>
 
                 <!-- Inventario (INV-01) -->
                 <a 
                     href="{{ route('inventario') }}" 
                     wire:navigate
+                    title="Inventario"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('inventario') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">inventory_2</span>
-                        <span>Inventario</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">inventory_2</span>
+                        <span class="sidebar-text truncate">Inventario</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">INV</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">INV</span>
                 </a>
 
                 <!-- Proveedores (PRV-01) -->
                 <a
                     href="{{ route('proveedores') }}"
                     wire:navigate
+                    title="Proveedores"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('proveedores') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">local_shipping</span>
-                        <span>Proveedores</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">local_shipping</span>
+                        <span class="sidebar-text truncate">Proveedores</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">PRV</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">PRV</span>
                 </a>
 
                 @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
@@ -560,13 +589,14 @@ new class extends Component
                     <a 
                         href="{{ route('menu') }}" 
                         wire:navigate
+                        title="Carta & Menú"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('menu*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">restaurant_menu</span>
-                            <span>Carta & Menú</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">restaurant_menu</span>
+                            <span class="sidebar-text truncate">Carta & Menú</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">MEN</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">MEN</span>
                     </a>
                 @endif
 
@@ -574,39 +604,42 @@ new class extends Component
                 <a 
                     href="{{ route('clientes') }}" 
                     wire:navigate
+                    title="Clientes VIP"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('clientes') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">stars</span>
-                        <span>Clientes VIP</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">stars</span>
+                        <span class="sidebar-text truncate">Clientes VIP</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">CLI</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">CLI</span>
                 </a>
 
                 <!-- Despacho Delivery (PED-04) -->
                 <a 
                     href="{{ route('delivery') }}" 
                     wire:navigate
+                    title="Despacho Delivery"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('delivery') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">two_wheeler</span>
-                        <span>Despacho Delivery</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">two_wheeler</span>
+                        <span class="sidebar-text truncate">Despacho Delivery</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">DLV</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">DLV</span>
                 </a>
 
                 <!-- Reservas (RES-01) -->
                 <a 
                     href="{{ route('reservas') }}" 
                     wire:navigate
+                    title="Reservas"
                     class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">event</span>
-                        <span>Reservas</span>
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">event</span>
+                        <span class="sidebar-text truncate">Reservas</span>
                     </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">RES</span>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">RES</span>
                 </a>
 
                 @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
@@ -614,13 +647,14 @@ new class extends Component
                     <a 
                         href="{{ route('reportes') }}" 
                         wire:navigate
+                        title="Reportes DIAN"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">monitoring</span>
-                            <span>Reportes DIAN</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">monitoring</span>
+                            <span class="sidebar-text truncate">Reportes DIAN</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">REP</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">REP</span>
                     </a>
                 @endif
 
@@ -629,13 +663,14 @@ new class extends Component
                     <a 
                         href="{{ route('impresion') }}" 
                         wire:navigate
+                        title="Impresión & Spooler"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('impresion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">print</span>
-                            <span>Impresión & Spooler</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">print</span>
+                            <span class="sidebar-text truncate">Impresión & Spooler</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">IMP</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">IMP</span>
                     </a>
                 @endif
 
@@ -644,13 +679,14 @@ new class extends Component
                     <a 
                         href="{{ route('configuracion') }}" 
                         wire:navigate
+                        title="Configuración"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('configuracion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">settings</span>
-                            <span>Configuración</span>
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">settings</span>
+                            <span class="sidebar-text truncate">Configuración</span>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">CFG</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">CFG</span>
                     </a>
                 @endif
                 @endif
@@ -658,16 +694,46 @@ new class extends Component
         </div>
 
         <!-- Sidebar Footer -->
-        <div class="p-3 bg-surface-container-low m-2 rounded-xl border border-surface-container-highest">
+        <div class="sidebar-footer-container p-3 bg-surface-container-low m-2 rounded-xl border border-surface-container-highest transition-all duration-300">
             <div class="flex items-center gap-2">
-                <div class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse"></div>
-                <div class="flex flex-col">
-                    <span class="text-xs text-on-surface font-bold">Servidor Central MDE</span>
-                    <span class="text-[10px] text-on-surface-variant">Ping 14ms • En Línea</span>
+                <div class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse shrink-0" title="Servidor Central MDE • En Línea"></div>
+                <div class="flex flex-col sidebar-footer-text min-w-0">
+                    <span class="text-xs text-on-surface font-bold truncate">Servidor Central MDE</span>
+                    <span class="text-[10px] text-on-surface-variant truncate">Ping 14ms • En Línea</span>
                 </div>
             </div>
         </div>
     </aside>
+
+    <style>
+        aside.sidebar-collapsed,
+        .sidebar-collapsed {
+            width: 5rem !important;
+            min-width: 5rem !important;
+            max-width: 5rem !important;
+        }
+        .sidebar-collapsed .sidebar-text,
+        .sidebar-collapsed .sidebar-badge,
+        .sidebar-collapsed .sidebar-card,
+        .sidebar-collapsed .sidebar-footer-text {
+            display: none !important;
+        }
+        .sidebar-collapsed nav a,
+        .sidebar-collapsed nav button {
+            justify-content: center !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+        .sidebar-collapsed nav a > div {
+            justify-content: center !important;
+            gap: 0 !important;
+        }
+        .sidebar-collapsed .sidebar-footer-container {
+            padding: 0.75rem 0.5rem !important;
+            display: flex !important;
+            justify-content: center !important;
+        }
+    </style>
 
     <!-- Mobile Navigation Drawer -->
     <div 

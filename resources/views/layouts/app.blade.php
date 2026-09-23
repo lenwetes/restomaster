@@ -96,14 +96,30 @@
 
         <!-- Scripts & Styles -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+        <script>
+            // Asegurar persistencia y estado del menú lateral antes del primer renderizado visual
+            document.addEventListener('alpine:init', () => {
+                if (window.Alpine && !window.Alpine.store('sidebar')) {
+                    window.Alpine.store('sidebar', {
+                        collapsed: localStorage.getItem('resto_sidebar_collapsed') === 'true',
+                        toggle() {
+                            this.collapsed = !this.collapsed;
+                            localStorage.setItem('resto_sidebar_collapsed', this.collapsed);
+                        }
+                    });
+                }
+            });
+        </script>
     </head>
     <body class="h-full font-sans antialiased bg-background text-on-surface selection:bg-primary-container selection:text-on-primary">
-        <div class="min-h-screen bg-background">
+        <div class="min-h-screen bg-background" x-data>
             <!-- Navigation (Aura Gastro Top Bar + Sidebar + Mobile Drawer) -->
             <livewire:layout.navigation />
 
             <!-- Main Application Content Area -->
-            <div class="lg:pl-64 flex flex-col flex-1 min-h-screen bg-background pt-16">
+            <div class="flex flex-col flex-1 min-h-screen bg-background pt-16 lg:pl-64 transition-all duration-300 ease-in-out"
+                 :class="$store.sidebar?.collapsed ? 'lg:!pl-20' : 'lg:pl-64'">
                 <!-- Page Heading (Optional) -->
                 @if (isset($header))
                     <header class="bg-surface-container-lowest border-b border-surface-container-highest px-4 py-4 sm:px-6 lg:px-8">

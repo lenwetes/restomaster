@@ -294,7 +294,7 @@ new class extends Component
                 <form wire:submit="registrarPago" class="mt-4 space-y-4">
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Monto del abono</label>
-                        <input type="number" step="0.01" min="0.01" wire:model="pagoForm.monto"
+                        <input type="text" inputmode="decimal" data-miles data-decimales="2" min="0.01" wire:model="pagoForm.monto"
                             class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
                     </div>
                     <div>
@@ -361,7 +361,7 @@ new class extends Component
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="text-xs font-bold text-on-surface-variant">Monto total</label>
-                            <input type="number" step="0.01" min="0.01" wire:model="crearForm.monto_total" required
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" min="0.01" wire:model="crearForm.monto_total" required
                                 class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
                         </div>
                         <div>

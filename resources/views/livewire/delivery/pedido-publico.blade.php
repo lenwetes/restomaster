@@ -775,7 +775,9 @@ new #[Layout('layouts.publico')] class extends Component
                                 <label class="block text-[11px] font-bold text-stone-500">¿Con cuánto dinero pagarás? (Para llevarte el cambio exacto):</label>
                                 <div class="flex items-center gap-2">
                                     <input 
-                                        type="number" 
+                                        type="text" 
+                                        inputmode="decimal" 
+                                        data-miles data-decimales="0"
                                         wire:model="pagaCon" 
                                         placeholder="Ej. 100000" 
                                         class="w-full px-3 py-1.5 rounded-lg border border-stone-200 bg-stone-50 text-xs text-stone-900 font-mono"

@@ -1128,7 +1128,7 @@ class extends Component {
 
                     <div>
                         <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Cantidad a Dar de Baja ({{ $selectedInsumo?->unidad_medida }})</label>
-                        <input type="number" step="0.01" wire:model="mermaCantidad"
+                        <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="mermaCantidad"
                                class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-bold text-lg focus:border-error outline-none" />
                     </div>
 
@@ -1192,12 +1192,12 @@ class extends Component {
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Cantidad ({{ $selectedInsumo?->unidad_medida }})</label>
-                            <input type="number" step="0.01" wire:model="compraCantidad"
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="compraCantidad"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-bold text-lg focus:border-secondary outline-none" />
                         </div>
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Costo Unitario ($)</label>
-                            <input type="number" step="0.01" wire:model="compraCostoUnitario"
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="compraCostoUnitario"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-bold text-lg focus:border-secondary outline-none" />
                         </div>
                     </div>
@@ -1260,7 +1260,7 @@ class extends Component {
 
                     <div>
                         <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Nuevo Stock Real Conteo Físico ({{ $selectedInsumo?->unidad_medida }})</label>
-                        <input type="number" step="0.01" wire:model="ajusteNuevoStock"
+                        <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="ajusteNuevoStock"
                                class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-bold text-lg focus:border-primary outline-none" />
                     </div>
 
@@ -1351,17 +1351,17 @@ class extends Component {
                     <div class="grid grid-cols-3 gap-3">
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Stock Inicial</label>
-                            <input type="number" step="0.01" wire:model="nuevoStockActual"
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="nuevoStockActual"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
                         </div>
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Stock Mínimo</label>
-                            <input type="number" step="0.01" wire:model="nuevoStockMinimo"
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="nuevoStockMinimo"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
                         </div>
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Costo Unit ($)</label>
-                            <input type="number" step="0.01" wire:model="nuevoCostoUnitario"
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="nuevoCostoUnitario"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
                         </div>
                     </div>
@@ -1386,7 +1386,7 @@ class extends Component {
                         </div>
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Precio Ref. Mercado ($)</label>
-                            <input type="number" step="0.01" min="0" wire:model="nuevoPrecioReferencia" placeholder="Ej: 7500"
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" min="0" wire:model="nuevoPrecioReferencia" placeholder="Ej: 7500"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
                             @error('nuevoPrecioReferencia') <span class="text-error text-xs">{{ $message }}</span> @enderror
                         </div>
@@ -1438,7 +1438,7 @@ class extends Component {
                         </div>
                         <div>
                             <label class="block text-xs text-on-surface-variant font-bold uppercase mb-1">Precio Ref. Mercado ($)</label>
-                            <input type="number" step="0.01" min="0" wire:model="edicion.precio_referencia_mercado" placeholder="Ej: 7500"
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" min="0" wire:model="edicion.precio_referencia_mercado" placeholder="Ej: 7500"
                                    class="w-full h-11 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-sm focus:border-primary outline-none" />
                             @error('edicion.precio_referencia_mercado') <span class="text-error text-xs">{{ $message }}</span> @enderror
                         </div>

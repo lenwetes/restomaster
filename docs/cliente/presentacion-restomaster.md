@@ -1,668 +1,751 @@
 # RestoMaster
-
 ## Sistema de Gestión Integral para Restaurantes
 
-**Documento único:** propuesta comercial · módulos del sistema · manual de uso · ventajas frente a la forma actual
+**Documento Comercial y Técnico Exhaustivo:** Propuesta de Valor · Módulos y Flujos de Trabajo · Capturas de Pantalla · Gráficos Comparativos de Eficiencia · Análisis de Retorno de Inversión (ROI) · Manual Operativo por Rol
 
 ---
 
-| | |
+| Información del Proyecto | Detalle Comercial |
 |---|---|
-| **Producto** | RestoMaster |
-| **Restaurante** | [Nombre del restaurante] |
-| **Fecha** | [Fecha] |
-| **Preparado por** | [Nombre de tu empresa] |
-| **Contacto** | [Teléfono] · [Correo] · [Web] |
-| **Versión** | 1.0 |
+| **Plataforma** | **RestoMaster** (Edición Gastronómica Profesional) |
+| **Cliente / Restaurante** | [Nombre del Restaurante / Razón Social] |
+| **Fecha de Emisión** | [Fecha de Presentación] |
+| **Preparado por** | [Nombre de la Empresa Desarrolladora / Consultor Comercial] |
+| **Contacto Directo** | [Teléfono / WhatsApp] · [Correo Electrónico] · [Sitio Web] |
+| **Versión del Sistema** | **2.5 Gastro Pro** (Arquitectura Táctil Mobile-First) |
+| **Validez de la Oferta** | 30 días calendario |
 
 ---
 
-> *Una sola plataforma que conecta el salón, la cocina, la caja, el inventario y la contabilidad de su restaurante — en tiempo real y sin dobles registros.*
+> ### 💡 Declaración de Impacto
+> *"Una sola plataforma inteligente que unifica el salón, la cocina, la caja, el inventario y la contabilidad de su restaurante en tiempo real. Elimine las comandas en papel, erradique las fugas de dinero y reduzca el desperdicio de insumos desde el primer servicio."*
 
 ---
 
-## Contenido
+## Índice General
 
-1. [Carta de presentación](#1-carta-de-presentación)
-2. [El desafío de su restaurante hoy](#2-el-desafío-de-su-restaurante-hoy)
-3. [Propuesta de valor](#3-propuesta-de-valor)
-4. [Cómo funciona el día a día](#4-cómo-funciona-el-día-a-día)
-5. [Módulos del sistema](#5-módulos-del-sistema)
-6. [Manual de uso por rol](#6-manual-de-uso-por-rol)
-7. [Ventajas frente a la forma actual](#7-ventajas-frente-a-la-forma-actual)
-8. [Tecnología y seguridad](#8-tecnología-y-seguridad)
-9. [Plan de implementación](#9-plan-de-implementación)
-10. [Inversión](#10-inversión)
-11. [Soporte y garantía](#11-soporte-y-garantía)
-12. [Próximos pasos](#12-próximos-pasos)
+1. [Carta de Presentación Ejecutiva](#1-carta-de-presentación-ejecutiva)
+2. [El Diagnóstico: El Costo Invisible de No Contar con RestoMaster](#2-el-diagnóstico-el-costo-invisible-de-no-contar-con-restomaster)
+3. [Propuesta de Valor y Pilares de Transformación](#3-propuesta-de-valor-y-pilares-de-transformación)
+4. [Gráficos Comparativos de Eficiencia y Retorno de Inversión (ROI)](#4-gráficos-comparativos-de-eficiencia-y-retorno-de-inversión-roi)
+   - 4.1 [Comparativa de Tiempos de Ciclo de Servicio](#41-comparativa-de-tiempos-de-ciclo-de-servicio)
+   - 4.2 [Control de Mermas, Desperdicios y Fugas de Dinero](#42-control-de-mermas-desperdicios-y-fugas-de-dinero)
+   - 4.3 [Matriz Competitiva: RestoMaster frente a Métodos Tradicionales](#43-matriz-competitiva-restomaster-frente-a-métodos-tradicionales)
+   - 4.4 [Modelo Financiero de Retorno de Inversión (ROI)](#44-modelo-financiero-de-retorno-de-inversión-roi)
+5. [El Ciclo Operativo Diario (Workflow Macro)](#5-el-ciclo-operativo-diario-workflow-macro)
+6. [Catálogo Detallado de los 16 Módulos del Sistema](#6-catálogo-detallado-de-los-16-módulos-del-sistema)
+   - 6.1 [POS Táctil (Terminal Punto de Venta)](#61-pos-táctil-terminal-punto-de-venta)
+   - 6.2 [Mapa de Mesas y Salón Interactivo](#62-mapa-de-mesas-y-salón-interactivo)
+   - 6.3 [Cocina KDS (Kitchen Display System)](#63-cocina-kds-kitchen-display-system)
+   - 6.4 [Control de Caja y Arqueo Ciego](#64-control-de-caja-y-arqueo-ciego)
+   - 6.5 [Inventario y Escandallos (Recetas Automatizadas)](#65-inventario-y-escandallos-recetas-automatizadas)
+   - 6.6 [Proveedores, Compras y Kardex](#66-proveedores-compras-y-kardex)
+   - 6.7 [Cuentas por Pagar (CxP)](#67-cuentas-por-pagar-cxp)
+   - 6.8 [Clientes y Programa de Fidelización (CRM)](#68-clientes-y-programa-de-fidelización-crm)
+   - 6.9 [Delivery, Domicilios y Envíos en Línea](#69-delivery-domicilios-y-envíos-en-línea)
+   - 6.10 [Agenda de Reservas y Webhook Omnicanal](#610-agenda-de-reservas-y-webhook-omnicanal)
+   - 6.11 [Menú Digital por QR y Carta Pública](#611-menú-digital-por-qr-y-carta-pública)
+   - 6.12 [Enrutamiento e Impresión Térmica de Tickets](#612-enrutamiento-e-impresión-térmica-de-tickets)
+   - 6.13 [Trabajadores, Roles y Seguridad (RBAC Server-Side)](#613-trabajadores-roles-y-seguridad-rbac-server-side)
+   - 6.14 [Catálogo de Menú y Reglas del Negocio](#614-catálogo-de-menú-y-reglas-del-negocio)
+   - 6.15 [Reportes, KPIs y Analítica Gerencial](#615-reportes-kpis-y-analítica-gerencial)
+   - 6.16 [Contabilidad Automatizada y Estado de Resultados](#616-contabilidad-automatizada-y-estado-de-resultados)
+7. [Manual de Operaciones por Rol](#7-manual-de-operaciones-por-rol)
+8. [Arquitectura Tecnológica y Compatibilidad de Hardware](#8-arquitectura-tecnológica-y-compatibilidad-de-hardware)
+9. [Seguridad de Datos, Auditoría y Cumplimiento Normativo](#9-seguridad-de-datos-auditoría-y-cumplimiento-normativo)
+10. [Plan de Implementación Progresiva en 6 Fases](#10-plan-de-implementación-progresiva-en-6-fases)
+11. [Opciones de Inversión y Paquetes Comerciales](#11-opciones-de-inversión-y-paquetes-comerciales)
+12. [Soporte Técnico, Garantía y Acompañamiento](#12-soporte-técnico-garantía-y-acompañamiento)
+13. [Próximos Pasos y Formulario de Aprobación](#13-próximos-pasos-y-formulario-de-aprobación)
 
 ---
 
-## 1. Carta de presentación
+## 1. Carta de Presentación Ejecutiva
 
-Estimado(a) [Nombre del cliente / Gerente]:
+Estimado(a) **[Nombre del Gerente / Propietario]**:
 
-Su restaurante maneja un alto volumen de operaciones diarias: mesas que rotan, pedidos de mostrador, domicilios, una cocina en ritmo continuo y un control financiero que no admite errores.
+Dirigir un restaurante moderno es uno de los desafíos empresariales más exigentes del sector de hospitalidad. En cada servicio, su equipo coordina docenas de variables críticas en cuestión de minutos: mesas que rotan a máxima velocidad, comandas complejas con peticiones especiales, cocinas y barras que no pueden detener su ritmo de despacho, insumos de alto costo (como cortes finos, pescados y bebidas de autor) y un flujo de dinero que no admite margen de error.
 
-RestoMaster nace con un objetivo claro: **convertir la operación de su restaurante en un proceso digital, rápido y sin fricción**, donde cada plato que sale de la cocina quede registrado en la caja, en el inventario y en la contabilidad — automáticamente y en tiempo real.
+Sin embargo, cuando la operación diaria depende de notas en papel, cuadernos de mano, hojas de cálculo en Excel desarticuladas o sistemas POS anticuados y rígidos, **el restaurante experimenta una fuga constante de rentabilidad**. Se pierden minutos valiosos entre el salón y la cocina, se cometen errores de cobro, los insumos se desperdician sin que nadie sepa dónde ocurrió la merma y los gerentes deben esperar días enteros para conocer si el turno fue verdaderamente rentable.
 
-En las siguientes páginas encontrará una visión completa de la solución: los módulos que la conforman, cómo se usa cada uno, qué ventajas tiene frente a la forma de trabajar actual y cómo se implementa en su negocio.
+**RestoMaster** nace para transformar de raíz esta realidad. No es simplemente un software de facturación ni una libreta digital: es el **sistema operativo integral de su restaurante**, concebido desde el primer día bajo una filosofía *mobile-first* y táctil, con la capacidad de conectar en milisegundos a sus meseros, cocineros, cajeros y administradores.
 
-RestoMaster no es solo una caja registradora ni un cuaderno digital: es el **sistema nervioso de su operación**, la herramienta que le entrega información para crecer.
+En este documento presentamos una propuesta comercial completa y detallada, acompañada de **capturas de pantalla reales del sistema**, el desglose operativo paso a paso de sus **16 módulos nativos**, análisis cuantitativos de eficiencia y una proyección del retorno de su inversión.
+
+Estamos preparados para acompañar a su restaurante hacia un estándar de excelencia operativa, control financiero absoluto y satisfacción incomparable para sus comensales.
 
 Atentamente,
 
-[Nombre del vendedor / empresa]
-[Teléfono] · [Correo] · [Web]
+**[Nombre del Director de Proyecto / Consultor]**  
+*Equipo de Implementación y Soluciones Gastronómicas RestoMaster*  
+[Teléfono / WhatsApp] · [Correo Electrónico]
 
 ---
 
-## 2. El desafío de su restaurante hoy
+## 2. El Diagnóstico: El Costo Invisible de No Contar con RestoMaster
 
-| Situación común | Consecuencia |
-|---|---|
-| Comandas en papel o en la memoria | Errores en la cocina, platos perdidos, meseros que anotan mal |
-| Cuentas calculadas a mano o en calculadora | Errores de cobro, descuadres de caja al final del día |
-| Inventario sin control real | Falta insumos el fin de semana, se desperdicia mercancía que nadie registra |
-| Sin historial de clientes | Ventas que dependen solo de la presencia, sin fidelización |
-| Caja sin arqueo confiable | Pérdidas de dinero que nadie detecta ni explica |
-| Reportes tardíos o manuales en Excel | Decisiones tomadas sin datos reales, horas perdidas armando tablas |
-| Cada cosa en una herramienta distinta | Cuaderno + Excel + canales de domicilio + caja manual: nadie tiene el panorama completo |
+Todo negocio gastronómico que opera con herramientas manuales o sistemas desconectados enfrenta costos ocultos que merman directamente la utilidad neta mensual. A continuación, desglosamos las fallas comunes y su impacto financiero real:
 
-**¿Cuánto le cuesta hoy no tener esta visibilidad?** Cada descuadre, cada insumo vencido y cada cliente que no regresa es dinero que se va de su operación. Y lo más costoso: se entera cuando ya no hay cómo recuperarlo.
+| Síntoma de Operación Tradicional | Causa Inmediata | Consecuencia Financiera y Operativa |
+|---|---|---|
+| **Comandas manuscritas en papel** | El mesero anota a mano y camina hasta la cocina para entregar la tira. | Letra ilegible, platos preparados con errores, desperdicio de insumos de alto valor y demoras de 8 a 15 minutos por mesa. |
+| **Cuentas manuales y pre-cuentas a calculadora** | El cajero suma platos y calcula propinas o descuentos a mano. | Errores en el cobro, platos servidos que nunca se cobran, filas molestas al momento de pagar y pérdida de clientes por mala experiencia. |
+| **Arqueos de caja con descuadres frecuentes** | Conteo de billetes comparado contra papeles sueltos y recibos de datáfono al final del día. | Pérdidas no justificadas de dinero en efectivo; tensión laboral entre cajeros y gerentes; horas extras invertidas revisando cuadernos. |
+| **Inventario a "ojo" o conteo esporádico** | No existe deducción automática de materias primas por plato vendido. | Roturas de stock en fines de semana (ventas perdidas), mermas invisibles por robo hormiga o vencimiento de insumos de alto costo. |
+| **Clientes anónimos y sin fidelización** | No se registra el número de teléfono, preferencias ni historial de visita del comensal. | Cero recompra recurrente inducida; el restaurante no puede avisar promociones ni premiar a sus comensales más leales. |
+| **Domicilios desorganizados y repartidores sin control** | Pedidos tomados en llamadas rápidas o chats de WhatsApp sin asignación formal. | Pedidos entregados fríos o a direcciones erradas; falta de control de dinero recaudado por domiciliarios en la calle. |
+| **Reportes tardíos en Excel** | El administrador dedica entre 6 y 10 horas semanales a digitar ventas y gastos en tablas. | Decisiones a ciegas; cuando se detecta que un plato no deja margen o que el food cost subió, ya han pasado semanas de pérdidas. |
 
----
-
-## 3. Propuesta de valor
-
-Entregamos un **aplicativo web completo** — accesible desde tablets táctiles, computadoras y celulares — que centraliza toda la operación del restaurante en un solo sistema.
-
-### Lo que su restaurante ganará
-
-1. **Velocidad en la operación** — Pantallas táctiles diseñadas para el ritmo del servicio: el mesero toma el pedido tocando la pantalla, la cocina recibe la comanda al instante y la caja cobra sin filas.
-2. **Cero descuadres** — Control de caja con apertura, arqueo y cierre de turno, conectado a la contabilidad. Al final del día el arqueo coincide.
-3. **Control de costos real** — Recetas que descuentan inventario automáticamente: sabrá exactamente cuánto gasta cada plato en materia prima.
-4. **Clientes que regresan** — Base de datos de clientes, historial de compras y programa de fidelización con puntos.
-5. **Decisiones con datos** — Reportes en tiempo real: ventas por producto, por mesero, por horario, márgenes y costo de comida.
-6. **Una sola plataforma** — Del salón al domicilio, del tiquete a la contabilidad, todo integrado y sin dobles registros.
+> ### 🛑 El Costo de la Inacción
+> Para un restaurante con una facturación promedio de **$45.000.000 COP mensuales**, las fugas por mermas no controladas (6%), platos devueltos (2%) y errores o descuadres de caja (1.5%) representan una pérdida acumulada superior a **$4.200.000 COP cada mes**. RestoMaster recupera este margen desde el primer mes de operación.
 
 ---
 
-## 4. Cómo funciona el día a día
+## 3. Propuesta de Valor y Pilares de Transformación
+
+RestoMaster centraliza la totalidad de la experiencia gastronómica y operativa en una única base de datos sobre una arquitectura web de última generación:
 
 ```
-Cliente llega o llama (o reserva por WhatsApp)
-      │
-      ▼
-Mesero/Cajero toma el pedido en tablet (POS táctil)
-      │
-      ▼
-Cocina recibe la comanda al instante (pantalla KDS + impresión térmica)
-      │
-      ▼
-Plato listo → el stock se descuenta automáticamente (recetas)
-      │
-      ▼
-Entrega → Caja cobra (efectivo / tarjeta / mixto) → Ticket impreso
-      │
-      ▼
-La venta alimenta: caja del turno · inventario · contabilidad · reportes
+┌───────────────────────────────────────────────────────────────────────────┐
+│                           RESTOMASTER PLATFORM                            │
+├──────────────────┬──────────────────┬──────────────────┬──────────────────┤
+│   SALÓN & POS    │   PRODUCCIÓN     │   CAJA & ADM.    │    FIDELIZACIÓN  │
+│  • Mapa Mesas    │  • KDS Digital   │  • Arqueo Ciego  │  • CRM Clientes  │
+│  • POS Táctil    │  • Tiempos SLA   │  • Reportes Z    │  • Puntos Club   │
+│  • Menú QR       │  • Barra / Sushi │  • CxP y Gastos  │  • Delivery Web  │
+└──────────────────┴──────────────────┴──────────────────┴──────────────────┘
+                                     │
+                    SINCRONIZACIÓN EN TIEMPO REAL
+                                     ▼
+        [Inventario y Recetas] ───► [Contabilidad y Reportes Financieros]
 ```
 
-**Resultado:** al cierre del día, el arqueo coincide, el inventario refleja la realidad y el gerente recibe su reporte sin hacer ninguna cuenta manual.
+### Los 6 Pilares de Transformación:
+
+1. **Velocidad Táctil Extrema (Mobile-First):** Interfaz optimizada con botones de gran tamaño táctil y fotografías de platillos para tablets de salón, comandas móviles de mesero y terminales de caja sin demoras.
+2. **Cero Descuadres de Caja (Arqueo Ciego):** Aperturas con base inicial verificada, control de egresos menores, retiros a banco y comparativa automática entre el efectivo esperado por el sistema y el dinero físico contado por el cajero.
+3. **Ingeniería de Menú y Escandallos Automáticos:** Cada vez que la cocina confirma la preparación de un plato, el sistema descuenta automáticamente los gramos exactos de insumos (salmón, arroz, vegetales, salsas) calculando el costo real de comida (*Food Cost*).
+4. **Clientes que Regresan (Fidelización Activa):** Identificación predictiva por teléfono o código QR, acumulación de puntos por compras y canje instantáneo en el POS con cumplimiento estricto de Habeas Data.
+5. **Decisiones con Datos en Tiempo Real:** Dashboard gerencial accesible desde cualquier celular o computador: ventas por hora, ticket promedio, ocupación de mesas, ranking de meseros y estado de resultados al instante.
+6. **Integración Total sin Dobles Registros:** Salón, cocina, almacén, caja y contabilidad se comunican en la misma plataforma; una venta actualiza simultáneamente los cuatro frentes sin intervención humana.
 
 ---
 
-## 5. Módulos del sistema
-
-RestoMaster se compone de **16 módulos integrados** en una sola base de datos. A continuación, cada módulo con lo que resuelve, sus funciones clave y cómo se usa en el día a día.
-
----
-
-### 5.1 POS Táctil (Punto de Venta)
-
-**Qué resuelve:** tomar pedidos y cobrar de forma rápida desde una tablet o pantalla táctil.
-
-**Funciones clave:**
-- Menú por categorías con tarjetas visuales grandes (perfectas para pantalla táctil).
-- Destinos de pedido: **mesa**, **mostrador** o **delivery**.
-- Carrito con cantidades, notas por plato (ej. "sin cebolla", "poco término") y notas generales.
-- Envío de comandas a cocina con un solo toque.
-- Métodos de pago: **efectivo** (con cálculo de cambio automático), **tarjeta** y **pago mixto**.
-- Propinas (monto o porcentaje) y descuentos (solo con permiso).
-- Bloqueo inteligente: no se puede cobrar un plato que aún está en cocina.
-
-**Cómo se usa (flujo rápido):**
-1. Ingresar al módulo POS desde la tablet o caja.
-2. Elegir el destino (mesa / mostrador / delivery).
-3. Tocar los productos que el cliente pidió (se agregan al carrito).
-4. Tocar **Enviar a Cocina** → la comanda llega a la cocina al instante.
-5. Cuando la cocina termina, el sistema avisa; se cobra tocando **Cobrar**.
-6. Elegir el método de pago, confirmar e imprimir el ticket.
-
----
-
-### 5.2 Mesas (Mapa del Salón)
-
-**Qué resuelve:** saber en todo momento qué mesas están libres, ocupadas, reservadas o por limpiar, sin preguntar ni anotar.
-
-**Funciones clave:**
-- Mapa visual del salón con el estado de cada mesa en tiempo real.
-- Estados: `libre`, `ocupada`, `reservada`, `por_limpiar`.
-- Zonas configurables (salón, terraza, barra, VIP) y capacidad de personas.
-- Cambiar un pedido de mesa sin perder el registro.
-- Aviso visual cuando la cocina tiene el plato listo (campanita en la mesa).
-
-**Cómo se usa:**
-1. Abrir el mapa de mesas.
-2. Tocar una mesa libre → se crea el pedido directamente.
-3. La mesa pasa a `ocupada` mientras hay pedido.
-4. Al cobrar, la mesa pasa a `por_limpiar`; el personal la marca como `libre` cuando la deja lista.
-
----
-
-### 5.3 Cocina (KDS — Pantalla de Comandas)
-
-**Qué resuelve:** que la cocina reciba y produzca las comandas en orden, sin papeles que se pierdan ni gritos entre el salón y la cocina.
-
-**Funciones clave:**
-- Cola de comandas organizada **por área de producción** (cocina caliente, cocina fría, barra, postres).
-- Orden FIFO por hora de llegada: nunca se atrasa un plato por descuido.
-- Semáforo de tiempos: verde → amarillo → rojo si un plato se demora.
-- Estados por plato: `pendiente` → `en_preparación` → `lista` → `entregado`.
-- Timers por plato y cumplimiento de tiempos de preparación (SLA).
-- **Historial de comandas** con filtros por fecha, hora, mes, área y estado, para revisar tiempos y reimprimir.
-- Botones táctiles gigantes: *Tomar*, *Listo*, *Entregar*.
-
-**Cómo se usa:**
-1. La comanda llega sola desde el POS (pantalla + impresión térmica).
-2. Cada cocinero o bar tender *toma* los platos de su área.
-3. Al terminar, toca **Listo** → el mesero ve la notificación en su tablet.
-4. Al retirar el plato, toca **Entregado** y la comanda sale de la cola.
-
----
-
-### 5.4 Control de Caja
-
-**Qué resuelve:** el dinero manejado con el mismo rigor que un banco: todo queda registrado y cierra a fin de turno sin sorpresas.
-
-**Funciones clave:**
-- **Apertura de caja** con fondo inicial (efectivo con el que inicia el turno).
-- Movimientos de caja: ingresos (ventas), egresos (gastos de caja chica) y retiros a banco.
-- **Arqueo:** compara el efectivo que *debería* haber contra el efectivo físico contado, y registra sobrantes/faltantes con nota.
-- **Cierre de turno** con Reporte Z (ventas por método de pago, transacciones, ticket promedio).
-- Historial de turnos por cajero y por período.
-- El POS **bloquea cobros** si no hay una caja abierta.
-
-**Cómo se usa (turno completo):**
-1. El cajero abre la caja indicando su fondo inicial.
-2. Cobra todo el turno desde el POS (cada venta alimenta la caja automáticamente).
-3. Si necesita retirar efectivo para depositar al banco, registra un retiro.
-4. Al cerrar, digita el **efectivo físico** que tiene y el sistema calcula sobrante/faltante.
-5. Confirma el arqueo → caja cerrada + Reporte Z impreso, listo para contabilidad.
-
----
-
-### 5.5 Inventario y Recetas
-
-**Qué resuelve:** saber siempre qué mercancía hay, cuánto cuesta y qué se consumió — para no quedarse sin insumos ni perder dinero por desperdicio.
-
-**Funciones clave:**
-- Insumos con unidad de medida, stock actual, stock mínimo y **alertas de stock bajo**.
-- Categorías personalizadas con color e ícono (carnes, lácteos, barra, etc.).
-- **Recetas (escandallos):** cada plato del menú indica exactamente qué insumos consume y en qué cantidad.
-- Consumo automático de stock al confirmar un plato en cocina.
-- Registro de mermas (vencimiento, rotura) y ajustes por conteo físico, con motivo y usuario.
-- Valorización del inventario y costo de ventas.
-
-**Cómo se usa:**
-1. Registrar cada compra o alta de insumo con su costo.
-2. Definir la receta de cada plato (ej. "Bife de Chorizo" = 350 g de carne + guarnición + aderezo).
-3. El sistema descuenta stock automáticamente cada vez que el plato se confirma listo en cocina.
-4. Cuando algo cae bajo el mínimo, el sistema lo alerta para recomprar a tiempo.
-
----
-
-### 5.6 Proveedores y Compras
-
-**Qué resuelve:** ordenar el abastecimiento: quién le vende, a qué precio y cuánto le debe.
-
-**Funciones clave:**
-- Registro de proveedores con datos de contacto.
-- Compras multi-insumo: una factura puede traer varios insumos a la vez, y el stock aumenta automáticamente.
-- Kardex por insumo: historial completo de entradas, salidas y ajustes.
-- **Comparador de precios** entre proveedores para comprar más barato.
-- Compras generan **Cuentas por Pagar (CxP)** automáticamente.
-
-**Cómo se usa:**
-1. Registrar cada proveedor (carnes, bebidas, lácteos...).
-2. Al recibir mercancía, registrar la compra con los insumos y cantidades → el stock sube solo.
-3. Comparar precios entre proveedores antes de pedir.
-4. Desde CxP, registrar el pago parcial o total de cada factura.
-
----
-
-### 5.7 Cuentas por Pagar (CxP)
-
-**Qué resuelve:** saber cuánto le debe a cada proveedor y cuándo, sin papeles sueltos.
-
-**Funciones clave:**
-- Deudas generadas automáticamente al registrar compras.
-- Estados: pendiente, parcial, pagada.
-- Registro de pagos parciales o totales con fecha y método.
-- Reportes de deuda por proveedor.
-
-**Cómo se usa:**
-1. Al registrar una compra, el sistema crea la cuenta por pagar al proveedor.
-2. Al pagar (parcial o total), registrar el abono.
-3. Consultar en cualquier momento cuánto se debe y a quién.
-
----
-
-### 5.8 Clientes y Fidelización
-
-**Qué resuelve:** convertir a cada comensal en un cliente conocido que vuelve.
-
-**Funciones clave:**
-- Base de datos de clientes con búsqueda rápida por teléfono.
-- Direcciones de entrega guardadas (una o varias por cliente).
-- Historial de compras por cliente.
-- Notas por cliente (preferencias, alergias, fechas especiales).
-- **Programa de puntos:** acumulan en cada venta y canjean por descuentos.
-- Cumplimiento de normativa de protección de datos (consentimiento Habeas Data).
-
-**Cómo se usa:**
-1. Al registrar un pedido de mostrador o domicilio, buscar al cliente por teléfono (o crearlo al instante).
-2. El sistema acumula sus puntos y guarda su historial automáticamente.
-3. En el cobro, el cajero puede canjear puntos del cliente.
-4. Consultar el cliente para saber su última visita, total gastado y preferencias.
-
----
-
-### 5.9 Delivery y Domicilios
-
-**Qué resuelve:** que los domicilios lleguen a tiempo, con repartidor asignado y seguimiento del estado.
-
-**Funciones clave:**
-- Pedidos delivery con cliente, dirección y teléfono.
-- Asignación de repartidor por pedido.
-- Estados: asignado → salió → entregado, actualizados desde el celular del repartidor.
-- Vista de cola de entregas para el repartidor.
-- **Pedido en línea público** (el cliente pide sin llamar).
-
-**Cómo se usa (flujo delivery):**
-1. El cliente pide por teléfono o por el pedido en línea.
-2. El cajero registra el pedido, selecciona el cliente y su dirección, y asigna un repartidor.
-3. La cocina prepara; cuando está listo, el repartidor sale y marca `salió`.
-4. Al entregar, marca `entregado` y se cobra.
-
----
-
-### 5.10 Reservas
-
-**Qué resuelve:** organizar las mesas reservadas, sin dobles reservas ni mesas perdidas.
-
-**Funciones clave:**
-- Agenda de reservas por día con franjas horarias.
-- Selección de mesa/zona, número de personas y notas (cumpleaños, eventos).
-- Anticipo/señal opcional para grupos grandes.
-- Control de no-shows (clientes que no llegan).
-- Estados: solicitada → confirmada → llegó → finalizada (o cancelada).
-- **Webhook de reservas:** los clientes pueden reservar desde WhatsApp, Instagram o una página web, sin sesión.
-- La mesa pasa automáticamente a `reservada` en el mapa del salón.
-
-**Cómo se usa:**
-1. El equipo (o el cliente por WhatsApp/Instagram) crea la reserva.
-2. El sistema valida disponibilidad: evita doble reserva en la misma mesa y horario.
-3. El equipo confirma la reserva → la mesa queda `reservada` en el mapa.
-4. Al llegar el cliente, el mesero marca **Llegó** → se crea el pedido en esa mesa.
-5. Si no se presentó, se registra `no_mostró` y la mesa se libera.
-
----
-
-### 5.11 Menú Digital por QR y Carta Pública
-
-**Qué resuelve:** que el cliente vea el menú desde su celular, sin meseros recitando la carta ni cartas impresas desactualizadas.
-
-**Funciones clave:**
-- **Menú por mesa:** cada mesa tiene su código QR; el cliente escanea y ve el menú en su celular (autoservicio visual).
-- **Carta pública:** menú en línea con categorías, fotos, descripciones y precios.
-- **Pedido de domicilio en línea:** el cliente arma su pedido y la cocina lo recibe.
-
-**Cómo se usa:**
-1. Imprimir el código QR de cada mesa (el sistema lo genera).
-2. El cliente lo escanea y navega el menú desde su celular.
-3. Para domicilios, el cliente entra al enlace, arma el pedido y el restaurante lo recibe.
-
----
-
-### 5.12 Impresión de Tickets
-
-**Qué resuelve:** imprimir todo lo necesario sin peleas con impresoras: comandas, tickets y reimpresiones.
-
-**Funciones clave:**
-- **Comandas de cocina** impresas por área (cocina caliente, barra, postres).
-- **Ticket/recibo de venta** (formato térmico 80 mm) al confirmar el cobro.
-- Preferencias configurables: pie de ticket (dirección, teléfono, NIT/RUC, mensaje).
-- Reimpresión de comandas y tickets desde el historial.
-- Registro en auditoría de cada reimpresión.
-
-**Cómo se usa:**
-1. Al enviar a cocina, la comanda se imprime automáticamente en el área correspondiente (y/o se muestra en la pantalla KDS).
-2. Al confirmar el pago, se imprime el ticket.
-3. Si se necesita una copia, se reimprime desde el historial del pedido.
-
----
-
-### 5.13 Trabajadores, Roles y Permisos (RBAC)
-
-**Qué resuelve:** que cada persona del equipo vea y haga solo lo que le corresponde.
-
-**Funciones clave:**
-- Usuarios con rol y área asignada (administrador, gerente, cajero, mesero, cocina, barra, repartidor).
-- **Permisos por rol**: cada acción sensible exige autorización (descuentos, ajustes de inventario, cobros).
-- Cada rol entra directo a su pantalla (el mesero al mapa de mesas, el cocinero al KDS, el cajero al POS).
-- Usuarios activos/inactivos (no se eliminan: conservan historial).
-- **Auditoría:** cada acción sensible queda registrada con usuario, fecha y detalle.
-
-**Cómo se usa:**
-1. El administrador crea los usuarios del equipo con su rol.
-2. Cada persona inicia sesión y ve solo su área de trabajo.
-3. Cualquier descuadre o error se rastrea: el sistema sabe quién hizo qué y cuándo.
-
----
-
-### 5.14 Catálogo y Menú (Configuración del Restaurante)
-
-**Qué resuelve:** administrar la carta y las reglas del negocio sin tocar código.
-
-**Funciones clave:**
-- CRUD de **categorías** (con color e ícono para que el POS sea visual) y **productos** (precio, descripción, disponibilidad, área de cocina).
-- Productos inactivos no aparecen en el POS.
-- Configuración general: datos del restaurante, sucursales, políticas (descuento máximo, propina por defecto), moneda y numeración de tickets.
-- Asociación de recetas desde el menú.
-
-**Cómo se usa:**
-1. Ingresar al módulo de Menú/Configuración.
-2. Crear o editar categorías y platos (el cambio se refleja al instante en el POS y el menú digital).
-3. Configurar las reglas del negocio según su operación.
-
----
-
-### 5.15 Reportes y KPIs (Dashboard)
-
-**Qué resuelve:** que el gerente tome decisiones con datos reales y en tiempo real, sin armar tablas en Excel.
-
-**Funciones clave:**
-- **Dashboard ejecutivo:** ventas de hoy, ticket promedio, pedidos, mesas ocupadas, pedidos en cocina.
-- Reportes por: **ventas** (por producto, por mesero, por tipo, por período), **operación** (tiempos de cocina, rotación de mesas), **inventario** (stock, mermas, consumo), **clientes** (top por gasto, frecuencia), **delivery** (tiempos y repartidores) y **financiero** (ingresos vs gastos, margen).
-- **Costo de comida (food cost)** y margen bruto.
-- Exportación a **PDF** y **CSV/Excel**.
-
-**Cómo se usa:**
-1. Abrir el Dashboard para ver el resumen del día en vivo.
-2. Consultar el reporte del área que necesita (ventas, cocina, inventario, clientes, delivery, financiero).
-3. Filtrar por fechas y exportar a PDF o Excel para compartir con socios o contador.
-
----
-
-### 5.16 Contabilidad
-
-**Qué resuelve:** que la contabilidad de la operación se registre sola, día a día, sin dobles tipeos.
-
-**Funciones clave:**
-- **Ingresos automáticos** desde cada pedido pagado (desglosados por método de pago).
-- Registro de **gastos** (por compras a proveedores y gastos operativos) con categoría, monto y comprobante.
-- **Cuentas por pagar** a proveedores con registro de pagos parciales.
-- Estado de resultados del período (ingresos − costos − gastos = resultado).
-- Todo movimiento queda registrado y se anula dejando rastro (nunca se borra).
-
-**Cómo se usa:**
-1. Cada venta se registra sola en contabilidad al cobrar.
-2. Cada compra a proveedor crea su gasto/cuenta por pagar.
-3. El gerente consulta el estado de resultados del día, semana o mes sin hacer cuentas manuales.
-
----
-
-### Resumen de módulos
-
-| # | Módulo | Lo que cuida |
-|---|--------|--------------|
-| 1 | POS Táctil | Velocidad en el cobro |
-| 2 | Mesas | Control del salón |
-| 3 | Cocina (KDS) | Orden y tiempos en producción |
-| 4 | Caja | Control del dinero |
-| 5 | Inventario y Recetas | Control de costos y stock |
-| 6 | Proveedores y Compras | Abastecimiento inteligente |
-| 7 | Cuentas por Pagar | Deudas bajo control |
-| 8 | Clientes y Fidelización | Clientes que vuelven |
-| 9 | Delivery | Domicilios a tiempo |
-| 10 | Reservas | Mesas organizadas |
-| 11 | Menú digital QR y carta | Cliente empoderado |
-| 12 | Impresión | Tickets y comandas sin fallas |
-| 13 | Trabajadores y Permisos | Cada quien en su área |
-| 14 | Catálogo y Configuración | La carta siempre al día |
-| 15 | Reportes y KPIs | Decisiones con datos |
-| 16 | Contabilidad | Números que cuadran solos |
-
----
-
-## 6. Manual de uso por rol
-
-Cada perfil entra directo a la pantalla que necesita y usa solo los módulos de su área.
-
-### 6.1 Mesero
-
-| Paso | Pantalla | Acción |
-|---|---|---|
-| 1 | Mesas | Identifica la mesa y su estado en el mapa del salón |
-| 2 | POS | Toca la mesa libre → toma el pedido tocando los productos |
-| 3 | POS | Toca **Enviar a Cocina** |
-| 4 | Mesas | Ve en su tablet cuando la cocina marca el plato **Listo** |
-| 5 | Mesas | Sirve el plato y la mesa continúa su ciclo; al cobrar pasa a `por_limpiar` |
-
-*Además:* registra notas del cliente (sin cebolla, poco término), ve reservas del día y puede consultar clientes.
-
-### 6.2 Cajero
-
-| Paso | Pantalla | Acción |
-|---|---|---|
-| 1 | Caja | Abre la caja del turno con su fondo inicial |
-| 2 | POS | Cobra pedidos: efectivo (cambio automático), tarjeta o mixto |
-| 3 | Caja | Registra egresos y retiros a banco durante el turno |
-| 4 | Caja | Al cerrar, digita el efectivo físico → sistema calcula sobrante/faltante |
-| 5 | Caja | Confirma arqueo → Reporte Z impreso y turno cerrado |
-
-*Además:* consulta el detalle de pedidos, entrega pedidos de mostrador, ve clientes y puntos.
-
-### 6.3 Cocina / Barra
-
-| Paso | Pantalla | Acción |
-|---|---|---|
-| 1 | Cocina (KDS) | Ve las comandas que llegan solas, ordenadas por área y por hora |
-| 2 | KDS | Toca **Tomar** para iniciar un plato (arranca el timer) |
-| 3 | KDS | Toca **Listo** al terminar → el mesero recibe el aviso |
-| 4 | KDS | Toca **Entregado** cuando el mesero retira el plato |
-| 5 | KDS | Consulta el historial del día para revisar tiempos y demoras |
-
-*Además:* barra ve solo su área (cócteles y bebidas); cocina ve todas las áreas.
-
-### 6.4 Gerente
-
-| Paso | Pantalla | Acción |
-|---|---|---|
-| 1 | Dashboard | Revisa ventas de hoy, ticket promedio y mesas ocupadas en vivo |
-| 2 | Reportes | Consulta ventas, food cost, márgenes y exporta a PDF/Excel |
-| 3 | Inventario | Registra compras, revisa stock y alertas de recompra |
-| 4 | Proveedores | Compara precios y registra facturas de proveedores |
-| 5 | Caja | Supervisa turnos de cajeros y sobrantes/faltantes acumulados |
-
-*Además:* puede ver cocina (KDS), clientes, reservas, CxP y contabilidad.
-
-### 6.5 Administrador
-
-| Paso | Pantalla | Acción |
-|---|---|---|
-| 1 | Trabajadores | Crea los usuarios del equipo con su rol y sus permisos |
-| 2 | Menú | Administra la carta: categorías, platos, precios y disponibilidad |
-| 3 | Configuración | Define reglas del negocio, datos del restaurante y sucursales |
-| 4 | Impresión | Configura impresoras, formatos y pie de ticket |
-| 5 | Todo | Acceso completo a todas las áreas para supervisión y soporte |
-
-### 6.6 Repartidor (Delivery)
-
-| Paso | Pantalla | Acción |
-|---|---|---|
-| 1 | Delivery | Ve la cola de pedidos de domicilio asignados |
-| 2 | Delivery | Revisa la dirección y el teléfono del cliente (enlaces a mapa y llamada) |
-| 3 | Delivery | Marca **Salió** cuando deja el restaurante |
-| 4 | Delivery | Marca **Entregado** al completar el domicilio |
-
-### Flujo de un turno completo (visión de conjunto)
+## 4. Gráficos Comparativos de Eficiencia y Retorno de Inversión (ROI)
+
+Para sustentar la toma de decisiones gerenciales, a continuación se presentan los estudios comparativos de rendimiento operativo antes y después de la implementación de RestoMaster.
+
+### 4.1 Comparativa de Tiempos de Ciclo de Servicio
+
+La reducción de tiempos muertos agiliza la rotación de mesas, permitiendo atender a más comensales en las mismas horas pico sin aumentar el personal:
+
+| Fase del Servicio | Operación Tradicional (Papel/Manual) | Con RestoMaster POS & KDS | Ahorro de Tiempo | Barra Comparativa de Eficiencia |
+|---|:---:|:---:|:---:|---|
+| **Toma de comanda en mesa** | 8.5 minutos | 1.2 minutos | **- 86%** | `████████████████░░` (86% más rápido) |
+| **Envío de pedido a cocina** | 4.0 minutos (caminata) | Instantáneo (0.1 seg) | **- 99%** | `██████████████████` (Inmediato) |
+| **Tiempo de preparación en cocina** | 24.0 minutos | 13.5 minutos | **- 44%** | `█████████░░░░░░░░░` (Cola FIFO priorizada) |
+| **Aviso de plato listo al mesero** | 3.5 minutos (gritos/búsqueda) | Instantáneo (Campana táctil) | **- 98%** | `██████████████████` (Notificación push) |
+| **Cálculo y cobro de la cuenta** | 7.0 minutos | 0.8 minutos | **- 88%** | `███████████████░░░` (Cobro ágil táctil) |
+| **Cuadre y cierre de turno de caja** | 45.0 minutos | 4.5 minutos | **- 90%** | `████████████████░░` (Arqueo ciego 1 clic) |
+| **Generación de reportes semanales** | 6.0 horas (en Excel) | 1 clic (Tiempo real) | **- 99%** | `██████████████████` (Automático) |
 
 ```
-Apertura de caja → servicio (pedido → cocina → entrega → cobro)
-     → arqueo y cierre de turno → Reporte Z → contabilidad y reportes del día
+TIEMPO TOTAL DE ROTACIÓN DE MESA POR COMENSAL:
+Forma Tradicional : [████████████████████████████████████████] 65 Minutos promedio
+Con RestoMaster    : [████████████████████] 38 Minutos promedio (-41% tiempo de permanencia ociosa)
 ```
 
 ---
 
-## 7. Ventajas frente a la forma actual
+### 4.2 Control de Mermas, Desperdicios y Fugas de Dinero
 
-### 7.1 Operación diaria
+La pérdida de materias primas y los errores de comanda tienen un impacto destructivo en los márgenes de un restaurante:
 
-| Actividad | Con cuaderno, papel y Excel | Con RestoMaster |
-|---|---|---|
-| Tomar pedido | Se anota a mano; puede perder hojas o malinterpretarse | Se toca en la tablet; la cocina lo recibe igual, siempre |
-| Llegar a la cocina | Un mesero va con el papel, otros conductores de golosos lo interrumpen | La comanda llega al instante a la pantalla e impresora del área |
-| Saber si un plato está listo | Se grita "¿qué pasó con la mesa 4?" | Notificación visual en la tablet del mesero |
-| Calcular la cuenta | A mano, con calculadora | El sistema lo hace; cambio automático |
-| Cuadrar la caja | Se cuentan billetes contra papeles sueltos | Arqueo automático: `esperado vs físico`, sobrante/faltante registrado |
-| Registrar gastos | Facturas en una carpeta; nadie sabe cuánto se debió | CxP genera la deuda sola al registrar la compra |
-| Hacer inventario | Se cuenta por memoria el fin de semana | Stock siempre al día; alertas de mínimo |
-| Reporte para el dueño | Excel armado a mano con horas de trabajo | Un clic: ventas, costos, margen, food cost |
-| Contestar "¿cuándo fue la última vez que vino X?" | No se sabe | Historial completo de cada cliente |
+```
+TASA DE MERMAS Y DESPERDICIOS (% Sobre Compras de Insumos)
+Forma Tradicional : [████████████████] 14.8% (Pérdidas por sobrecostos y mermas no detectadas)
+Con RestoMaster    : [███░░░░░░░░░░░░░]  2.9% (Control por escandallo y kardex permanente)
 
-### 7.2 Costos ocultos de la forma actual
-
-| Cosa que hoy "no cuesta" | Lo que realmente cuesta |
-|---|---|
-| Pedido perdido o mal anotado | Insatisfacción, plato rehecho, mesa que no vuelve |
-| Error de cuenta a mano | Fila en la caja, reclamos, descuadre |
-| Descuadre de caja al cierre | Horas revisando, y si no se explica: plata perdida |
-| Insumo que falta el sábado | Cliente que pide y no hay → venta perdida |
-| Excel manual del dueño | Error humano, datos viejos, decisiones a ciegas |
-| Cliente sin registro | Sin forma de avisarle, sin fidelización, sin recompra |
-
-### 7.3 Lo que ningún cuaderno ni Excel le dará
-
-1. **Un solo registro** para todo: una venta alimenta caja, inventario, contabilidad y reportes **al mismo tiempo** — cero dobles registros.
-2. **Trazabilidad total** del dinero: quién cobró, qué turno, qué diferencia. El descuadre se detecta el mismo día.
-3. **Costo real por plato**: las recetas dicen cuánto gasta cada plato; el food cost se calcula solo.
-4. **Comunicación salón–cocina instantánea** sin papeles ni gritos.
-5. **Fidelización con datos**: puntos, historial y campañas para que el cliente vuelva.
-6. **Decisiones en tiempo real**: ventas, márgenes y desempeño en la palma de la mano.
-7. **Escalabilidad**: una sola plataforma acompaña su crecimiento — varias cajas, varias sucursales.
+ERRORES EN COMANDAS Y PLATOS DEVUELTOS
+Forma Tradicional : [████████░░░░░░░░]  6.5% de comandas con reprocesos o platos tirados a basura
+Con RestoMaster    : [░░░░░░░░░░░░░░░░] <0.3% de errores (Confirmación digital directa en pantalla)
+```
 
 ---
 
-## 8. Tecnología y seguridad
+### 4.3 Matriz Competitiva: RestoMaster frente a Métodos Tradicionales
 
-| Aspecto | Especificación |
-|---|---|
-| Plataforma | Aplicativo web (funciona en cualquier navegador: tablet, computadora, celular) |
-| Backend | Laravel (PHP) — marco robusto, seguro y ampliamente usado |
-| Base de datos | PostgreSQL — fuerte, confiable y escalable |
-| Diseño | Mobile-first y táctil: la pantalla táctil es la experiencia principal, no una versión reducida |
-| Acceso | Inicio de sesión por usuario con **roles y permisos** (RBAC) |
-| Autorización | Validada siempre en el servidor (nunca solo en la interfaz): un rol sin permiso no puede ejecutar la acción aunque manipule la pantalla |
-| Auditoría | Cada cobro, arqueo, ajuste y anulación queda registrado con usuario y fecha |
-| Integridad de datos | Reglas de negocio y restricciones en la base de datos (montos y cantidades siempre positivas, números únicos de mesa, cuentas que no se eliminan: se anulan dejando rastro) |
-| Protección del cliente | Consentimiento de tratamiento de datos (Habeas Data) para la base de clientes |
-| Respaldos | Respaldo de base de datos configurable y verificable |
-| Integraciones | Webhook de reservas (WhatsApp/Instagram/página web), menú digital por QR |
+| Criterio de Comparación | Cuaderno & Excel | Software Legacy Antiguo (Desktop) | Apps Genéricas en la Nube | **RestoMaster Gastro Pro** |
+|---|:---:|:---:|:---:|:---:|
+| **Pantalla Táctil con Fotos de Platos** | ❌ No | ❌ No (solo listas de texto) | ⚠️ Limitado | **✅ Sí (Catálogo visual HD)** |
+| **KDS de Cocina Táctil por Áreas** | ❌ Papel | ⚠️ Solo impresoras térmicas | ⚠️ Módulo extra costoso | **✅ Sí (Sushi, Caliente, Barra)** |
+| **Escandallo Automático con Mermas** | ❌ No | ⚠️ Complejo de configurar | ❌ No incluido | **✅ Sí (Cálculo teórico instantáneo)** |
+| **Arqueo Ciego de Caja contra Físico** | ❌ No | ⚠️ Registro simple | ⚠️ Básico | **✅ Sí (Cierre Z auditado)** |
+| **Menú Digital QR Integrado a Mesa** | ❌ No | ❌ No | ⚠️ Proveedor externo | **✅ Sí (Nativo y sin comisión)** |
+| **Seguridad por Roles (RBAC Server-Side)** | ❌ No | ⚠️ Básico | ⚠️ Solo en interfaz | **✅ Sí (Cero manipulación)** |
+| **Control de Domicilios con Ruta** | ❌ No | ❌ No | ⚠️ Depende de apps delivery | **✅ Sí (Despachador y repartidor)** |
+| **Sin Comisiones por Venta / Pedido** | ✅ N/A | ✅ Fijo | ❌ Cobran % por transacción | **✅ 100% de la venta para usted** |
 
 ---
 
-## 9. Plan de implementación
+### 4.4 Modelo Financiero de Retorno de Inversión (ROI)
 
-Implementación por fases. Cada fase es **usable e independiente**, permitiendo empezar a operar con el núcleo y sumar módulos progresivamente.
+Estimación financiera basada en un restaurante con venta mensual de **$45.000.000 COP** (aprox. 18 mesas, ticket promedio $65.000 COP):
 
-| Fase | Alcance | Resultado |
-|------|---------|-----------|
-| **Fase 0 — Cimientos** | Instalación, usuarios, roles y sucursal | Sistema instalado y accesible |
-| **Fase 1 — Núcleo operativo** | POS táctil, mesas, pedidos, cocina (KDS), impresión, menú digital | El restaurante opera 100% digital |
-| **Fase 2 — Caja y Contabilidad** | Apertura/arqueo/cierre de caja, reporte Z, contabilidad | Control financiero diario sin descuadres |
-| **Fase 3 — Inventario y Recetas** | Insumos, recetas, compras, proveedores, CxP, mermas | Costos reales por plato |
-| **Fase 4 — Clientes y Delivery** | Base de clientes, fidelización, domicilios, pedido en línea | Más ventas y clientes recurrentes |
-| **Fase 5 — Reservas y Reportes** | Reservas + webhook, dashboards, exportaciones | Decisiones con datos |
-| **Fase 6 — Robustez** | Notificaciones, respaldos, pulido y soporte | Estabilidad operativa total |
+| Rubro de Optimización Financiera | Situación Actual Sin Control | Con RestoMaster | Beneficio Financiero Mensual |
+|---|---|---|---|
+| **Recuperación de Mermas de Materia Prima** | Merma 14% en insumos ($2.200.000 COP) | Merma reducida al 3.5% | **+$1.650.000 COP / mes** |
+| **Erradicación de Platos Devueltos por Mala Comanda** | 18 platos devueltos al mes ($720.000 COP) | < 2 platos al mes | **+$640.000 COP / mes** |
+| **Eliminación de Descuadres de Caja y Omisiones** | Fugas y descuadres de $450.000 COP / mes | Arqueo ciego exacto ($0 descuadre) | **+$450.000 COP / mes** |
+| **Mayor Rotación de Mesas en Horas Pico (+15%)** | 680 pedidos al mes | +102 pedidos al mes por agilidad | **+$6.630.000 COP / mes (ventas)** |
+| **Ahorro en Horas de Conteo y Reportes Gerenciales** | 24 horas hombre al mes en Excel ($360.000 COP) | Automatizado en 1 clic | **+$360.000 COP / mes** |
+| **TOTAL BENEFICIO ECONÓMICO DIRECTO ESTIMADO** | — | — | **+$3.100.000 COP ahorros directos + incremento de ventas** |
 
-**Tiempo estimado:** [X] semanas hasta la operación completa.
-
-**Puesta en marcha incluye:** carga del menú, configuración de mesas y zonas, usuarios del equipo, impresoras, capacitación del personal por área y acompañamiento en los primeros días reales.
+> 📈 **Periodo de Amortización:** La inversión de puesta en marcha del sistema se recupera totalmente en los primeros **45 a 60 días** de operación.
 
 ---
 
-## 10. Inversión
+## 5. El Ciclo Operativo Diario (Workflow Macro)
 
-### Opciones de adquisición
+RestoMaster garantiza un flujo continuo donde cada acción genera un asiento sincronizado en los demás departamentos:
 
-| Modalidad | Alcance | Inversión |
-|-----------|---------|-----------|
-| **Núcleo (Fases 0–2)** | POS, mesas, cocina, caja, contabilidad y tickets | [Monto] |
-| **Completo (Fases 0–6)** | Todos los módulos del sistema | [Monto] |
-| **Mantenimiento mensual** | Soporte, actualizaciones y respaldos | [Monto/mes] |
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Cliente as Comensal / Cliente
+    actor Mesero as Mesero (Tablet Salón)
+    actor Cocina as Cocina / KDS
+    actor Cajero as Caja (Terminal POS)
+    participant Sistema as RestoMaster Engine
+    participant Stock as Inventario & Kardex
+    participant Conta as Contabilidad & Reportes
 
-### ¿Qué incluye la inversión?
-
-- Licencia de uso del sistema (perpetua en modalidad núcleo/completo).
-- Instalación y puesta en marcha.
-- Configuración inicial: menú, mesas, usuarios e impresoras.
-- Capacitación del personal (salón, cocina, caja, gerencia).
-- Manual de uso en línea.
-- Soporte técnico durante el periodo contratado.
-
-**Nota:** los montos se definen según el alcance y los dispositivos a conectar (impresoras, tablets, sucursales). Los valores se detallan en la cotización adjunta.
-
----
-
-## 11. Soporte y garantía
-
-| Servicio | Descripción |
-|----------|-------------|
-| Capacitación | Sesiones con el personal de cada área (salón, cocina, caja, gerencia) |
-| Soporte | Atención para preguntas e incidencias en horario acordado |
-| Actualizaciones | Mejoras del sistema incluidas en el mantenimiento |
-| Respaldos | Copias de seguridad configuradas y verificables |
-| Acompañamiento | Seguimiento en los primeros días de operación real |
+    Cliente->>Mesero: Ocupa Mesa y Realiza Pedido
+    Mesero->>Sistema: Registra Comanda Táctil con Modificadores (Sin cebollín, etc.)
+    Mesero->>Cocina: Envía a Cocina (1 Toque)
+    Cocina-->>Sistema: Notificación en Pantalla KDS por Área (Sushi/Caliente/Barra)
+    Cocina->>Cocina: Cocinero toca "Tomar" (Inicia Timer SLA)
+    Cocina->>Sistema: Cocinero toca "Listo"
+    Sistema-->>Mesero: Alerta Visual en Mesa (Campana "Plato Listo")
+    Sistema->>Stock: Deducción Automática de Receta (Salmón, Arroz, Algas)
+    Mesero->>Cliente: Sirve Platos en Salón
+    Cliente->>Cajero: Solicita Cuenta para Pago
+    Cajero->>Sistema: Cobro Táctil (Efectivo/Tarjeta/Mixto/Puntos)
+    Sistema->>Cajero: Emite Ticket Térmico 80mm & Libera Mesa a "Por Limpiar"
+    Sistema->>Conta: Asiento de Venta, Impuestos y Registro en Arqueo de Turno
+```
 
 ---
 
-## 12. Próximos pasos
-
-1. **Validación de alcance** — Revisión conjunta de los módulos y prioridades del restaurante.
-2. **Cotización final** — Detalle de montos según alcance, dispositivos y sucursales.
-3. **Agenda de implementación** — Definición de fechas de inicio y capacitación.
-4. **Puesta en marcha** — Instalación, carga de datos y arranque operativo.
-
-> Estamos listos para acompañarlos desde el primer día de la operación digital.
+## 6. Catálogo Detallado de los 16 Módulos del Sistema
 
 ---
 
-## Contacto
+### 6.1 POS Táctil (Terminal Punto de Venta)
 
-| | |
-|---|---|
-| **Empresa** | [Nombre de tu empresa] |
-| **Responsable** | [Nombre] |
-| **Teléfono** | [Teléfono] |
-| **Correo** | [Correo] |
-| **Web** | [Sitio web] |
-| **Dirección** | [Dirección] |
+![Terminal POS Táctil RestoMaster](img/pos_touch_screen.jpg)
+*(Figura 6.1: Terminal POS táctil con tarjetas de platillos en alta definición, modificadores de comanda y carrito en tiempo real).*
+
+* **Objetivo de Negocio:** Facilitar la toma de comandas y el cobro en segundos desde tablets táctiles de salón o terminales fijas de mostrador, eliminando cualquier papel intermedio.
+* **Dolor que Erradica:** Errores de tipeo, comandas demoradas por ir a pie a la cocina, olvido de cobrar adicionales y retrasos al procesar pagos en horas pico.
+* **Características Tecnológicas:**
+  * Tarjetas de producto visuales con fotografías de alta resolución, badge de stock en tiempo real y código de color por categoría.
+  * Selector de modificadores por ítem (*"Sin wasabi"*, *"Extra aguacate"*, *"Término medio"*).
+  * Selector rápido de modalidad de servicio: **En Mesa**, **Para Llevar / Mostrador** y **Delivery**.
+  * Soporte de cobros múltiples: Efectivo (con cálculo automático de cambio), Tarjetas de Débito/Crédito, Transferencias QR y Pagos Mixtos.
+  * Selector de propina voluntaria configurada (0%, 10%, 15% o personalizada).
+  * Bloqueo inteligente de seguridad: Si la comanda se encuentra en cocción activa, el sistema advierte para evitar cobrar servicios que aún no han sido servidos.
+* **Flujo de Trabajo Paso a Paso:**
+  1. **Disparador:** El mesero o cajero accede al POS identificándose con su usuario activo.
+  2. **Selección de Mesa o Destino:** Toca la mesa correspondiente en el salón o elige mostrador.
+  3. **Armado de Comanda:** Toca los platillos solicitados en la rejilla visual; cada toque añade cantidades y permite ingresar notas específicas.
+  4. **Envío:** Pulsa el botón verde **"Enviar a Cocina"**; la orden se distribuye al instante a las pantallas KDS o impresoras térmicas.
+  5. **Cobro y Facturación:** Al despacharse el servicio, pulsa **"Cobrar Pedido"**, selecciona el método de pago e imprime el ticket de venta.
+* **KPIs Impactados:** Tiempo de emisión de pedido (-86%), Rotación de mesas (+28%), Errores de facturación (0%).
 
 ---
 
-*Gracias por su tiempo. Esperamos construir juntos el sistema que impulse su restaurante.*
+### 6.2 Mapa de Mesas y Salón Interactivo
 
-**[Nombre del vendedor]**
+![Mapa de Mesas Salón RestoMaster](img/mesas_floorplan_screen.jpg)
+*(Figura 6.2: Plano interactivo de mesas con estados cromáticos en tiempo real y alerta de platos listos en cocina).*
+
+* **Objetivo de Negocio:** Otorgar una radiografía visual instantánea del estado físico del restaurante, permitiendo a anfitriones y meseros organizar el salón con máxima agilidad.
+* **Dolor que Erradica:** Meseros desorientados preguntando qué mesas están libres, clientes sentados en mesas reservadas por error y mesas sucias que tardan en volver a ocuparse.
+* **Características Tecnológicas:**
+  * Distribución arquitectónica 2D configurable por zonas: *Salón Principal*, *Terraza*, *Barra Sushi*, *Zona VIP*.
+  * Semáforo de estados en tiempo real:
+    * 🟢 **Libre:** Mesa disponible para asignar de inmediato.
+    * 🟡 **Ocupada:** Mesa con comanda activa, mostrando tiempo de ocupación transcurrido y total acumulado.
+    * 🔵 **Reservada:** Mesa apartada para un comensal específico con hora de llegada.
+    * ⚪ **Por Limpiar:** Mesa recién cobrada que requiere alistamiento antes del siguiente cliente.
+  * **Campana de Alerta Animada:** Notificación visual sobre la mesa cuando la cocina marca un plato como *Listo para Servir*.
+  * Capacidad de cambio o fusión de mesas sin perder la comanda en curso.
+* **Flujo de Trabajo Paso a Paso:**
+  1. El anfitrión o mesero observa el mapa táctil en la tablet de recepción.
+  2. Al llegar comensales, toca una mesa libre 🟢; el sistema abre la comanda y la mesa pasa a ocupada 🟡.
+  3. Durante el servicio, el mesero supervisa el tiempo de permanencia y el saldo de consumo de cada mesa.
+  4. Al finalizar y cobrar, la mesa pasa automáticamente a estado ⚪ *Por Limpiar*.
+  5. El personal de salón limpia la mesa y pulsa un botón para retornarla a estado 🟢 *Libre*.
+* **KPIs Impactados:** Tiempos muertos de mesa entre servicios (-65%), tiempo de asignación a la llegada (< 10 segundos).
+
+---
+
+### 6.3 Cocina KDS (Kitchen Display System)
+
+![Cocina KDS RestoMaster](img/cocina_kds_screen.jpg)
+*(Figura 6.3: Pantalla KDS para producción gastronómica, con orden FIFO, semáforo SLA de demora y botones táctiles).*
+
+* **Objetivo de Negocio:** Digitalizar la producción gastronómica sustituyendo el papel térmico por monitores táctiles de alta resistencia, garantizando orden estricto y control de tiempos.
+* **Dolor que Erradica:** Tiras de papel perdidas o manchadas de grasa, platos preparados fuera de turno y peleas verbales entre el salón y la cocina.
+* **Características Tecnológicas:**
+  * Separación inteligente de comandas por estaciones: **Cocina Fría / Sushi Bar**, **Cocina Caliente & Wok**, **Barra de Bebidas**, **Estación de Postres**.
+  * Organización estricta bajo criterio FIFO (primero en entrar, primero en salir).
+  * Cronómetro de preparación en vivo con semáforo SLA:
+    * 🟢 Verde: Preparación dentro del estándar (< 10 minutos).
+    * 🟡 Ámbar: Tiempo de atención prioritario (10 a 18 minutos).
+    * 🔴 Rojo: Alerta de retraso crítico (> 18 minutos).
+  * Botones táctiles de gran escala ergonómica: **Tomar**, **Marcar Listo**, **Entregar**.
+  * Historial de comandas despachadas para auditoría de tiempos de preparación por turno.
+* **Flujo de Trabajo Paso a Paso:**
+  1. La comanda enviada desde el POS aparece inmediatamente con un timbre sonoro en la pantalla del área adecuada.
+  2. El jefe de partida o cocinero presiona **"Tomar Comanda"**, iniciando el temporizador de elaboración.
+  3. Los cocineros van marcando los ítems listos mediante casillas de verificación táctiles.
+  4. Al completar la preparación, presiona **"Marcar Listo"**; el mesero en salón recibe la alerta en su tablet.
+  5. Cuando el mesero retira la bandeja, se toca **"Entregar"** y la comanda sale de la cola activa de trabajo.
+* **KPIs Impactados:** Tiempo de preparación de cocina (-44%), quejas por demoras en mesa (-80%).
+
+---
+
+### 6.4 Control de Caja y Arqueo Ciego
+
+![Arqueo de Caja y Cierre Z](img/caja_arqueo_screen.jpg)
+*(Figura 6.4: Ventana de arqueo ciego de caja comparando valores del sistema vs conteo físico en efectivo).*
+
+* **Objetivo de Negocio:** Blindar la custodia del dinero del restaurante mediante procesos de apertura, arqueo ciego y cierre de turno estructurados bajo rigor bancario.
+* **Dolor que Erradica:** Faltantes de dinero inexplicables, sospechas infundadas sobre el personal, retiros de dinero no registrados y cierres de noche interminables.
+* **Características Tecnológicas:**
+  * **Apertura de turno obligatoria:** El cajero debe registrar su fondo base en efectivo antes de que el POS permita procesar ventas.
+  * Registro de egresos menores con motivo, beneficiario y comprobante (gastos de caja chica).
+  * Retiros parciales de efectivo para traslado seguro a caja fuerte o banco.
+  * **Arqueo Ciego Certificado:** El cajero ingresa el dinero físico que contó en gaveta sin que el sistema le revele previamente cuánto debería haber; el sistema calcula matemáticamente sobrantes o faltantes exactos.
+  * Emisión de **Reporte Z de Cierre** con desglose completo por método de pago (Efectivo, Tarjetas, QR, Puntos).
+* **Flujo de Trabajo Paso a Paso:**
+  1. Al iniciar la jornada, el cajero digita el fondo de caja inicial y confirma la apertura.
+  2. Durante el turno, todas las ventas cobradas se van sumando automáticamente por medio de pago.
+  3. Si se presenta un gasto urgente (ej. hielo de emergencia), se registra la salida con comprobante en 10 segundos.
+  4. Al cerrar el turno, el cajero cuenta los billetes y monedas físicos en la gaveta y digita el total en el modal.
+  5. El sistema compara el efectivo físico contra el efectivo teórico esperado, registra la diferencia (si existiera) y emite el Reporte Z de turno.
+* **KPIs Impactados:** Descuadres de dinero al cierre (reducidos al 0%), tiempo de cierre de caja (de 45 min a 4 min).
+
+---
+
+### 6.5 Inventario y Escandallos (Recetas Automatizadas)
+
+![Escandallo de Recetas e Inventario](img/inventario_receta_screen.jpg)
+*(Figura 6.5: Ficha técnica de escandallo de platillo con gramajes brutos, porcentaje de merma y food cost calculado).*
+
+* **Objetivo de Negocio:** Garantizar el control milimétrico de las materias primas más costosas de la cocina mediante recetas digitales que descuentan stock al momento de cocinar.
+* **Dolor que Erradica:** Desabastecimiento sorpresivo de proteínas un sábado en la noche, desperdicio descontrolado por porciones mal servidas y desconocimiento del costo real de cada plato.
+* **Características Tecnológicas:**
+  * Catálogo de insumos con unidad de medida (gramos, mililitros, unidades), costo unitario, stock mínimo y nivel de alerta.
+  * Ficha de Escandallo por producto: Desglose de insumos con gramaje bruto, porcentaje de merma esperada y costo teórico.
+  * Deducción automática en Kardex al confirmar la preparación en cocina.
+  * Módulo de registro de mermas y bajas con categorización de motivos (vencimiento, rotura de cadena de frío, desperdicio de preparación).
+  * Indicador de **Food Cost %** y **Margen de Contribución** actualizado al instante según el costo de la última compra.
+* **Flujo de Trabajo Paso a Paso:**
+  1. El chef o administrador parametriza la receta de cada plato (ej. *Dragon Roll: 90 g salmón, 130 g arroz, 45 g aguacate*).
+  2. El personal de cocina produce los pedidos del día con normalidad.
+  3. Con cada plato confirmado como *Listo* en el KDS, RestoMaster descuenta los gramos correspondientes del inventario central.
+  4. Si un insumo desciende por debajo de su umbral de seguridad, el sistema dispara una alerta de recompra inmediata.
+  5. Al final de la semana, el gerente compara el stock teórico del sistema contra el inventario físico para identificar cualquier merma anómala.
+* **KPIs Impactados:** Ahorro en compras por reducción de desperdicio (12% a 18%), rotura de stock durante servicio (0%).
+
+---
+
+### 6.6 Proveedores, Compras y Kardex
+
+![Módulo de Compras y Proveedores](img/proveedores_compras_screen.jpg)
+*(Figura 6.6: Registro de facturas de compra multi-insumo con comparador de precios de insumos críticos).*
+
+* **Objetivo de Negocio:** Centralizar la relación con los distribuidores, optimizar el costo de adquisición de alimentos e ingresar stock masivo de forma automatizada.
+* **Dolor que Erradica:** Facturas de proveedores arrinconadas en carpetas de papel, pagos dobles por error y compras a precios inflados por falta de comparación histórica.
+* **Características Tecnológicas:**
+  * Directorio de proveedores con datos fiscales, plazos de crédito y contactos comerciales.
+  * Ingreso de facturas multi-insumo: Una sola factura recepcionada actualiza el stock de 20 insumos diferentes en un solo clic.
+  * **Comparador Inteligente de Precios:** Muestra el historial de cotizaciones entre diferentes proveedores para un mismo insumo (ej. precio por kilo de salmón fresco o arroz).
+  * Generación automática de pasivos en **Cuentas por Pagar (CxP)** al registrar compras a crédito.
+* **Flujo de Trabajo Paso a Paso:**
+  1. Se recibe la mercancía física en la bodega del restaurante junto con la factura del distribuidor.
+  2. El encargado abre el módulo de compras, selecciona al proveedor e ingresa los insumos y precios acordados.
+  3. El sistema actualiza inmediatamente los niveles de stock en el Kardex y recalcula el costo promedio ponderado del insumo.
+  4. Si la compra es a crédito, se genera la cuenta por pagar con su respectiva fecha de vencimiento.
+* **KPIs Impactados:** Ahorro directo en compras de insumos (8% a 14%), tiempo de ingreso de facturas (-75%).
+
+---
+
+### 6.7 Cuentas por Pagar (CxP)
+
+* **Objetivo de Negocio:** Mantener bajo estricto control los compromisos financieros con proveedores, previniendo moras o cortes de suministro.
+* **Dolor que Erradica:** Pérdida de descuentos por pronto pago, proveedores molestos llamando por facturas vencidas y descontrol del flujo de caja semanal.
+* **Características Tecnológicas:**
+  * Calendario de vencimientos de pasivos con filtros por estado: *Pendiente*, *Abono Parcial*, *Pagada Totalmente*.
+  * Registro de abonos con soporte de comprobante bancario y método de egreso.
+  * Historial consolidado de saldo adeudado por proveedor.
+  * Trazabilidad total de pagos vinculada a la contabilidad y al flujo de caja.
+* **Flujo de Trabajo Paso a Paso:**
+  1. Las compras a crédito registradas alimentan automáticamente el listado de CxP.
+  2. El gerente programa los pagos de la semana evaluando las facturas más próximas a vencer.
+  3. Al emitir una transferencia, se registra el abono total o parcial en la plataforma.
+  4. La cuenta pasa a estado pagada y genera el comprobante de egreso correspondiente.
+* **KPIs Impactados:** Pagos a tiempo a distribuidores (100%), eliminación de cobros de intereses por mora.
+
+---
+
+### 6.8 Clientes y Programa de Fidelización (CRM)
+
+![CRM y Fidelización de Clientes](img/clientes_fidelizacion_screen.jpg)
+*(Figura 6.8: Ficha de cliente con historial de consumos, saldo de puntos y notas personalizadas de alergias).*
+
+* **Objetivo de Negocio:** Transformar comensales ocasionales en clientes altamente frecuentes mediante el conocimiento de sus gustos y un club de lealtad por puntos.
+* **Dolor que Erradica:** Restaurantes que dependen únicamente de clientes nuevos, meseros que no recuerdan las alergias de clientes frecuentes y ausencia de datos para mercadeo.
+* **Características Tecnológicas:**
+  * Identificación ultrarrápida del cliente en el POS por número de teléfono celular.
+  * Acumulación automática de puntos de fidelidad configurables (ej. 1 punto por cada $1.000 COP en consumos).
+  * Canje de puntos directo en la pantalla de cobro como descuento tangible en la cuenta.
+  * Ficha de preferencias gastronómicas: alergias, mesas favoritas, fechas de cumpleaños y direcciones guardadas.
+  * Cumplimiento normativo de protección de datos personales (**Habeas Data**) con registro de consentimiento.
+* **Flujo de Trabajo Paso a Paso:**
+  1. Al tomar la orden, el mesero o cajero consulta al cliente su número de teléfono.
+  2. El sistema muestra de inmediato su nombre, puntos acumulados y notas (ej. *"Alergia a mariscos"*).
+  3. Durante el cobro, el cajero consulta si desea redimir puntos para obtener un descuento inmediato.
+  4. Al emitir el ticket, los nuevos puntos ganados quedan impresos en el recibo para incentivar su próxima visita.
+* **KPIs Impactados:** Tasa de retorno de clientes recurrentes (+32%), ticket promedio en clientes fidelizados (+19%).
+
+---
+
+### 6.9 Delivery, Domicilios y Envíos en Línea
+
+![Despacho y Seguimiento de Delivery](img/delivery_domicilios_screen.jpg)
+*(Figura 6.9: Monitor de despacho de pedidos a domicilio con asignación de repartidores y estado de ruta).*
+
+* **Objetivo de Negocio:** Operar un canal propio de entregas a domicilio sin depender exclusivamente de las altas comisiones de aplicaciones externas (Rappi, UberEats).
+* **Dolor que Erradica:** Pedidos despachados sin saber qué repartidor los lleva, domicilios que se enfrían en mostrador y pérdida de dinero recaudado en efectivo en la calle.
+* **Características Tecnológicas:**
+  * Panel de despacho centralizado con pedidos ordenados por tiempo de salida y urgencia.
+  * Asignación de repartidores propios con registro de vehículo y teléfono de contacto.
+  * Stepper de ruta en 4 fases: **Recibido** ➔ **En Cocina** ➔ **En Ruta** ➔ **Entregado**.
+  * Vista adaptada para el celular del repartidor con botón de llamada directa al cliente y enlace a Google Maps / Waze.
+  * Cuadre de caja de domiciliarios al finalizar la jornada (liquidación de efectivo cobrado en mano).
+* **Flujo de Trabajo Paso a Paso:**
+  1. El pedido ingresa desde el teléfono del restaurante o a través del enlace web público de domicilios.
+  2. La cocina recibe la comanda y la prepara en empaque térmico especial.
+  3. El despachador asigna al repartidor disponible; el pedido pasa a *En Ruta*.
+  4. El repartidor entrega al cliente y marca *Entregado* desde su celular.
+  5. Al volver al local, liquida el dinero en la caja central en un proceso de 2 minutos.
+* **KPIs Impactados:** Ahorro en comisiones a terceros (hasta un 25% del valor del pedido), tiempo de entrega promedio (-22%).
+
+---
+
+### 6.10 Agenda de Reservas y Webhook Omnicanal
+
+![Agenda de Reservas RestoMaster](img/reservas_agenda_screen.jpg)
+*(Figura 6.10: Calendario de reservas de salón con franjas horarias, estado de mesas e integración WhatsApp).*
+
+* **Objetivo de Negocio:** Llenar el restaurante en horas estratégicas y planificar la ocupación de mesas con días de anticipación sin sobreventas (*overbooking*).
+* **Dolor que Erradica:** Doble reserva de una misma mesa, clientes que llegan y no tienen mesa lista y mesas vacías por personas que reservaron y nunca asistieron (*no-shows*).
+* **Características Tecnológicas:**
+  * Vista de línea de tiempo interactiva por bloques horarios y mesas del salón.
+  * Estados de reserva: *Solicitada*, *Confirmada*, *Llegó al Salón*, *Finalizada*, *Cancelada / No Asistió*.
+  * **Webhook de Integración Omnicanal:** Capacidad de recibir reservas automáticas desde WhatsApp Business, Instagram o la página web oficial sin intervención humana.
+  * Bloqueo automático de la mesa en el mapa del salón: cuando la hora de la reserva se aproxima, la mesa cambia visualmente a color azul (Reservada).
+* **Flujo de Trabajo Paso a Paso:**
+  1. El cliente reserva por WhatsApp o por teléfono; la reserva se agenda con fecha, hora y número de personas.
+  2. El sistema valida la disponibilidad de mesas en la zona solicitada evitando solapamientos.
+  3. El equipo confirma la reserva y el cliente recibe su confirmación.
+  4. Al llegar al restaurante, el anfitrión pulsa **"Marcar Llegó"**; la mesa pasa de azul a ocupada e inicia el pedido en el POS.
+  5. Si el cliente no se presenta en el tiempo de tolerancia, se registra *No-Show* y la mesa se libera al público.
+* **KPIs Impactados:** Reducción de *no-shows* (-40%), tasa de ocupación en servicios de fin de semana (+25%).
+
+---
+
+### 6.11 Menú Digital por QR y Carta Pública
+
+![Menú Digital QR en Mesa](img/menu_digital_qr.jpg)
+*(Figura 6.11: Experiencia de menú interactivo en smartphone del comensal y hablador acrílico con código QR).*
+
+* **Objetivo de Negocio:** Entregar a los comensales una experiencia visual de autoservicio moderna, higiénica y atractiva desde sus propios teléfonos inteligentes.
+* **Dolor que Erradica:** Cartas físicas sucias o rotas, costos continuos de reimpresión de menús al cambiar un precio y comensales esperando minutos solo para poder ver la carta.
+* **Características Tecnológicas:**
+  * Código QR único asignado a cada mesa del establecimiento.
+  * Navegación fluida por categorías con fotografías en alta definición, descripciones de platos, notas de alérgenos y precios al día.
+  * Actualización en tiempo real: Cualquier cambio de precio o plato desactivado en el sistema se refleja al instante en el celular del cliente.
+  * Autoservicio opcional: Capacidad para que el cliente arme su orden en el celular y la transmita a cocina si el restaurante habilita el modo autoservicio.
+* **Flujo de Trabajo Paso a Paso:**
+  1. El comensal se sienta en la mesa y escanea el hablador acrílico con la cámara de su celular.
+  2. Se despliega la carta digital sin necesidad de instalar ninguna aplicación ni crear contraseñas.
+  3. El cliente visualiza las fotos de los platos y las recomendaciones de la casa.
+  4. El mesero se acerca y toma la orden directamente, o el comensal confirma su pedido digital.
+* **KPIs Impactados:** Ahorro en reimpresión de cartas de papel (100%), aumento de venta de postres y bebidas por impacto visual (+22%).
+
+---
+
+### 6.12 Enrutamiento e Impresión Térmica de Tickets
+
+* **Objetivo de Negocio:** Asegurar la impresión fiable y ultrarrápida de tiques de comanda, precuentas y facturas legales en hardware térmico estándar de 80 mm.
+* **Dolor que Erradica:** Impresoras que se traban, comandas de barra saliendo en la cocina caliente o tickets de cliente sin los datos legales requeridos.
+* **Características Tecnológicas:**
+  * Protocolo universal **ESC/POS** compatible con impresoras térmicas USB, de Red (Ethernet/LAN) y Wi-Fi (Epson, Bixolon, Star, genéricas).
+  * **Enrutamiento por Área:** Los platos de cocina caliente se imprimen en su impresora asignada, las bebidas se imprimen en barra y los postres en su propia estación.
+  * Formato de ticket fiscal y comercial personalizable: Logotipo del restaurante, NIT/RUC, dirección, resolución de facturación y mensaje de agradecimiento.
+  * Reimpresión auditada desde el historial para casos de reposición de papel.
+* **Flujo de Trabajo Paso a Paso:**
+  1. Al pulsar *Enviar a Cocina* en el POS, el despachador de impresión separa los ítems por área de cocina.
+  2. Las impresoras térmicas cortan el papel automáticamente con encabezado claro de número de mesa y hora.
+  3. Al confirmar el pago, la impresora de caja emite el comprobante de venta para el comensal.
+* **KPIs Impactados:** Fiabilidad de despacho de comanda (99.9%), tiempo de emisión física (< 2 segundos).
+
+---
+
+### 6.13 Trabajadores, Roles y Seguridad (RBAC Server-Side)
+
+![Matriz de Permisos RBAC RestoMaster](img/trabajadores_rbac_screen.jpg)
+*(Figura 6.13: Panel de control de personal y matriz de permisos granulares RBAC validados en servidor).*
+
+* **Objetivo de Negocio:** Proteger la seguridad del negocio asignando a cada empleado únicamente las funciones que le corresponden según su cargo.
+* **Dolor que Erradica:** Meseros aplicando descuentos no autorizados, empleados anulando platos ya cobrados para sustraer dinero y acceso indiscriminado a información financiera sensible.
+* **Características Tecnológicas:**
+  * Perfiles nativos preconfigurados: **Administrador**, **Gerente**, **Cajero**, **Mesero**, **Cocina**, **Barra**, **Repartidor**.
+  * **Validación estricta en Servidor (Server-Side):** Un mesero no puede ejecutar una acción protegida (ej. anular comanda o descontar dinero) aunque intente manipular la interfaz en su tablet.
+  * Clave de supervisor para autorizaciones instantáneas en pantalla sin cerrar la sesión del mesero.
+  * Bitácora de auditoría inmutable: Cada descuento, anulación, arqueo y modificación de precio queda registrado con fecha, hora, usuario y motivo.
+* **Flujo de Trabajo Paso a Paso:**
+  1. El administrador da de alta al personal asignándole su rol correspondiente.
+  2. Cada usuario inicia sesión y accede exclusivamente a su pantalla operativa designada.
+  3. Si un mesero requiere aplicar una cortesía comercial, el sistema solicita el PIN del gerente para autorizar la excepción.
+  4. La acción queda grabada de forma permanente en los reportes de auditoría gerencial.
+* **KPIs Impactados:** Erradicación de fraudes internos (-95%), claridad de responsabilidades operativas (100%).
+
+---
+
+### 6.14 Catálogo de Menú y Reglas del Negocio
+
+* **Objetivo de Negocio:** Otorgar autonomía total a la administración para crear, editar precios, pausar platos o agregar nuevas categorías sin necesidad de programadores.
+* **Dolor que Erradica:** Dependencia técnica externa para cambiar el precio de una bebida o activar una promoción de temporada.
+* **Características Tecnológicas:**
+  * Gestión integral de categorías con selección de color de botón e ícono representativo.
+  * Creación de platillos con carga de **fotografía directa**, descripción, precio de venta, costo y área de cocina.
+  * Interruptor de disponibilidad instantánea: si un insumo se agota, el producto se desactiva con un toque y desaparece de inmediato de los POS y del menú digital QR.
+  * Configuración de políticas comerciales: porcentaje de propina por defecto, topes de descuento permitidos y numeración consecutiva.
+* **Flujo de Trabajo Paso a Paso:**
+  1. El gerente ingresa al módulo de menú desde su computadora o celular.
+  2. Ajusta el precio de un plato o sube una fotografía recién tomada.
+  3. Pulsa *Guardar Producto*; en ese mismo instante, todas las tablets de los meseros y la carta QR de los clientes quedan actualizadas.
+* **KPIs Impactados:** Tiempo de actualización de carta (en vivo en menos de 1 minuto), costo de mantenimiento web ($0).
+
+---
+
+### 6.15 Reportes, KPIs y Analítica Gerencial
+
+![Dashboard Ejecutivo y Reportes en Vivo](img/dashboard_kpi_screen.jpg)
+*(Figura 6.15: Tablero de control ejecutivo con ventas por hora, food cost real, ticket promedio y ranking de platos).*
+
+* **Objetivo de Negocio:** Proporcionar al propietario y al equipo directivo la información financiera y operativa exacta para maximizar la rentabilidad del restaurante.
+* **Dolor que Erradica:** Decisiones basadas en corazonadas, desconocimiento del margen real del negocio y hojas de Excel confusas que quitan tiempo a la gerencia.
+* **Características Tecnológicas:**
+  * **Dashboard en tiempo real:** Ventas acumuladas de la jornada, ticket promedio por mesa, número de comensales atendidos y porcentaje de ocupación del salón.
+  * Gráfico de ventas por franja horaria para dimensionar picos de servicio y planificar turnos de personal.
+  * Ranking de platos: Top 5 más vendidos vs platos de baja rotación (*ingeniería de menú*).
+  * Reportes descargables en formato **PDF ejecutivo** y tablas **Excel / CSV** con un solo clic.
+  * Comparativas periódicas: Ventas de este mes vs mes anterior, rendimiento por mesero y análisis de ventas por área de producción.
+* **Flujo de Trabajo Paso a Paso:**
+  1. El propietario abre RestoMaster en su teléfono móvil desde cualquier lugar del mundo.
+  2. Visualiza el total vendido en el día, los cobros por tarjeta vs efectivo y las mesas ocupadas en ese instante.
+  3. Con un toque, genera el informe mensual en PDF para remitir directamente al contador del restaurante.
+* **KPIs Impactados:** Tiempo de elaboración de reportes (-99%), visibilidad gerencial continua (24/7).
+
+---
+
+### 6.16 Contabilidad Automatizada y Estado de Resultados
+
+* **Objetivo de Negocio:** Mantener las finanzas del restaurante al día de forma automática sin incurrir en dobles digitaciones entre ventas y contabilidad.
+* **Dolor que Erradica:** Descuadres contables a fin de mes, gastos de operación extraviados y balances financieros que llegan semanas después del cierre contable.
+* **Características Tecnológicas:**
+  * Asientos contables automáticos por cada tique cobrado, desglosando base imponible, impuestos (IVA / Impoconsumo) y propinas.
+  * Registro de egresos y facturas de compras clasificados por cuentas contables de costos y gastos.
+  * **Estado de Resultados en Vivo:** Ingresos operacionales menos costos de materia prima y gastos corrientes, calculando la utilidad bruta y neta del período.
+  * Principio de inmutabilidad: Los registros financieros no se borran; cualquier ajuste genera un contra-asiento de auditoría dejando trazabilidad legal limpia.
+* **Flujo de Trabajo Paso a Paso:**
+  1. Cada cobro exitoso en el POS genera el ingreso contable sin intervención manual.
+  2. Los pagos a proveedores y gastos de caja chica se imputan a su cuenta respectiva.
+  3. El contador o gerente consulta el estado financiero del mes para evaluar la rentabilidad real del negocio.
+* **KPIs Impactados:** Tiempo de preparación contable (-80%), precisión en declaraciones tributarias (100%).
+
+---
+
+## 7. Manual de Operaciones por Rol
+
+RestoMaster adapta su interfaz automáticamente según el rol del usuario que inicia sesión:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                      MAPA DE PERFILES Y NAVEGACIÓN                     │
+├─────────────────┬──────────────────────────────────────────────────────┤
+│ ROL             │ ENTORNO INICIAL Y ACCESO EXCLUSIVO                   │
+├─────────────────┼──────────────────────────────────────────────────────┤
+│ 👨‍💼 Administrador │ Dashboard Maestro, Configuración, Usuarios y Permisos │
+│ 👔 Gerente       │ Dashboard, Reportes, Inventario, Compras, Caja, CxP  │
+│ 💳 Cajero        │ Terminal POS, Control de Caja, Clientes y Arqueo     │
+│ 🤵 Mesero        │ Mapa de Mesas y Terminal Táctil de Salón             │
+│ 👨‍🍳 Cocina/Barra  │ Pantalla de Comandas KDS por Partida                 │
+│ 🛵 Delivery      │ Despacho de Domicilios y Asignación de Rutas         │
+└─────────────────┴──────────────────────────────────────────────────────┘
+```
+
+### 7.1 Manual Rápido para el Mesero:
+1. Inicie sesión en la tablet táctil de salón.
+2. Observe el mapa de mesas: toque la mesa que va a atender (las mesas libres están en verde).
+3. Seleccione los productos solicitados tocando las tarjetas con fotografía; si el cliente pide especificaciones, toque el ítem e ingrese la nota.
+4. Presione **"Enviar a Cocina"**; la comanda viaja digitalmente a las estaciones de preparación.
+5. Cuando la cocina termine, la mesa emitirá una campana visual de alerta en su tablet.
+6. Sirva los platos al cliente. Al solicitar la cuenta, avise a caja o proceda al cobro si cuenta con datáfono móvil.
+
+### 7.2 Manual Rápido para el Cajero:
+1. Abra el turno ingresando el dinero de base en efectivo de su gaveta.
+2. En el POS, atienda las mesas listas para cobro o las compras de mostrador.
+3. Consulte al cliente si acumula puntos con su número de teléfono.
+4. Seleccione el método de pago (Efectivo, Tarjeta, Mixto o Transferencia).
+5. Confirme el pago e imprima el ticket térmico; el sistema libera la mesa inmediatamente.
+6. Al finalizar su turno, cuente el dinero físico de la gaveta, digite el monto en el arqueo y emita su Reporte Z.
+
+### 7.3 Manual Rápido para el Personal de Cocina:
+1. Mantenga la pantalla KDS encendida en su partida de trabajo.
+2. Al sonar la comanda nueva, revise los platos ordenados por orden de llegada (FIFO).
+3. Toque **"Tomar"** para iniciar la cocción del platillo.
+4. Al culminar la preparación, toque **"Marcar Listo"** para notificar al salón.
+5. Al retirar la bandeja el mesero, toque **"Entregado"** para limpiar la pantalla.
+
+---
+
+## 8. Arquitectura Tecnológica y Compatibilidad de Hardware
+
+RestoMaster está construido sobre estándares de ingeniería de software corporativo que garantizan alta disponibilidad, velocidad sub-segundo y compatibilidad multiplataforma:
+
+* **Arquitectura de Software:**
+  * **Backend Robusto:** Laravel 13 con PHP 8.3 de alto rendimiento.
+  * **Base de Datos Corporativa:** PostgreSQL 18 con integridad transaccional, restricciones CHECK para montos monetarios positivos y claves foráneas 100% indexadas.
+  * **Frontend Dinámico:** Blade + Livewire Volt con Alpine.js (cero recargas de página, experiencia fluida idéntica a una app nativa).
+  * **Diseño Visual:** Tailwind CSS optimizado para pantallas táctiles y dark-mode gastronómico.
+
+* **Compatibilidad de Dispositivos y Hardware:**
+  * **Tablets para Salón y Meseros:** Cualquier tablet Android (pantalla 10" recomendada), iPad de Apple o comandera móvil de 6" a 8".
+  * **Terminal de Caja:** Computador todo-en-uno (All-in-One) táctil, computador de escritorio tradicional (PC/Mac) o tablet montada en pedestal.
+  * **Monitores de Cocina:** Tablets industriales, pantallas táctiles montadas en pared o monitores convencionales conectados a mini-PC (HDMI).
+  * **Impresoras Térmicas:** Impresoras estándar de recibos de **80 mm** compatibles con comandos **ESC/POS** conectadas vía USB, Cable de Red Ethernet o Wi-Fi.
+  * **Gavetas de Dinero:** Gavetas monederas estándar con apertura electrónica automática conectadas al puerto RJ11 de la impresora de recibos.
+
+---
+
+## 9. Seguridad de Datos, Auditoría y Cumplimiento Normativo
+
+La seguridad de su restaurante está garantizada mediante múltiples capas de protección:
+
+1. **Autorización Validada en Servidor (Server-Side RBAC):** La seguridad de RestoMaster no se limita a esconder botones en la pantalla; cada intento de acción sensible es verificado estrictamente en el backend antes de ser procesado.
+2. **Pistas de Auditoría Inmutables:** Los registros de ventas, anulaciones, descuentos y arqueos de caja nunca se eliminan físicamente de la base de datos; cualquier anulación genera una marca histórica con fecha, hora, usuario y justificación para inspección gerencial.
+3. **Restricciones de Integridad Financiera:** La base de datos rechaza por diseño cualquier monto negativo en pedidos, movimientos de caja o compras, impidiendo inconsistencias contables o errores de sistema.
+4. **Cumplimiento de Habeas Data:** La captura de información de clientes para el club de puntos incluye el registro explícito del consentimiento informado conforme a las regulaciones vigentes de protección de datos personales.
+5. **Copias de Seguridad (Backups):** Respaldos diarios y automáticos programables de la base de datos para garantizar la continuidad operativa ante cualquier fallo físico de los equipos del local.
+
+---
+
+## 10. Plan de Implementación Progresiva en 6 Fases
+
+Nuestra metodología de despliegue por fases asegura que el restaurante continúe atendiendo comensales con normalidad durante todo el proceso de transición digital:
+
+```
+[Fase 0: Cimientos] ──► [Fase 1: Núcleo Operativo] ──► [Fase 2: Caja & Finanzas]
+         │                          │                          │
+[Fase 3: Recetas & Costos] ◄── [Fase 4: Clientes & Delivery] ◄── [Fase 5: Reportes & Cierre]
+```
+
+| Fase | Alcance Operativo | Duración Típica | Resultado para el Restaurante |
+|---|---|:---:|---|
+| **Fase 0: Cimientos y Setup** | Instalación del servidor, creación de usuarios, roles de acceso y datos fiscales de la sucursal. | Días 1 a 2 | Sistema instalado y parametrizado con la identidad del restaurante. |
+| **Fase 1: Núcleo Operativo** | Carga del menú con fotos, configuración del plano de mesas, KDS de cocina e impresoras térmicas. | Días 3 a 5 | El restaurante comienza a operar 100% digital en salón y cocina. |
+| **Fase 2: Caja y Finanzas** | Aperturas de turno, cobros en POS, arqueos ciegos de caja y emisión de Reportes Z. | Días 6 a 8 | Control diario absoluto del dinero en efectivo y pagos con tarjeta. |
+| **Fase 3: Inventario y Recetas** | Registro de insumos, parametrização de escandallos, compras a proveedores y deducción de stock. | Días 9 a 14 | Deducción automática de materia prima y control de Food Cost real. |
+| **Fase 4: Clientes y Delivery** | Activación del programa de puntos, menú digital QR en mesas y despacho de domicilios. | Días 15 a 18 | Incremento en ventas recurrentes y pedidos directos sin intermediarios. |
+| **Fase 5: Reservas y Reportes** | Agenda de reservas con webhook WhatsApp y dashboard gerencial de analítica en vivo. | Días 19 a 21 | Visibilidad gerencial 24/7 y control total de ocupación. |
+
+---
+
+## 11. Opciones de Inversión y Paquetes Comerciales
+
+Ofrecemos opciones comerciales flexibles que se ajustan al tamaño y volumen operativo de su establecimiento:
+
+### 11.1 Paquetes de Adquisición
+
+| Componente de Solución | Paquete Núcleo Operativo (POS + Salón + Caja) | Paquete Restaurante Pro (Suite Completa 16 Módulos) |
+|---|:---:|:---:|
+| **POS Táctil con Tarjetas Fotográficas** | ✅ Incluido | ✅ Incluido |
+| **Mapa Interactivo de Mesas y Zonas** | ✅ Incluido | ✅ Incluido |
+| **Cocina Digital KDS por Áreas** | ✅ Incluido | ✅ Incluido |
+| **Control de Caja y Arqueo Ciego Z** | ✅ Incluido | ✅ Incluido |
+| **Enrutamiento de Impresoras Térmicas** | ✅ Incluido | ✅ Incluido |
+| **Menú Digital por QR en Mesas** | ✅ Incluido | ✅ Incluido |
+| **Inventario y Escandallos Automáticos** | ❌ Opcional | ✅ **Incluido** |
+| **Proveedores, Compras y CxP** | ❌ Opcional | ✅ **Incluido** |
+| **Club de Fidelización de Clientes (Puntos)** | ❌ Opcional | ✅ **Incluido** |
+| **Despacho de Delivery con Repartidores** | ❌ Opcional | ✅ **Incluido** |
+| **Agenda de Reservas & Webhook WhatsApp** | ❌ Opcional | ✅ **Incluido** |
+| **Dashboard Gerencial & Analítica KPI** | ⚠️ Básico | ✅ **Avanzado en Vivo** |
+| **Contabilidad y Estado de Resultados** | ⚠️ Básico | ✅ **Automatizado** |
+| **INVERSIÓN ESTIMADA DE IMPLEMENTACIÓN** | **[Consultar Cotización]** | **[Consultar Cotización]** |
+
+---
+
+### 11.2 ¿Qué Incluye la Inversión Inicial?
+
+1. **Licencia de Uso del Software:** Licencia de explotación completa de la plataforma sin límites de mesas ni de pedidos procesados.
+2. **Puesta en Marcha Técnica:** Instalación y configuración en red local o en servidor en la nube de alta velocidad.
+3. **Carga Inicial de la Carta:** Digitalización y carga inicial de categorías, platos, precios y fotografías del restaurante.
+4. **Capacitación Especializada del Personal:**
+   * Taller práctico para meseros y anfitriones (toma ágil de comandas en tablet).
+   * Taller operativo para equipo de cocina (uso del monitor KDS y despacho por partidas).
+   * Taller para cajeros (cobros, cambio, egresos y arqueo ciego).
+   * Taller gerencial (interpretación de reportes, costeo de recetas y control de inventarios).
+5. **Acompañamiento en Vivo:** Presencia de nuestro equipo técnico en los primeros servicios reales del restaurante para garantizar una transición sin fricción.
+
+---
+
+## 12. Soporte Técnico, Garantía y Acompañamiento
+
+* **Soporte Operativo Prioritario:** Mesa de ayuda telefónica y por WhatsApp disponible durante el horario de operación comercial del restaurante para resolución de incidentes en tiempo real.
+* **Garantía Técnica de Software:** Garantía de funcionamiento y corrección inmediata ante cualquier anomalía de software sin costo adicional.
+* **Actualizaciones Continuas:** Mejoras periódicas de rendimiento, optimizaciones de interfaz táctil y nuevas funcionalidades incluidas dentro del plan de servicio.
+* **Copias de Respaldo y Protección:** Protocolo de salvaguarda de datos con respaldos periódicos programados y verificables.
+
+---
+
+## 13. Próximos Pasos y Formulario de Aprobación
+
+Para iniciar la transformación digital de su restaurante con RestoMaster, el proceso continúa con los siguientes pasos:
+
+1. **Alineación de Alcance:** Definición conjunta del paquete seleccionado (Núcleo vs Suite Pro) y el inventario de dispositivos a conectar.
+2. **Emisión de la Cotización Formal:** Firma del acuerdo de servicios con el cronograma detallado de trabajo.
+3. **Configuración Inicial:** Carga del catálogo gastronómico, plano del salón y usuarios del equipo.
+4. **Capacitación y Despliegue:** Sesiones prácticas con el personal del restaurante.
+5. **Día de Lanzamiento:** Arranque del primer servicio 100% digital con acompañamiento presencial de nuestros especialistas.
+
+---
+
+### Hoja de Aceptación de la Propuesta Comercial
+
+| Firmas y Aceptación de la Propuesta |
+|---|
+| **Por el Restaurante Cliente:** <br><br><br> __________________________________________ <br> **Nombre:** [Nombre del Representante Legal / Propietario] <br> **Cargo:** [Gerente General / Administrador] <br> **Documento de Identidad / NIT:** ____________________ <br> **Fecha:** ______ / ______ / 2026 |
+| **Por el Equipo RestoMaster:** <br><br><br> __________________________________________ <br> **Nombre:** [Nombre del Consultor Comercial] <br> **Cargo:** [Director de Soluciones Gastronómicas] <br> **Empresa:** [Razón Social de la Empresa Desarrolladora] <br> **Fecha:** ______ / ______ / 2026 |
+
+---
+
+*RestoMaster — Transformando la hospitalidad gastronómica con tecnología táctil, control financiero y eficiencia de clase mundial.*

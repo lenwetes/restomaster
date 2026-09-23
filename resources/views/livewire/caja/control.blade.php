@@ -332,6 +332,29 @@ new class extends Component
         $this->mostrarModalCierre = true;
     }
 
+    public function seleccionarTurno(int $id): void
+    {
+        // Cambia el contexto operativo (movimientos, arqueo, reportes) al turno elegido.
+        // Misma regla de alcance que obtenerTurnoValido: sucursal propia salvo admin.
+        $userSucursalId = Auth::user()?->sucursal_id;
+        $query = TurnoCaja::where('id', $id)->where('estado', 'abierto');
+        if ($userSucursalId && ! in_array(Auth::user()?->role?->slug, ['admin'], true)) {
+            $query->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
+        }
+        $turno = $query->firstOrFail();
+
+        $this->turnoId = $turno->id;
+        $this->cajaSeleccionadaId = $turno->caja_id;
+        $this->montoContado = 0.0;
+        $this->notasCierre = '';
+        $this->reporteZ = null;
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Operando ahora en {$turno->caja->nombre} (Turno #{$turno->id}).",
+            'tipo' => 'info',
+        ]);
+    }
+
     public function ejecutarCierreTurno(): void
     {
         $this->authorize('cerrar', TurnoCaja::class);
@@ -384,11 +407,20 @@ new class extends Component
         $cajas = Caja::where('activa', true)->get();
         $ultimosTurnos = TurnoCaja::with(['caja', 'cajero'])->latest()->take(5)->get();
 
+        // Selector de contexto operativo: turnos abiertos visibles para el usuario (alcance por sucursal).
+        $userSucursalId = Auth::user()?->sucursal_id;
+        $turnosAbiertosQuery = TurnoCaja::with(['caja', 'cajero'])->withCount('movimientos')->where('estado', 'abierto');
+        if ($userSucursalId && ! in_array(Auth::user()?->role?->slug, ['admin'], true)) {
+            $turnosAbiertosQuery->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
+        }
+        $turnosAbiertos = $turnosAbiertosQuery->latest()->get();
+
         return [
             'turno' => $turnoActivo,
             'cajas' => $cajas,
             'todasLasCajas' => Caja::withCount('turnos')->orderBy('id')->get(),
             'ultimosTurnos' => $ultimosTurnos,
+            'turnosAbiertos' => $turnosAbiertos,
         ];
     }
 }; ?>
@@ -527,6 +559,31 @@ new class extends Component
                 </button>
             </div>
         </div>
+
+        <!-- SELECTOR DE TURNO ACTIVO (múltiples cajas abiertas) -->
+        @if($turnosAbiertos->count() > 1)
+            <div class="bg-surface-container-lowest rounded-3xl px-5 py-3 border border-surface-container-highest shadow-sm flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3" role="tablist" aria-label="Seleccionar caja y turno activo">
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-on-surface-variant shrink-0">
+                    <span class="material-symbols-outlined text-[16px] text-primary">sync_alt</span>
+                    Operando en:
+                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    @foreach($turnosAbiertos as $t)
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected="{{ $t->id === $turno?->id ? 'true' : 'false' }}"
+                            wire:click="seleccionarTurno({{ $t->id }})"
+                            class="h-11 px-3.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 flex items-center gap-1.5 border {{ $t->id === $turno?->id ? 'bg-primary text-on-primary border-primary shadow-md shadow-primary/20' : 'bg-surface-container hover:bg-surface-container-high text-on-surface border-surface-container-high' }}"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">point_of_sale</span>
+                            <span>{{ $t->caja->codigo }}</span>
+                            <span class="opacity-70 font-bold">· {{ $t->cajero->name }} · {{ $t->apertura_en->format('H:i') }} · {{ $t->movimientos_count }} movs</span>
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+        @endif
 
         <!-- TARJETAS DE MÉTRICAS / TOTALES EN VIVO (Stitch CAJ-01) -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -780,8 +837,9 @@ new class extends Component
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Fondo Inicial de Efectivo en Gaveta:</label>
                         <input 
-                            type="number" 
-                            step="1000" 
+                            type="text" 
+                            inputmode="decimal" 
+                            data-miles data-decimales="0"
                             wire:model="fondoInicial" 
                             class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
                         />
@@ -857,8 +915,9 @@ new class extends Component
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Monto del Movimiento:</label>
                         <input 
-                            type="number" 
-                            step="100" 
+                            type="text" 
+                            inputmode="decimal" 
+                            data-miles data-decimales="2"
                             wire:model="montoMovimiento" 
                             class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
                             placeholder="0.00"
@@ -961,7 +1020,10 @@ new class extends Component
                         </div>
                         <div>
                             <h3 class="text-base font-extrabold text-on-surface">Arqueo Ciego y Cierre de Turno</h3>
-                            <p class="text-[11px] text-on-surface-variant">Turno #{{ $turno->id }} · {{ $turno->caja->nombre }}</p>
+                            <p class="text-[11px] text-on-surface-variant flex items-center gap-1.5">
+                                <span>Turno #{{ $turno->id }} · {{ $turno->caja->nombre }}</span>
+                                <span class="rounded-md bg-primary/10 border border-primary/25 px-1.5 py-px font-mono font-black text-primary">{{ $turno->caja->codigo }}</span>
+                            </p>
                         </div>
                     </div>
                     <button wire:click="$set('mostrarModalCierre', false)" class="text-on-surface-variant hover:text-on-surface">
@@ -997,8 +1059,9 @@ new class extends Component
                             <span class="text-[10px] text-primary font-mono">Conteo Real</span>
                         </label>
                         <input 
-                            type="number" 
-                            step="100" 
+                            type="text" 
+                            inputmode="decimal" 
+                            data-miles data-decimales="2"
                             wire:model.live="montoContado" 
                             class="mt-1 w-full rounded-xl border-2 border-surface-container-high bg-surface-container-low p-3.5 font-mono text-2xl font-black text-on-surface focus:border-primary focus:ring-0"
                         />

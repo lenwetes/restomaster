@@ -12,3 +12,9 @@ Schedule::command('restomaster:backup')
     ->withoutOverlapping(120)
     ->onOneServer()
     ->runInBackground();
+
+Schedule::command('restomaster:backup-storage')
+    ->dailyAt('03:30')
+    ->withoutOverlapping(120)
+    ->onOneServer()
+    ->runInBackground();

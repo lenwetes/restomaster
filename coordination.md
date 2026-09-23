@@ -6,6 +6,170 @@
 ---
 
 ## Última Actualización
+2026-09-22 | OpenCode | 💵 **SELECTOR DE TURNO/CAJA EN ARQUEO Y CIERRE** (`caja/control.blade.php`, diseño aprobado):
+- **Problema:** `mount()` tomaba el turno abierto más reciente sin preguntar y no había forma de cambiarlo; movimientos, arqueo y cierre caían sobre ese turno silencioso (riesgo de cerrar la caja equivocada con 2+ activas).
+- **Cambios:** `with()` expone `turnosAbiertos` (alcance sucursal, con caja/cajero/conteo movs); método `seleccionarTurno(id)` valida abierto + alcance (misma regla que `obtenerTurnoValido`, `firstOrFail`), sincroniza `turnoId`/`cajaSeleccionadaId` y limpia conteo; segmented control táctil "Operando en:" (solo si >1 abierto) con código caja·cajero·hora·#movs; modal de cierre con badge de código de caja explícito.
+- **Tests (`TurnoCajaMultipleShiftsTest`, 6/6):** cambio entre cajas + rechazo fuera de sucursal (ModelNotFound). Regresión 35/35 (multiple-shifts + Fase2Caja + gaveta + policies). Pint: test pasa; en el blade solo hay drift preexistente que NO toqué (verificado: mis líneas intactas en el diff de pint).
+
+---
+## Actualización previa
+2026-09-22 | Antigravity | 🍱 **IMPLEMENTACIÓN EXACTA DE MOCKUP POS: BENTO TOUCH PRO (OPCIÓN 1) & FIX SCROLL VERTICAL** (`resources/views/livewire/pos/terminal.blade.php`, `app/Models/Producto.php`):
+- **Barra de Comando Táctil Bento:**
+  - Tarjeta unificada de Selector de Mesa con pulso verde, etiqueta 9px `MESA SELECCIONADA`, nombre de mesa y chevron expand_more con overlay select nativo invisible (`wire:model.live="mesaId"`).
+  - Tarjeta de comensal unificada (`#251b16`, border `#3d2b22`) con icono de persona `#2eb8b4`, input transparente, badge tier y botón `+ NUEVO`.
+  - Pistas de búsqueda rápida en carta, badge activo de turno de caja y mesero.
+- **Track de Categorías:**
+  - Eliminados los botones de flechas `<` `>` sobrantes y botón de nuevo producto.
+  - Track scrollable puro con pastillas Bento: pastilla activa `Todos` con badge de conteo; categorías inactivas con border `#catColor/40`, punto con glow `box-shadow: 0 0 8px #catColor`, emoji y badge de conteo con tono de categoría.
+- **Tarjetas de Producto Bento Pro:**
+  - Borde superior con acento de categoría y glow al estar en orden.
+  - Indicador de cocina (`COCINA FRÍA`, `CALIENTE`, etc.) y status (`• Disp.` o `✓ X en orden`).
+  - Contenedor culinario `h-24` con gradiente oscuro, emoji `text-4xl filter drop-shadow-md` y tag de stock inferior derecho.
+  - Título a 2 líneas, descripción y stepper táctil `[-] Qty [+]` o botón `+` rápido.
+- **Corrección de Altura y Scroll de la Barra de Cobro:**
+  - Se fijó `h-[calc(100vh-14rem)]` tanto para la columna de catálogo como para la columna de comanda/ticket digital.
+  - El grid de productos y la lista de ítems de comanda ahora hacen scroll interno (`flex-1 min-h-0 overflow-y-auto`).
+  - Los botones de acción táctiles gigantes **"Enviar a Cocina"** y **"Cobrar"** ahora permanecen 100% visibles en el viewport en todo momento sin requerir ningún tipo de scroll o deslizamiento de página.
+- **Restauración de Accessor:**
+  - Restaurado `getCostoRecetaAttribute()` en `app/Models/Producto.php` conviviendo con `getImagenUrlAttribute()`. Test `Fase3InventarioTest` 10/10 PASSED.
+- **Build y Verificación:**
+  - `npm run build` OK, `php artisan view:clear` OK. Capturas de pantalla e2e confirman el diseño idéntico al mockup 1 y la visibilidad de los botones sin scroll.
+
+---
+## Actualización previa
+2026-09-22 | OpenCode | 🔢 **INPUTS NUMÉRICOS: AUTOSELECT + MILES es-CO** (opción completa recomendada):
+- **Motor (`resources/js/app.js`, sin dependencias):** `focusin` → autoselección en `type=number` y en `data-miles` (estos muestran crudo + seleccionan); `keydown` bloquea teclas no numéricas; `input` sanea pegados y re-sincroniza; `focusout` normaliza/redondea, sincroniza crudo a Livewire y formatea (`Intl es-CO`: miles con punto, decimales con coma); hook `morph.updated` + `livewire:navigated` + init reformatean tras renders (cubre botones $50k/$100k y `wire:model.live` de POS/caja).
+- **27 inputs de dinero** convertidos a `type=text inputmode=decimal data-miles` (decimales según step: 0/2/3), conservando `wire:model` intacto (sin cambios servidor): inventario 9, POS 4, caja 3, menú 2, delivery 2, proveedores 2, cxp 2, clientes 1, pedido-público 1, configuración 1. Conteos/puertos/% quedan como `type=number` con autoselección global.
+- **Verificación:** `view:cache` OK; `npm run build` OK (motor presente en bundle; `public/build` ignorado por git, se regenera en deploy); pint: fallos solo por `class_attributes_separation` preexistente en esos blades — NO reformateé archivos ajenos (mis líneas no aparecen en el diff de pint). Tests módulos 188/189.
+
+---
+## Actualización previa
+2026-09-22 | OpenCode | 🔑 **RESTABLECIMIENTO DE CLAVE ADMIN** (a solicitud del usuario):
+- Actualizado el hash `password` de `admin@restomaster.com` en la BD de desarrollo vía script temporal (eliminado tras ejecutar); verificado con `Hash::check` → OK. Valor no registrado en el repo por seguridad.
+- Nota: `AdminUserSeeder` no sobrescribe claves existentes al re-seedear, así que persiste.
+
+---
+## Actualización previa
+2026-09-22 | Antigravity | 👥 **RANKING DE RENDIMIENTO DE MESEROS & CORRECCIÓN DE MENÚ LATERAL AL REFRESCAR** (`app/Services/DashboardService.php`, `resources/views/livewire/dashboard/ejecutivo.blade.php`, `resources/views/layouts/app.blade.php`, `resources/views/livewire/layout/navigation.blade.php`, `resources/js/app.js`):
+- **Corrección Bug Menú Lateral al Refrescar el Navegador:**
+  - `lg:pl-64` y `lg:left-64` no existían en el bundle CSS compilado (`app-*.css`), causando que al refrescar el contenedor principal iniciara con `padding-left: 0` y la barra lateral fija flotara ocultando las tarjetas del dashboard.
+  - Se agregaron las clases base estáticas `lg:pl-64` (en `layouts/app.blade.php`), `lg:left-64` en `<header>` y `w-64` en `<aside>`.
+  - Se inicializó el listener del store de Alpine en `<head>` para evitar FOUC y en el scope del módulo `app.js` escuchando `alpine:init` y `livewire:navigated`.
+  - Recompilado el bundle de producción con `npm run build` garantizando la presencia de todas las clases en CSS minificado.
+- **Aprovechamiento del Espacio en Blanco (Nuevo Módulo Ejecutivo de Meseros):**
+  - Implementado `rankingMeseros($periodo, $sucursalId)` en `DashboardService.php`: calcula ventas netas, ticket promedio por mesero, propinas totales recaudadas, comandas cerradas y mesas actualmente asignadas en sala.
+  - Nuevo widget en Row 2: **Rendimiento de Meseros & Sala** con podio de medallas (🥇 Oro, 🥈 Plata, 🥉 Bronce), micro-barras de contribución a ventas, indicador de mesas activas y métricas globales de propinas y promedio por camarero.
+  - La fila 2 ahora queda perfectamente balanceada en 3 columnas (`Alerta de Inventario` + `Top Platos Vendidos` + `Rendimiento de Meseros`), eliminando completamente los huecos blancos.
+- **Tests & Calidad:**
+  - Actualizado `DashboardEjecutivoTest.php` con `test_ranking_de_meseros_calcula_ventas_y_propinas_correctamente` (**6/6 tests passed, 50 assertions**).
+  - Regresiones verificadas: `Fase5DashboardTest` (3/3), `MesaCrudTest` (3/3) — 6/6 passed.
+  - `vendor\bin\pint --test` PASSED.
+
+---
+
+2026-09-22 | OpenCode | ♻️ **IMPORTADOR DE COPIAS (RESTORE BD + ARCHIVOS)** — Configuración TAB 2, cada fila tiene botón Restaurar con `wire:confirm`:
+- **Servicio (`ConfiguracionService`):** `restaurarCopia(nombre)` por extensión — `.sql/.txt`: valida firma+denylist, vacía tablas (pgsql `TRUNCATE CASCADE` / sqlite `PRAGMA OFF`) y replaya; `.dump`: `pg_restore --clean` con error claro si falta el binario; `.zip` storage: valida anti-traversal y extrae a `storage/app/public`. pgsql reanuda secuencias (`setval` post-`RESTART IDENTITY`). Upload `restaurarBackup()` refactorizado al mismo código.
+- **Correcciones reales encontradas por tests:** (1) la firma se buscaba con `starts_with` pero el volcado arranca con separador `====` → el restore por upload **nunca funcionó** con archivos del sistema; ahora busca en cabecera (600 chars). (2) `TABLAS` incompleta (faltaban proveedores/compras/compra_lineas/permission_user/categoria_insumos) y en orden que violaba FKs (users antes que roles, pedidos antes que clientes) → const reordenada padres→hijos, ahora también se respaldan esas tablas.
+- **Componente:** `restaurarCopia()` con authorize + try/catch + redirect navigate (deja pantalla operativa). UI: botón `history` por fila.
+- **Tests (`ConfiguracionBackupCompletoTest`, 6/6):** e2e sql (crea rol → backup → borra → restaura → vuelve + admin operativo), zip válido + traversal rechazado, dump sin binario → error claro, mesero forbidden (backup y restore). Regresión total 28/28 (storage+config+policies). `pint --test` passed.
+
+---
+## Actualización previa
+2026-09-22 | Antigravity | 📊 **CENTRO DE MANDO Y DASHBOARD EJECUTIVO EN TIEMPO REAL** (`app/Services/DashboardService.php`, `resources/views/livewire/dashboard/ejecutivo.blade.php`, `resources/views/dashboard.blade.php`):
+- **Eliminación de Lanzaderas Redundantes:** Reemplazados los 477 renglones de tarjetas de acceso directo repetidas con el componente reactivo Livewire `<livewire:dashboard.ejecutivo />`.
+- **Nuevo DashboardService (`app/Services/DashboardService.php`):**
+  - `kpisGenerales()`: Ventas facturadas, Ticket promedio, Food Cost %, Margen bruto y comparativas porcentuales de variación contra el período anterior.
+  - `ventasPorHora()`: Curva de demanda horaria para detección de picos de rush/alta demanda con cálculo de picos y volumen.
+  - `tendenciaUltimos7Dias()`: Evolución diaria de ventas de la semana con día pico y promedio diario.
+  - `mixCanalesYMetodos()`: Segmentación de ingresos por canales (Salón, Delivery, Takeout) y métodos de pago (Efectivo, Tarjeta, QR/Transferencia).
+  - `insumosEnAlerta()`: Módulo de alerta primaria de inventario que identifica insumos **Agotados (Stock 0)** y **Stock Crítico (Bajo Mínimo)**, calculando unidades faltantes, valor de reposición estimado y enlace directo a compras/proveedores.
+  - `topProductos()`: Top 5 de platos más vendidos del período con medallas (oro, plata, bronce), unidades, facturación, margen y barra de porcentaje de contribución.
+  - `pulsoOperativo()`: Monitor en tiempo real de Turno de Caja (Efectivo vs Digital), Comandas activas en KDS y alerta de demoras SLA (>20 min), Aforo de mesas en sala y reservas/deliveries en curso.
+- **Frontend Livewire Volt (`resources/views/livewire/dashboard/ejecutivo.blade.php`):**
+  - Selector de período reactivo (`Hoy`, `Ayer`, `Esta Semana`, `Este Mes`) y polling en vivo cada 60s (`wire:poll.60s`).
+  - Gráficos en SVG y barras CSS puras ultra ligeras, sin librerías externas pesadas ni parpadeos.
+  - Diseño Bento Grid moderno, tipografía limpia, iconos temáticos de Material Symbols y paleta armónica ejecutiva.
+- **Tests & Calidad:**
+  - Creado `tests/Feature/DashboardEjecutivoTest.php` (5 tests herméticos: KPIs, inventario crítico, pulso operativo en vivo, reactividad Livewire de períodos y verificación de ausencia de lanzaderas redundantes) — 5/5 PASSED.
+  - Regresiones verificadas: `Fase5DashboardTest` (3/3) y `MesaCrudTest` (3/3) — 6/6 PASSED.
+  - Pint formateado y verificado sin errores: `vendor\bin\pint --test` PASSED.
+
+---
+
+---
+2026-09-22 | OpenCode | 💾 **BACKUP AUTOMÁTICO COMPLETO (BD + IMÁGENES)** (continuación):
+- **Hallazgo previo:** `restomaster:backup` (BD) ya existía y está agendado 03:00; faltaba el respaldo de `storage/app/public` (imágenes). BD guarda solo la referencia (`productos.imagen`), archivos en disco.
+- **Nuevos:** `app/Console/Commands/BackupStorageCommand.php` (`restomaster:backup-storage`: ZIP con estructura, excluye respaldos previos, rotación keep=14, SHA256, opciones `--fuente/--destino/--keep`); `config/backup.php` (`BACKUP_PATH` → ambos comandos; vacío = `storage/app/backups`, ignorado por git); agendado diario 03:30 en `routes/console.php`; `BACKUP_PATH=` documentado en `.env.example` (vacío, sin secretos).
+- **Modificado:** `BackupDatabaseCommand.php` usa `config('backup.path')` (1 línea).
+- **Tests:** `tests/Feature/BackupStorageCommandTest.php` (3 tests herméticos con dirs temp: contenido/estructura, rotación keep, fallo sin fuente) — 3/3 OK.
+- **Verificación real:** `restomaster:backup-storage` y `restomaster:backup --tablas=roles` ejecutados OK; `schedule:list` muestra 03:00 y 03:30; `pint --test` passed; artefactos de verificación eliminados (respaldo del 18-sep intacto).
+- **Nota:** `pg_dump` no está en PATH en este entorno → el comando BD usa fallback por cursor; en producción con `pg_dump` usará dump nativo `-Fc`. Para copia fuera del servidor: montar volumen y fijar `BACKUP_PATH`.
+
+---
+## Actualización previa
+2026-09-22 | Antigravity | 🏛️ **REDISEÑO ARQUITECTÓNICO DE SALÓN & MAPA DE MESAS** (`resources/views/livewire/mesas/index.blade.php`):
+- **Elegancia y Estética Profesional:**
+  - Sustituida la cuadrícula tosca y bloques monolíticos por un plano arquitectónico con textura reticular de salón (`radial-gradient dot matrix`) y distribución dinámica por zonas (`grid xl:grid-cols-2` en vista global o foco individual por zona seleccionada).
+  - Mobiliario con estética real: mesas redondas con sillas radiales ergonómicas que reflejan el estado del comensal y mesas tipo booth con bancas acolchadas laterales.
+  - Paleta de colores viva, armónica y profesional para los 7 estados: Esmeralda (`Libre`), Terracota Brasa (`Ocupada`), Ámbar Miel (`En Cocina`), Esmeralda pulsante con campana flotante (`¡Lista para Servir!`), Celeste Ejecutivo (`Cuenta Pedida`), Pizarra Cálida (`Por Limpiar`) e Índigo Real (`Reservada`).
+- **Eliminación de Bugs y Redundancias:**
+  - Corregido el bug de minutos negativos y decimales flotantes (`-5819.479233 min`), ahora calculado con `max(0, (int) abs(...))` y mostrado como entero limpio (`⏱️ 24 min`).
+  - Unificada la barra de filtros de zonas: eliminada la doble barra duplicada redundante; ahora las zonas se generan dinámicamente con conteos exactos, iconos y badges.
+- **Ribbon Ejecutivo de KPIs en Vivo:**
+  - Reemplazados los 3 bloques toscos de color sólido por 4 tarjetas ejecutivas con micro-barras de progreso, comensales sentados, ritmo medio de rotación y **Venta Activa en Sala** en tiempo real.
+- **Verificación:** Pint passed (`vendor\bin\pint`), suite de Mesas OK (`MesaCrudTest` 3/3, `MeseroAsignacionYPropinasTest` 24/24 passed).
+
+---
+## Última Actualización (previa)
+2026-09-22 | OpenCode | 🎨 **MAPA MÁS COLORIDO + HORIZONTAL** (`resources/views/livewire/mesas/index.blade.php`, rama del mapa, solo tokens Aura Gastro):
+- **Color:** piso por zona en pastel (salón=terracota `primary-container`, barra=lavanda `tertiary-container`, terraza=verde `secondary-container`, vip=`tertiary-fixed-dim`, patio=`secondary-fixed`); cuerpos de mesa en pastel del estado + píldora intensa; sillas/bancas oscuras; puntos de color en pestañas y headers; panel lateral en 3 tarjetas (terracota/verde/lavanda); campana en ámbar oscuro.
+- **Horizontal:** planos apaisados (`min-h-[380px]`, flujo izquierda→derecha) en tira con scroll horizontal en desktop; stats en fila de 3 en móvil, columna lateral en `2xl`.
+- **Verificación:** render tests mesas OK (2/2), `pint --test` passed.
+
+---
+## Última Actualización (previa)
+2026-09-22 | Antigravity | 📸 **IMÁGENES DE PRODUCTOS, REDISEÑO POS TÁCTIL (MOCKUP) Y DOSSIER COMERCIAL 360°**:
+- **Carga y Gestión de Fotos de Platos (`app/Models/Producto.php`, `resources/views/livewire/menu/index.blade.php`):**
+  - Implementado accessor `$producto->imagen_url` en `Producto.php` resolviendo URLs completas, assets en disco `public` y rutas relativas.
+  - Habilitada subida de imágenes con `WithFileUploads` en el modal de creación y edición del menú (`menu/index.blade.php`), previsualización en vivo, validación (`image|max:3072`) y persistencia en `storage/app/public/productos`.
+  - Añadido enlace simbólico de almacenamiento con `storage:link` y thumbnails en el listado del catálogo.
+- **Rediseño Ergonómico de Terminal POS según Mockup (`resources/views/livewire/pos/terminal.blade.php`):**
+  - Barra superior: logo RestoMaster a la izquierda, píldora destacada central con la mesa activa (`Mesa X`), selector/badge de mesero activo a la derecha.
+  - Filtro horizontal de categorías con píldora universal "Todos" y scroll suave táctil.
+  - Cuadrícula de platos: tarjetas táctiles con fotografía de alta resolución, badge de área de cocina, contador flotante de platos en comanda, títulos tipográficos limpios, formato de precio y badge verde `• Stock`.
+  - Lateral del pedido / comanda: encabezado ("Pedido", "Cantidad"), lista de ítems con modificadores, totales consolidados y botones táctiles de acción dual: "Enviar a Cocina" (verde esmeralda) y "Cobrar Pedido" (azul cobalto).
+- **Generación de 12 Mockups Visuales de Alta Resolución (`docs/cliente/img/`):**
+  - Generados y guardados los renders de los módulos clave: POS Táctil, Mapa de Mesas, Cocina KDS, Arqueo de Caja, Inventario & Escandallos, Dashboard KPI en vivo, Delivery & Despacho, Agenda de Reservas, Menú Digital QR, Fidelización CRM, Compras & Proveedores, y Matriz de Roles RBAC.
+- **Dossier y Presentación Comercial Integral (`docs/cliente/presentacion-restomaster.md`):**
+  - Reestructuración completa a 14 secciones ejecutivas listas para exportación a Word/PDF: Portada ejecutiva, Diagnóstico de dolores y costo de inacción ($4.2M COP/mes), 6 Pilares de Valor, Tablas comparativas de eficiencia operativa (con barras visuales), Matriz competitiva frente a software genérico, Modelo financiero de ROI (retorno en 45-60 días), Arquitectura operativa (Mermaid), desglose paso a paso de los 16 módulos funcionales (actores, disparadores, flujo de 5 pasos, salidas e integraciones), Manual de uso por rol, Especificaciones de hardware y red, Seguridad & Auditoría, Plan de despliegue en 6 fases, Esquema de inversión y Hoja de firmas.
+
+2026-09-22 | OpenCode | 🗺️ **MAPA ESTILO PLANO (referencia imagen RestoMaster) — solo tokens Aura Gastro**:
+- **Archivo:** `resources/views/livewire/mesas/index.blade.php` (rama `@else` del mapa).
+- **Cambios:** pestañas de zona oscuras (Todas + zonas con conteo, `$zonasTabs`); plano por zona con muros dobles sobre `bg-surface-dim`; mesas redondas con sillas radiales según capacidad (cap < 6) y booth rectangular con bancas (cap ≥ 6); píldora de estado centrada en la mesa **solo con colores establecidos** (libre=`secondary-container`, ocupada=`primary`, en cocina=ámbar, lista=esmeralda pulsante, por limpiar=`outline-variant`, reservada=índigo, cuenta=`tertiary`); tarjeta bajo mesa ocupada (pax real de ítems, total $ COP, minutos); aviso "Plato listo en cocina" con campana; tarjeta con nombre en reservadas con usuario; panel lateral ocupación X/total, % ocupación, comensales, tiempo promedio (todo con eager loads existentes, test anti-lazy-load pasa); leyenda en strip oscuro. Sheet de acciones, toggle, filtros y modales intactos.
+- **Verificación:** render tests mesas OK (2/2), `pint --test` passed.
+- **Archivo modificado:** `resources/views/livewire/mesas/index.blade.php`
+- **Qué se hizo:**
+  1. **Toggle Vista Mapa / Tarjetas** en el header: `🗺️ Mapa` (por defecto) y `🔲 Tarjetas`; estado `$vistaMapa` (bool, default true).
+  2. **Plano por zonas** (`salon`, `barra`, `terraza`, `vip`, `patio` + fallback): salas visuales con suelo tipo tablero, mesas como figuras (círculo <6 pax, óvalo ≥6, grande ≥8), estados a color/ícono + chip de texto (accesible daltónicos): libre=teal, ocupada=terracota, en cocina=ámbar, lista servir=esmeralda pulsante, por limpiar, reservada=índigo, cuenta pedido.
+  3. **Action sheet táctil** al tocar una mesa (blancos ≥48px): reutiliza métodos existentes (`atenderPedidoQr`, `cambiarEstado`, `abrirModalQr`, `abrirModalEditarMesa`, `liberarParaRelevo`, `abrirModalTransferir`, `autoasignarMesa`, `abrirModalCancelar`) + link a POS; micro-badge "persona" si la mesa es mía; leyenda de estados al pie.
+  4. Estado nuevo `$mesaSeleccionadaId` + `mesaSeleccionada` en `with()`. Conserva filtros, contadores, modales y `wire:poll.10s`.
+- **Verificación:**
+  - `vendor\bin\pint` aplicado sobre el archivo (antes: `--test` falló por estilos; quedó **passed**).
+  - `php artisan test --filter "Mesa"` → **41/45 passed**; los 4 fallos son `Fase5ReservasTest` **preexistentes y ajenos** (validación de fecha: "Debe elegirse una fecha igual o posterior a hoy", `ReservaService.php:62`; fechas hardcodeadas ya vencidas al 22-sep-2026). Tests de render de mesas pasan.
+- **Diseño aprobado por el usuario:** plano por zonas con distribución automática + toggle Mapa/Tarjetas (sin cambios de BD ni coordenadas).
+- **Nota:** `Fase5ReservasTest` falla por fechas vencidas — tarea pendiente futura: parametrizar con fechas dinámicas.
+
+---
+- **Spec Técnica:** `docs/superpowers/specs/2026-09-18-ai-hostess-copilot-financiero-design.md`
+- **Plan de Implementación:** `docs/superpowers/plans/2026-09-18-ai-hostess-copilot-financiero.md`
+- **Alcance del Feature:**
+  1. *Hostess Omnicanal 24/7 (WhatsApp):* Asistente virtual vía Meta WhatsApp Cloud API con Tool Calling tipado sobre `ReservaService` y `MenuService`.
+  2. *Copilot Financiero (Dashboard):* Widget conversacional Livewire para administradores/gerentes con Tool Calling sobre `ReporteService`.
+  3. *Arquitectura de Seguridad:* Integración con `prism-php/prism`, colas asíncronas para webhooks, validación criptográfica HMAC SHA-256 y cumplimiento de OWASP LLM 2025.
+- **Estado:** Documentado y guardado como feature planificado para ejecución futura sin código productivo aún.
+
+---
+
 2026-09-18 18:55 | Antigravity | 🧪 **SUITE DE PRUEBAS UNITARIAS E INTEGRALES PARA VERIFICAR EL HARDENING DE BASE DE DATOS**:
 - **Nueva Suite Creada:** `tests/Feature/HardeningDatabaseIntegridadTest.php` (10 tests, 27 aserciones directas).
 - **Cobertura de Pruebas Implementadas:**

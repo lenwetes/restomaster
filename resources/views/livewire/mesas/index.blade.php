@@ -10,39 +10,58 @@ use Livewire\Volt\Component;
 new class extends Component
 {
     public string $filtroZona = 'todas';
+
     public string $filtroEstado = 'todas';
+
     public string $filtroMesero = 'todos'; // 'todos', 'mis_mesas'
+
+    // Vista Mapa Gráfico (plano por zonas) / Vista Tarjetas
+    public bool $vistaMapa = true;
+
+    public ?int $mesaSeleccionadaId = null;
 
     // Asignación / Transferencia Mesas State
     public bool $modalTransferirOpen = false;
+
     public ?int $mesaTransferirId = null;
+
     public ?int $nuevoMeseroId = null;
 
     // CRUD Mesas State
     public bool $modalMesaOpen = false;
+
     public ?int $mesaEditandoId = null;
+
     public array $formMesa = [
         'numero' => '',
         'zona' => 'salon',
         'capacidad' => 4,
         'sucursal_id' => 1,
     ];
+
     // Modal QR de Mesa State
     public bool $modalQrOpen = false;
+
     public ?int $mesaQrId = null;
+
     public string $qrSvg = '';
+
     public string $qrUrl = '';
+
     public ?string $mensajeFlash = null;
+
     public ?string $tipoFlash = 'success';
 
     // Cancelar Mesa State
     public bool $modalCancelarOpen = false;
+
     public ?int $mesaCancelarId = null;
+
     public string $motivoCancelacion = '';
 
     public function abrirModalNuevaMesa(): void
     {
-        $maxNumero = Mesa::all()->map(fn($m) => (int) preg_replace('/\D/', '', $m->numero))->max();
+        $maxNumero = Mesa::all()->map(fn ($m) => (int) preg_replace('/\D/', '', $m->numero))->max();
         $siguienteNumero = $maxNumero ? $maxNumero + 1 : 1;
 
         $this->mesaEditandoId = null;
@@ -78,7 +97,7 @@ new class extends Component
 
         $reglaUnica = 'unique:mesas,numero';
         if ($this->mesaEditandoId) {
-            $reglaUnica .= ',' . $this->mesaEditandoId;
+            $reglaUnica .= ','.$this->mesaEditandoId;
         }
 
         $this->validate([
@@ -154,7 +173,7 @@ new class extends Component
     public function toggleEstado(int $mesaId): void
     {
         $mesa = Mesa::findOrFail($mesaId);
-        $siguiente = match($mesa->estado) {
+        $siguiente = match ($mesa->estado) {
             'libre' => 'ocupada',
             'ocupada' => 'cuenta_pedida',
             'cuenta_pedida' => 'limpieza',
@@ -195,7 +214,7 @@ new class extends Component
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->mensajeFlash = "Error al tomar pedido: " . $e->getMessage();
+            $this->mensajeFlash = 'Error al tomar pedido: '.$e->getMessage();
             $this->tipoFlash = 'error';
         }
     }
@@ -333,7 +352,7 @@ new class extends Component
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->mensajeFlash = 'Error al cancelar la mesa: ' . $e->getMessage();
+            $this->mensajeFlash = 'Error al cancelar la mesa: '.$e->getMessage();
             $this->tipoFlash = 'error';
             $this->modalCancelarOpen = false;
         }
@@ -386,12 +405,20 @@ new class extends Component
 
         $mesaQr = $this->mesaQrId ? Mesa::find($this->mesaQrId) : null;
 
+        $zonasDisponibles = Mesa::query()
+            ->selectRaw('zona, count(*) as total')
+            ->groupBy('zona')
+            ->pluck('total', 'zona')
+            ->toArray();
+
         return [
             'mesas' => $mesas,
             'conteo' => $conteo,
             'sucursales' => \App\Models\Sucursal::all(),
             'mesaQr' => $mesaQr,
             'meserosDisponibles' => $meserosDisponibles,
+            'mesaSeleccionada' => $this->mesaSeleccionadaId ? $mesas->firstWhere('id', $this->mesaSeleccionadaId) : null,
+            'zonasDisponibles' => $zonasDisponibles,
         ];
     }
 }; ?>
@@ -414,6 +441,27 @@ new class extends Component
             </p>
         </div>
         <div class="flex items-center gap-2">
+            <!-- Toggle Vista: Mapa Gráfico / Tarjetas -->
+            <div class="flex items-center gap-1 rounded-2xl border border-surface-container-highest bg-surface-container-low p-1 shadow-sm" role="group" aria-label="Cambiar vista del salón">
+                <button
+                    type="button"
+                    wire:click="$set('vistaMapa', true)"
+                    aria-pressed="{{ $vistaMapa ? 'true' : 'false' }}"
+                    class="flex h-9 min-w-[64px] items-center justify-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition-all active:scale-95 cursor-pointer {{ $vistaMapa ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                >
+                    <span class="material-symbols-outlined text-[15px]">map</span>
+                    <span>Mapa</span>
+                </button>
+                <button
+                    type="button"
+                    wire:click="$set('vistaMapa', false)"
+                    aria-pressed="{{ ! $vistaMapa ? 'true' : 'false' }}"
+                    class="flex h-9 min-w-[84px] items-center justify-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition-all active:scale-95 cursor-pointer {{ ! $vistaMapa ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                >
+                    <span class="material-symbols-outlined text-[15px]">grid_view</span>
+                    <span>Tarjetas</span>
+                </button>
+            </div>
             @can('create', App\Models\Mesa::class)
                 <button 
                     wire:click="abrirModalNuevaMesa"
@@ -506,55 +554,65 @@ new class extends Component
         </button>
     </div>
 
-    <!-- Zone Filters Bar (Stitch MES-01 Area Pills) -->
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3 shadow-sm">
+    <!-- Barra de Filtros de Zona y Mesero Unificada -->
+    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3 shadow-xs">
         <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs font-bold text-on-surface-variant px-2 flex items-center gap-1">
+            <span class="text-xs font-bold text-on-surface-variant px-2 flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px] text-primary">filter_alt</span>
-                Zona:
+                <span>Zonas:</span>
             </span>
             <button 
+                type="button"
                 wire:click="$set('filtroZona', 'todas')"
-                class="rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $filtroZona === 'todas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all cursor-pointer {{ $filtroZona === 'todas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
             >
-                Todas las Zonas
+                <span class="material-symbols-outlined text-[15px]">domain</span>
+                <span>Todas</span>
+                <span class="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-black {{ $filtroZona === 'todas' ? 'bg-white/20 text-white' : 'bg-surface-container-highest text-on-surface-variant' }}">{{ $conteo['total'] }}</span>
             </button>
-            <button 
-                wire:click="$set('filtroZona', 'salon')"
-                class="rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $filtroZona === 'salon' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
-            >
-                Salón Principal
-            </button>
-            <button 
-                wire:click="$set('filtroZona', 'barra')"
-                class="rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $filtroZona === 'barra' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
-            >
-                Barra / Bar
-            </button>
-            <button 
-                wire:click="$set('filtroZona', 'terraza')"
-                class="rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all {{ $filtroZona === 'terraza' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
-            >
-                Terraza
-            </button>
+            @php
+                $zonasConfig = [
+                    'salon' => ['nombre' => 'Salón Principal', 'icono' => 'table_restaurant', 'dot' => 'bg-primary'],
+                    'barra' => ['nombre' => 'Barra / Bar', 'icono' => 'local_bar', 'dot' => 'bg-amber-600'],
+                    'terraza' => ['nombre' => 'Terraza', 'icono' => 'deck', 'dot' => 'bg-secondary'],
+                    'vip' => ['nombre' => 'Área VIP', 'icono' => 'diamond', 'dot' => 'bg-indigo-600'],
+                    'patio' => ['nombre' => 'Patio Exterior', 'icono' => 'outdoor_garden', 'dot' => 'bg-emerald-600'],
+                ];
+            @endphp
+            @foreach($zonasDisponibles as $zKey => $zCount)
+                @php
+                    $zInfo = $zonasConfig[$zKey] ?? ['nombre' => ucfirst($zKey), 'icono' => 'table_restaurant', 'dot' => 'bg-primary'];
+                @endphp
+                <button 
+                    type="button"
+                    wire:click="$set('filtroZona', '{{ $zKey }}')"
+                    class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all cursor-pointer {{ $filtroZona === $zKey ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                >
+                    <span class="h-2 w-2 rounded-full {{ $zInfo['dot'] }}"></span>
+                    <span class="material-symbols-outlined text-[15px]">{{ $zInfo['icono'] }}</span>
+                    <span>{{ $zInfo['nombre'] }}</span>
+                    <span class="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-black {{ $filtroZona === $zKey ? 'bg-white/20 text-white' : 'bg-surface-container-highest text-on-surface-variant' }}">{{ $zCount }}</span>
+                </button>
+            @endforeach
 
             <!-- Filtro Mesero Asignado -->
             <div class="flex items-center gap-1 pl-2 sm:border-l border-surface-container-high">
                 <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1">
                     <span class="material-symbols-outlined text-[16px] text-primary">person</span>
-                    Mesero:
+                    <span>Mesero:</span>
                 </span>
                 <button 
+                    type="button"
                     wire:click="$set('filtroMesero', 'todos')"
-                    class="rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all {{ $filtroMesero === 'todos' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                    class="rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all cursor-pointer {{ $filtroMesero === 'todos' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
                 >
                     Todas
                 </button>
-                {{-- rol intencional, no permiso: filtro "mis mesas" = identidad del mesero --}}
                 @if(Auth::user()?->role?->slug === 'mesero')
                     <button 
+                        type="button"
                         wire:click="$set('filtroMesero', 'mis_mesas')"
-                        class="rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all {{ $filtroMesero === 'mis_mesas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                        class="rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all cursor-pointer {{ $filtroMesero === 'mis_mesas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
                     >
                         Mis Mesas
                     </button>
@@ -564,15 +622,17 @@ new class extends Component
 
         @if($filtroEstado !== 'todas' || $filtroZona !== 'todas' || $filtroMesero !== 'todos')
             <button 
+                type="button"
                 wire:click="$set('filtroEstado', 'todas'); $set('filtroZona', 'todas'); $set('filtroMesero', 'todos')"
-                class="flex items-center gap-1 text-xs font-bold text-primary hover:underline px-2"
+                class="flex items-center gap-1 text-xs font-bold text-primary hover:underline px-2 cursor-pointer"
             >
                 <span class="material-symbols-outlined text-[16px]">close</span>
-                <span>Restablecer</span>
+                <span>Restablecer Filtros</span>
             </button>
         @endif
     </div>
 
+    @if (! $vistaMapa)
     <!-- Mesas Matrix Grid (Stitch MES-01 Aura Gastro Porcelain Squircle Cards) -->
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         @forelse ($mesas as $mesa)
@@ -901,6 +961,605 @@ new class extends Component
             </div>
         @endforelse
     </div>
+    @else
+
+    {{-- Vista Mapa Gráfico: Plano Arquitectónico de Alta Fidelidad --}}
+    @php
+        $rankingZonas = ['salon', 'barra', 'terraza', 'vip', 'patio', 'primer_piso'];
+        $rankingZonasFlip = array_flip($rankingZonas);
+        $mesasPorZona = $mesas->groupBy('zona')->sortBy(fn ($mesasZona, $zona) => $rankingZonasFlip[$zona] ?? 99);
+        $zonasEtiqueta = [
+            'salon' => 'Salón Principal',
+            'barra' => 'Barra / Bar',
+            'terraza' => 'Terraza Exterior',
+            'vip' => 'Área VIP Privada',
+            'patio' => 'Patio Exterior',
+        ];
+        $zonasIcono = [
+            'salon' => 'table_restaurant',
+            'barra' => 'local_bar',
+            'terraza' => 'deck',
+            'vip' => 'diamond',
+            'patio' => 'outdoor_garden',
+        ];
+
+        // Panel de métricas ejecutivas en sala
+        $mapOcupadas = $mesas->where('estado', 'ocupada');
+        $mapTotal = $mesas->count();
+        $mapPct = $mapTotal > 0 ? (int) round($mapOcupadas->count() / $mapTotal * 100) : 0;
+        $mapComensales = 0;
+        $mapMinutos = [];
+        $mapVentaTotal = 0;
+
+        foreach ($mapOcupadas as $mPlano) {
+            $pPlano = $mPlano->pedidos->first();
+            if ($pPlano) {
+                $cantPlano = (int) $pPlano->items->sum('cantidad');
+                $mapComensales += $cantPlano > 0 ? $cantPlano : $mPlano->capacidad;
+                $mapVentaTotal += (float) ($pPlano->total ?? 0);
+                if ($pPlano->created_at) {
+                    $mapMinutos[] = max(0, (int) abs(now()->diffInMinutes($pPlano->created_at)));
+                }
+            }
+        }
+        $mapTiempoProm = count($mapMinutos) > 0 ? (int) round(array_sum($mapMinutos) / count($mapMinutos)) : 0;
+    @endphp
+
+    <div class="space-y-6">
+        <!-- Banner Ejecutivo de Métricas en Vivo del Salón -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <!-- Ocupación Salón -->
+            <div class="relative overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">Ocupación Salón</span>
+                    <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-fixed text-primary">
+                        <span class="material-symbols-outlined text-[18px]">pie_chart</span>
+                    </span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="font-mono text-2xl font-black text-on-surface">{{ $mapOcupadas->count() }}/{{ $mapTotal }}</span>
+                    <span class="text-xs font-bold text-primary">({{ $mapPct }}%)</span>
+                </div>
+                <div class="mt-2 h-1.5 w-full rounded-full bg-surface-container-high overflow-hidden">
+                    <div class="h-full rounded-full bg-primary transition-all duration-500" @style(['width: ' . $mapPct . '%'])></div>
+                </div>
+            </div>
+
+            <!-- Comensales -->
+            <div class="relative overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">Comensales en Sala</span>
+                    <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary-container/60 text-secondary">
+                        <span class="material-symbols-outlined text-[18px]">groups</span>
+                    </span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="font-mono text-2xl font-black text-secondary">{{ $mapComensales }}</span>
+                    <span class="text-xs font-semibold text-on-surface-variant">en mesa</span>
+                </div>
+                <p class="mt-2 text-[10px] font-medium text-on-surface-variant flex items-center gap-1.5">
+                    <span class="h-2 w-2 rounded-full bg-secondary"></span>
+                    <span>Capacidad comensales atendida</span>
+                </p>
+            </div>
+
+            <!-- Ritmo de Servicio -->
+            <div class="relative overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">Ritmo de Servicio</span>
+                    <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                        <span class="material-symbols-outlined text-[18px]">timer</span>
+                    </span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="font-mono text-2xl font-black text-amber-800">{{ $mapTiempoProm }}</span>
+                    <span class="text-xs font-semibold text-on-surface-variant">min / comanda</span>
+                </div>
+                <p class="mt-2 text-[10px] font-medium text-amber-800 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px]">bolt</span>
+                    <span>{{ $mapTiempoProm > 45 ? 'Demora moderada' : 'Ritmo de rotación óptimo' }}</span>
+                </p>
+            </div>
+
+            <!-- Venta Activa en Mesas -->
+            <div class="relative overflow-hidden rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-4 shadow-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant">Venta Activa en Sala</span>
+                    <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
+                        <span class="material-symbols-outlined text-[18px]">monetization_on</span>
+                    </span>
+                </div>
+                <div class="mt-2 flex items-baseline gap-2">
+                    <span class="font-mono text-2xl font-black text-emerald-800">${{ number_format($mapVentaTotal, 0, ',', '.') }}</span>
+                </div>
+                <p class="mt-2 text-[10px] font-medium text-emerald-800 flex items-center gap-1.5">
+                    <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Subtotal en comandas abiertas</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- Plano Arquitectónico del Restaurante -->
+        <div class="grid grid-cols-1 {{ $filtroZona === 'todas' ? 'xl:grid-cols-2' : '' }} gap-6">
+            @forelse ($mesasPorZona as $zona => $mesasZona)
+                @php
+                    $labelZona = $zonasEtiqueta[$zona] ?? ucfirst($zona);
+                    $iconoZona = $zonasIcono[$zona] ?? 'table_restaurant';
+                    $libresZona = $mesasZona->where('estado', 'libre')->count();
+                    $ocupadasZona = $mesasZona->where('estado', 'ocupada')->count();
+
+                    $zonaTheme = match ($zona) {
+                        'salon' => [
+                            'border'       => 'border-rose-500/30 shadow-[0_4px_24px_rgba(244,63,94,0.15)]',
+                            'headerBg'     => 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+                            'dot'          => 'bg-rose-400',
+                            'door'         => '🚪 Entrada Principal',
+                            'canvasBg'     => 'bg-[#1e0f0d]',
+                            'gridPattern'  => 'bg-[linear-gradient(to_right,#f43f5e18_1px,transparent_1px),linear-gradient(to_bottom,#f43f5e18_1px,transparent_1px)] bg-[size:24px_24px]',
+                            'badgeTone'    => 'bg-rose-500/20 text-rose-300 border-rose-500/40',
+                            'floorLabel'   => 'ZONA SALÓN PRINCIPAL',
+                        ],
+                        'barra' => [
+                            'border'       => 'border-amber-500/30 shadow-[0_4px_24px_rgba(245,158,11,0.15)]',
+                            'headerBg'     => 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                            'dot'          => 'bg-amber-400',
+                            'door'         => '🍸 Pase de Barra',
+                            'canvasBg'     => 'bg-[#1c1509]',
+                            'gridPattern'  => 'bg-[linear-gradient(to_right,#f59e0b1a_1px,transparent_1px),linear-gradient(to_bottom,#f59e0b1a_1px,transparent_1px)] bg-[size:24px_24px]',
+                            'badgeTone'    => 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                            'floorLabel'   => 'ZONA BARRA &amp; COCKTAILS',
+                        ],
+                        'terraza' => [
+                            'border'       => 'border-emerald-500/30 shadow-[0_4px_24px_rgba(16,185,129,0.15)]',
+                            'headerBg'     => 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                            'dot'          => 'bg-emerald-400',
+                            'door'         => '🌿 Vista Exterior',
+                            'canvasBg'     => 'bg-[#0d1c16]',
+                            'gridPattern'  => 'bg-[linear-gradient(to_right,#10b9811a_1px,transparent_1px),linear-gradient(to_bottom,#10b9811a_1px,transparent_1px)] bg-[size:24px_24px]',
+                            'badgeTone'    => 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                            'floorLabel'   => 'ZONA TERRAZA LOUNGE',
+                        ],
+                        'vip' => [
+                            'border'       => 'border-purple-500/30 shadow-[0_4px_24px_rgba(139,92,246,0.15)]',
+                            'headerBg'     => 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+                            'dot'          => 'bg-purple-400',
+                            'door'         => '👑 Salón Privado',
+                            'canvasBg'     => 'bg-[#140f1e]',
+                            'gridPattern'  => 'bg-[linear-gradient(to_right,#8b5cf61a_1px,transparent_1px),linear-gradient(to_bottom,#8b5cf61a_1px,transparent_1px)] bg-[size:24px_24px]',
+                            'badgeTone'    => 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                            'floorLabel'   => 'SALA EXCLUSIVA VIP',
+                        ],
+                        default => [
+                            'border'       => 'border-surface-container-highest/60 shadow-sm',
+                            'headerBg'     => 'bg-surface-container/80 text-on-surface-variant border-surface-container-highest',
+                            'dot'          => 'bg-on-surface-variant',
+                            'door'         => '🚪 Acceso',
+                            'canvasBg'     => 'bg-surface-dim',
+                            'gridPattern'  => 'bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:24px_24px]',
+                            'badgeTone'    => 'bg-surface-container text-on-surface-variant border-surface-container-highest',
+                            'floorLabel'   => 'ZONA SALÓN',
+                        ],
+                    };
+                @endphp
+
+                <section aria-label="Zona {{ $labelZona }}" class="flex flex-col rounded-3xl border {{ $zonaTheme['border'] }} bg-surface-container-lowest shadow-sm overflow-hidden transition-all">
+                    <!-- Room Header -->
+                    <div class="flex items-center justify-between border-b border-surface-container-highest px-5 py-4 bg-surface-container-low/60 backdrop-blur-xs">
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-2xl {{ $zonaTheme['headerBg'] }} border shadow-2xs">
+                                <span class="material-symbols-outlined text-[20px]">{{ $iconoZona }}</span>
+                            </span>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h2 class="text-sm font-black tracking-tight text-on-surface">{{ $labelZona }}</h2>
+                                    <span class="h-2 w-2 rounded-full {{ $zonaTheme['dot'] }}"></span>
+                                </div>
+                                <p class="text-[11px] font-bold text-on-surface-variant">
+                                    {{ $mesasZona->count() }} mesas · {{ $libresZona }} libres · {{ $ocupadasZona }} ocupadas
+                                </p>
+                            </div>
+                        </div>
+                        <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full border {{ $zonaTheme['badgeTone'] }} px-3 py-1 text-[11px] font-extrabold shadow-2xs">
+                            {{ $zonaTheme['door'] }}
+                        </span>
+                    </div>
+
+                    <!-- Room Floor Canvas -->
+                    <div class="relative min-h-[360px] flex-1 p-6 sm:p-8 {{ $zonaTheme['canvasBg'] }} transition-colors duration-300">
+                        <!-- Architectural Subtle Tile Grid Background -->
+                        <div class="pointer-events-none absolute inset-0 {{ $zonaTheme['gridPattern'] }} opacity-70"></div>
+                        <div class="pointer-events-none absolute bottom-3 right-4 text-[9px] font-mono font-black uppercase tracking-widest text-on-surface-variant/30 select-none">
+                            {{ $zonaTheme['floorLabel'] }}
+                        </div>
+
+                        <!-- Mesas Layout Grid con Simetría Arquitectónica -->
+                        <div class="relative z-10 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-y-12 gap-x-6 justify-items-center items-start">
+                            @foreach ($mesasZona as $mesa)
+                                @php
+                                    $pedidoActivo = $mesa->pedidos->first();
+                                    $tieneCocinaPendiente = $pedidoActivo ? $pedidoActivo->items->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->isNotEmpty() : false;
+                                    $tieneCocinaLista = $pedidoActivo ? $pedidoActivo->items->where('estado_cocina', 'listo')->isNotEmpty() : false;
+                                    $comandaListaServir = $pedidoActivo && ($pedidoActivo->estado === 'listo' || (! $tieneCocinaPendiente && $tieneCocinaLista));
+                                    $comandaEnCocina = $pedidoActivo && ($tieneCocinaPendiente || in_array($pedidoActivo->estado, ['en_cocina', 'en_preparacion', 'en_proceso']));
+
+                                    $mapaEstado = match ($mesa->estado) {
+                                        'ocupada' => $comandaListaServir ? 'lista_servir' : ($comandaEnCocina ? 'en_cocina' : 'ocupada'),
+                                        default => $mesa->estado,
+                                    };
+
+                                    $paxMesa = $pedidoActivo ? (int) $pedidoActivo->items->sum('cantidad') : 0;
+                                    $paxMesa = $paxMesa > 0 ? $paxMesa : $mesa->capacidad;
+                                    $minsMesa = ($pedidoActivo && $pedidoActivo->created_at) ? max(0, (int) abs(now()->diffInMinutes($pedidoActivo->created_at))) : 0;
+                                    $esBooth = $mesa->capacidad >= 6;
+
+                                    // Estilos refinados de mesa (Dark Charcoal mode)
+                                    $tableStyles = match ($mapaEstado) {
+                                        'libre' => [
+                                            'disk'  => 'bg-gradient-to-b from-emerald-900/60 to-emerald-950/80 border-emerald-400/70 hover:border-emerald-400 shadow-emerald-900/20',
+                                            'ring'  => 'hover:ring-4 hover:ring-emerald-500/30',
+                                            'num'   => 'text-emerald-200',
+                                            'badge' => 'bg-emerald-500 text-white',
+                                            'label' => 'Libre',
+                                            'icon'  => 'check_circle',
+                                            'chair' => 'border-emerald-500/50 bg-emerald-800/60',
+                                        ],
+                                        'ocupada' => [
+                                            'disk'  => 'bg-gradient-to-b from-rose-900/60 to-rose-950/80 border-rose-400/70 hover:border-rose-400 shadow-rose-900/20',
+                                            'ring'  => 'hover:ring-4 hover:ring-rose-500/30',
+                                            'num'   => 'text-rose-200',
+                                            'badge' => 'bg-rose-500 text-white',
+                                            'label' => 'Ocupada',
+                                            'icon'  => 'restaurant',
+                                            'chair' => 'border-rose-500/50 bg-rose-800/60',
+                                        ],
+                                        'en_cocina' => [
+                                            'disk'  => 'bg-gradient-to-b from-amber-900/60 to-amber-950/80 border-amber-400/70 hover:border-amber-400 shadow-amber-900/20',
+                                            'ring'  => 'hover:ring-4 hover:ring-amber-500/30',
+                                            'num'   => 'text-amber-200',
+                                            'badge' => 'bg-amber-500 text-white',
+                                            'label' => 'En Cocina',
+                                            'icon'  => 'soup_kitchen',
+                                            'chair' => 'border-amber-500/50 bg-amber-800/60',
+                                        ],
+                                        'lista_servir' => [
+                                            'disk'  => 'bg-gradient-to-b from-emerald-700/80 to-emerald-800/90 border-emerald-400 ring-4 ring-emerald-400/40 shadow-emerald-900/30',
+                                            'ring'  => 'hover:ring-8 hover:ring-emerald-500/40',
+                                            'num'   => 'text-emerald-100 font-black',
+                                            'badge' => 'bg-emerald-400 text-emerald-950 animate-pulse',
+                                            'label' => '¡Servir!',
+                                            'icon'  => 'room_service',
+                                            'chair' => 'border-emerald-400 bg-emerald-600/70',
+                                        ],
+                                        'cuenta_pedida' => [
+                                            'disk'  => 'bg-gradient-to-b from-sky-900/60 to-sky-950/80 border-sky-400/70 hover:border-sky-400 shadow-sky-900/20',
+                                            'ring'  => 'hover:ring-4 hover:ring-sky-500/30',
+                                            'num'   => 'text-sky-200',
+                                            'badge' => 'bg-sky-500 text-white',
+                                            'label' => 'Cuenta',
+                                            'icon'  => 'receipt_long',
+                                            'chair' => 'border-sky-500/50 bg-sky-800/60',
+                                        ],
+                                        'por_limpiar', 'limpieza' => [
+                                            'disk'  => 'bg-gradient-to-b from-surface-container to-surface-container-high border-outline/50 hover:border-outline shadow-sm',
+                                            'ring'  => 'hover:ring-4 hover:ring-outline/20',
+                                            'num'   => 'text-on-surface-variant',
+                                            'badge' => 'bg-surface-container-highest text-on-surface-variant',
+                                            'label' => 'Limpieza',
+                                            'icon'  => 'cleaning_services',
+                                            'chair' => 'border-outline/30 bg-surface-container/60',
+                                        ],
+                                        'reservada' => [
+                                            'disk'  => 'bg-gradient-to-b from-purple-900/60 to-purple-950/80 border-purple-400/70 hover:border-purple-400 shadow-purple-900/20',
+                                            'ring'  => 'hover:ring-4 hover:ring-purple-500/30',
+                                            'num'   => 'text-purple-200',
+                                            'badge' => 'bg-purple-500 text-white',
+                                            'label' => 'Reservada',
+                                            'icon'  => 'event',
+                                            'chair' => 'border-purple-500/50 bg-purple-800/60',
+                                        ],
+                                        default => [
+                                            'disk'  => 'bg-surface-container border-outline/40 shadow-xs',
+                                            'ring'  => '',
+                                            'num'   => 'text-on-surface',
+                                            'badge' => 'bg-surface-container-highest text-on-surface-variant',
+                                            'label' => ucfirst($mesa->estado),
+                                            'icon'  => 'table_restaurant',
+                                            'chair' => 'border-outline/30 bg-surface-container/60',
+                                        ],
+                                    };
+
+                                    // Precalculo de ángulos simétricos para sillas en mesas redondas
+                                    $numChairs = max(2, min($mesa->capacidad, 6));
+                                    $chairAngles = match($numChairs) {
+                                        2 => [0, 180],
+                                        3 => [0, 120, 240],
+                                        4 => [45, 135, 225, 315],
+                                        5 => [0, 72, 144, 216, 288],
+                                        default => [0, 60, 120, 180, 240, 300],
+                                    };
+                                @endphp
+
+                                <div class="flex flex-col items-center select-none" wire:key="mapa-mesa-wrapper-{{ $mesa->id }}">
+                                    <!-- Alerta Flotante: Plato Listo para Servir -->
+                                    @if ($comandaListaServir)
+                                        <div class="mb-1.5 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-0.5 text-[9px] font-black text-white shadow-sm animate-bounce">
+                                            <span class="material-symbols-outlined text-[13px]">notifications_active</span>
+                                            <span>¡Cocina Lista!</span>
+                                        </div>
+                                    @endif
+
+                                    @if ($esBooth)
+                                        <!-- Mesa Rectangular con Sillas Alineadas Arriba y Abajo -->
+                                        <button
+                                            type="button"
+                                            wire:click="$set('mesaSeleccionadaId', {{ $mesa->id }})"
+                                            class="group relative flex h-32 w-48 sm:w-52 items-center justify-center cursor-pointer transition-transform duration-200 hover:-translate-y-1 active:scale-95"
+                                            title="Mesa #{{ $mesa->numero }} · {{ $tableStyles['label'] }} · {{ $mesa->capacidad }} pax"
+                                        >
+                                            <!-- Fila Superior de Sillas Simétricas -->
+                                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
+                                                @for ($c = 0; $c < 3; $c++)
+                                                    <span aria-hidden="true" class="h-3 w-5 rounded-full border {{ $tableStyles['chair'] }} shadow-2xs"></span>
+                                                @endfor
+                                            </div>
+
+                                            <!-- Fila Inferior de Sillas Simétricas -->
+                                            <div class="absolute -bottom-3 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
+                                                @for ($c = 0; $c < 3; $c++)
+                                                    <span aria-hidden="true" class="h-3 w-5 rounded-full border {{ $tableStyles['chair'] }} shadow-2xs"></span>
+                                                @endfor
+                                            </div>
+
+                                            <!-- Bancas Laterales para Booth si es VIP -->
+                                            @if ($zona === 'vip')
+                                                <span aria-hidden="true" class="absolute left-1 top-1/2 h-20 w-3 -translate-y-1/2 rounded-lg border {{ $tableStyles['chair'] }} shadow-xs"></span>
+                                                <span aria-hidden="true" class="absolute right-1 top-1/2 h-20 w-3 -translate-y-1/2 rounded-lg border {{ $tableStyles['chair'] }} shadow-xs"></span>
+                                            @endif
+
+                                            <!-- Superficie Rectangular Squircle -->
+                                            <div class="relative flex h-24 w-36 sm:w-42 flex-col items-center justify-center gap-1 rounded-2xl border-2 {{ $tableStyles['disk'] }} {{ $tableStyles['ring'] }} shadow-md transition-all {{ $mesa->id === $mesaSeleccionadaId ? 'ring-4 ring-primary ring-offset-2' : '' }}">
+                                                <span class="text-xs font-mono font-black {{ $tableStyles['num'] }}">#{{ $mesa->numero }}</span>
+                                                <span class="inline-flex items-center gap-0.5 rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider {{ $tableStyles['badge'] }} shadow-2xs">
+                                                    <span class="material-symbols-outlined text-[10px]">{{ $tableStyles['icon'] }}</span>
+                                                    <span>{{ $tableStyles['label'] }}</span>
+                                                </span>
+                                                <span class="text-[9px] font-bold text-on-surface-variant">👥 {{ $mesa->capacidad }} pax</span>
+                                            </div>
+
+                                            @if ($mesa->mesero_id === Auth::id())
+                                                <span class="absolute -right-1 -top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow-md ring-2 ring-surface-container-lowest" title="Atendida por ti">
+                                                    <span class="material-symbols-outlined text-[14px]">person</span>
+                                                </span>
+                                            @endif
+                                        </button>
+                                    @else
+                                        <!-- Mesa Redonda con Sillas Radiales en Simetría Perfecta -->
+                                        <button
+                                            type="button"
+                                            wire:click="$set('mesaSeleccionadaId', {{ $mesa->id }})"
+                                            class="group relative flex h-32 w-32 items-center justify-center cursor-pointer transition-transform duration-200 hover:-translate-y-1 active:scale-95"
+                                            title="Mesa #{{ $mesa->numero }} · {{ $tableStyles['label'] }} · {{ $mesa->capacidad }} pax"
+                                        >
+                                            <!-- Sillas Radiales Sencillas & Elegantes con Pre-cálculo PHP -->
+                                            @foreach ($chairAngles as $chairAngle)
+                                                <span aria-hidden="true" 
+                                                      class="absolute left-1/2 top-1/2 -ml-3 -mt-1.5 h-3.5 w-6 rounded-full border {{ $tableStyles['chair'] }} shadow-2xs transition-colors"
+                                                      @style(['transform: rotate(' . $chairAngle . 'deg) translateY(-48px)'])>
+                                                </span>
+                                            @endforeach
+
+                                            <!-- Superficie Circular de la Mesa -->
+                                            <div class="relative flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-full border-2 {{ $tableStyles['disk'] }} {{ $tableStyles['ring'] }} shadow-md transition-all {{ $mesa->id === $mesaSeleccionadaId ? 'ring-4 ring-primary ring-offset-2' : '' }}">
+                                                <span class="text-xs font-mono font-black {{ $tableStyles['num'] }}">#{{ $mesa->numero }}</span>
+                                                <span class="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider {{ $tableStyles['badge'] }} shadow-2xs">
+                                                    <span class="material-symbols-outlined text-[10px]">{{ $tableStyles['icon'] }}</span>
+                                                    <span>{{ $tableStyles['label'] }}</span>
+                                                </span>
+                                                <span class="text-[9px] font-bold text-stone-400">👥 {{ $mesa->capacidad }} pax</span>
+                                            </div>
+
+                                            @if ($mesa->mesero_id === Auth::id())
+                                                <span class="absolute right-0 top-0 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow-md ring-2 ring-white" title="Atendida por ti">
+                                                    <span class="material-symbols-outlined text-[14px]">person</span>
+                                                </span>
+                                            @endif
+                                        </button>
+                                    @endif
+
+                                    <!-- Tarjeta Mini-Ticket Inferior para Mesas con Comanda -->
+                                    @if ($pedidoActivo && $mesa->estado === 'ocupada')
+                                        <div class="mt-1.5 flex flex-col items-center rounded-xl border border-surface-container-highest bg-surface-container-low px-3 py-1 shadow-xs backdrop-blur-xs">
+                                            <span class="font-mono text-[11px] font-black text-primary">${{ number_format($pedidoActivo->total, 0, ',', '.') }}</span>
+                                            <div class="flex items-center gap-1.5 text-[9px] font-bold text-on-surface-variant">
+                                                <span class="material-symbols-outlined text-[11px] text-tertiary">timer</span>
+                                                <span>{{ $minsMesa }} min</span>
+                                                <span>·</span>
+                                                <span>{{ $paxMesa }} pax</span>
+                                            </div>
+                                        </div>
+                                    @elseif ($mesa->estado === 'reservada' && $pedidoActivo?->usuario)
+                                        <div class="mt-1.5 max-w-[120px] truncate rounded-xl border border-purple-500/40 bg-purple-900/50 px-2.5 py-1 text-center text-[10px] font-bold text-purple-300 shadow-2xs">
+                                            {{ $pedidoActivo->usuario->name }}
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </section>
+            @empty
+                <div class="col-span-full rounded-3xl border-2 border-dashed border-surface-container-highest bg-surface-container-lowest p-12 text-center text-on-surface-variant">
+                    <span class="material-symbols-outlined text-4xl text-on-surface-variant/40 mb-2">table_restaurant</span>
+                    <p class="font-bold text-sm">No se encontraron mesas con los filtros seleccionados.</p>
+                </div>
+            @endforelse
+        </div>
+
+        <!-- Leyenda Elegante y Ayuda Táctil -->
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest px-4 py-3 shadow-xs">
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span class="text-[10px] font-black uppercase tracking-wider text-on-surface-variant">Estados:</span>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-on-surface">
+                    <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span> Libre
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-on-surface">
+                    <span class="h-2.5 w-2.5 rounded-full bg-primary"></span> Ocupada
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-on-surface">
+                    <span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span> En Cocina
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-on-surface">
+                    <span class="h-2.5 w-2.5 rounded-full bg-emerald-600 animate-pulse"></span> ¡Lista para Servir!
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-on-surface">
+                    <span class="h-2.5 w-2.5 rounded-full bg-sky-500"></span> Cuenta Pedida
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-on-surface">
+                    <span class="h-2.5 w-2.5 rounded-full bg-stone-400"></span> Por Limpiar
+                </span>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-on-surface">
+                    <span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span> Reservada
+                </span>
+            </div>
+            <div class="flex items-center gap-1 text-[11px] font-bold text-primary">
+                <span class="material-symbols-outlined text-[15px]">touch_app</span>
+                <span>Toca una mesa para abrir comanda, consultar o cambiar estado</span>
+            </div>
+        </div>
+    </div>
+
+    {{-- Hoja de acciones de la mesa seleccionada (táctil, blancos ≥ 48px) --}}
+    @if ($mesaSeleccionada)
+        @php
+            $mesaSel = $mesaSeleccionada;
+            $pedidoActivo = $mesaSel->pedidos->first();
+            $tieneCocinaPendiente = $pedidoActivo ? $pedidoActivo->items->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->isNotEmpty() : false;
+            $tieneCocinaLista = $pedidoActivo ? $pedidoActivo->items->where('estado_cocina', 'listo')->isNotEmpty() : false;
+            $comandaListaServir = $pedidoActivo && ($pedidoActivo->estado === 'listo' || (! $tieneCocinaPendiente && $tieneCocinaLista));
+            $comandaEnCocina = $pedidoActivo && ($tieneCocinaPendiente || in_array($pedidoActivo->estado, ['en_cocina', 'en_preparacion', 'en_proceso']));
+            $esQrPendiente = $pedidoActivo && $pedidoActivo->estado === 'solicitado_qr' && ! $pedidoActivo->usuario_id;
+            $mapaEstado = match ($mesaSel->estado) {
+                'ocupada' => $comandaListaServir ? 'lista_servir' : ($comandaEnCocina ? 'en_cocina' : 'ocupada'),
+                default => $mesaSel->estado,
+            };
+            $mapaVisual = match ($mapaEstado) {
+                'libre' => ['clase' => 'bg-secondary text-on-secondary border-secondary/30', 'icono' => 'check_circle', 'etiqueta' => 'Libre'],
+                'ocupada' => ['clase' => 'bg-primary text-on-primary border-primary/40', 'icono' => 'restaurant', 'etiqueta' => 'Ocupada'],
+                'en_cocina' => ['clase' => 'bg-amber-600 text-white border-amber-500/40', 'icono' => 'soup_kitchen', 'etiqueta' => 'En cocina'],
+                'lista_servir' => ['clase' => 'bg-emerald-600 text-white border-emerald-500/50', 'icono' => 'room_service', 'etiqueta' => 'Lista para servir'],
+                'por_limpiar', 'limpieza' => ['clase' => 'bg-status-cleaning text-white border-status-cleaning/40', 'icono' => 'cleaning_services', 'etiqueta' => 'Por limpiar'],
+                'reservada' => ['clase' => 'bg-indigo-600 text-white border-indigo-500/40', 'icono' => 'event', 'etiqueta' => 'Reservada'],
+                'cuenta_pedida' => ['clase' => 'bg-tertiary text-on-tertiary border-tertiary/30', 'icono' => 'receipt_long', 'etiqueta' => 'Cuenta pedida'],
+                default => ['clase' => 'bg-surface-container text-on-surface border-surface-container-high', 'icono' => 'table_restaurant', 'etiqueta' => ucfirst($mesaSel->estado)],
+            };
+            $esValidaRolCentral = in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true);
+        @endphp
+        <div class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 bg-scrim/70 backdrop-blur-sm animate-fade-in" wire:key="sheet-mesa-{{ $mesaSel->id }}">
+            <button type="button" wire:click="$set('mesaSeleccionadaId', null)" aria-label="Cerrar acciones de la mesa {{ $mesaSel->numero }}" class="absolute inset-0 w-full h-full cursor-default"></button>
+            <div class="relative w-full sm:max-w-md rounded-t-[2rem] sm:rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto animate-fade-in">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-low text-primary border border-primary/20 shadow-sm">
+                            <span class="material-symbols-outlined text-[26px]">table_restaurant</span>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-wider text-on-surface-variant">Mesa</p>
+                            <h3 class="font-mono text-xl font-black text-on-surface">#{{ $mesaSel->numero }}</h3>
+                            <p class="text-[11px] font-bold text-on-surface-variant capitalize">{{ $mesaSel->zona }} · {{ $mesaSel->capacidad }} pax{{ $mesaSel->mesero ? ' · ' . $mesaSel->mesero->name : '' }}</p>
+                        </div>
+                    </div>
+                    <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black capitalize {{ $mapaVisual['clase'] }}">
+                        <span class="material-symbols-outlined text-[13px]">{{ $mapaVisual['icono'] }}</span>
+                        {{ $mapaVisual['etiqueta'] }}
+                    </span>
+                </div>
+
+                {{-- Acciones principales --}}
+                <div class="grid grid-cols-2 gap-2.5 pt-1">
+                    @if ($esQrPendiente)
+                        <button wire:click="atenderPedidoQr({{ $pedidoActivo->id }}); $set('mesaSeleccionadaId', null)"
+                            class="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-primary text-on-primary text-xs font-black shadow-md hover:bg-primary-container active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[20px]">handshake</span>
+                            <span>⚡ Atender Pedido QR</span>
+                        </button>
+                    @elseif ($mesaSel->estado === 'libre')
+                        <a href="{{ route('pos', ['mesa_id' => $mesaSel->id]) }}" wire:navigate
+                            class="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-primary text-on-primary text-xs font-black shadow-md hover:bg-primary-container active:scale-95 transition">
+                            <span class="material-symbols-outlined text-[20px]">add_shopping_cart</span>
+                            <span>＋ Abrir Comanda</span>
+                        </a>
+                    @elseif (in_array($mesaSel->estado, ['por_limpiar', 'limpieza'], true))
+                        <button wire:click="cambiarEstado({{ $mesaSel->id }}, 'libre'); $set('mesaSeleccionadaId', null)"
+                            class="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-secondary text-on-secondary text-xs font-black shadow-md hover:bg-secondary-fixed-dim active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[20px]">cleaning_services</span>
+                            <span>✓ Marcar Limpia</span>
+                        </button>
+                    @elseif ($mesaSel->estado === 'ocupada')
+                        <a href="{{ route('pos', ['mesa_id' => $mesaSel->id]) }}" wire:navigate
+                            class="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl text-xs shadow-md active:scale-95 transition {{ $comandaListaServir ? 'bg-emerald-600 text-white font-black animate-pulse' : ($comandaEnCocina ? 'bg-amber-500/15 text-amber-900 dark:text-amber-200 border border-amber-500/40 font-black' : 'bg-surface-container text-on-surface border border-primary/30 font-extrabold') }}">
+                            <span class="material-symbols-outlined text-[20px]">{{ $comandaListaServir ? 'room_service' : ($comandaEnCocina ? 'soup_kitchen' : 'receipt_long') }}</span>
+                            <span>{{ $comandaListaServir ? '🛎️ ¡Lista! / Cobrar' : ($comandaEnCocina ? '⏳ En Cocina (Ver)' : 'Ver / Cobrar') }}</span>
+                        </a>
+                    @else
+                        <button wire:click="cambiarEstado({{ $mesaSel->id }}, 'libre'); $set('mesaSeleccionadaId', null)"
+                            class="col-span-2 flex h-14 items-center justify-center gap-2 rounded-2xl bg-surface-container text-on-surface text-xs font-extrabold active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[20px]">lock_open</span>
+                            <span>Liberar Mesa</span>
+                        </button>
+                    @endif
+
+                    {{-- Acciones secundarias --}}
+                    <button wire:click="abrirModalQr({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                        class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-surface-container text-on-surface text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
+                        <span class="material-symbols-outlined text-[18px]">qr_code_2</span>
+                        <span>QR Auto-pedido</span>
+                    </button>
+                    @can('update', App\Models\Mesa::class)
+                        <button wire:click="abrirModalEditarMesa({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                            class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-surface-container text-on-surface text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">edit</span>
+                            <span>Editar</span>
+                        </button>
+                    @endcan
+
+                    @if ($mesaSel->mesero_id === Auth::id())
+                        <button wire:click="liberarParaRelevo({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)" wire:confirm="¿Deseas liberar la Mesa #{{ $mesaSel->numero }} para un relevo?"
+                            class="flex h-14 items-center justify-center gap-1.5 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">pause_circle</span>
+                            <span>Liberar Relevo</span>
+                        </button>
+                    @elseif ($esValidaRolCentral)
+                        <button wire:click="abrirModalTransferir({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                            class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-surface-container text-on-surface text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">{{ $mesaSel->mesero ? 'swap_horiz' : 'assignment_ind' }}</span>
+                            <span>{{ $mesaSel->mesero ? 'Transferir' : 'Asignar Mesero' }}</span>
+                        </button>
+                    @elseif (! $mesaSel->mesero_id)
+                        <button wire:click="autoasignarMesa({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                            class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-primary/10 border border-primary/30 text-primary text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+                            <span>＋ Atender Mesa</span>
+                        </button>
+                    @endif
+
+                    @if ($esValidaRolCentral)
+                        <button wire:click="abrirModalCancelar({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                            class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-error-container/50 text-error text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">cancel</span>
+                            <span>Cancelar Mesa</span>
+                        </button>
+                    @elseif ($mesaSel->mesero_id === Auth::id())
+                        <button wire:click="abrirModalCancelar({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                            class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-error-container/50 text-error text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
+                            <span class="material-symbols-outlined text-[18px]">cancel</span>
+                            <span>Cancelar Mesa</span>
+                        </button>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
+    @endif
 
     <!-- Modal Crear / Editar Mesa -->
     @if ($modalMesaOpen)

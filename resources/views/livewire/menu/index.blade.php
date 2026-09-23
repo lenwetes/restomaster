@@ -5,14 +5,19 @@ use App\Models\Producto;
 use App\Services\MenuService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
 new class extends Component
 {
+    use WithFileUploads;
+
     public bool $mostrarModalCategoria = false;
     public bool $mostrarModalProducto = false;
     public ?int $categoriaEnEdicion = null;
     public ?int $productoEnEdicion = null;
     public ?string $mensajeExito = null;
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|\Illuminate\Http\UploadedFile|null */
+    public mixed $imagenUpload = null;
 
     public array $categoriaForm = [
         'nombre' => '',
@@ -28,6 +33,7 @@ new class extends Component
         'precio' => null,
         'costo' => 0,
         'area_cocina' => 'caliente',
+        'imagen' => '',
     ];
 
     private function autorizarGestionMenu(): void
@@ -111,6 +117,7 @@ new class extends Component
     {
         $this->autorizarGestionMenu();
         $this->productoEnEdicion = null;
+        $this->imagenUpload = null;
         $primerCategoria = $categoriaId ?: Categoria::where('activo', true)->orderBy('orden')->value('id');
         $this->productoForm = [
             'categoria_id' => $primerCategoria,
@@ -119,6 +126,7 @@ new class extends Component
             'precio' => null,
             'costo' => 0,
             'area_cocina' => 'caliente',
+            'imagen' => '',
         ];
         $this->mostrarModalProducto = true;
     }
@@ -128,6 +136,7 @@ new class extends Component
         $this->autorizarGestionMenu();
         $producto = Producto::findOrFail($id);
         $this->productoEnEdicion = $id;
+        $this->imagenUpload = null;
         $this->productoForm = [
             'categoria_id' => $producto->categoria_id,
             'nombre' => $producto->nombre,
@@ -135,6 +144,7 @@ new class extends Component
             'precio' => (float) $producto->precio,
             'costo' => (float) $producto->costo,
             'area_cocina' => $producto->area_cocina,
+            'imagen' => $producto->imagen ?? '',
         ];
         $this->mostrarModalProducto = true;
     }
@@ -148,7 +158,14 @@ new class extends Component
             'productoForm.precio' => 'required|numeric|gt:0',
             'productoForm.costo' => 'nullable|numeric|min:0',
             'productoForm.area_cocina' => 'required|in:sushi,caliente,barra,fria,postres',
+            'productoForm.imagen' => 'nullable|string|max:500',
+            'imagenUpload' => 'nullable|image|max:2048',
         ]);
+
+        if ($this->imagenUpload) {
+            $path = $this->imagenUpload->store('productos', 'public');
+            $this->productoForm['imagen'] = $path;
+        }
 
         try {
             if ($this->productoEnEdicion) {
@@ -302,22 +319,32 @@ new class extends Component
                     <div class="mt-4 space-y-2 max-h-[360px] overflow-y-auto pr-1">
                         @forelse($categoria->productos as $producto)
                             <div class="flex items-center justify-between rounded-2xl bg-surface-container-low px-3.5 py-2.5 border border-outline-variant/15 transition-all hover:border-outline-variant/30 {{ $producto->activo ? '' : 'opacity-55' }}">
-                                <div class="min-w-0 flex-1 pr-2">
-                                    <div class="flex items-center gap-1.5 flex-wrap">
-                                        <span class="text-xs font-bold text-on-surface truncate">{{ $producto->nombre }}</span>
-                                        @if(!$producto->activo)
-                                            <span class="rounded-full bg-error/10 px-1.5 py-0.2 text-[9px] font-bold text-error">Inactivo</span>
+                                <div class="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                                    <!-- Thumbnail Foto del Plato -->
+                                    <div class="w-10 h-10 rounded-xl bg-surface-container-high overflow-hidden shrink-0 flex items-center justify-center border border-outline-variant/20 shadow-2xs">
+                                        @if($producto->imagen_url)
+                                            <img src="{{ $producto->imagen_url }}" alt="{{ $producto->nombre }}" class="w-full h-full object-cover">
+                                        @else
+                                            <span class="text-base leading-none">{{ $categoria->icono ?: '🍽️' }}</span>
                                         @endif
                                     </div>
-                                    <div class="flex items-center gap-2 mt-0.5">
-                                        <span class="rounded bg-surface-container-high px-1.5 py-0.2 text-[9px] text-on-surface-variant font-mono uppercase font-semibold">
-                                            {{ $producto->area_cocina }}
-                                        </span>
-                                        @if($producto->costo > 0)
-                                            <span class="text-[10px] text-on-surface-variant font-mono">
-                                                Costo: ${{ number_format((float) $producto->costo, 0, ',', '.') }}
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            <span class="text-xs font-bold text-on-surface truncate">{{ $producto->nombre }}</span>
+                                            @if(!$producto->activo)
+                                                <span class="rounded-full bg-error/10 px-1.5 py-0.2 text-[9px] font-bold text-error">Inactivo</span>
+                                            @endif
+                                        </div>
+                                        <div class="flex items-center gap-2 mt-0.5">
+                                            <span class="rounded bg-surface-container-high px-1.5 py-0.2 text-[9px] text-on-surface-variant font-mono uppercase font-semibold">
+                                                {{ $producto->area_cocina }}
                                             </span>
-                                        @endif
+                                            @if($producto->costo > 0)
+                                                <span class="text-[10px] text-on-surface-variant font-mono">
+                                                    Costo: ${{ number_format((float) $producto->costo, 0, ',', '.') }}
+                                                </span>
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
@@ -708,14 +735,79 @@ new class extends Component
                         ></textarea>
                     </div>
 
+                    <!-- Fotografía del Platillo (Referencia Visual para POS Táctil) -->
+                    <div class="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-3.5 space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-on-surface flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[18px] text-primary">add_photo_alternate</span>
+                                <span>Fotografía del Plato (Referencia POS Táctil):</span>
+                            </label>
+                            @if($imagenUpload || !empty($productoForm['imagen']))
+                                <button 
+                                    type="button" 
+                                    wire:click="$set('imagenUpload', null); $set('productoForm.imagen', '')"
+                                    class="text-[10px] font-bold text-error hover:underline cursor-pointer"
+                                >
+                                    ✕ Quitar foto
+                                </button>
+                            @endif
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <!-- Preview Box -->
+                            <div class="w-16 h-16 rounded-xl border border-outline-variant/40 bg-surface-container-lowest overflow-hidden shrink-0 flex items-center justify-center shadow-2xs relative">
+                                @if($imagenUpload)
+                                    <img src="{{ $imagenUpload->temporaryUrl() }}" alt="Preview" class="w-full h-full object-cover">
+                                @elseif(!empty($productoForm['imagen']))
+                                    @php
+                                        $previewUrl = (str_starts_with($productoForm['imagen'], 'http') || str_starts_with($productoForm['imagen'], '/'))
+                                            ? $productoForm['imagen'] 
+                                            : asset('storage/' . $productoForm['imagen']);
+                                    @endphp
+                                    <img src="{{ $previewUrl }}" alt="Preview" class="w-full h-full object-cover">
+                                @else
+                                    <span class="material-symbols-outlined text-[28px] text-on-surface-variant/40">image</span>
+                                @endif
+                            </div>
+
+                            <div class="flex-1 space-y-1.5 min-w-0">
+                                <!-- Upload Input -->
+                                <input 
+                                    type="file" 
+                                    wire:model="imagenUpload" 
+                                    accept="image/png,image/jpeg,image/webp" 
+                                    id="inputSubirImagenPlato"
+                                    class="block w-full text-[11px] text-on-surface-variant file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-primary file:text-on-primary hover:file:bg-primary-container cursor-pointer"
+                                />
+                                <div wire:loading wire:target="imagenUpload" class="text-[10px] text-primary font-bold animate-pulse">
+                                    Subiendo imagen...
+                                </div>
+                                @error('imagenUpload') <span class="text-xs text-error font-bold block">{{ $message }}</span> @enderror
+
+                                <!-- Or URL Input -->
+                                <div class="relative">
+                                    <input 
+                                        type="text" 
+                                        wire:model.live.debounce.300ms="productoForm.imagen" 
+                                        id="inputUrlImagenPlato"
+                                        placeholder="O escribe URL directa de imagen (https://...)" 
+                                        class="w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-2.5 py-1 text-[11px] text-on-surface placeholder:text-on-surface-variant/60 focus:border-primary focus:ring-0"
+                                    />
+                                </div>
+                                @error('productoForm.imagen') <span class="text-xs text-error font-bold block">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="text-xs font-bold text-on-surface-variant">Precio Venta al Público (COP):</label>
                             <div class="relative mt-1">
                                 <span class="absolute left-3 top-2.5 text-xs font-bold text-on-surface-variant">$</span>
                                 <input 
-                                    type="number" 
-                                    step="100" 
+                                    type="text" 
+                                    inputmode="decimal" 
+                                    data-miles data-decimales="0"
                                     min="0" 
                                     wire:model="productoForm.precio" 
                                     id="inputPrecioProducto"
@@ -730,8 +822,9 @@ new class extends Component
                             <div class="relative mt-1">
                                 <span class="absolute left-3 top-2.5 text-xs font-bold text-on-surface-variant">$</span>
                                 <input 
-                                    type="number" 
-                                    step="100" 
+                                    type="text" 
+                                    inputmode="decimal" 
+                                    data-miles data-decimales="0"
                                     min="0" 
                                     wire:model="productoForm.costo" 
                                     id="inputCostoProducto"

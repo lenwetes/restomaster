@@ -973,7 +973,7 @@ new class extends Component
 
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Cantidad de Puntos:</label>
-                        <input type="number" wire:model="puntosAjuste" min="1" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2.5 text-base font-bold text-on-surface font-mono" />
+                        <input type="text" inputmode="decimal" data-miles data-decimales="0" wire:model="puntosAjuste" min="1" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2.5 text-base font-bold text-on-surface font-mono" />
                     </div>
 
                     <div>

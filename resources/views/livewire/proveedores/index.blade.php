@@ -833,12 +833,12 @@ new class extends Component
                             </div>
                             <div class="col-span-3">
                                 <label class="text-xs font-bold text-on-surface-variant">Cantidad</label>
-                                <input type="number" step="0.001" min="0.01" wire:model="lineas.{{ $indice }}.cantidad"
+                                <input type="text" inputmode="decimal" data-miles data-decimales="3" min="0.01" wire:model="lineas.{{ $indice }}.cantidad"
                                     class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
                             </div>
                             <div class="col-span-3">
                                 <label class="text-xs font-bold text-on-surface-variant">Costo unit.</label>
-                                <input type="number" step="0.01" min="0" wire:model="lineas.{{ $indice }}.costo_unitario"
+                                <input type="text" inputmode="decimal" data-miles data-decimales="2" min="0" wire:model="lineas.{{ $indice }}.costo_unitario"
                                     class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
                             </div>
                             <div class="col-span-1">

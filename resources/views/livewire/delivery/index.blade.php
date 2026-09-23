@@ -717,7 +717,7 @@ new class extends Component
 
                     <div>
                         <label class="text-xs font-bold text-on-surface-variant">Monto Recibido ($ COP):</label>
-                        <input type="number" wire:model="montoRecibido" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2.5 text-base font-black text-on-surface font-mono" />
+                        <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="montoRecibido" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2.5 text-base font-black text-on-surface font-mono" />
                     </div>
                 </div>
 
@@ -778,7 +778,7 @@ new class extends Component
                         </div>
                         <div>
                             <label class="text-xs font-bold text-on-surface-variant">Costo Envío ($ COP):</label>
-                            <input type="number" wire:model="nuevoPedido.costo_envio" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface font-mono" />
+                            <input type="text" inputmode="decimal" data-miles data-decimales="2" wire:model="nuevoPedido.costo_envio" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low p-2 text-xs text-on-surface font-mono" />
                         </div>
                     </div>
 

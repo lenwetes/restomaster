@@ -76,4 +76,20 @@ class Producto extends Model
 
         return round($this->recetas->sum(fn ($receta) => $receta->costo_teorico), 2);
     }
+
+    /**
+     * Resuelve la URL pública de la imagen del producto (URL absoluta, path relativo o storage).
+     */
+    public function getImagenUrlAttribute(): ?string
+    {
+        if (empty($this->imagen)) {
+            return null;
+        }
+
+        if (str_starts_with($this->imagen, 'http://') || str_starts_with($this->imagen, 'https://') || str_starts_with($this->imagen, '/')) {
+            return $this->imagen;
+        }
+
+        return asset('storage/'.$this->imagen);
+    }
 }

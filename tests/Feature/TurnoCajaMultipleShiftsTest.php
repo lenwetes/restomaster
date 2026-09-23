@@ -8,6 +8,7 @@ use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\CajaService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Volt;
@@ -141,5 +142,56 @@ class TurnoCajaMultipleShiftsTest extends TestCase
         $t2 = $cajaService->abrirTurno($this->caja, $this->cajero, 80000.0);
         $this->assertSame('abierto', $t2->estado);
         $this->assertSame(2, TurnoCaja::where('caja_id', $this->caja->id)->count());
+    }
+
+    public function test_selector_cambia_turno_activo_entre_cajas(): void
+    {
+        $cajaService = app(CajaService::class);
+
+        $cajaBarra = Caja::create([
+            'sucursal_id' => $this->sucursal->id,
+            'nombre' => 'Caja Barra #02',
+            'codigo' => 'CAJ-02',
+            'activa' => true,
+        ]);
+
+        $turnoA = $cajaService->abrirTurno($this->caja, $this->cajero, 100000.0, 'Apertura salón');
+        $turnoB = $cajaService->abrirTurno($cajaBarra, $this->cajero, 50000.0, 'Apertura barra');
+
+        // El selector permite moverse entre turnos abiertos sin importar cuál tomó mount()
+        Volt::actingAs($this->cajero)
+            ->test('caja.control')
+            ->assertSee('Operando en:')
+            ->call('seleccionarTurno', $turnoA->id)
+            ->assertSet('turnoId', $turnoA->id)
+            ->assertSet('cajaSeleccionadaId', $this->caja->id)
+            ->assertSet('montoContado', 0.0)
+            ->call('seleccionarTurno', $turnoB->id)
+            ->assertSet('turnoId', $turnoB->id)
+            ->assertSet('cajaSeleccionadaId', $cajaBarra->id);
+    }
+
+    public function test_selector_rechaza_turno_de_otra_sucursal(): void
+    {
+        $sucursalB = Sucursal::create([
+            'nombre' => 'Sucursal Norte',
+            'direccion' => 'Calle 50 # 10-05',
+            'telefono' => '3009998877',
+            'activa' => true,
+        ]);
+        $cajaB = Caja::create([
+            'sucursal_id' => $sucursalB->id,
+            'nombre' => 'Caja Norte #01',
+            'codigo' => 'CAJ-N01',
+            'activa' => true,
+        ]);
+        $turnoB = app(CajaService::class)->abrirTurno($cajaB, $this->cajero, 70000.0, 'Apertura norte');
+
+        // Misma regla que obtenerTurnoValido: fuera de sucursal no existe (404).
+        $this->expectException(ModelNotFoundException::class);
+
+        Volt::actingAs($this->cajero)
+            ->test('caja.control')
+            ->call('seleccionarTurno', $turnoB->id);
     }
 }

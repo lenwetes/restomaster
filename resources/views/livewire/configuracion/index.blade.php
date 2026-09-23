@@ -16,10 +16,15 @@ new class extends Component
     public string $tabActiva = 'factura'; // 'factura', 'database', 'impresoras', 'dian', 'empresa', 'reservas', 'reset'
 
     public array $dianForm = [];
+
     public array $empresaForm = [];
+
     public array $reservasForm = [];
+
     public array $ticketForm = [];
+
     public array $dbForm = [];
+
     public array $impresoraForm = [
         'nombre' => '',
         'tipo_conexion' => 'red',
@@ -31,11 +36,15 @@ new class extends Component
         'activa' => true,
         'descripcion' => '',
     ];
+
     public ?int $impresoraEnEdicion = null;
+
     public bool $mostrarModalImpresora = false;
 
     public string $webhookToken = '';
+
     public array $testDbResultado = ['ok' => null, 'mensaje' => '', 'latencia_ms' => 0];
+
     public $archivoBackup = null;
 
     public function mount(): void
@@ -229,9 +238,16 @@ new class extends Component
     {
         $this->authorize('administrar-configuracion');
 
-        Artisan::call('restomaster:backup');
-        session()->flash('status', 'Copia de seguridad generada con éxito.');
-        $this->dispatch('notificacion', ['mensaje' => 'Backup de BD generado con éxito', 'tipo' => 'success']);
+        try {
+            Artisan::call('restomaster:backup');
+            Artisan::call('restomaster:backup-storage');
+            session()->flash('status', 'Copia de seguridad completa generada con éxito (base de datos + archivos).');
+            $this->dispatch('notificacion', ['mensaje' => 'Copia completa generada: BD + archivos', 'tipo' => 'success']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Fallo al generar copia de seguridad: '.$e->getMessage());
+            session()->flash('error', 'No se pudo completar la copia de seguridad. Revisa los registros del sistema.');
+            $this->dispatch('notificacion', ['mensaje' => 'Fallo al generar la copia de seguridad.', 'tipo' => 'error']);
+        }
     }
 
     public function eliminarBackup(string $nombre): void
@@ -259,32 +275,36 @@ new class extends Component
             ]);
         }
 
-        $contenido = (string) file_get_contents($this->archivoBackup->getRealPath());
-
-        // Solo se aceptan volcados generados por restomaster:backup (firma de cabecera).
-        abort_unless(
-            str_starts_with(ltrim($contenido), '-- RestoMaster POS Enterprise'),
-            422,
-            'El archivo no es un respaldo válido generado por el sistema.'
-        );
-
-        // Denylist de sentencias peligrosas fuera del formato de volcado (solo INSERT).
-        abort_if(
-            (bool) preg_match('/^\s*(DROP\s+DATABASE|CREATE\s+(USER|ROLE|EXTENSION)|ALTER\s+SYSTEM|COPY\s+.*FROM\s+PROGRAM|\\\\!)/mi', $contenido),
-            422,
-            'El archivo contiene sentencias no permitidas en un respaldo.'
-        );
+        $svc = app(ConfiguracionService::class);
 
         try {
-            DB::unprepared($contenido);
+            $svc->restaurarVolcadoSql($this->archivoBackup->getRealPath());
             $this->reset('archivoBackup');
             session()->flash('status', 'Base de datos restaurada exitosamente desde el archivo de respaldo.');
             $this->dispatch('notificacion', ['mensaje' => 'Respaldo importado y restaurado', 'tipo' => 'success']);
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Fallo al restaurar respaldo: '.$e->getMessage());
-            session()->flash('error', 'Error al restaurar: archivo inválido o corrupto.');
+            session()->flash('error', 'Error al restaurar: '.$e->getMessage());
             $this->dispatch('notificacion', ['mensaje' => 'Fallo al restaurar: archivo inválido o corrupto.', 'tipo' => 'error']);
         }
+    }
+
+    public function restaurarCopia(string $nombre): void
+    {
+        $this->authorize('administrar-configuracion');
+
+        try {
+            $svc = app(ConfiguracionService::class);
+            $mensaje = $svc->restaurarCopia($nombre);
+            session()->flash('status', $mensaje.' El sistema quedó operativo.');
+            $this->dispatch('notificacion', ['mensaje' => $mensaje, 'tipo' => 'success']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Fallo al restaurar copia: '.$e->getMessage());
+            session()->flash('error', 'No se pudo restaurar: '.$e->getMessage());
+            $this->dispatch('notificacion', ['mensaje' => 'Fallo al restaurar la copia.', 'tipo' => 'error']);
+        }
+
+        $this->redirect(route('configuracion'), navigate: true);
     }
 
     public array $impresorasDetectadasSO = [];
@@ -333,8 +353,8 @@ new class extends Component
         $svc = app(ImpresionService::class);
         $this->impresorasDetectadasSO = $svc->obtenerImpresorasInstaladasSO();
 
-        if (!empty($this->impresorasDetectadasSO)) {
-            $this->dispatch('notificacion', ['mensaje' => 'Se detectaron ' . count($this->impresorasDetectadasSO) . ' impresoras en el equipo', 'tipo' => 'success']);
+        if (! empty($this->impresorasDetectadasSO)) {
+            $this->dispatch('notificacion', ['mensaje' => 'Se detectaron '.count($this->impresorasDetectadasSO).' impresoras en el equipo', 'tipo' => 'success']);
             if (empty($this->impresoraForm['driver_nombre'])) {
                 $this->impresoraForm['driver_nombre'] = $this->impresorasDetectadasSO[0];
             }
@@ -384,7 +404,7 @@ new class extends Component
         $this->authorize('administrar-configuracion');
 
         $imp = Impresora::findOrFail($id);
-        $imp->update(['activa' => !$imp->activa]);
+        $imp->update(['activa' => ! $imp->activa]);
         $estado = $imp->activa ? 'activada' : 'desactivada';
         session()->flash('status', "Impresora '{$imp->nombre}' {$estado}.");
     }
@@ -430,6 +450,7 @@ new class extends Component
     public function with(): array
     {
         $svc = app(ConfiguracionService::class);
+
         return [
             'pieTicket' => $svc->obtener('impresion', 'pie_ticket', ''),
             'backups' => $svc->obtenerBackups(),
@@ -856,29 +877,48 @@ new class extends Component
                                 <span class="material-symbols-outlined text-primary">backup</span>
                                 Copias de Seguridad del Sistema
                             </h3>
-                            <p class="text-xs text-on-surface-variant">Archivos de volcado SQL estructurados listos para descarga.</p>
+                            <p class="text-xs text-on-surface-variant">Copia completa: base de datos (.sql) + archivos e imágenes (.zip).</p>
                         </div>
                         <button
                             type="button"
                             wire:click="crearBackup"
-                            class="rounded-xl bg-secondary px-3.5 py-2 text-xs font-black text-white shadow-sm hover:bg-secondary/90 cursor-pointer flex items-center gap-1"
+                            wire:loading.attr="disabled"
+                            class="rounded-xl bg-secondary px-3.5 py-2 text-xs font-black text-white shadow-sm hover:bg-secondary/90 disabled:opacity-60 cursor-pointer flex items-center gap-1"
                         >
                             <span class="material-symbols-outlined text-[16px]">add_circle</span>
-                            Crear Backup Ahora
+                            Crear Copia Completa
                         </button>
                     </div>
+                    <p wire:loading wire:target="crearBackup" class="text-[11px] font-bold text-on-surface-variant flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+                        Generando respaldo de BD + archivos, un momento…
+                    </p>
 
                     <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
                         @forelse($backups as $bk)
                             <div class="flex items-center justify-between p-3 rounded-2xl bg-surface-container-low border border-outline-variant/20">
                                 <div class="flex items-center gap-2.5">
-                                    <span class="material-symbols-outlined text-primary text-[22px]">description</span>
+                                    <span class="material-symbols-outlined text-primary text-[22px]">{{ ($bk['tipo'] ?? 'bd') === 'archivos' ? 'folder_zip' : 'description' }}</span>
                                     <div>
-                                        <p class="text-xs font-mono font-bold text-on-surface">{{ $bk['nombre'] }}</p>
+                                        <p class="text-xs font-mono font-bold text-on-surface flex items-center gap-1.5">
+                                            {{ $bk['nombre'] }}
+                                            <span class="rounded-full px-1.5 py-px text-[9px] font-black uppercase tracking-wide {{ ($bk['tipo'] ?? 'bd') === 'archivos' ? 'bg-tertiary/15 text-tertiary border border-tertiary/30' : 'bg-primary/10 text-primary border border-primary/25' }}">
+                                                {{ ($bk['tipo'] ?? 'bd') === 'archivos' ? 'Archivos' : 'BD' }}
+                                            </span>
+                                        </p>
                                         <p class="text-[10px] text-on-surface-variant">{{ $bk['fecha'] }} · {{ $bk['tamano_kb'] }} KB</p>
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-1">
+                                    <button
+                                        type="button"
+                                        wire:click="restaurarCopia('{{ $bk['nombre'] }}')"
+                                        wire:confirm="¿Restaurar esta copia? Los datos o archivos actuales serán reemplazados."
+                                        class="p-1.5 rounded-lg text-secondary hover:bg-secondary/10 cursor-pointer"
+                                        title="Restaurar esta copia"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px]">history</span>
+                                    </button>
                                     <button
                                         type="button"
                                         wire:click="eliminarBackup('{{ $bk['nombre'] }}')"
@@ -1250,7 +1290,7 @@ new class extends Component
                 </div>
                 <div>
                     <label class="text-xs font-bold text-on-surface-variant">Costo Base de Envío Delivery</label>
-                    <input type="number" step="100" wire:model="empresaForm.costo_envio_base" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" placeholder="8000" />
+                    <input type="text" inputmode="decimal" data-miles data-decimales="0" wire:model="empresaForm.costo_envio_base" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" placeholder="8000" />
                 </div>
             </div>
             <p class="text-[11px] text-on-surface-variant">Pie de ticket actual: <code class="font-mono bg-surface-container-low px-1.5 py-0.5 rounded">{{ $pieTicket }}</code></p>

@@ -19,12 +19,54 @@ class BackupDatabaseCommand extends Command
 
     protected $description = 'Genera un volcado estructurado de respaldo de la base de datos de RestoMaster con streaming y rotación';
 
+    /**
+     * Tablas cubiertas por el respaldo (y por la restauración automática).
+     * Ordenadas de padres a hijos para que el replay de INSERTs respete
+     * las llaves foráneas. Fuente única de verdad: también la usa
+     * ConfiguracionService::vaciarTablasRespaldo().
+     *
+     * @var list<string>
+     */
+    public const TABLAS = [
+        'roles',
+        'sucursales',
+        'categorias',
+        'categoria_insumos',
+        'proveedores',
+        'clientes',
+        'configuraciones',
+        'insumos',
+        'users',
+        'mesas',
+        'productos',
+        'cajas',
+        'impresoras',
+        'permission_user',
+        'direcciones_cliente',
+        'compras',
+        'cuentas_por_pagar',
+        'reservas',
+        'asientos_contables',
+        'auditorias',
+        'pedidos',
+        'recetas',
+        'turnos_caja',
+        'reserva_mesa',
+        'compra_lineas',
+        'movimientos_inventario',
+        'items_pedido',
+        'movimientos_caja',
+        'movimientos_puntos',
+        'trabajos_impresion',
+        'pagos_cxps',
+    ];
+
     public function handle(): int
     {
         $this->info('Iniciando respaldo seguro de base de datos RestoMaster...');
         $inicio = microtime(true);
 
-        $backupDir = storage_path('app/backups');
+        $backupDir = config('backup.path', storage_path('app/backups'));
         if (! File::exists($backupDir)) {
             File::makeDirectory($backupDir, 0755, true);
         }
@@ -44,34 +86,7 @@ class BackupDatabaseCommand extends Command
         }
 
         // Respaldo streaming mediante cursores (bajo uso de memoria y sin desbordamiento)
-        $tablasPorDefecto = [
-            'users',
-            'roles',
-            'sucursales',
-            'mesas',
-            'categorias',
-            'productos',
-            'insumos',
-            'recetas',
-            'movimientos_inventario',
-            'pedidos',
-            'items_pedido',
-            'cajas',
-            'turnos_caja',
-            'movimientos_caja',
-            'asientos_contables',
-            'cuentas_por_pagar',
-            'pagos_cxps',
-            'clientes',
-            'direcciones_cliente',
-            'movimientos_puntos',
-            'reservas',
-            'reserva_mesa',
-            'configuraciones',
-            'impresoras',
-            'trabajos_impresion',
-            'auditorias',
-        ];
+        $tablasPorDefecto = self::TABLAS;
 
         if ($this->option('tablas')) {
             $tablas = array_map('trim', explode(',', $this->option('tablas')));
