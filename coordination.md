@@ -6,6 +6,15 @@
 ---
 
 ## Última Actualización
+2026-09-22 | Antigravity | 🐳 **FIX BUILD DOCKER / COOLIFY: TLS ERROR EN APKINDEX & TIMEOUTS** (`Dockerfile`):
+- **Diagnóstico del Fallo en Deploy:** Durante el step de construcción de extensiones PHP (`install-php-extensions`), `apk update` intentaba contactar `https://dl-cdn.alpinelinux.org/alpine/v3.24/...` arrojando `TLS: unspecified error` tras 60s de timeout por cada repositorio, fallando el deploy con exit code 2. Causado por la ausencia de `ca-certificates` en la imagen base minimalista `php:8.3-fpm-alpine` combinada con timeouts/handshake TLS sobre HTTPS en la red de BuildKit.
+- **Solución Implementada:**
+  1. Configuración de repositorios Alpine a HTTP (`sed -i 's/https/http/g' /etc/apk/repositories`), eliminando los cuellos de botella de handshake TLS en BuildKit mientras se preserva al 100% la seguridad criptográfica (Alpine valida las firmas digitales RSA de cada paquete en `/etc/apk/keys/`).
+  2. Inclusión de `ca-certificates` y ejecución de `update-ca-certificates` para garantizar soporte SSL/TLS robusto en tiempo de ejecución.
+  3. Eliminación de `opcache` redundante en los argumentos de `install-php-extensions` (ya viene preinstalado en `php:8.3-fpm-alpine`).
+
+---
+## Actualización previa
 2026-09-22 | OpenCode | 💵 **SELECTOR DE TURNO/CAJA EN ARQUEO Y CIERRE** (`caja/control.blade.php`, diseño aprobado):
 - **Problema:** `mount()` tomaba el turno abierto más reciente sin preguntar y no había forma de cambiarlo; movimientos, arqueo y cierre caían sobre ese turno silencioso (riesgo de cerrar la caja equivocada con 2+ activas).
 - **Cambios:** `with()` expone `turnosAbiertos` (alcance sucursal, con caja/cajero/conteo movs); método `seleccionarTurno(id)` valida abierto + alcance (misma regla que `obtenerTurnoValido`, `firstOrFail`), sincroniza `turnoId`/`cajaSeleccionadaId` y limpia conteo; segmented control táctil "Operando en:" (solo si >1 abierto) con código caja·cajero·hora·#movs; modal de cierre con badge de código de caja explícito.

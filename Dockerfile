@@ -38,16 +38,20 @@ FROM php:8.3-fpm-alpine
 LABEL maintainer="Sushixpress <soporte@sushixpress.com>"
 LABEL description="Sushixpress Enterprise POS & Management Container for Coolify"
 
+# Configure Alpine repositories to use HTTP (prevents TLS handshake timeouts / IPv6 CDN drop issues in Docker build)
+# and install base system dependencies including ca-certificates
+RUN sed -i 's/https/http/g' /etc/apk/repositories && \
+    apk add --no-cache \
+        ca-certificates \
+        nginx \
+        supervisor \
+        curl \
+        postgresql-client && \
+    update-ca-certificates && \
+    adduser nginx www-data
+
 # Copy install-php-extensions helper
 COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
-
-# Install system dependencies
-RUN apk add --no-cache \
-    nginx \
-    supervisor \
-    curl \
-    postgresql-client && \
-    adduser nginx www-data
 
 # Configure and install PHP extensions via install-php-extensions
 RUN chmod +x /usr/local/bin/install-php-extensions && \
@@ -58,7 +62,6 @@ RUN chmod +x /usr/local/bin/install-php-extensions && \
         gd \
         zip \
         intl \
-        opcache \
         sockets \
         pcntl
 
