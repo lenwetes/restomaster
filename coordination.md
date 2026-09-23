@@ -6,6 +6,19 @@
 ---
 
 ## Última Actualización
+2026-09-22 | Antigravity | 🐳 **FIX BUILD DOCKER / COOLIFY: COMPILACIÓN NATIVA PHP & SOLUCIÓN A "SOCKET NOT CONNECTED"** (`Dockerfile`):
+- **Diagnóstico del Fallo en Deploy:**
+  1. Durante el step `install-php-extensions`, el script intentaba actualizar PECL y luego invocaba `apk update` contra `http://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/APKINDEX.tar.gz`.
+  2. Debido a problemas de Anycast CDN / rate-limiting / drops de IPv6 en el daemon Docker de Coolify, la conexión arrojó `WARNING: updating ... APKINDEX.tar.gz: Socket not connected` tras 60s de timeout, fallando con exit code 1.
+  3. `install-php-extensions` además realizaba llamadas redundantes a canales externos (PECL, GitHub) cuando todas las extensiones requeridas (`pdo_pgsql`, `pgsql`, `bcmath`, `gd`, `zip`, `intl`, `sockets`, `pcntl`, `opcache`) son extensiones oficiales nativas del core de PHP.
+- **Solución Implementada:**
+  1. **Compilación Nativa:** Reemplazado `install-php-extensions` por las utilidades oficiales nativas `docker-php-ext-configure` y `docker-php-ext-install -j$(nproc)`, compilando directamente desde `/usr/src/php.tar.xz` sin peticiones de red a PECL ni descargas externas.
+  2. **Unificación Atómica:** Se consolidaron las dependencias del sistema y los paquetes virtuales de compilación (`.build-deps`) en una única capa `RUN`, eliminando ejecuciones secundarias de `apk update`.
+  3. **Espejo Directo + Reintentos:** Se configuró el repositorio apuntando a `dl-4.alpinelinux.org` (espejo directo de LeaseWeb de alta velocidad) y se añadió la bandera `--retries 3` a `apk` para máxima tolerancia a fallas de red en BuildKit.
+  4. **Purga Inmediata:** Se ejecuta `apk del --no-network .build-deps` al concluir la compilación para mantener la imagen ligera y sin herramientas de desarrollo en producción.
+
+---
+## Actualización previa
 2026-09-22 | Antigravity | 🐳 **FIX BUILD DOCKER / COOLIFY: TLS ERROR EN APKINDEX & TIMEOUTS** (`Dockerfile`):
 - **Diagnóstico del Fallo en Deploy:** Durante el step de construcción de extensiones PHP (`install-php-extensions`), `apk update` intentaba contactar `https://dl-cdn.alpinelinux.org/alpine/v3.24/...` arrojando `TLS: unspecified error` tras 60s de timeout por cada repositorio, fallando el deploy con exit code 2. Causado por la ausencia de `ca-certificates` en la imagen base minimalista `php:8.3-fpm-alpine` combinada con timeouts/handshake TLS sobre HTTPS en la red de BuildKit.
 - **Solución Implementada:**

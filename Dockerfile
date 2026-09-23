@@ -38,24 +38,34 @@ FROM php:8.3-fpm-alpine
 LABEL maintainer="Sushixpress <soporte@sushixpress.com>"
 LABEL description="Sushixpress Enterprise POS & Management Container for Coolify"
 
-# Configure Alpine repositories to use HTTP (prevents TLS handshake timeouts / IPv6 CDN drop issues in Docker build)
-# and install base system dependencies including ca-certificates
+# Configure Alpine repositories to use HTTP and direct mirror (prevents CDN socket disconnects / IPv6 drop),
+# install runtime packages and build dependencies,
+# compile PHP extensions natively with docker-php-ext-install (eliminating PECL & mlocati network overhead),
+# and purge build dependencies in a single atomic layer.
 RUN sed -i 's/https/http/g' /etc/apk/repositories && \
-    apk add --no-cache \
+    sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories && \
+    apk --retries 3 add --no-cache \
         ca-certificates \
         nginx \
         supervisor \
         curl \
-        postgresql-client && \
-    update-ca-certificates && \
-    adduser nginx www-data
-
-# Copy install-php-extensions helper
-COPY --from=mlocati/php-extension-installer:latest /usr/bin/install-php-extensions /usr/local/bin/
-
-# Configure and install PHP extensions via install-php-extensions
-RUN chmod +x /usr/local/bin/install-php-extensions && \
-    install-php-extensions \
+        postgresql-client \
+        libpq \
+        freetype \
+        libjpeg-turbo \
+        libpng \
+        libzip \
+        icu-libs && \
+    apk --retries 3 add --no-cache --virtual .build-deps \
+        $PHPIZE_DEPS \
+        postgresql-dev \
+        freetype-dev \
+        libjpeg-turbo-dev \
+        libpng-dev \
+        libzip-dev \
+        icu-dev && \
+    docker-php-ext-configure gd --with-freetype --with-jpeg && \
+    docker-php-ext-install -j$(nproc) \
         pdo_pgsql \
         pgsql \
         bcmath \
@@ -63,7 +73,11 @@ RUN chmod +x /usr/local/bin/install-php-extensions && \
         zip \
         intl \
         sockets \
-        pcntl
+        pcntl \
+        opcache && \
+    apk del --no-network .build-deps && \
+    update-ca-certificates && \
+    adduser nginx www-data
 
 # Copy composer binary from composer stage for maintenance tasks
 COPY --from=composer-builder /usr/bin/composer /usr/bin/composer
