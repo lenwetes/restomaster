@@ -6,6 +6,13 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🐳 **YML COOLIFY + PUSH A AMBAS RAMAS** (`docker-compose.yml`, commit `182527a` en master y main):
+- **Error Coolify:** "Compose file not found at /docker-compose.yml (branch main)" — el archivo SÍ existe en ambas ramas con nombre exacto; es probable desajuste de settings (ruta con `/` inicial, rama o caché del recurso). Se reescribió el yml optimizado para Coolify de todos modos.
+- **Cambios del yml:** sin `ports:` en app (el proxy de Coolify enruta al 80; publicarlos interfiere), sin red custom ni labels (red default), `APP_KEY`/`DB_PASSWORD` con `:?` (falla rápido con mensaje claro), healthcheck del app, postgres 18-alpine (paridad con dev), volúmenes persistentes (storage + pgdata), `depends_on` healthy.
+- **Push:** commit `182527a` (yml + curva 24h + tests) pusheado a `origin/master` y `origin/main` (ff hasta master). Coolify debe reconstruir desde main.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 📊 **CURVA DE VENTAS VACÍA DE MADRUGADA** (`DashboardService::ventasPorHora`, diseño aprobado):
 - **Veredicto:** el render funciona; no mostraba nada porque las franjas eran fijas 08:00-23:00 y todas las ventas recientes son de 01:00-02:00 ($1.76M invisibles). Evidencia: agregación por hora en BD.
 - **Fix:** franjas 00:00-23:00 (1 línea + comentario); la vista itera genérico, pico/tooltips intactos.
