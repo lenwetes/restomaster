@@ -57,6 +57,40 @@ document.addEventListener('alpine:init', initSidebarStore);
 document.addEventListener('livewire:navigated', initSidebarStore);
 
 //
+// Cobro rápido POS: al abrir el cobro (o elegir efectivo/mixto) se enfoca
+// y selecciona la caja de "Monto Entregado" para el cajero.
+// Sin x-data en el input para no interferir con el morph de Livewire.
+//
+const enfocarMontoEntregado = () => {
+    const input = document.querySelector('input[data-monto-entregado]');
+    if (!input || document.activeElement === input) {
+        return;
+    }
+    if (typeof input.focus === 'function') {
+        try {
+            input.focus({ preventScroll: true });
+        } catch (_) {
+            input.focus();
+        }
+    }
+    try {
+        input.select();
+    } catch (_) {
+        // Inputs no seleccionables: se ignora sin romper.
+    }
+};
+
+const engancharEnfoqueMonto = () => {
+    if (window.Livewire && typeof window.Livewire.on === 'function') {
+        window.Livewire.on('enfocar-monto', enfocarMontoEntregado);
+    } else {
+        window.setTimeout(engancharEnfoqueMonto, 300);
+    }
+};
+engancharEnfoqueMonto();
+document.addEventListener('livewire:navigated', engancharEnfoqueMonto);
+
+//
 // Mejora táctil de inputs numéricos (RestoMaster):
 //  1) Autoselección: al enfocar un input numérico se selecciona el valor
 //     para reemplazarlo de un toque (pantallas táctiles / POS).

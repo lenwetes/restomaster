@@ -6,6 +6,22 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🎫 **HISTORIAL DE TICKETS COBRADOS POR TURNO** (`caja/control.blade.php`, diseño aprobado):
+- **Veredicto Fase 1 (sin bug de registro):** todo ticket reciente tiene `turno_caja_id` (cero huérfanos); turno 1 = 784+0+239+52+541 = $1.616.000 exactos en pantalla; turno 2 = 700+280 = $980k. `movimientos_caja` turno 1 = 0 → la tabla vacía estaba correcta (solo muestra movimientos manuales). Lo faltante era la lista de tickets.
+- **Cambios:** `with()` eager-load `pedidos` (orden `pagado_en`, con mesa+usuario); tarjeta "Tickets Cobrados del Turno · {codigo}" (hora, ticket, mesa/cliente, método, cambio, total + contador y suma); sigue al selector de turno; vacía con "Aún no hay tickets cobrados".
+- **Tests:** historial por turno + seguimiento del selector (7/7 en MultipleShifts). Regresión caja 36/36. Pint OK.
+- **Pendiente usuario:** validar en caja real el fix de monto POS (debounce+autofocus) y el desglose de los $780k de mesa 5.
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 🧾 **INVESTIGACIÓN TICKET POS MESA 5 + FIXES COBRO** (skill systematic-debugging):
+- **Bug suma ($700k vs $780k esperados): SIN BUG — evidencia:** pedido 85 (mesa 5) tiene 8 ítems; `precio_unitario` guardado == `productos.precio` en los 8 (sin drift); suma líneas = 700.000 = `pedidos.total` = pantalla. Desglose: 54+348+18+34+68+38+36+104. No se tocó el cálculo. Falta el desglose del usuario de los 780k para continuar.
+- **Bug cambio lento + dígitos que se borran: causa raíz** `wire:model.live` SIN debounce en `montoPagado`/`montoEfectivoMixto` → roundtrip por tecla; la respuesta tarda segundos (cambio lag) y el morph sobrescribe lo digitado (borrado). Precedente funcional: `montoPropina` ya usa `.debounce.300ms`. **Fix:** `.live.debounce.500ms` en ambos. Descartados: `__get` que resetea a 0.0 es código muerto (props públicas, nunca se invoca), no hay `wire:poll` en POS, la máscara miles no dispara eventos al formatear.
+- **Autofocus cobro:** evento `enfocar-monto` desde `abrirModalCobro` y al elegir efectivo/mixto + listener en `app.js` que enfoca/selecciona `input[data-monto-entregado]` (sin x-data para no romper el morph de botones Exacto/$20k/$50k/$100k). Bundle reconstruido.
+- **Verificación:** suites POS 68/72; los 4 fallos son drift visual preexistente (probado 0/4 con mi cambio revertido vía stash: botón nuevo producto, barra categorías, dropdown mesero, wrapping switcher — del rediseño POS en curso). Pint del blade: solo drift preexistente, no tocado.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🐳 **FIX DEPLOY COOLIFY: `linux/sock_diag.h` faltante al compilar ext `sockets`** (`Dockerfile`, 1 línea):
 - **Causa:** `docker-php-ext-install sockets` en Alpine necesita headers del kernel (`linux/sock_diag.h`) que provee el paquete `linux-headers`, ausente en `.build-deps` → `fatal error` + exit 2. (`pcntl` se conserva: supervisord corre `queue:work`; `sockets` se conserva aunque `fsockopen` de impresoras no lo exige, para no cambiar el alcance).
 - **Fix:** `linux-headers \` agregado al `apk add` (solo compile-time; `apk del .build-deps` lo purga, no queda en runtime).

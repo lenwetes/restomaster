@@ -403,7 +403,7 @@ new class extends Component
 
     public function with(): array
     {
-        $turnoActivo = $this->turnoId ? TurnoCaja::with(['caja.sucursal', 'cajero', 'movimientos.usuario'])->withCount('pedidos')->find($this->turnoId) : null;
+        $turnoActivo = $this->turnoId ? TurnoCaja::with(['caja.sucursal', 'cajero', 'movimientos.usuario', 'pedidos' => fn ($q) => $q->orderByDesc('pagado_en')->orderByDesc('id'), 'pedidos.mesa', 'pedidos.usuario'])->withCount('pedidos')->find($this->turnoId) : null;
         $cajas = Caja::where('activa', true)->get();
         $ultimosTurnos = TurnoCaja::with(['caja', 'cajero'])->latest()->take(5)->get();
 
@@ -677,6 +677,54 @@ new class extends Component
                     <span class="text-[10px] font-mono">Fondo + Ef. Ventas + Ingresos - Egresos</span>
                     <span class="text-[10px] font-bold text-on-secondary-container bg-secondary-container/50 px-2 py-0.5 rounded">Cuadre Automático</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- TICKETS COBRADOS DEL TURNO (ventas registradas en esta caja) -->
+        <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px] text-secondary">receipt_long</span>
+                    <h3 class="text-sm font-extrabold text-on-surface">Tickets Cobrados del Turno · {{ $turno->caja->codigo }}</h3>
+                </div>
+                <span class="text-xs font-mono text-on-surface-variant">
+                    {{ $turno->pedidos->count() }} tickets · ${{ number_format($turno->pedidos->sum('total'), 2) }}
+                </span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-surface-container-high text-on-surface-variant uppercase text-[10px] tracking-wider bg-surface-container-low">
+                            <th class="py-3 px-3 rounded-l-xl">Hora</th>
+                            <th class="py-3 px-3">Ticket</th>
+                            <th class="py-3 px-3">Mesa / Cliente</th>
+                            <th class="py-3 px-3">Método</th>
+                            <th class="py-3 px-3">Cambio</th>
+                            <th class="py-3 px-3 text-right rounded-r-xl">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-surface-container-high font-medium">
+                        @forelse($turno->pedidos as $ticket)
+                            <tr class="hover:bg-surface-container-low/60 transition-colors">
+                                <td class="py-2.5 px-3 font-mono text-on-surface-variant">{{ $ticket->pagado_en?->format('H:i') ?? $ticket->created_at->format('H:i') }}</td>
+                                <td class="py-2.5 px-3 font-mono font-bold text-on-surface">{{ $ticket->codigo ?? ('#'.$ticket->id) }}</td>
+                                <td class="py-2.5 px-3 text-on-surface">{{ $ticket->mesa?->numero ? 'Mesa '.$ticket->mesa->numero : ($ticket->nombre_cliente ?? 'Mostrador') }}</td>
+                                <td class="py-2.5 px-3">
+                                    <span class="rounded-full px-2 py-0.5 text-[10px] font-black uppercase bg-surface-container-high text-on-surface-variant">{{ $ticket->metodo_pago ?? '—' }}</span>
+                                </td>
+                                <td class="py-2.5 px-3 font-mono text-on-surface-variant">${{ number_format((float) $ticket->cambio, 2) }}</td>
+                                <td class="py-2.5 px-3 text-right font-mono font-black text-secondary">${{ number_format((float) $ticket->total, 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="py-8 px-3 text-center text-on-surface-variant text-xs font-medium">
+                                    Aún no hay tickets cobrados en este turno.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
 

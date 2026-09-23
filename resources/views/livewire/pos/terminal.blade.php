@@ -530,6 +530,10 @@ new class extends Component
         if (strtolower((string) $value) !== 'mixto') {
             $this->montoEfectivoMixto = 0.0;
         }
+
+        if (in_array(strtolower((string) $value), ['efectivo', 'mixto'], true)) {
+            $this->dispatch('enfocar-monto');
+        }
     }
 
     public function enviarACocina(): void
@@ -756,6 +760,7 @@ new class extends Component
         $this->porcentajePropina = 0.0;
         $this->montoPagado = $this->total;
         $this->mostrarModalCobro = true;
+        $this->dispatch('enfocar-monto');
     }
 
     public function abrirModalAperturaPosManual(): void
@@ -3195,7 +3200,7 @@ new class extends Component
                                 data-miles data-decimales="0"
                                 min="0"
                                 max="{{ (int) $this->total }}"
-                                wire:model.live="montoEfectivoMixto"
+                                wire:model.live.debounce.500ms="montoEfectivoMixto"
                                 class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
                             />
                             <p class="mt-1 text-[10px] font-semibold text-on-surface-variant">
@@ -3212,7 +3217,8 @@ new class extends Component
                                 type="text" 
                                 inputmode="decimal" 
                                 data-miles data-decimales="0"
-                                wire:model.live="montoPagado" 
+                                data-monto-entregado
+                                wire:model.live.debounce.500ms="montoPagado" 
                                 class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
                             />
 

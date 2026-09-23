@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Caja;
+use App\Models\Pedido;
 use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\TurnoCaja;
@@ -193,5 +194,54 @@ class TurnoCajaMultipleShiftsTest extends TestCase
         Volt::actingAs($this->cajero)
             ->test('caja.control')
             ->call('seleccionarTurno', $turnoB->id);
+    }
+
+    public function test_historial_muestra_tickets_cobrados_del_turno_seleccionado(): void
+    {
+        $cajaBarra = Caja::create([
+            'sucursal_id' => $this->sucursal->id,
+            'nombre' => 'Caja Barra #02',
+            'codigo' => 'CAJ-02',
+            'activa' => true,
+        ]);
+
+        $cajaService = app(CajaService::class);
+        $turnoA = $cajaService->abrirTurno($this->caja, $this->cajero, 100000.0, 'Apertura salón');
+        $turnoB = $cajaService->abrirTurno($cajaBarra, $this->cajero, 50000.0, 'Apertura barra');
+
+        Pedido::create([
+            'sucursal_id' => $this->sucursal->id,
+            'usuario_id' => $this->cajero->id,
+            'turno_caja_id' => $turnoA->id,
+            'codigo' => 'TKA-001',
+            'tipo' => 'mostrador',
+            'estado' => 'pagado',
+            'subtotal' => 50000.00,
+            'total' => 50000.00,
+            'metodo_pago' => 'efectivo',
+            'pagado_en' => now(),
+        ]);
+        Pedido::create([
+            'sucursal_id' => $this->sucursal->id,
+            'usuario_id' => $this->cajero->id,
+            'turno_caja_id' => $turnoB->id,
+            'codigo' => 'TKB-001',
+            'tipo' => 'mostrador',
+            'estado' => 'pagado',
+            'subtotal' => 30000.00,
+            'total' => 30000.00,
+            'metodo_pago' => 'tarjeta',
+            'pagado_en' => now(),
+        ]);
+
+        Volt::actingAs($this->cajero)
+            ->test('caja.control')
+            ->call('seleccionarTurno', $turnoA->id)
+            ->assertSee('Tickets Cobrados del Turno')
+            ->assertSee('TKA-001')
+            ->assertDontSee('TKB-001')
+            ->call('seleccionarTurno', $turnoB->id)
+            ->assertSee('TKB-001')
+            ->assertDontSee('TKA-001');
     }
 }
