@@ -6,6 +6,14 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🐳 **FIX POSTGRES UNHEALTHY EN COOLIFY** (`docker-compose.yml`, commit `9e27df0` en ambas ramas):
+- **Síntoma:** imagen compila OK, pero `up -d` falla con `postgres ... is unhealthy` al instante (exit del dependency gate).
+- **Causa probable:** `pg_isready` sin password por TCP falla con auth scram + `start_period` de 10s corto para initdb.
+- **Fix:** healthcheck con `PGPASSWORD` explícita desde el entorno del contenedor (`$$` escapado para Compose), host TCP 127.0.0.1, `retries: 12` y `start_period: 30s`.
+- **Si persiste:** revisar en Coolify los Logs del servicio postgres (causa exacta) y que `DB_PASSWORD` esté definida y sin `$` (rompe la interpolación de Compose).
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | ✅ **GITHUB VERIFICADO: AMBAS RAMAS AL DÍA** (`main` y `master` en `a282d6a`, `docker-compose.yml` nuevo en raíz de ambas — comprobado con `ls-remote` + `show`).
 - El error "Compose file not found at: /docker-compose.yml" es lado Coolify (el mensaje muestra la ruta CON slash inicial → el setting probablemente tiene `/docker-compose.yml` y debe ser `docker-compose.yml` relativo). Pendiente: ajuste en UI de Coolify + Redeploy por el usuario.
 
