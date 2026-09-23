@@ -6,6 +6,14 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🐳 **FIX DEPLOY COOLIFY: `linux/sock_diag.h` faltante al compilar ext `sockets`** (`Dockerfile`, 1 línea):
+- **Causa:** `docker-php-ext-install sockets` en Alpine necesita headers del kernel (`linux/sock_diag.h`) que provee el paquete `linux-headers`, ausente en `.build-deps` → `fatal error` + exit 2. (`pcntl` se conserva: supervisord corre `queue:work`; `sockets` se conserva aunque `fsockopen` de impresoras no lo exige, para no cambiar el alcance).
+- **Fix:** `linux-headers \` agregado al `apk add` (solo compile-time; `apk del .build-deps` lo purga, no queda en runtime).
+- **Estado:** cambio sin commitear en el árbol; pendiente decisión de commit/push a `main` (dispara build en Coolify). Sin Docker local no se pudo compilar para verificar; el fix es el documentado para este error exacto.
+- **Nota de sesión:** el árbol había quedado limpio porque el trabajo previo de ambos agentes se consolidó en `eafba77`; `master`/`main`/`origin/main` están alineados en `f8f7930`.
+
+---
+## Actualización previa
 2026-09-22 | Antigravity | 🐳 **FIX BUILD DOCKER / COOLIFY: COMPILACIÓN NATIVA PHP & SOLUCIÓN A "SOCKET NOT CONNECTED"** (`Dockerfile`):
 - **Diagnóstico del Fallo en Deploy:**
   1. Durante el step `install-php-extensions`, el script intentaba actualizar PECL y luego invocaba `apk update` contra `http://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/APKINDEX.tar.gz`.
