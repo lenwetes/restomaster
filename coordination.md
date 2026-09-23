@@ -6,6 +6,11 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🐳 **ESPEJO docker-compose.yaml** (el setting de Coolify cambió a `.yaml` y el repo tenía `.yml`):
+- Agregado `docker-compose.yaml` idéntico (con aviso de editar solo el `.yml`). Ahora cualquiera de las dos extensiones en el setting resuelve.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🐳 **COMPOSE MODO DEMO: todo por defecto, cero-fricción** (a petición explícita, credenciales débiles expuestas solo para demo):
 - `APP_KEY` generada fija, `DB_PASSWORD=RestoDemo2026DB`, `DEMO_USERS_PASSWORD=RestoDemo2026`, `AUTO_SEED_DEMO=true` por defecto (demo autocargada al arrancar). Todo sobreescribible por entorno. Login demo: admin@restomaster.com / RestoDemo2026.
 

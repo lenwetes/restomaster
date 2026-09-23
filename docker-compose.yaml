@@ -1,0 +1,93 @@
+# ============================================================================== #
+# ESPEJO de docker-compose.yml (contenido idéntico).
+# Existe solo porque Coolify valida la extensión del campo "Docker compose
+# location" (.yaml vs .yml). Editar SIEMPRE docker-compose.yml y copiarlo aquí.
+# ============================================================================== #
+# RestoMaster — Docker Compose para DEMOS (cero-fricción)
+# ==============================================================================
+# Despliegue de demostración: todo trae valor por defecto y arranca solo.
+# Las credenciales están EXPUESTAS a propósito: entorno demo desechable.
+# NO reutilizar estas claves en ningún entorno real.
+#
+# Uso: docker compose up -d --build
+# Demo lista (catálogo + imágenes + turno + pedidos): AUTO_SEED_DEMO=true
+# Login demo: admin@restomaster.com / RestoDemo2026
+# ==============================================================================
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: restomaster-app:latest
+    restart: unless-stopped
+    expose:
+      - "80"
+    # Acceso directo por IP (sin dominio).
+    ports:
+      - "${APP_PORT:-8004}:80"
+    environment:
+      APP_NAME: "${APP_NAME:-RestoMaster}"
+      APP_ENV: "${APP_ENV:-production}"
+      APP_KEY: "${APP_KEY:-base64:OIaafMsMLyvSWKf1Rl6DMM9MJ89XtjbB2m4bGvaKZb8=}"
+      APP_DEBUG: "${APP_DEBUG:-false}"
+      APP_URL: "${APP_URL:-http://localhost:8004}"
+      LOG_CHANNEL: "${LOG_CHANNEL:-stderr}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+
+      # Base de datos PostgreSQL (servicio postgres de este mismo compose)
+      DB_CONNECTION: pgsql
+      DB_HOST: "${DB_HOST:-postgres}"
+      DB_PORT: "${DB_PORT:-5432}"
+      DB_DATABASE: "${DB_DATABASE:-restomaster}"
+      DB_USERNAME: "${DB_USERNAME:-adminresto}"
+      DB_PASSWORD: "${DB_PASSWORD:-RestoDemo2026DB}"
+
+      # Sesión / cola / caché
+      SESSION_DRIVER: "${SESSION_DRIVER:-database}"
+      SESSION_LIFETIME: "${SESSION_LIFETIME:-120}"
+      SESSION_SECURE_COOKIE: "${SESSION_SECURE_COOKIE:-false}"
+      QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"
+      CACHE_STORE: "${CACHE_STORE:-file}"
+
+      # Automatización al arrancar el contenedor
+      AUTO_MIGRATE: "${AUTO_MIGRATE:-true}"
+      AUTO_SEED: "${AUTO_SEED:-false}"
+      AUTO_SEED_DEMO: "${AUTO_SEED_DEMO:-true}"
+      DEMO_USERS_PASSWORD: "${DEMO_USERS_PASSWORD:-RestoDemo2026}"
+      OPTIMIZE_CACHE: "${OPTIMIZE_CACHE:-true}"
+    volumes:
+      - storage_app:/var/www/html/storage/app
+      - storage_logs:/var/www/html/storage/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "${DB_DATABASE:-restomaster}"
+      POSTGRES_USER: "${DB_USERNAME:-adminresto}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-RestoDemo2026DB}"
+    volumes:
+      - postgres_data_v18:/var/lib/postgresql
+    healthcheck:
+      # Con password explícita (auth scram por TCP) + gracia amplia para initdb en discos lentos.
+      # OJO: $$ escapa el $ para que Compose NO lo interpole y llegue literal al shell del contenedor.
+      test: ["CMD-SHELL", "PGPASSWORD=\"$$POSTGRES_PASSWORD\" pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1"]
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  postgres_data_v18:
+  storage_app:
+  storage_logs:
