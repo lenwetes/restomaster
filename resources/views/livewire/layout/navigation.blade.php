@@ -311,7 +311,7 @@ new class extends Component
 
             @auth
                 <!-- User Profile Badge & Dropdown -->
-                <x-dropdown align="right" width="56">
+                <x-dropdown align="right" width="56" contentClasses="py-1 bg-surface-container-lowest">
                     <x-slot name="trigger">
                         <button class="inline-flex h-10 items-center gap-2 rounded-full bg-surface-container-low pl-2 pr-3 py-1 border border-surface-container-highest hover:bg-surface-container transition-colors">
                             <div class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-xs uppercase shadow-sm">
@@ -326,21 +326,21 @@ new class extends Component
                     </x-slot>
 
                     <x-slot name="content">
-                        <div class="px-4 py-2 text-xs border-b border-surface-container-highest bg-surface-container-low">
+                        <div class="px-4 py-3 text-xs border-b border-surface-container-highest bg-surface-container-low">
                             <p class="font-bold text-on-surface">{{ Auth::user()->name }}</p>
                             <p class="text-on-surface-variant truncate">{{ Auth::user()->email }}</p>
-                            <span class="mt-1 inline-block rounded bg-primary-container px-1.5 py-0.5 text-[10px] font-bold text-on-primary uppercase">
+                            <span class="mt-1.5 inline-block rounded-md bg-primary-container px-1.5 py-0.5 text-[10px] font-bold text-on-primary-container uppercase tracking-wide">
                                 {{ Auth::user()->role?->nombre ?? 'Usuario' }}
                             </span>
                         </div>
 
-                        <x-dropdown-link :href="route('profile')" wire:navigate class="flex items-center gap-2 text-xs py-2 text-on-surface">
+                        <x-dropdown-link :href="route('profile')" wire:navigate class="flex items-center gap-2.5 text-xs font-semibold py-2.5 text-on-surface hover:!bg-surface-container-high hover:!text-on-surface focus:!bg-surface-container-high">
                             <span class="material-symbols-outlined text-[18px] text-on-surface-variant">badge</span>
                             <span>Mi Perfil</span>
                         </x-dropdown-link>
 
                         @if (Auth::user()?->role?->slug === 'admin')
-                            <x-dropdown-link :href="route('trabajadores')" wire:navigate class="flex items-center gap-2 text-xs py-2 text-on-surface">
+                            <x-dropdown-link :href="route('trabajadores')" wire:navigate class="flex items-center gap-2.5 text-xs font-semibold py-2.5 text-on-surface hover:!bg-surface-container-high hover:!text-on-surface focus:!bg-surface-container-high">
                                 <span class="material-symbols-outlined text-[18px] text-on-surface-variant">manage_accounts</span>
                                 <span>Configuración de Perfiles</span>
                             </x-dropdown-link>
@@ -348,7 +348,7 @@ new class extends Component
 
                         <div class="border-t border-surface-container-highest"></div>
 
-                        <button wire:click="logout" class="w-full text-start flex items-center gap-2 px-4 py-2 text-xs text-error hover:bg-error-container/20 transition">
+                        <button wire:click="logout" class="w-full text-start flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-error hover:bg-error-container/20 hover:text-on-error-container focus:bg-error-container/20 focus:outline-none transition cursor-pointer">
                             <span class="material-symbols-outlined text-[18px]">logout</span>
                             <span>Cerrar Sesión</span>
                         </button>

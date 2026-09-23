@@ -116,6 +116,12 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
         echo "==> AUTO_SEED is enabled. Seeding demo and essential data (php artisan db:seed --force)..."
         php /var/www/html/artisan db:seed --force || echo "==> Seed finished or partially seeded"
     fi
+
+    # Full client-ready demo (catalog, mesas, cajas, turno abierto, pedidos e imágenes)
+    if [ "${AUTO_SEED_DEMO:-false}" = "true" ]; then
+        echo "==> AUTO_SEED_DEMO is enabled. Loading full demo (php artisan restomaster:seed-demo)..."
+        php /var/www/html/artisan restomaster:seed-demo || echo "==> Demo seed finished or partially seeded"
+    fi
 fi
 
 # 6. Publish Livewire assets to ensure they are physically present on disk

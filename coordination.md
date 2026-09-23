@@ -6,6 +6,14 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🎬 **DEMO EN UNA ACCIÓN + 22 IMÁGENES AI** (`restomaster:seed-demo`, `public/demo/platos/`, `AUTO_SEED_DEMO`):
+- **Comando único** reescrito: DatabaseSeeder → Menu/Caja/Mesa/Impresora/Inventario → DemoOperaciones → vínculo de imágenes. Todo idempotente (verificado 2 pasadas locales, 0 duplicados). Excluido `DatosPruebaRealistasSeeder` a propósito (borra productos no referenciados).
+- **Imágenes AI** (pollinations/flux, 800px, ~1.2MB total): convención `public/demo/platos/{slug}.jpg` auto-vinculada por slug; script re-ejecutable en `scripts/descargar-imagenes-demo.ps1`. Hallazgo: el catálogo dev (26, realistas) ≠ MenuSeeder (22) — imágenes generadas para MenuSeeder (fuente de deploys frescos).
+- **Deploy:** `AUTO_SEED_DEMO=true` en entrypoint + compose + `.env.example` → al arrancar queda catálogo, turno abierto, pedidos demo e imágenes listos.
+- **Tests:** `SeedDemoCommandTest` 2/2 (carga+vínculo, idempotencia). Pint OK.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🔌 **ACCESO POR IP: re-agregado `ports: APP_PORT:80`** (sin dominio disponible):
 - Commit + push a ambas ramas (abajo). En Coolify fijar `APP_URL=http://IP:8004` y Redeploy; si el host tiene firewall, abrir el puerto (`ufw allow 8004/tcp`).
 

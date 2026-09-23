@@ -49,6 +49,7 @@ services:
       # Automatización al arrancar el contenedor
       AUTO_MIGRATE: "${AUTO_MIGRATE:-true}"
       AUTO_SEED: "${AUTO_SEED:-false}"
+      AUTO_SEED_DEMO: "${AUTO_SEED_DEMO:-false}"
       DEMO_USERS_PASSWORD: "${DEMO_USERS_PASSWORD:-}"
       OPTIMIZE_CACHE: "${OPTIMIZE_CACHE:-true}"
     volumes:
