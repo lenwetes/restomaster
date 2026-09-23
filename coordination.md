@@ -6,6 +6,11 @@
 ---
 
 ## Última Actualización
+2026-09-23 | OpenCode | 🐳 **COMPOSE MODO DEMO: todo por defecto, cero-fricción** (a petición explícita, credenciales débiles expuestas solo para demo):
+- `APP_KEY` generada fija, `DB_PASSWORD=RestoDemo2026DB`, `DEMO_USERS_PASSWORD=RestoDemo2026`, `AUTO_SEED_DEMO=true` por defecto (demo autocargada al arrancar). Todo sobreescribible por entorno. Login demo: admin@restomaster.com / RestoDemo2026.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🖼️ **FIX IMÁGENES ROTAS: referencias a archivos borrados (culpa mía)**:
 - **Causa:** al cambiar de catálogo borré los 26 JPG realistas, pero la BD ya apuntaba a ellos (mi primer `seed-demo` los había vinculado) → 26 referencias colgadas.
 - **Fix:** re-descargadas las 26 (48/48 archivos ahora) + test endurecido (vinculado == productos con archivo existente, no == total archivos). Dev: 48/48 vinculados. Pint OK, test 2/2.
