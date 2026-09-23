@@ -48,7 +48,24 @@
 - Actualizado el hash `password` de `admin@restomaster.com` en la BD de desarrollo vía script temporal (eliminado tras ejecutar); verificado con `Hash::check` → OK. Valor no registrado en el repo por seguridad.
 - Nota: `AdminUserSeeder` no sobrescribe claves existentes al re-seedear, así que persiste.
 
+2026-09-22 | Antigravity | 🎨 **MEJORAS VISUALES Y FUNCIONALES EN TERMINAL POS & SYNC DE RAMAS** (`resources/views/livewire/pos/terminal.blade.php`):
+- **Tarjetas de Producto Bento Pro:**
+  - Resuelto colapso vertical de las tarjetas (`min-h-[225px]` en tarjeta, `h-24 shrink-0` en contenedor multimedia, `auto-rows-max` en grilla).
+  - Títulos, descripciones, precios (`$XX.XXX`), stocks y botones de adición `+` visibles y legibles en todo momento.
+- **Navegación de Categorías PC Friendly:**
+  - Agregado scroll horizontal nativo con rueda del ratón (`@wheel.prevent="$refs.catBar.scrollLeft += $event.deltaY"`).
+  - Botones chevron izquierdo (`<`) y derecho (`>`) con scroll suave táctil/clic para PC.
+- **Gran Modal Central Táctil para Selección de Mesas:**
+  - Sustituido el selector nativo/popover pequeño por un modal central amplio (`max-w-4xl`, backdrop oscuro con blur).
+  - Pestañas táctiles de filtro por zona (Todas, Salón, Terraza, Barra, VIP) con conteo en vivo.
+  - Tarjetas de mesa amplias de alta densidad táctil con capacidad, indicador de estado Verde (Libre) / Ámbar (En servicio), mesero a cargo y botón desmarcar.
+- **Bloqueo Preventivo de Comanda sin Mesa:**
+  - Alerta y bloqueo server-side y client-side para evitar comisionar platos sin haber seleccionado mesa en servicio 'En Mesa'.
+  - Banner visual superior llamativo, aviso en comanda vacía y toast flotante interactivo con acceso directo a abrir el modal de mesas.
+- **Git Sync:** Ambas ramas (`master` y `main`) sincronizadas y pusheadas a GitHub (`origin/master` y `origin/main`).
+
 ---
+
 ## Actualización previa
 2026-09-22 | Antigravity | 👥 **RANKING DE RENDIMIENTO DE MESEROS & CORRECCIÓN DE MENÚ LATERAL AL REFRESCAR** (`app/Services/DashboardService.php`, `resources/views/livewire/dashboard/ejecutivo.blade.php`, `resources/views/layouts/app.blade.php`, `resources/views/livewire/layout/navigation.blade.php`, `resources/js/app.js`):
 - **Corrección Bug Menú Lateral al Refrescar el Navegador:**
