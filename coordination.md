@@ -14,8 +14,8 @@
 - **Solución Implementada:**
   1. **Compilación Nativa:** Reemplazado `install-php-extensions` por las utilidades oficiales nativas `docker-php-ext-configure` y `docker-php-ext-install -j$(nproc)`, compilando directamente desde `/usr/src/php.tar.xz` sin peticiones de red a PECL ni descargas externas.
   2. **Unificación Atómica:** Se consolidaron las dependencias del sistema y los paquetes virtuales de compilación (`.build-deps`) en una única capa `RUN`, eliminando ejecuciones secundarias de `apk update`.
-  3. **Espejo Directo:** Se configuró el repositorio apuntando a `dl-4.alpinelinux.org` (espejo directo de LeaseWeb de alta velocidad sin Anycast CDN quirks), usando `apk add --no-cache` limpio (removido flag `--retries` no soportado por apk).
-  4. **Purga Inmediata:** Se ejecuta `apk del --no-network .build-deps` al concluir la compilación para mantener la imagen ligera y sin herramientas de desarrollo en producción.
+  3. **Repositorio HTTP Oficial & addgroup:** Se mantiene el CDN oficial con HTTP (`sed -i 's/https/http/g' /etc/apk/repositories`), se usa `addgroup nginx www-data` estándar de Busybox, y se separa la instalación base de la compilación de extensiones para mayor robustez y trazabilidad.
+  4. **Purga Inmediata:** Se ejecuta `apk del --no-network .build-deps` al concluir la compilación de extensiones nativas (`pdo_pgsql`, `pgsql`, `bcmath`, `gd`, `zip`, `intl`, `sockets`, `pcntl`) y se activa `opcache`.
 
 ---
 ## Actualización previa

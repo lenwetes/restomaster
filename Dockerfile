@@ -38,12 +38,9 @@ FROM php:8.3-fpm-alpine
 LABEL maintainer="Sushixpress <soporte@sushixpress.com>"
 LABEL description="Sushixpress Enterprise POS & Management Container for Coolify"
 
-# Configure Alpine repositories to use HTTP and direct mirror (prevents CDN socket disconnects / IPv6 drop),
-# install runtime packages and build dependencies,
-# compile PHP extensions natively with docker-php-ext-install (eliminating PECL & mlocati network overhead),
-# and purge build dependencies in a single atomic layer.
+# Configure Alpine repositories to use HTTP (prevents TLS handshake timeouts in BuildKit)
+# and install base system dependencies including ca-certificates & runtime libraries
 RUN sed -i 's/https/http/g' /etc/apk/repositories && \
-    sed -i 's/dl-cdn.alpinelinux.org/dl-4.alpinelinux.org/g' /etc/apk/repositories && \
     apk add --no-cache \
         ca-certificates \
         nginx \
@@ -56,7 +53,11 @@ RUN sed -i 's/https/http/g' /etc/apk/repositories && \
         libpng \
         libzip \
         icu-libs && \
-    apk add --no-cache --virtual .build-deps \
+    update-ca-certificates && \
+    (addgroup nginx www-data || true)
+
+# Compile PHP extensions natively from source and purge build dependencies
+RUN apk add --no-cache --virtual .build-deps \
         $PHPIZE_DEPS \
         postgresql-dev \
         freetype-dev \
@@ -73,11 +74,9 @@ RUN sed -i 's/https/http/g' /etc/apk/repositories && \
         zip \
         intl \
         sockets \
-        pcntl \
-        opcache && \
-    apk del --no-network .build-deps && \
-    update-ca-certificates && \
-    adduser nginx www-data
+        pcntl && \
+    (docker-php-ext-enable opcache || true) && \
+    apk del --no-network .build-deps
 
 # Copy composer binary from composer stage for maintenance tasks
 COPY --from=composer-builder /usr/bin/composer /usr/bin/composer
