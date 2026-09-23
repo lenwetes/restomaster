@@ -4,6 +4,7 @@ use App\Models\Categoria;
 use App\Models\Mesa;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Services\ConfiguracionService;
 use App\Services\PedidoService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -1290,6 +1291,13 @@ new class extends Component
             ->when($userSucursalId, fn ($q) => $q->where('sucursal_id', $userSucursalId))
             ->get();
 
+        $ticketSvc = app(ConfiguracionService::class);
+        $ticketDefaults = $ticketSvc->valoresPorDefectoTicket80mm();
+        $ticketConfig = [];
+        foreach ($ticketDefaults as $clave => $defecto) {
+            $ticketConfig[$clave] = $ticketSvc->obtener('ticket_80mm', $clave, $defecto);
+        }
+
         return [
             'categorias' => $categorias,
             'productos' => $query->get(),
@@ -1298,6 +1306,7 @@ new class extends Component
             'pedidoQrPendiente' => $pedidoQrPendiente,
             'turnoActivo' => $turnoActivo,
             'cajasDisponibles' => $cajasDisponibles,
+            'ticketConfig' => $ticketConfig,
         ];
     }
 }; ?>
@@ -1444,7 +1453,7 @@ new class extends Component
                                         {{-- rol intencional, no permiso: guard de mesa ajena (identidad de dominio) --}}
                                         @php $mesaAjenaMovil = $m->mesero_id && (int) $m->mesero_id !== (int) Auth::id() && Auth::user()?->role?->slug === 'mesero'; @endphp
                                         <option value="{{ $m->id }}" @disabled($mesaAjenaMovil)>
-                                            Mesa {{ $m->numero }} (Zona {{ $m->zona }} - {{ ucfirst($m->estado) }}){{ $m->mesero_nombre ? ' · '.$m->mesero_nombre : '' }}
+                                            {{ $m->nombre_sala }} (Zona {{ $m->zona }} - {{ ucfirst($m->estado) }}){{ $m->mesero_nombre ? ' · '.$m->mesero_nombre : '' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -1903,7 +1912,7 @@ new class extends Component
                                         <div>
                                             <h3 class="text-sm font-extrabold text-on-surface">Comanda en Mano (Móvil)</h3>
                                             <p class="text-[11px] text-on-surface-variant">
-                                                {{ $tipo === 'mesa' ? 'Mesa ' . ($mesaId ? $mesas->find($mesaId)?->numero : 'Sin asignar') : 'Para Llevar' }}
+                                                {{ $tipo === 'mesa' ? ($mesaId ? $mesas->find($mesaId)?->nombre_sala : 'Mesa sin asignar') : 'Para Llevar' }}
                                             </p>
                                         </div>
                                     </div>
@@ -2076,7 +2085,7 @@ new class extends Component
             </div>
 
             <!-- Bento Touch Pro: BARRA DE COMANDO TÁCTIL UNIFICADA -->
-            <div class="bg-[#1c1411] border border-[#32231c] rounded-2xl px-3.5 py-2 flex items-center justify-between gap-3 shadow-lg shadow-black/40 shrink-0">
+            <div class="bg-[#1c1411] border border-[#32231c] rounded-2xl px-3.5 py-2 flex flex-wrap items-center justify-between gap-3 shadow-lg shadow-black/40 shrink-0">
                 <!-- Izquierda: Modo de servicio táctil, Mesa & Comensal -->
                 <div class="flex items-center gap-2 flex-wrap min-w-0">
                     <!-- Modo de Servicio -->
@@ -2123,7 +2132,7 @@ new class extends Component
                                     {{ !$mesaId ? '⚠️ Mesa Requerida' : 'Mesa Seleccionada' }}
                                 </span>
                                 <span class="text-xs font-black text-white flex items-center gap-1.5">
-                                    {{ $mesaSeleccionada ? 'Mesa ' . $mesaSeleccionada->numero . ($mesaSeleccionada->zona ? ' · ' . $mesaSeleccionada->zona : '') : 'Elegir mesa para comanda...' }}
+                                    {{ $mesaSeleccionada ? $mesaSeleccionada->nombre_sala . ($mesaSeleccionada->zona ? ' · ' . $mesaSeleccionada->zona : '') : 'Elegir mesa para comanda...' }}
                                     <span class="material-symbols-outlined text-[16px] text-[#a89086]">touch_app</span>
                                 </span>
                             </div>
@@ -2159,15 +2168,15 @@ new class extends Component
                             class="relative max-w-4xl w-full bg-[#18100d] border border-[#38261e] rounded-3xl shadow-2xl shadow-black/95 p-5 sm:p-7 flex flex-col max-h-[90vh] z-10 text-white"
                         >
                             <!-- Header del Modal -->
-                            <div class="flex items-center justify-between pb-4 border-b border-[#2d1e18] shrink-0">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-12 h-12 rounded-2xl bg-[#e0442e]/15 border border-[#e0442e]/30 flex items-center justify-center text-[#e0442e]">
+                            <div class="flex items-center justify-between gap-2 pb-4 border-b border-[#2d1e18] shrink-0">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <div class="w-12 h-12 rounded-2xl bg-[#e0442e]/15 border border-[#e0442e]/30 flex items-center justify-center text-[#e0442e] shrink-0">
                                         <span class="material-symbols-outlined text-[28px]">table_restaurant</span>
                                     </div>
-                                    <div>
+                                    <div class="min-w-0">
                                         <h3 class="text-lg font-black text-white flex items-center gap-2">
-                                            <span>Mapa de Mesas & Salón</span>
-                                            <span class="text-xs px-2 py-0.5 rounded-full bg-[#251b16] text-[#a89086] border border-[#38261e]">
+                                            <span class="truncate">Mapa de Mesas & Salón</span>
+                                            <span class="text-xs px-2 py-0.5 rounded-full bg-[#251b16] text-[#a89086] border border-[#38261e] shrink-0 whitespace-nowrap">
                                                 {{ $mesas->count() }} Mesas
                                             </span>
                                         </h3>
@@ -2179,7 +2188,7 @@ new class extends Component
                                 <button 
                                     type="button" 
                                     @click="modalMesasAbierto = false" 
-                                    class="w-10 h-10 rounded-2xl bg-[#251b16] border border-[#38261e] hover:bg-[#e0442e] hover:border-[#e0442e] text-[#a89086] hover:text-white flex items-center justify-center transition cursor-pointer text-lg font-bold shadow"
+                                    class="w-10 h-10 rounded-2xl bg-[#251b16] border border-[#38261e] hover:bg-[#e0442e] hover:border-[#e0442e] text-[#a89086] hover:text-white flex items-center justify-center transition cursor-pointer text-lg font-bold shadow shrink-0"
                                     title="Cerrar ventana"
                                 >✕</button>
                             </div>
@@ -2193,7 +2202,7 @@ new class extends Component
                                 <button 
                                     type="button"
                                     @click="filtroZonaModal = 'todas'"
-                                    class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                                    class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
                                     :class="filtroZonaModal === 'todas' ? 'bg-[#e0442e] text-white shadow-md' : 'bg-[#251b16] text-[#a89086] hover:text-white border border-[#38261e]'"
                                 >
                                     <span>Todas las Zonas</span>
@@ -2206,7 +2215,7 @@ new class extends Component
                                     <button 
                                         type="button"
                                         @click="filtroZonaModal = '{{ $z }}'"
-                                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5"
+                                        class="px-4 py-2 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1.5 shrink-0 whitespace-nowrap"
                                         :class="filtroZonaModal === '{{ $z }}' ? 'bg-[#e0442e] text-white shadow-md' : 'bg-[#251b16] text-[#a89086] hover:text-white border border-[#38261e]'"
                                     >
                                         <span class="capitalize">{{ $z }}</span>
@@ -2236,16 +2245,16 @@ new class extends Component
                                         >
                                             <!-- Fila Superior: Número y Estado -->
                                             <div class="flex items-start justify-between gap-1">
-                                                <div class="flex items-center gap-2">
-                                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm {{ $esSeleccionada ? 'bg-[#e0442e] text-white' : 'bg-[#18100d] border border-[#38261e] text-white group-hover:border-[#e0442e]' }}">
-                                                        {{ $m->numero }}
+                                                <div class="flex items-center gap-2 min-w-0">
+                                                    <div class="w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm shrink-0 {{ $esSeleccionada ? 'bg-[#e0442e] text-white' : 'bg-[#18100d] border border-[#38261e] text-white group-hover:border-[#e0442e]' }}">
+                                                        {{ $m->nombre_corto }}
                                                     </div>
-                                                    <div>
-                                                        <span class="text-sm font-black block leading-tight">Mesa {{ $m->numero }}</span>
+                                                    <div class="min-w-0">
+                                                        <span class="text-sm font-black block leading-tight truncate">{{ $m->nombre_sala }}</span>
                                                         <span class="text-[10px] text-[#a89086] capitalize font-medium">{{ $m->zona ?: 'Salón' }}</span>
                                                     </div>
                                                 </div>
-                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $esOcupada ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' }}">
+                                                <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $esOcupada ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' }}">
                                                     <span class="w-1.5 h-1.5 rounded-full {{ $esOcupada ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse' }}"></span>
                                                     {{ $esOcupada ? 'Ocupada' : 'Libre' }}
                                                 </span>
@@ -2415,7 +2424,7 @@ new class extends Component
                 </div>
 
                 <!-- Derecha: Búsqueda rápida + Estado Caja + Mesero + Selector de vista -->
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center justify-end gap-2">
                     <div class="relative w-48 sm:w-56">
                         <span class="material-symbols-outlined absolute left-2.5 top-2 text-[16px] text-[#a89086]">search</span>
                         <input 
@@ -2500,9 +2509,9 @@ new class extends Component
             </div>
 
             <!-- CONTENIDO PRINCIPAL: CATÁLOGO (8 Cols) + COMANDA DIGITAL (4 Cols) -->
-            <div class="grid grid-cols-12 gap-3 min-h-0">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0">
                 <!-- COLUMNA CATÁLOGO -->
-                <div class="col-span-8 flex flex-col gap-2 min-h-0 h-[calc(100vh-14rem)]">
+                <div class="lg:col-span-8 flex flex-col gap-2 min-h-0 h-auto lg:h-[calc(100vh-14rem)]">
                     <!-- CATEGORÍAS (Con soporte PC: rueda ratón, scroll buttons y micro-indicadores táctiles) -->
                     <div 
                         x-data="{
@@ -2612,19 +2621,19 @@ new class extends Component
 
                     <!-- BANNER BLOQUEO PREVENTIVO: SI ES SERVICIO EN MESA Y NO HAY MESA SELECCIONADA -->
                     @if($tipo === 'mesa' && !$mesaId)
-                        <div class="rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-950/40 via-[#241a14] to-[#1c1411] p-3 shadow-lg flex items-center justify-between gap-3 shrink-0">
+                        <div class="rounded-2xl border border-amber-500/50 bg-gradient-to-r from-amber-950/40 via-[#241a14] to-[#1c1411] p-3 shadow-lg flex flex-col items-stretch justify-between gap-2.5 sm:flex-row sm:items-center shrink-0">
                             <div class="flex items-center gap-3 min-w-0">
                                 <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
                                     <span class="material-symbols-outlined text-[22px]">table_restaurant</span>
                                 </div>
                                 <div class="min-w-0">
-                                    <h4 class="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                                    <h4 class="text-xs font-black text-amber-300 uppercase tracking-wider flex flex-wrap items-center gap-2">
                                         <span>Mesa Requerida para Comanda</span>
-                                        <span class="text-[9px] px-2 py-0.5 rounded-md bg-amber-500/25 text-amber-200 border border-amber-500/40 font-black">
+                                        <span class="text-[9px] px-2 py-0.5 rounded-md bg-amber-500/25 text-amber-200 border border-amber-500/40 font-black whitespace-nowrap">
                                             BLOQUEO ACTIVO
                                         </span>
                                     </h4>
-                                    <p class="text-[11px] text-amber-100/90 font-medium mt-0.5 truncate">
+                                    <p class="text-[11px] text-amber-100/90 font-medium mt-0.5">
                                         Primero debes seleccionar una mesa para habilitar la toma y el registro de platos.
                                     </p>
                                 </div>
@@ -2632,7 +2641,7 @@ new class extends Component
                             <button 
                                 type="button"
                                 @click="$dispatch('abrir-selector-mesa')"
-                                class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-black shadow-md shadow-amber-600/30 active:scale-95 transition flex items-center gap-1.5 cursor-pointer shrink-0"
+                                class="w-full sm:w-auto justify-center px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-black shadow-md shadow-amber-600/30 active:scale-95 transition flex items-center gap-1.5 cursor-pointer shrink-0"
                             >
                                 <span class="material-symbols-outlined text-[16px]">touch_app</span>
                                 <span>Seleccionar Mesa</span>
@@ -2753,7 +2762,7 @@ new class extends Component
                 </div>
 
                 <!-- COLUMNA COMANDA / TICKET DIGITAL (4 Cols) -->
-                <div class="col-span-4 bg-[#1c1411] border border-[#32231c] rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-xl shadow-black/50 min-h-0 h-[calc(100vh-14rem)]">
+                <div class="lg:col-span-4 bg-[#1c1411] border border-[#32231c] rounded-2xl p-2.5 sm:p-3 flex flex-col justify-between shadow-xl shadow-black/50 min-h-0 h-auto lg:h-[calc(100vh-14rem)]">
                     <!-- HEADER TICKET -->
                     <div>
                         <div class="flex items-center justify-between pb-2.5 border-b border-[#32231c]">
@@ -3301,12 +3310,33 @@ new class extends Component
     @if($mostrarTicket && $pedidoCompletado)
         <div x-data @keydown.escape.window="$wire.cerrarTicket()" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
             <div role="dialog" aria-modal="true" aria-labelledby="modal-ticket-title" class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs max-h-[90vh] overflow-y-auto">
-                <!-- Thermal Receipt Header -->
+                <!-- Thermal Receipt Header (configurable ticket_80mm) -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
-                    <p id="modal-ticket-title" class="text-base font-black tracking-tight text-primary">🍽️ RESTOMASTER 🍽️</p>
-                    <p class="text-[11px] text-on-surface-variant">AURA GASTRO Enterprise POS</p>
-                    <p class="text-[10px] text-on-surface-variant/70">El Poblado MDE-01 • Medellín</p>
-                    <p class="text-[10px] text-on-surface-variant/70">NIT: 901.884.200-1 · Res. DIAN 18764022</p>
+                    <p id="modal-ticket-title" class="text-base font-black tracking-tight text-primary">{{ $ticketConfig['nombre_comercial'] ?? 'RESTOMASTER' }}</p>
+                    @if(!empty($ticketConfig['lema']))
+                        <p class="text-[11px] text-on-surface-variant">{{ $ticketConfig['lema'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['razon_social']))
+                        <p class="text-[10px] text-on-surface-variant/70">{{ $ticketConfig['razon_social'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['nit']) || !empty($ticketConfig['regimen']))
+                        <p class="text-[10px] text-on-surface-variant/70">NIT: {{ $ticketConfig['nit'] ?? '' }}{{ !empty($ticketConfig['regimen']) ? ' · '.$ticketConfig['regimen'] : '' }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['direccion']))
+                        <p class="text-[10px] text-on-surface-variant/70">{{ $ticketConfig['direccion'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['telefono']))
+                        <p class="text-[10px] text-on-surface-variant/70">{{ $ticketConfig['telefono'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['mensaje_bienvenida']))
+                        <p class="text-[10px] italic text-on-surface-variant/70">"{{ $ticketConfig['mensaje_bienvenida'] }}"</p>
+                    @endif
+                    @if(!empty($ticketConfig['resolucion_dian']))
+                        <p class="text-[9px] text-on-surface-variant/70">{{ $ticketConfig['resolucion_dian'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['rango_autorizado']))
+                        <p class="text-[9px] text-on-surface-variant/70">{{ $ticketConfig['rango_autorizado'] }}</p>
+                    @endif
                 </div>
 
                 <!-- Ticket Details -->
@@ -3327,7 +3357,7 @@ new class extends Component
                         <span>CAJERO:</span>
                         <span>{{ Auth::user()->name }}</span>
                     </div>
-                    @if($pedidoCompletado->mesero)
+                    @if(!empty($ticketConfig['mostrar_datos_mesero']) && $pedidoCompletado->mesero)
                         <div class="flex justify-between font-bold text-primary">
                             <span>MESERO:</span>
                             <span>{{ $pedidoCompletado->mesero->name }}</span>
@@ -3377,11 +3407,20 @@ new class extends Component
                     </div>
                 </div>
 
-                <!-- Ticket Footer Message -->
+                <!-- Ticket Footer Message (configurable ticket_80mm) -->
                 <div class="pt-4 text-center text-[10px] text-on-surface-variant space-y-1">
-                    <p class="font-bold text-on-surface">¡GRACIAS POR SU PREFERENCIA!</p>
-                    <p>ありがとうございます (Arigatōgozaimashita)</p>
-                    <p class="text-[9px]">Documento equivalente POS DIAN para control interno</p>
+                    @if(!empty($ticketConfig['pie_pagina']))
+                        <p class="font-bold text-on-surface">{{ $ticketConfig['pie_pagina'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['sugerir_propina']) && !empty($ticketConfig['mensaje_propina']))
+                        <p class="text-[9px]">{{ $ticketConfig['mensaje_propina'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['redes_sociales']))
+                        <p class="text-[9px] font-semibold">{{ $ticketConfig['redes_sociales'] }}</p>
+                    @endif
+                    @if(!empty($ticketConfig['politica_cambios']))
+                        <p class="text-[9px]">{{ $ticketConfig['politica_cambios'] }}</p>
+                    @endif
                 </div>
 
                 <!-- Close / Print buttons (Ocultos al imprimir en papel) -->

@@ -66,4 +66,27 @@ class Mesa extends Model
     {
         return $this->belongsToMany(Reserva::class, 'reserva_mesa');
     }
+
+    /**
+     * Nombre para sala sin duplicar prefijo: el número ya suele traer
+     * la zona ("Barra 1", "Mesa 1"), así que solo se antepone "Mesa"
+     * cuando el número es pelado ("4").
+     */
+    public function getNombreSalaAttribute(): string
+    {
+        $numero = trim((string) $this->numero);
+
+        return preg_match('/^(mesa|barra|terraza|vip|patio|sal[oó]n)\b/i', $numero) ? $numero : 'Mesa '.$numero;
+    }
+
+    /**
+     * Etiqueta corta para insignias y círculos: último token del número
+     * ("Barra 1" → "1", "4" → "4").
+     */
+    public function getNombreCortoAttribute(): string
+    {
+        $partes = preg_split('/\s+/', trim((string) $this->numero)) ?: [];
+
+        return count($partes) > 1 ? (string) end($partes) : (string) $this->numero;
+    }
 }

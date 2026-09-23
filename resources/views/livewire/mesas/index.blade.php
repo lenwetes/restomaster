@@ -4,6 +4,7 @@ use App\Enums\MesaEstado;
 use App\Models\Mesa;
 use App\Services\MesaService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
@@ -59,6 +60,18 @@ new class extends Component
 
     public string $motivoCancelacion = '';
 
+    // Gestionar Zonas State
+    public bool $modalZonasOpen = false;
+
+    public ?int $zonaEditandoId = null;
+
+    public array $zonaForm = [
+        'nombre' => '',
+        'color' => 'terracota',
+        'icono' => 'mesa',
+        'orden' => 0,
+    ];
+
     public function abrirModalNuevaMesa(): void
     {
         $maxNumero = Mesa::all()->map(fn ($m) => (int) preg_replace('/\D/', '', $m->numero))->max();
@@ -102,7 +115,7 @@ new class extends Component
 
         $this->validate([
             'formMesa.numero' => ['required', 'string', 'max:20', $reglaUnica],
-            'formMesa.zona' => ['required', 'in:salon,terraza,barra,vip'],
+            'formMesa.zona' => ['required', 'string', 'max:40', Rule::exists('zonas', 'slug')->where(fn ($q) => $q->where('sucursal_id', $this->sucursalEnContexto())->where('activa', true))],
             'formMesa.capacidad' => ['required', 'integer', 'min:1', 'max:20'],
         ], [
             'formMesa.numero.required' => 'El número o código de la mesa es obligatorio.',
@@ -146,6 +159,11 @@ new class extends Component
             $this->mensajeFlash = $e->getMessage();
             $this->tipoFlash = 'error';
         }
+    }
+
+    public function sucursalEnContexto(): ?int
+    {
+        return Auth::user()?->sucursal_id ?? \App\Models\Sucursal::value('id');
     }
 
     public function cambiarEstado(int $mesaId, string $nuevoEstado): void
@@ -358,6 +376,86 @@ new class extends Component
         }
     }
 
+    public function abrirModalZonas(): void
+    {
+        $this->authorize('create', \App\Models\Zona::class);
+        $this->zonaEditandoId = null;
+        $this->zonaForm = ['nombre' => '', 'color' => 'terracota', 'icono' => 'mesa', 'orden' => 0];
+        $this->modalZonasOpen = true;
+    }
+
+    public function iniciarEdicionZona(int $id): void
+    {
+        $this->authorize('update', \App\Models\Zona::class);
+        $zona = \App\Models\Zona::deSucursal($this->sucursalEnContexto())->findOrFail($id);
+        $this->zonaEditandoId = $zona->id;
+        $this->zonaForm = ['nombre' => $zona->nombre, 'color' => $zona->color, 'icono' => $zona->icono, 'orden' => $zona->orden];
+    }
+
+    public function guardarZona(): void
+    {
+        $this->authorize($this->zonaEditandoId ? 'update' : 'create', \App\Models\Zona::class);
+
+        $this->validate([
+            'zonaForm.nombre' => 'required|string|max:60',
+            'zonaForm.color' => 'required|in:terracota,salvia,lavanda,ambar,esmeralda,indigo,rosa,pizarra',
+            'zonaForm.icono' => 'required|in:mesa,barra,terraza,vip,patio,jardin,balcon,privado',
+            'zonaForm.orden' => 'required|integer|min:0|max:99',
+        ]);
+
+        $datos = $this->zonaForm + ['sucursal_id' => $this->sucursalEnContexto()];
+        if ($this->zonaEditandoId) {
+            $zona = \App\Models\Zona::deSucursal($this->sucursalEnContexto())->findOrFail($this->zonaEditandoId);
+            $zona->update($datos);
+        } else {
+            $datos['slug'] = \Illuminate\Support\Str::slug($datos['nombre']);
+            if (! $this->zonaEditandoId && \App\Models\Zona::deSucursal($this->sucursalEnContexto())->where('slug', $datos['slug'])->exists()) {
+                // Flash en vez de abort(422): un abort en una acción Livewire devuelve
+                // respuesta de error sin re-render, por lo que el motivo nunca sería visible.
+                $this->mensajeFlash = 'Ya existe una zona con ese nombre en esta sucursal.';
+                $this->tipoFlash = 'error';
+
+                return;
+            }
+            $zona = \App\Models\Zona::create($datos);
+        }
+
+        $this->modalZonasOpen = false;
+        $this->zonaEditandoId = null;
+        $this->dispatch('notificacion', ['mensaje' => "Zona {$zona->nombre} guardada.", 'tipo' => 'success']);
+    }
+
+    public function alternarZona(int $id): void
+    {
+        $this->authorize('update', \App\Models\Zona::class);
+        $zona = \App\Models\Zona::deSucursal($this->sucursalEnContexto())->findOrFail($id);
+
+        if ($zona->activa) {
+            $mesas = \App\Models\Mesa::where('sucursal_id', $zona->sucursal_id)->where('zona', $zona->slug)->count();
+            if ($mesas > 0) {
+                // Flash en vez de abort(422): un abort en una acción Livewire devuelve
+                // respuesta de error sin re-render, por lo que el motivo nunca sería visible.
+                $this->mensajeFlash = "La zona {$zona->nombre} tiene mesas asignadas: reasigna primero.";
+                $this->tipoFlash = 'error';
+
+                return;
+            }
+        }
+
+        $zona->update(['activa' => ! $zona->activa]);
+        $this->dispatch('notificacion', ['mensaje' => "Zona {$zona->nombre} actualizada.", 'tipo' => 'info']);
+    }
+
+    public function moverMesaAZona(int $mesaId, string $zonaSlug): void
+    {
+        $this->authorize('mover', \App\Models\Zona::class);
+
+        $mesa = Mesa::where('sucursal_id', $this->sucursalEnContexto())->findOrFail($mesaId);
+        app(MesaService::class)->moverMesa($mesa, $zonaSlug);
+
+        $this->dispatch('notificacion', ['mensaje' => "Mesa #{$mesa->numero} movida a {$zonaSlug}.", 'tipo' => 'success']);
+    }
+
     #[On('comanda-actualizada')]
     public function refrescarMesas(): void
     {
@@ -419,6 +517,7 @@ new class extends Component
             'meserosDisponibles' => $meserosDisponibles,
             'mesaSeleccionada' => $this->mesaSeleccionadaId ? $mesas->firstWhere('id', $this->mesaSeleccionadaId) : null,
             'zonasDisponibles' => $zonasDisponibles,
+            'zonasCatalogo' => \App\Models\Zona::deSucursal($this->sucursalEnContexto())->activas()->orderBy('orden')->orderBy('nombre')->get()->keyBy('slug'),
         ];
     }
 }; ?>
@@ -429,10 +528,10 @@ new class extends Component
         <div>
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[24px] text-primary">table_restaurant</span>
-                <h1 class="text-xl font-extrabold tracking-tight text-on-surface">
+                <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-on-surface">
                     Salón & Mapa de Mesas
                 </h1>
-                <span class="rounded-full bg-secondary-container/50 px-2.5 py-0.5 text-[11px] font-bold text-on-secondary-container border border-secondary/30">
+                <span class="whitespace-nowrap shrink-0 rounded-full bg-secondary-container/50 px-2.5 py-0.5 text-[11px] font-bold text-on-secondary-container border border-secondary/30">
                     MES-01
                 </span>
             </div>
@@ -440,14 +539,14 @@ new class extends Component
                 Monitoreo visual táctil en tiempo real · Distribución espacial y comensales
             </p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <!-- Toggle Vista: Mapa Gráfico / Tarjetas -->
-            <div class="flex items-center gap-1 rounded-2xl border border-surface-container-highest bg-surface-container-low p-1 shadow-sm" role="group" aria-label="Cambiar vista del salón">
+            <div class="flex w-full sm:w-auto items-center gap-1 rounded-2xl border border-surface-container-highest bg-surface-container-low p-1 shadow-sm" role="group" aria-label="Cambiar vista del salón">
                 <button
                     type="button"
                     wire:click="$set('vistaMapa', true)"
                     aria-pressed="{{ $vistaMapa ? 'true' : 'false' }}"
-                    class="flex h-9 min-w-[64px] items-center justify-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition-all active:scale-95 cursor-pointer {{ $vistaMapa ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                    class="flex h-9 flex-1 sm:flex-none sm:min-w-[64px] items-center justify-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition-all active:scale-95 cursor-pointer {{ $vistaMapa ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
                 >
                     <span class="material-symbols-outlined text-[15px]">map</span>
                     <span>Mapa</span>
@@ -456,28 +555,37 @@ new class extends Component
                     type="button"
                     wire:click="$set('vistaMapa', false)"
                     aria-pressed="{{ ! $vistaMapa ? 'true' : 'false' }}"
-                    class="flex h-9 min-w-[84px] items-center justify-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition-all active:scale-95 cursor-pointer {{ ! $vistaMapa ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                    class="flex h-9 flex-1 sm:flex-none sm:min-w-[84px] items-center justify-center gap-1 rounded-xl px-2.5 text-[11px] font-extrabold transition-all active:scale-95 cursor-pointer {{ ! $vistaMapa ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
                 >
                     <span class="material-symbols-outlined text-[15px]">grid_view</span>
                     <span>Tarjetas</span>
                 </button>
             </div>
+            @can('create', App\Models\Zona::class)
+                <button
+                    wire:click="abrirModalZonas"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-surface-container-highest px-3.5 py-2.5 text-xs font-extrabold text-on-surface transition-all active:scale-95 cursor-pointer"
+                >
+                    <span class="material-symbols-outlined text-[18px]">map</span>
+                    <span class="whitespace-nowrap">Gestionar Zonas</span>
+                </button>
+            @endcan
             @can('create', App\Models\Mesa::class)
                 <button 
                     wire:click="abrirModalNuevaMesa"
-                    class="inline-flex items-center gap-1.5 rounded-xl bg-secondary px-3.5 py-2.5 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim transition-all active:scale-95 cursor-pointer"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-secondary px-3.5 py-2.5 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim transition-all active:scale-95 cursor-pointer"
                 >
                     <span class="material-symbols-outlined text-[18px]">add_circle</span>
-                    <span>+ Nueva Mesa</span>
+                    <span class="whitespace-nowrap">+ Nueva Mesa</span>
                 </button>
             @endcan
             <a 
                 href="{{ route('pos') }}" 
                 wire:navigate
-                class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container transition-all active:scale-95"
+                class="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container transition-all active:scale-95"
             >
                 <span class="material-symbols-outlined text-[18px]">point_of_sale</span>
-                <span>Abrir POS Táctil</span>
+                <span class="whitespace-nowrap">Abrir POS Táctil</span>
             </a>
         </div>
     </header>
@@ -556,37 +664,32 @@ new class extends Component
 
     <!-- Barra de Filtros de Zona y Mesero Unificada -->
     <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-lowest p-3 shadow-xs">
-        <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs font-bold text-on-surface-variant px-2 flex items-center gap-1.5">
+        <div class="flex items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+            <span class="shrink-0 text-xs font-bold text-on-surface-variant px-2 flex items-center gap-1.5">
                 <span class="material-symbols-outlined text-[16px] text-primary">filter_alt</span>
                 <span>Zonas:</span>
             </span>
             <button 
                 type="button"
                 wire:click="$set('filtroZona', 'todas')"
-                class="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all cursor-pointer {{ $filtroZona === 'todas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                class="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold transition-all cursor-pointer {{ $filtroZona === 'todas' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
             >
                 <span class="material-symbols-outlined text-[15px]">domain</span>
                 <span>Todas</span>
                 <span class="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-black {{ $filtroZona === 'todas' ? 'bg-white/20 text-white' : 'bg-surface-container-highest text-on-surface-variant' }}">{{ $conteo['total'] }}</span>
             </button>
-            @php
-                $zonasConfig = [
-                    'salon' => ['nombre' => 'Salón Principal', 'icono' => 'table_restaurant', 'dot' => 'bg-primary'],
-                    'barra' => ['nombre' => 'Barra / Bar', 'icono' => 'local_bar', 'dot' => 'bg-amber-600'],
-                    'terraza' => ['nombre' => 'Terraza', 'icono' => 'deck', 'dot' => 'bg-secondary'],
-                    'vip' => ['nombre' => 'Área VIP', 'icono' => 'diamond', 'dot' => 'bg-indigo-600'],
-                    'patio' => ['nombre' => 'Patio Exterior', 'icono' => 'outdoor_garden', 'dot' => 'bg-emerald-600'],
-                ];
-            @endphp
-            @foreach($zonasDisponibles as $zKey => $zCount)
+            @foreach(collect($zonasDisponibles)->sortBy(fn ($zTotal, $zSlug) => $zonasCatalogo[$zSlug]->orden ?? 99)->toArray() as $zKey => $zCount)
                 @php
-                    $zInfo = $zonasConfig[$zKey] ?? ['nombre' => ucfirst($zKey), 'icono' => 'table_restaurant', 'dot' => 'bg-primary'];
+                    $zInfo = [
+                        'nombre' => $zonasCatalogo[$zKey]->nombre ?? ucfirst(str_replace(['-', '_'], ' ', $zKey)),
+                        'icono' => \App\Models\Zona::ICONOS[$zonasCatalogo[$zKey]->icono ?? 'mesa'] ?? 'table_restaurant',
+                        'dot' => \App\Models\Zona::PALETA[$zonasCatalogo[$zKey]->color ?? 'pizarra']['punto'] ?? 'bg-outline-variant',
+                    ];
                 @endphp
                 <button 
                     type="button"
                     wire:click="$set('filtroZona', '{{ $zKey }}')"
-                    class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all cursor-pointer {{ $filtroZona === $zKey ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
+                    class="shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-extrabold transition-all cursor-pointer {{ $filtroZona === $zKey ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
                 >
                     <span class="h-2 w-2 rounded-full {{ $zInfo['dot'] }}"></span>
                     <span class="material-symbols-outlined text-[15px]">{{ $zInfo['icono'] }}</span>
@@ -594,7 +697,9 @@ new class extends Component
                     <span class="ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-black {{ $filtroZona === $zKey ? 'bg-white/20 text-white' : 'bg-surface-container-highest text-on-surface-variant' }}">{{ $zCount }}</span>
                 </button>
             @endforeach
+        </div>
 
+        <div class="flex w-full sm:w-auto flex-wrap items-center gap-2 border-t border-surface-container-high pt-2 sm:border-t-0 sm:pt-0">
             <!-- Filtro Mesero Asignado -->
             <div class="flex items-center gap-1 pl-2 sm:border-l border-surface-container-high">
                 <span class="text-xs font-bold text-on-surface-variant flex items-center gap-1">
@@ -965,23 +1070,7 @@ new class extends Component
 
     {{-- Vista Mapa Gráfico: Plano Arquitectónico de Alta Fidelidad --}}
     @php
-        $rankingZonas = ['salon', 'barra', 'terraza', 'vip', 'patio', 'primer_piso'];
-        $rankingZonasFlip = array_flip($rankingZonas);
-        $mesasPorZona = $mesas->groupBy('zona')->sortBy(fn ($mesasZona, $zona) => $rankingZonasFlip[$zona] ?? 99);
-        $zonasEtiqueta = [
-            'salon' => 'Salón Principal',
-            'barra' => 'Barra / Bar',
-            'terraza' => 'Terraza Exterior',
-            'vip' => 'Área VIP Privada',
-            'patio' => 'Patio Exterior',
-        ];
-        $zonasIcono = [
-            'salon' => 'table_restaurant',
-            'barra' => 'local_bar',
-            'terraza' => 'deck',
-            'vip' => 'diamond',
-            'patio' => 'outdoor_garden',
-        ];
+        $mesasPorZona = $mesas->groupBy('zona')->sortBy(fn ($mesasZona, $zona) => $zonasCatalogo[$zona]->orden ?? 99);
 
         // Panel de métricas ejecutivas en sala
         $mapOcupadas = $mesas->where('estado', 'ocupada');
@@ -1005,7 +1094,7 @@ new class extends Component
         $mapTiempoProm = count($mapMinutos) > 0 ? (int) round(array_sum($mapMinutos) / count($mapMinutos)) : 0;
     @endphp
 
-    <div class="space-y-6">
+    <div class="space-y-6" x-data="mapaMesas()">
         <!-- Banner Ejecutivo de Métricas en Vivo del Salón -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <!-- Ocupación Salón -->
@@ -1083,8 +1172,10 @@ new class extends Component
         <div class="grid grid-cols-1 {{ $filtroZona === 'todas' ? 'xl:grid-cols-2' : '' }} gap-6">
             @forelse ($mesasPorZona as $zona => $mesasZona)
                 @php
-                    $labelZona = $zonasEtiqueta[$zona] ?? ucfirst($zona);
-                    $iconoZona = $zonasIcono[$zona] ?? 'table_restaurant';
+                    $labelZona = $zonasCatalogo[$zona]->nombre ?? ucfirst(str_replace(['-', '_'], ' ', $zona));
+                    $iconoZona = \App\Models\Zona::ICONOS[$zonasCatalogo[$zona]->icono ?? 'mesa'] ?? 'table_restaurant';
+                    $tinteZona = \App\Models\Zona::PALETA[$zonasCatalogo[$zona]->color ?? 'pizarra']['tinte'] ?? 'bg-surface-container-high/60';
+                    $puntoZona = \App\Models\Zona::PALETA[$zonasCatalogo[$zona]->color ?? 'pizarra']['punto'] ?? 'bg-outline-variant';
                     $libresZona = $mesasZona->where('estado', 'libre')->count();
                     $ocupadasZona = $mesasZona->where('estado', 'ocupada')->count();
 
@@ -1137,7 +1228,7 @@ new class extends Component
                             'canvasBg'     => 'bg-surface-dim',
                             'gridPattern'  => 'bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)] bg-[size:24px_24px]',
                             'badgeTone'    => 'bg-surface-container text-on-surface-variant border-surface-container-highest',
-                            'floorLabel'   => 'ZONA SALÓN',
+                            'floorLabel'   => mb_strtoupper($labelZona, 'UTF-8'),
                         ],
                     };
                 @endphp
@@ -1146,13 +1237,13 @@ new class extends Component
                     <!-- Room Header -->
                     <div class="flex items-center justify-between border-b border-surface-container-highest px-5 py-4 bg-surface-container-low/60 backdrop-blur-xs">
                         <div class="flex items-center gap-3">
-                            <span class="flex h-10 w-10 items-center justify-center rounded-2xl {{ $zonaTheme['headerBg'] }} border shadow-2xs">
+                            <span class="flex h-10 w-10 items-center justify-center rounded-2xl {{ $tinteZona }} border shadow-2xs">
                                 <span class="material-symbols-outlined text-[20px]">{{ $iconoZona }}</span>
                             </span>
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h2 class="text-sm font-black tracking-tight text-on-surface">{{ $labelZona }}</h2>
-                                    <span class="h-2 w-2 rounded-full {{ $zonaTheme['dot'] }}"></span>
+                                    <span class="h-2 w-2 rounded-full {{ $puntoZona }}"></span>
                                 </div>
                                 <p class="text-[11px] font-bold text-on-surface-variant">
                                     {{ $mesasZona->count() }} mesas · {{ $libresZona }} libres · {{ $ocupadasZona }} ocupadas
@@ -1165,7 +1256,7 @@ new class extends Component
                     </div>
 
                     <!-- Room Floor Canvas -->
-                    <div class="relative min-h-[360px] flex-1 p-6 sm:p-8 {{ $zonaTheme['canvasBg'] }} transition-colors duration-300">
+                    <div data-zona-drop="{{ $zona }}" class="relative min-h-[360px] flex-1 p-6 sm:p-8 {{ $zonaTheme['canvasBg'] }} transition-colors duration-300">
                         <!-- Architectural Subtle Tile Grid Background -->
                         <div class="pointer-events-none absolute inset-0 {{ $zonaTheme['gridPattern'] }} opacity-70"></div>
                         <div class="pointer-events-none absolute bottom-3 right-4 text-[9px] font-mono font-black uppercase tracking-widest text-on-surface-variant/30 select-none">
@@ -1293,6 +1384,8 @@ new class extends Component
                                         <button
                                             type="button"
                                             wire:click="$set('mesaSeleccionadaId', {{ $mesa->id }})"
+                                            data-mesa-id="{{ $mesa->id }}"
+                                            data-zona-actual="{{ $mesa->zona }}"
                                             class="group relative flex h-32 w-48 sm:w-52 items-center justify-center cursor-pointer transition-transform duration-200 hover:-translate-y-1 active:scale-95"
                                             title="Mesa #{{ $mesa->numero }} · {{ $tableStyles['label'] }} · {{ $mesa->capacidad }} pax"
                                         >
@@ -1337,6 +1430,8 @@ new class extends Component
                                         <button
                                             type="button"
                                             wire:click="$set('mesaSeleccionadaId', {{ $mesa->id }})"
+                                            data-mesa-id="{{ $mesa->id }}"
+                                            data-zona-actual="{{ $mesa->zona }}"
                                             class="group relative flex h-32 w-32 items-center justify-center cursor-pointer transition-transform duration-200 hover:-translate-y-1 active:scale-95"
                                             title="Mesa #{{ $mesa->numero }} · {{ $tableStyles['label'] }} · {{ $mesa->capacidad }} pax"
                                         >
@@ -1456,7 +1551,10 @@ new class extends Component
         @endphp
         <div class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 bg-scrim/70 backdrop-blur-sm animate-fade-in" wire:key="sheet-mesa-{{ $mesaSel->id }}">
             <button type="button" wire:click="$set('mesaSeleccionadaId', null)" aria-label="Cerrar acciones de la mesa {{ $mesaSel->numero }}" class="absolute inset-0 w-full h-full cursor-default"></button>
-            <div class="relative w-full sm:max-w-md rounded-t-[2rem] sm:rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto animate-fade-in">
+            <div class="relative w-full sm:max-w-md rounded-t-[2rem] sm:rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-4 sm:p-6 pt-2 sm:pt-3 shadow-2xl space-y-3 sm:space-y-4 max-h-[72vh] sm:max-h-[85vh] overflow-y-auto animate-fade-in">
+                <button type="button" wire:click="$set('mesaSeleccionadaId', null)" aria-label="Desliza o toca para cerrar" title="Cerrar" class="mx-auto flex h-7 w-20 items-center justify-center cursor-pointer">
+                    <span class="h-1.5 w-12 rounded-full bg-surface-container-highest"></span>
+                </button>
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-center gap-3">
                         <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-container-low text-primary border border-primary/20 shadow-sm">
@@ -1468,10 +1566,21 @@ new class extends Component
                             <p class="text-[11px] font-bold text-on-surface-variant capitalize">{{ $mesaSel->zona }} · {{ $mesaSel->capacidad }} pax{{ $mesaSel->mesero ? ' · ' . $mesaSel->mesero->name : '' }}</p>
                         </div>
                     </div>
-                    <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black capitalize {{ $mapaVisual['clase'] }}">
-                        <span class="material-symbols-outlined text-[13px]">{{ $mapaVisual['icono'] }}</span>
-                        {{ $mapaVisual['etiqueta'] }}
-                    </span>
+                    <div class="flex shrink-0 flex-col items-end gap-2">
+                        <button
+                            type="button"
+                            wire:click="$set('mesaSeleccionadaId', null)"
+                            aria-label="Cerrar acciones de la mesa"
+                            title="Cerrar"
+                            class="flex h-11 w-11 items-center justify-center rounded-full bg-surface-container text-on-surface-variant hover:text-on-surface active:scale-90 transition cursor-pointer"
+                        >
+                            <span class="material-symbols-outlined text-[22px]">close</span>
+                        </button>
+                        <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black capitalize {{ $mapaVisual['clase'] }}">
+                            <span class="material-symbols-outlined text-[13px]">{{ $mapaVisual['icono'] }}</span>
+                            {{ $mapaVisual['etiqueta'] }}
+                        </span>
+                    </div>
                 </div>
 
                 {{-- Acciones principales --}}
@@ -1604,15 +1713,15 @@ new class extends Component
                     <div>
                         <label class="block text-xs font-bold text-on-surface mb-1">Zona del Local *</label>
                         <div class="grid grid-cols-2 gap-2">
-                            @foreach (['salon' => 'Salón Principal', 'barra' => 'Barra / Bar', 'terraza' => 'Terraza Exterior', 'vip' => 'Área VIP'] as $val => $label)
-                                <button 
+                            @foreach (\App\Models\Zona::deSucursal($this->sucursalEnContexto())->activas()->orderBy('orden')->orderBy('nombre')->get() as $zonaOpcion)
+                                <button
                                     type="button"
-                                    wire:click="$set('formMesa.zona', '{{ $val }}')"
+                                    wire:click="$set('formMesa.zona', '{{ $zonaOpcion->slug }}')"
                                     class="h-10 px-3 rounded-xl text-xs font-bold text-left border transition-all flex items-center justify-between
-                                           {{ $formMesa['zona'] === $val ? 'bg-primary/10 border-primary text-primary shadow-sm' : 'bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:bg-surface-container' }}"
+                                           {{ $formMesa['zona'] === $zonaOpcion->slug ? 'bg-primary/10 border-primary text-primary shadow-sm' : 'bg-surface-container-low border-outline-variant/30 text-on-surface-variant hover:bg-surface-container' }}"
                                 >
-                                    <span>{{ $label }}</span>
-                                    @if($formMesa['zona'] === $val)
+                                    <span>{{ $zonaOpcion->nombre }}</span>
+                                    @if($formMesa['zona'] === $zonaOpcion->slug)
                                         <span class="material-symbols-outlined text-[16px]">check</span>
                                     @endif
                                 </button>
@@ -1994,4 +2103,284 @@ new class extends Component
             </div>
         </div>
     @endif
+
+    <!-- Modal Gestionar Zonas (catálogo por sucursal) -->
+    @if ($modalZonasOpen)
+        <div x-data @keydown.escape.window="$wire.set('modalZonasOpen', false)" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-scrim/60 backdrop-blur-sm animate-fade-in">
+            <div role="dialog" aria-modal="true" aria-labelledby="modal-zonas-title" class="w-full max-w-2xl rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/30 space-y-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+                            <span class="material-symbols-outlined text-[20px]">map</span>
+                        </div>
+                        <div>
+                            <h2 id="modal-zonas-title" class="text-base font-extrabold text-on-surface">
+                                {{ $zonaEditandoId ? 'Editar Zona' : 'Gestionar Zonas' }}
+                            </h2>
+                            <p class="text-[11px] text-on-surface-variant">Catálogo de zonas del salón por sucursal</p>
+                        </div>
+                    </div>
+                    <button
+                        wire:click="$set('modalZonasOpen', false)"
+                        class="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface"
+                        aria-label="Cerrar gestión de zonas"
+                    >
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                @php
+                    $zonasGestion = \App\Models\Zona::deSucursal($this->sucursalEnContexto())->orderBy('orden')->orderBy('nombre')->get();
+                    $conteoMesasPorZona = \App\Models\Mesa::where('sucursal_id', $this->sucursalEnContexto())->selectRaw('zona, count(*) as total')->groupBy('zona')->pluck('total', 'zona');
+                @endphp
+
+                <div class="space-y-2">
+                    @forelse ($zonasGestion as $z)
+                        <div class="flex items-center justify-between gap-3 rounded-2xl border border-surface-container-highest bg-surface-container-low/40 p-3">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <span class="h-3 w-3 shrink-0 rounded-full {{ \App\Models\Zona::PALETA[$z->color]['punto'] ?? 'bg-outline-variant' }}"></span>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-extrabold text-on-surface truncate">{{ $z->nombre }}</p>
+                                    <p class="text-[11px] text-on-surface-variant">{{ (int) ($conteoMesasPorZona[$z->slug] ?? 0) }} mesas · orden {{ $z->orden }}</p>
+                                </div>
+                                @if ($z->activa)
+                                    <span class="shrink-0 rounded-full bg-secondary-container/40 border border-secondary/20 px-2 py-0.5 text-[10px] font-extrabold uppercase text-on-secondary-container">Activa</span>
+                                @else
+                                    <span class="shrink-0 rounded-full bg-surface-container-high px-2 py-0.5 text-[10px] font-extrabold uppercase text-on-surface-variant">Inactiva</span>
+                                @endif
+                            </div>
+                            <div class="flex shrink-0 items-center gap-1.5">
+                                <button
+                                    type="button"
+                                    wire:click="iniciarEdicionZona({{ $z->id }})"
+                                    class="inline-flex items-center gap-1 rounded-xl border border-surface-container-highest bg-surface-container px-2.5 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container-high transition-all"
+                                    title="Editar zona"
+                                >
+                                    <span class="material-symbols-outlined text-[16px] text-primary">edit</span>
+                                    <span>Editar</span>
+                                </button>
+                                @if ($z->activa)
+                                    <button
+                                        type="button"
+                                        wire:click="alternarZona({{ $z->id }})"
+                                        wire:confirm="¿Desactivar esta zona? Las mesas deben estar reasignadas."
+                                        class="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20"
+                                        title="Desactivar zona"
+                                    >
+                                        <span class="material-symbols-outlined text-[16px]">power_settings_new</span>
+                                        <span>Desactivar</span>
+                                    </button>
+                                @else
+                                    <button
+                                        type="button"
+                                        wire:click="alternarZona({{ $z->id }})"
+                                        class="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all bg-secondary/10 text-secondary hover:bg-secondary/20 border border-secondary/20"
+                                        title="Reactivar zona"
+                                    >
+                                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                        <span>Activar</span>
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-center py-4 text-xs text-on-surface-variant">No hay zonas registradas en esta sucursal.</p>
+                    @endforelse
+                </div>
+
+                <form wire:submit="guardarZona" class="space-y-4 border-t border-outline-variant/20 pt-4">
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-1">Nombre de la Zona *</label>
+                        <input
+                            type="text"
+                            wire:model="zonaForm.nombre"
+                            class="w-full h-11 rounded-xl bg-surface-container-low border border-outline-variant/40 px-3.5 text-sm font-bold text-on-surface focus:border-primary focus:ring-1 focus:ring-primary"
+                            placeholder="Ej. Jardín, Primer Piso"
+                            required
+                        />
+                        @error('zonaForm.nombre') <span class="text-xs text-error font-medium">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-on-surface mb-1">Color *</label>
+                        <div class="flex flex-wrap items-center gap-2">
+                            @foreach (array_keys(\App\Models\Zona::PALETA) as $colorKey)
+                                <button
+                                    type="button"
+                                    wire:click="$set('zonaForm.color', '{{ $colorKey }}')"
+                                    title="{{ $colorKey }}"
+                                    aria-label="Color {{ $colorKey }}"
+                                    class="flex h-10 w-10 items-center justify-center rounded-xl border transition-all {{ $zonaForm['color'] === $colorKey ? 'border-primary ring-2 ring-primary/40 bg-primary/5' : 'border-outline-variant/30 bg-surface-container-low hover:bg-surface-container' }}"
+                                >
+                                    <span class="h-4 w-4 rounded-full {{ \App\Models\Zona::PALETA[$colorKey]['punto'] }}"></span>
+                                </button>
+                            @endforeach
+                        </div>
+                        @error('zonaForm.color') <span class="text-xs text-error font-medium">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-on-surface mb-1">Icono *</label>
+                            <select
+                                wire:model="zonaForm.icono"
+                                class="w-full h-11 rounded-xl bg-surface-container-low border border-outline-variant/40 px-3.5 text-xs font-bold text-on-surface"
+                            >
+                                @foreach (\App\Models\Zona::ICONOS as $iconoKey => $iconoSimbolo)
+                                    <option value="{{ $iconoKey }}">{{ $iconoKey }}</option>
+                                @endforeach
+                            </select>
+                            @error('zonaForm.icono') <span class="text-xs text-error font-medium">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-on-surface mb-1">Orden *</label>
+                            <input
+                                type="number"
+                                wire:model="zonaForm.orden"
+                                min="0"
+                                max="99"
+                                class="w-full h-11 rounded-xl bg-surface-container-low border border-outline-variant/40 px-3.5 text-xs font-mono text-on-surface"
+                            />
+                            @error('zonaForm.orden') <span class="text-xs text-error font-medium">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-2">
+                        @if ($zonaEditandoId)
+                            <button
+                                type="button"
+                                wire:click="abrirModalZonas"
+                                class="h-10 px-4 rounded-xl text-xs font-bold bg-surface-container hover:bg-surface-container-high text-on-surface-variant"
+                            >
+                                Cancelar Edición
+                            </button>
+                        @endif
+                        <button
+                            type="submit"
+                            class="h-10 px-5 rounded-xl text-xs font-extrabold bg-primary hover:bg-primary-container text-on-primary shadow-sm"
+                        >
+                            {{ $zonaEditandoId ? 'Actualizar Zona' : 'Guardar Zona' }}
+                        </button>
+                    </div>
+                </form>
+
+                <div class="flex items-center justify-end border-t border-outline-variant/20 pt-3">
+                    <button
+                        type="button"
+                        wire:click="$set('modalZonasOpen', false)"
+                        class="rounded-xl border border-surface-container-high bg-surface-container px-4 py-2 text-xs font-extrabold text-on-surface-variant hover:text-on-surface"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
+
+@push('scripts')
+<script>
+window.mapaMesas = () => ({
+    arrastrando: null,
+    fantasma: null,
+    temporizador: null,
+    zonaDestino: null,
+
+    iniciarArrastre(origen, mesaId) {
+        this.cancelarArrastre();
+        this.arrastrando = { mesaId, origen };
+        origen.style.touchAction = 'none';
+        this.temporizador = window.setTimeout(() => this.recoger(origen), 250);
+    },
+
+    recoger(origen) {
+        this.fantasma = origen.cloneNode(true);
+        Object.assign(this.fantasma.style, {
+            position: 'fixed',
+            zIndex: '9999',
+            pointerEvents: 'none',
+            opacity: '0.85',
+            transform: 'scale(1.05)',
+            margin: '0',
+            left: '0px',
+            top: '0px',
+        });
+        document.body.appendChild(this.fantasma);
+        origen.classList.add('opacity-40');
+    },
+
+    moverFantasma(evento) {
+        if (!this.fantasma) {
+            return;
+        }
+        const punto = evento.touches && evento.touches[0] ? evento.touches[0] : evento;
+        this.fantasma.style.left = (punto.clientX - 40) + 'px';
+        this.fantasma.style.top = (punto.clientY - 40) + 'px';
+        const bajo = document.elementFromPoint(punto.clientX, punto.clientY);
+        const sala = bajo ? bajo.closest('[data-zona-drop]') : null;
+        const slug = sala ? sala.getAttribute('data-zona-drop') : null;
+        if (slug !== this.zonaDestino) {
+            document.querySelectorAll('[data-zona-drop].ring-4').forEach((el) => el.classList.remove('ring-4', 'ring-white'));
+            this.zonaDestino = slug;
+            if (sala) {
+                sala.classList.add('ring-4', 'ring-white');
+            }
+        }
+    },
+
+    soltar() {
+        if (this.fantasma && this.zonaDestino && this.arrastrando
+            && this.zonaDestino !== this.arrastrando.origen.getAttribute('data-zona-actual')) {
+            this.$wire.call('moverMesaAZona', this.arrastrando.mesaId, this.zonaDestino);
+        }
+        this.cancelarArrastre();
+    },
+
+    cancelarArrastre() {
+        window.clearTimeout(this.temporizador);
+        if (this.arrastrando) {
+            this.arrastrando.origen.style.touchAction = '';
+            this.arrastrando.origen.classList.remove('opacity-40');
+        }
+        if (this.fantasma) {
+            this.fantasma.remove();
+        }
+        document.querySelectorAll('[data-zona-drop].ring-4').forEach((el) => el.classList.remove('ring-4', 'ring-white'));
+        this.arrastrando = null;
+        this.fantasma = null;
+        this.zonaDestino = null;
+    },
+});
+
+let compMapa = null;
+document.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest ? e.target.closest('[data-mesa-id]') : null;
+    if (!btn || e.button === 2) {
+        compMapa = null;
+        return;
+    }
+    const root = btn.closest('[x-data]');
+    compMapa = root && window.Alpine && typeof window.Alpine.$data === 'function' ? window.Alpine.$data(root) : null;
+    if (compMapa && compMapa.iniciarArrastre) {
+        compMapa.iniciarArrastre(btn, Number(btn.getAttribute('data-mesa-id')));
+    }
+}, { passive: true });
+document.addEventListener('pointermove', (e) => {
+    if (compMapa && compMapa.moverFantasma) {
+        compMapa.moverFantasma(e);
+    }
+}, { passive: true });
+document.addEventListener('pointerup', () => {
+    if (compMapa && compMapa.soltar) {
+        compMapa.soltar();
+    }
+    compMapa = null;
+});
+document.addEventListener('pointercancel', () => {
+    if (compMapa && compMapa.cancelarArrastre) {
+        compMapa.cancelarArrastre();
+    }
+    compMapa = null;
+});
+</script>
+@endpush

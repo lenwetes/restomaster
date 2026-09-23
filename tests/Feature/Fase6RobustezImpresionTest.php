@@ -263,7 +263,7 @@ class Fase6RobustezImpresionTest extends TestCase
         $trabajo = $this->impresionService->despacharTicketVenta($pedido, $this->admin);
 
         $this->assertEquals('ticket_venta', $trabajo->tipo);
-        $this->assertStringContainsString('RESTOMASTER COLOMBIA', $trabajo->contenido_texto);
+        $this->assertStringContainsString('RESTOMASTER', $trabajo->contenido_texto);
         $this->assertStringContainsString('ORD-FACT-778', $trabajo->contenido_texto);
         $this->assertStringContainsString('Valentina Restrepo', $trabajo->contenido_texto);
         $this->assertStringContainsString('Sake Junmai', $trabajo->contenido_texto);

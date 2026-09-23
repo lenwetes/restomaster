@@ -573,18 +573,64 @@ class ImpresionService
         $ancho = self::ANCHO_80MM;
         $fecha = $pedido->pagado_en ? Carbon::parse($pedido->pagado_en)->format('d/m/Y H:i') : Carbon::now()->format('d/m/Y H:i');
 
+        $cfg = app(ConfiguracionService::class);
+        $defaults = $cfg->valoresPorDefectoTicket80mm();
+        $t = fn (string $clave, mixed $def = '') => trim((string) $cfg->obtener('ticket_80mm', $clave, $defaults[$clave] ?? $def));
+        $b = function (string $clave) use ($cfg, $defaults): bool {
+            $val = $cfg->obtener('ticket_80mm', $clave, $defaults[$clave] ?? false);
+            $bool = filter_var($val, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            return $bool ?? (bool) ($defaults[$clave] ?? false);
+        };
+
+        $nombreComercial = $t('nombre_comercial') ?: 'RESTOMASTER';
+        $lema = $t('lema');
+        $razonSocial = $t('razon_social');
+        $nit = $t('nit');
+        $regimen = $t('regimen');
+        $direccion = $t('direccion');
+        $telefono = $t('telefono');
+        $ciudad = $t('ciudad');
+        $mensajeBienvenida = $t('mensaje_bienvenida');
+        $resolucionDian = $t('resolucion_dian');
+        $rangoAutorizado = $t('rango_autorizado');
+        $mostrarDatosMesero = $b('mostrar_datos_mesero');
+
         $salida = '';
-        $salida .= $this->centrar('RESTOMASTER COLOMBIA S.A.S.', $ancho)."\n";
-        $salida .= $this->centrar('NIT 901.458.789-2 · RÉGIMEN SIMPLE', $ancho)."\n";
-        $salida .= $this->centrar('Calle 10 # 36-24, El Poblado, Medellín', $ancho)."\n";
-        $salida .= $this->centrar('Tel: +57 (604) 448-9000', $ancho)."\n";
-        $salida .= $this->centrar('Resolución DIAN No. 18764022 de 2026', $ancho)."\n";
-        $salida .= $this->centrar('Rango POS: SX-0001 a SX-99999', $ancho)."\n";
+        $salida .= $this->centrar($nombreComercial, $ancho)."\n";
+        if ($lema !== '') {
+            $salida .= $this->centrar($lema, $ancho)."\n";
+        }
+        if ($razonSocial !== '') {
+            $salida .= $this->centrar($razonSocial, $ancho)."\n";
+        }
+        if ($nit !== '' || $regimen !== '') {
+            $lineaNit = trim('NIT '.$nit.($regimen !== '' ? ' · '.$regimen : ''));
+            $salida .= $this->centrar($lineaNit, $ancho)."\n";
+        }
+        if ($direccion !== '') {
+            $salida .= $this->centrar($direccion, $ancho)."\n";
+        }
+        if ($ciudad !== '' && $ciudad !== $direccion) {
+            $salida .= $this->centrar($ciudad, $ancho)."\n";
+        }
+        if ($telefono !== '') {
+            $salida .= $this->centrar($telefono, $ancho)."\n";
+        }
+        if ($mensajeBienvenida !== '') {
+            $salida .= $this->centrar($mensajeBienvenida, $ancho)."\n";
+        }
+        if ($resolucionDian !== '') {
+            $salida .= $this->centrar($resolucionDian, $ancho)."\n";
+        }
+        if ($rangoAutorizado !== '') {
+            $salida .= $this->centrar($rangoAutorizado, $ancho)."\n";
+        }
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
         $salida .= $this->alinearDosColumnas('FACTURA ELECTRÓNICA POS:', "#{$pedido->codigo}", $ancho)."\n";
         $salida .= $this->alinearDosColumnas('FECHA:', $fecha, $ancho)."\n";
         $salida .= $this->alinearDosColumnas('CAJERO:', $pedido->usuario->name ?? 'Caja Central', $ancho)."\n";
-        if ($pedido->mesero) {
+        if ($mostrarDatosMesero && $pedido->mesero) {
             $salida .= $this->alinearDosColumnas('MESERO:', $pedido->mesero->name, $ancho)."\n";
         }
 
@@ -651,9 +697,29 @@ class ImpresionService
         }
 
         $salida .= $this->lineaSeparadora($ancho, '=')."\n";
-        $salida .= $this->centrar('GRACIAS POR PREFERIR RESTOMASTER', $ancho)."\n";
-        $salida .= $this->centrar('Propina voluntaria no incluida', $ancho)."\n";
-        $salida .= $this->centrar('Conserve este recibo para reclamos', $ancho)."\n\n\n";
+        $piePagina = $t('pie_pagina');
+        $mensajePropina = $t('mensaje_propina');
+        $sugerirPropina = $b('sugerir_propina');
+        $redesSociales = $t('redes_sociales');
+        $politicaCambios = $t('politica_cambios');
+        $mostrarQr = $b('mostrar_qr');
+
+        if ($piePagina !== '') {
+            $salida .= $this->centrar($piePagina, $ancho)."\n";
+        }
+        if ($sugerirPropina && $mensajePropina !== '') {
+            $salida .= $this->centrar($mensajePropina, $ancho)."\n";
+        }
+        if ($redesSociales !== '') {
+            $salida .= $this->centrar($redesSociales, $ancho)."\n";
+        }
+        if ($politicaCambios !== '') {
+            $salida .= $this->centrar($politicaCambios, $ancho)."\n";
+        }
+        if ($mostrarQr) {
+            $salida .= $this->centrar('[QR] Verificación DIAN: '.$pedido->codigo, $ancho)."\n";
+        }
+        $salida .= "\n\n";
 
         return $salida;
     }

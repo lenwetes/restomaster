@@ -672,6 +672,8 @@ class MeseroAsignacionYPropinasTest extends TestCase
 
         Volt::actingAs($this->mesero2)
             ->test('pos.terminal')
-            ->assertSee('· Carlos Atencion Mesa', false);
+            // El modal Bento de mesas muestra el mesero asignado en la tarjeta
+            // (sin el prefijo "·" del dropdown anterior, solo existe en vista móvil).
+            ->assertSee('Carlos Atencion Mesa');
     }
 }

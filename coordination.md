@@ -6,6 +6,114 @@
 ---
 
 ## Última Actualización
+2026-09-23 | Antigravity | 🧪 **PLAN MAESTRO DE PRUEBAS INTEGRALES Y QUALITY GATE QA CULMINADO (39/39 TESTS EN VERDE · PINT 0 · PLAYWRIGHT LISTO)** (`app/Console/Commands/GenerateQualityReportCommand.php`, `tests/Unit/Services/*`, `tests/Feature/Components/*`, `tests/Integration/*`, `tests/e2e/*`, `playwright.config.ts`, `qa-report.json`, `qa-report.md`, `public/qa-dashboard.html`):
+- **Alcance culminado según plan de pruebas:**
+  1. **Pruebas Unitarias de Servicios (`tests/Unit/Services/` - 15/15 PASSED, 60 assertions):**
+     - `CajaServiceTest`: apertura de turnos con base, registro de movimientos, cierres, arqueos y Reporte Z.
+     - `PedidoServiceTest`: flujo de estados, adición de items, despacho a cocina y cobros.
+     - `InventarioServiceTest`: descuentos de receta con mermas por porción y detección de alertas críticas Bento.
+     - `ImpresionServiceTest`: formateo dinámico de comandas de cocina segmentadas y tickets térmicos 80mm vía `ConfiguracionService`.
+     - `DashboardServiceTest`: KPIs ejecutivos (`ventas`, `transacciones`, `ticket_promedio`, `food_cost_pct`, `margen_bruto`).
+     - `FidelizacionServiceTest`: acumulación de puntos, canjes, descuentos y promociones de tier.
+  2. **Pruebas de Componentes Livewire Volt (`tests/Feature/Components/` - 19/19 PASSED, 46 assertions):**
+     - `PosTerminalComponentTest`: catálogo reactivo, adición y cambio de cantidades, checkout y envío a cocina.
+     - `CajaControlComponentTest`: apertura con fondo inicial, movimientos de egreso con validación de autorización supervisor y arqueo ciego.
+     - `CocinaKdsComponentTest`: comandas agrupadas por estación, transición de estados de preparación y filtros multi-sucursal.
+     - `DashboardEjecutivoComponentTest`: selector de períodos (hoy, ayer, mes), widgets reactivos y moneda COP formateada.
+     - `DeliveryComponentTest`: interfaz de despacho a domicilio y asignación de repartidores.
+     - `InventarioComponentTest`: catálogo de insumos, filtros por categoría/estado crítico y selección en barra lateral.
+     - `MesasComponentTest`: plano de mesas, filtro por zonas operativas y renderizado en tiempo real.
+  3. **Pruebas de Integración (`tests/Integration/` - 5/5 PASSED, 54 assertions):**
+     - `TransaccionesIntegridadTest`: reversión atómica ante excepciones y consistencia en transacciones cruzadas de caja e inventario.
+     - `PostgresConstraintsTest`: restricciones de unicidad compuesta en esquemas (`sucursal_id, numero` en mesas, `grupo, clave` en configuraciones).
+     - `AntiNPlusOneTest`: auditoría automatizada de presupuesto estricto de consultas SQL (O(1) consultas con Eager Loading).
+  4. **Suite E2E Playwright (`tests/e2e/` - 7 flujos operativos multi-dispositivo configurados):**
+     - `flujo-01-salon-pos.spec.ts` (Mobile 390px Mesero Golden Path)
+     - `flujo-02-qr-mesa.spec.ts` (Auto-pedido QR Comensal)
+     - `flujo-03-delivery-web.spec.ts` (Delivery Web y Despacho)
+     - `flujo-04-caja-arqueo-z.spec.ts` (Ciclo Financiero y Arqueo Ciego)
+     - `flujo-05-inventario-escandallos.spec.ts` (Kardex, Mermas y Recetas)
+     - `flujo-06-reservas-clientes.spec.ts` (Reservas y Perfil VIP)
+     - `flujo-07-rbac-seguridad-backups.spec.ts` (Aislamiento Roles y Respaldo)
+  5. **Comando de Calidad & Dashboard (`php artisan restomaster:qa-report`):**
+     - Generador automatizado de métricas en JSON (`qa-report.json`), Markdown (`qa-report.md`) y tablero web interactivo (`public/qa-dashboard.html`).
+- **Verificación de Calidad y Estilo:**
+  - `php artisan restomaster:qa-report`: 39/39 tests en verde (160 assertions). 100% de éxito.
+  - `vendor\bin\pint --test`: PASSED (0 violaciones PSR-12).
+  - `php artisan view:cache`: PASSED (0 errores en plantillas Blade).
+- **Lock liberado:** Eliminado `.locks/qa-testing-framework.lock`.
+
+---
+
+## Actualización previa
+2026-09-23 | Antigravity | 🗺️ **GESTOR DE ZONAS + DRAG & DROP EN MAPA DE MESAS (TAREA FINALIZADA CONTINUANDO COLA DE OPENCODE)** (`database/migrations/2026_09_23_160041_create_zonas_table.php`, `app/Models/Zona.php`, `app/Policies/ZonaPolicy.php`, `database/seeders/ZonaSeeder.php`, `app/Services/MesaService.php`, `resources/views/livewire/mesas/index.blade.php`, `tests/Feature/ZonaGestionTest.php`):
+- **Alcance culminado según plan (`docs/superpowers/plans/2026-09-23-gestor-zonas-drag-drop.md`):**
+  1. **Migración + Modelo + Seeder (Task 1):** Tabla `zonas` con FK sucursal, slug único por sede, paleta Aura de 8 colores fijos (`Zona::PALETA`) y set de 8 iconos Material Symbols (`Zona::ICONOS`). `ZonaSeeder` crea las 4 zonas clásicas (`salon`, `barra`, `terraza`, `vip`) y adopta slugs históricos huérfanos.
+  2. **Policy + Servicio (Task 2):** `ZonaPolicy` (gerente/admin gestionan, cajero+ mueven mesas). `MesaService::moverMesa(Mesa $mesa, string $zonaSlug)` valida existencia, sede y estado activo.
+  3. **Validación dinámica y chips (Task 3):** Creación/edición de mesa valida `formMesa.zona` contra zonas activas de la sucursal actual vía `Rule::exists`; chips de zona cargados dinámicamente desde el catálogo de la sucursal.
+  4. **Render dinámico del mapa (Task 4):** Se eliminaron los mapas fijos; salas, tabs, filtros y leyenda leen `$zonasCatalogo` ordenado por `orden` y nombre.
+  5. **Modal "Gestionar Zonas" (Task 5):** Modal con listado reactivo de zonas, conteo de mesas en tiempo real, formulario con swatches de paleta Aura, iconos y orden, y bloqueo de desactivación si la zona tiene mesas asignadas.
+  6. **Drag & Drop táctil + `moverMesaAZona` (Task 6):** Pointer Events (`pointerdown/move/up/cancel`) con temporizador de recogida a 250ms, clon fantasma flotante de mesa, detección de sala destino con resaltado visual (`ring-4 ring-white`), actualización reactiva en BD vía `$wire.call('moverMesaAZona', ...)` y notificación toast. Tap rápido intacto para abrir el sheet.
+- **Verificación TDD y Regresiones:**
+  - `ZonaGestionTest`: 10/10 tests PASSED (24 aserciones).
+  - Regresiones de Mesas, Operaciones y Turnos: `RemediacionSistemaRotoTest` + `Fase1OperacionesTest` + `MeseroAsignacionYPropinasTest` + `TurnoCajaMultipleShiftsTest` → 49/49 PASSED (164 aserciones).
+  - Regresiones POS y Tickets: `TicketConfigurableTest` + `Fase6RobustezImpresionTest` → 14/14 PASSED (72 aserciones).
+  - Estándar de código: `vendor\bin\pint --test` PASSED en todos los archivos del módulo y en `mesas/index.blade.php`.
+- **Lock liberado:** `.locks/mesas.lock` liberado.
+
+---
+
+## Actualización previa
+2026-09-23 | OpenCode | 🧾 **UNIFICAR TICKET POS/IMPRESIÓN CON CONFIGURACIÓN ticket_80mm, QUITAR JAPONÉS** (`app/Services/ImpresionService.php`, `resources/views/livewire/pos/terminal.blade.php`, `tests/Feature/TicketConfigurableTest.php`, `tests/Feature/Fase6RobustezImpresionTest.php`):
+- **Causa raíz (skill systematic-debugging):** 3 tickets divergentes — preview `/configuracion` sí usaba `ticket_80mm`, pero modal POS `terminal.blade.php:3306-3384` hardcodeado (`AURA GASTRO`, `NIT 901.884.200-1`, `ありがとうございます`) e `ImpresionService::formatearTicketVentaTexto` con otro hardcode (`RESTOMASTER COLOMBIA S.A.S.`, `NIT 901.458.789-2`). Ninguno leía `ConfiguracionService`.
+- **Fix:** `ImpresionService` lee `ticket_80mm` (nombre/lema/razón/NIT/régimen/dirección/tel/ciudad/bienvenida/resolución/rango + footer pie/propina/redes/política/QR, respeta `mostrar_datos_mesero`); `pos.terminal` `with()` expone `ticketConfig` y modal usa esos campos, elimina japonés y `AURA GASTRO`/`901.884.200-1`. Test viejo `Fase6` relajado a `RESTOMASTER` (cubre default `RESTOMASTER GASTRO` y custom).
+- **Verificación TDD rojo-verde:** nuevo `TicketConfigurableTest` 4/4 (custom header/footer, ocultar mesero, sin japonés, modal POS usa config — fallaba en HEAD con japonés/AURA, verificado vía `git show HEAD`); `Fase6` 10/10, `FlujoComanda` 5/5, `CocinaRole` 5/5, `Fase5Config` 9/9, `MeseroPosOptimization` 15/15; pint php passed; blade pint solo drift preexistente (HEAD falla igual). Lock `ticket-80mm.lock` liberado (no se tocó `pos.lock` ajeno).
+
+---
+
+## Actualización previa
+2026-09-23 | OpenCode | 📱 **FIX BUGS GRÁFICOS MÓVIL POS: "Mesa Barra 1" duplicado + banner/tabs/modal** (`app/Models/Mesa.php`, `resources/views/livewire/pos/terminal.blade.php`, `tests/Feature/MeseroPosOptimizationTest.php`, `tests/Feature/MeseroAsignacionYPropinasTest.php`):
+- **Causas:** (1) `numero` ya trae zona ("Barra 1") y la UI anteponía "Mesa " → "Mesa Barra 1" + círculo w-8 desbordado. (2) Banner bloqueo en `flex-row` fijo → traslape en 390px. (3) Tabs de zona sin `nowrap` → "Todas/las/Zonas" en 3 líneas. (4) Header modal sin `min-w-0/shrink` → badge "10 Mesas" partido.
+- **Fix:** accessors `Mesa::nombre_sala` (sin duplicar prefijo) y `nombre_corto` (círculo) usados en modal PC + botón mesa + select/subtítulo móvil; banner `flex-col items-stretch sm:flex-row`; `shrink-0 whitespace-nowrap` en tabs/badges; `min-w-0/truncate` en títulos. Desktop intacto.
+- **Verificación:** nuevo test regresión + 2 tests viejos actualizados (fallaban en HEAD desde rediseño Bento, verificado vía stash) → 42/42 (MeseroPosOptimization + MeseroAsignacion + MesaCrud); pint passed; `view:cache` OK. Lock `pos.lock` liberado.
+- **⚠️ Colisión:** Antigravity editó `terminal.blade.php` en simultáneo (ticket-80mm, ~85 líneas) → 3 fallos transitorios por guardado a mitad de corrida; re-run 42/42 verde, mis líneas intactas (verificado por grep). Sugerencia: lock `pos.lock` para ese archivo mientras se trabaje en él.
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 📱 **SHEET MESA MÓVIL: salida fácil + altura tope** (`mesas/index.blade.php`, solo clases+1 botón):
+- **Problema:** ocupaba 88vh sin salida visible (el tap-fuera no se descubre).
+- **Fix:** asa de arrastre superior (tangible, cierra al tocar), botón X de 44px junto al chip de estado, altura tope 72vh en móvil con scroll interno, paddings compactos.
+- **Verificación:** view:cache OK; suites 11/11; pint passed.
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 📱 **FIX MÓVIL MESAS: header y chips sin recortes** (`mesas/index.blade.php`, solo clases):
+- **Header:** controles con `flex-wrap` (toggle full-width en móvil con mitades 50/50; Nueva Mesa + POS al 50% lado a lado); título `text-lg` en móvil; badge `MES-01` y textos de botones con `whitespace-nowrap` (ya no se parten ni se cortan).
+- **Filtros zona:** tira con scroll horizontal en móvil (`overflow-x-auto` + chips `shrink-0`, con efecto peek); mesero en fila propia; en desktop sigue en wrap.
+- **Verificación:** `view:cache` OK; suites mesas 31/32 (el fallo es el drift POS preexistente ya probado ajeno); `pint --test` passed.
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 📱 **FIX POS ROTO EN MÓVIL: grid fijo `col-span-8/4` → responsive** (`resources/views/livewire/pos/terminal.blade.php`, `tests/Feature/MeseroPosOptimizationTest.php`):
+- **Causa raíz (skill systematic-debugging):** el grid principal era `grid-cols-12` + `col-span-8/4` fijos sin breakpoints — único en el proyecto (inventario/clientes/config usan `grid-cols-1 lg:grid-cols-12`). A 390px comprimía catálogo/comanda a ~250px/~120px + alturas fijas `h-[calc(100vh-14rem)]` → traslapes. Además la barra de comando no hacía wrap.
+- **Fix (4 clases, desktop intacto):** `grid-cols-1 lg:grid-cols-12`, `lg:col-span-8/4`, `h-auto lg:h-[...]`, `flex-wrap` en barra de comando y grupo de búsqueda. En móvil: catálogo arriba, comanda debajo, scroll de página.
+- **Verificación:** nuevo test regresión responsive + test de wrapping viejo actualizado (fallaba en HEAD desde el rediseño Bento, verificado vía stash) → `MeseroPosOptimizationTest` 14/14; suites POS relacionadas 12/12; `view:cache` OK; pint del blade con drift preexistente idéntico en HEAD (no tocado). Lock `pos.lock` liberado. Nota: `mesas/index.blade.php` ya estaba modificado en el árbol antes de esta tarea — no tocado.
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 🍳 **FIX KDS VACÍO VS MAPA EN COCINA: `sucursal_id` NULL en `DemoOperacionesSeeder`** (`database/seeders/DemoOperacionesSeeder.php`, `tests/Feature/SeedDemoCommandTest.php`):
+- **Causa raíz (skill systematic-debugging, evidencia en BD):** ORD-101/102 se creaban sin `sucursal_id` (NULL) mientras todos los usuarios tienen `sucursal_id=1`; el KDS filtra por sucursal del usuario → 0 comandas, pero el mapa no filtra el pedido por sucursal → badge EN COCINA. Hipótesis confirmada: al setear `sucursal_id=1` el KDS devolvió 2/2.
+- **Fix:** `sucursal_id` en los 3 `Pedido::create` del seeder (ORD-101, ORD-102, ventas ORD-095–099) + datos locales corregidos. Nuevo test regresión (comandas visibles en KDS por sucursal, 0 pedidos sin sucursal).
+- **Verificación:** `SeedDemoCommandTest` 3/3, `FlujoComandaCocinaPosTest` 5/5, pint passed. Lock `seeders.lock` liberado.
+
+---
+## Actualización previa
+2026-09-23 | OpenCode | 🧪 **RESET LOCAL + AUTO-SEED VERIFICADO** (a petición: BD totalmente limpia):
+- `migrate:fresh --force` → 0 users (limpia). Luego `restomaster:seed-demo` OK: 7 users, 22 productos, 10 mesas, 2 cajas, 1 turno abierto, 7 pedidos, 22/22 imágenes vinculadas. 2da pasada idempotente (0 duplicados, 0 imágenes nuevas).
+- Equivale al `AUTO_SEED_DEMO=true` del entrypoint (`migrate` + `db:seed` + `seed-demo`). Sin cambios de código.
+
+---
+## Actualización previa
 2026-09-23 | OpenCode | 🐳 **ESPEJO docker-compose.yaml** (el setting de Coolify cambió a `.yaml` y el repo tenía `.yml`):
 - Agregado `docker-compose.yaml` idéntico (con aviso de editar solo el `.yml`). Ahora cualquiera de las dos extensiones en el setting resuelve.
 

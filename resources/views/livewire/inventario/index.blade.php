@@ -11,6 +11,7 @@ use App\Models\Receta;
 use App\Models\MovimientoInventario;
 use App\Services\InventarioService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
@@ -412,10 +413,11 @@ class extends Component {
         $query = Insumo::with(['categoriaInsumo', 'proveedor'])->where('activo', true);
 
         if ($this->search !== '') {
-            $query->where(function ($q) {
-                $q->where('nombre', 'ilike', "%{$this->search}%")
-                  ->orWhere('codigo', 'ilike', "%{$this->search}%")
-                  ->orWhere('proveedor_nombre', 'ilike', "%{$this->search}%");
+            $like = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($like) {
+                $q->where('nombre', $like, "%{$this->search}%")
+                  ->orWhere('codigo', $like, "%{$this->search}%")
+                  ->orWhere('proveedor_nombre', $like, "%{$this->search}%");
             });
         }
 

@@ -6,6 +6,7 @@ use App\Enums\MesaEstado;
 use App\Models\Mesa;
 use App\Models\Sucursal;
 use App\Models\User;
+use App\Models\Zona;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -363,5 +364,21 @@ class MesaService
         );
 
         return $mesa->fresh(['mesero']);
+    }
+
+    public function moverMesa(Mesa $mesa, string $zonaSlug): Mesa
+    {
+        $zona = Zona::where('slug', $zonaSlug)
+            ->where('sucursal_id', $mesa->sucursal_id)
+            ->where('activa', true)
+            ->first();
+
+        if (! $zona) {
+            throw new \DomainException("La zona [{$zonaSlug}] no existe o está inactiva en esta sucursal.");
+        }
+
+        $mesa->update(['zona' => $zona->slug]);
+
+        return $mesa->fresh();
     }
 }

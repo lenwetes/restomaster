@@ -303,12 +303,59 @@ class MeseroPosOptimizationTest extends TestCase
         $component = Volt::actingAs($this->mesero)
             ->test('pos.terminal');
 
-        // La Top Control Bar debe permitir wrapping: sin flex-wrap el flex-row
-        // en laptop aprieta el select de mesa, comprime el buscador y recorta
+        // La barra de comando Bento debe permitir wrapping: sin flex-wrap el flex-row
+        // en móvil/tablet aprieta el selector de mesa, comprime el buscador y recorta
         // el switcher PC/Tablet/Móvil del mesero.
-        $component->assertSee('flex flex-col flex-wrap gap-3', false);
+        $component->assertSee('flex flex-wrap items-center justify-between gap-3', false);
+        $component->assertSee('flex flex-wrap items-center justify-end gap-2', false);
         $component->assertSee('id="btnVistaPc"', false);
         $component->assertSee('id="btnVistaTablet"', false);
         $component->assertSee('id="btnVistaMovil"', false);
+    }
+
+    public function test_pos_modal_mesas_no_duplica_prefijo_y_no_desborda_en_movil(): void
+    {
+        Mesa::create([
+            'sucursal_id' => $this->mesa->sucursal_id,
+            'numero' => 'Barra 1',
+            'zona' => 'barra',
+            'capacidad' => 2,
+            'estado' => 'libre',
+            'activo' => true,
+        ]);
+
+        $component = Volt::actingAs($this->admin)
+            ->test('pos.terminal');
+
+        // El número ya trae prefijo de zona: no debe duplicarse el "Mesa".
+        $component->assertDontSee('Mesa Barra 1');
+        $component->assertDontSee('Mesa Mesa', false);
+        $component->assertSee('Barra 1');
+
+        // Pestañas de zona y badges con nowrap: sin esto el texto se apila en 3 líneas.
+        $component->assertSee('shrink-0 whitespace-nowrap', false);
+
+        // Banner de bloqueo: apilado en móvil, en fila desde sm.
+        $component->assertSee('sm:flex-row sm:items-center', false);
+    }
+
+    public function test_pos_pc_apila_catalogo_y_comanda_en_movil(): void
+    {
+        $component = Volt::actingAs($this->admin)
+            ->test('pos.terminal');
+
+        // Convención del proyecto (inventario, clientes, configuración):
+        // mobile-first apilado, 12 columnas solo en desktop.
+        $component->assertSee('grid grid-cols-1 lg:grid-cols-12', false);
+        $component->assertSee('lg:col-span-8', false);
+        $component->assertSee('lg:col-span-4', false);
+
+        // Sin spans fijos que compriman catálogo/comanda a ~250px/~120px en teléfonos.
+        $component->assertDontSee('class="col-span-8', false);
+        $component->assertDontSee('class="col-span-4', false);
+
+        // Alturas de viewport solo en desktop: en móvil el contenido fluye con scroll de página.
+        $component->assertSee('lg:h-[calc(100vh-14rem)]', false);
+        $component->assertDontSee('min-h-0 h-[calc(100vh-14rem)]"', false);
     }
 }

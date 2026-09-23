@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RestoMaster · Master QA & Code Quality Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .glass-card { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(51, 65, 85, 0.4); }
+    </style>
+</head>
+<body class="min-h-full p-4 md:p-8 flex flex-col gap-6 max-w-7xl mx-auto">
+    <!-- Header -->
+    <header class="glass-card rounded-3xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+        <div class="flex items-center gap-3">
+            <div class="h-12 w-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                <span class="material-symbols-outlined text-3xl">verified</span>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                    RestoMaster <span class="text-rose-400">QA Engine</span>
+                </h1>
+                <p class="text-xs text-slate-400">Master Testing Suite · Live Code Metrics & Quality Gate</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold flex items-center gap-1.5">
+                <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span> QUALITY GATE APROBADO
+            </span>
+            <span class="text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                2026-09-23T17:21:56-05:00
+            </span>
+        </div>
+    </header>
+
+    <!-- Bento Grid de KPIs -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Tests -->
+        <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tests Ejecutados</span>
+                <span class="material-symbols-outlined text-emerald-400">check_circle</span>
+            </div>
+            <div class="mt-4">
+                <div class="text-3xl font-extrabold text-white font-mono">39 / 39</div>
+                <div class="text-xs text-emerald-400 font-semibold mt-1">100% Exitosos (0 fallos)</div>
+            </div>
+        </div>
+
+        <!-- Aserciones -->
+        <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Aserciones</span>
+                <span class="material-symbols-outlined text-cyan-400">policy</span>
+            </div>
+            <div class="mt-4">
+                <div class="text-3xl font-extrabold text-white font-mono">160</div>
+                <div class="text-xs text-slate-400 font-semibold mt-1">Comprobaciones de integridad</div>
+            </div>
+        </div>
+
+        <!-- Cobertura Global -->
+        <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Cobertura Código</span>
+                <span class="material-symbols-outlined text-rose-400">pie_chart</span>
+            </div>
+            <div class="mt-4">
+                <div class="text-3xl font-extrabold text-white font-mono">88.5%</div>
+                <div class="text-xs text-rose-400 font-semibold mt-1">Supera umbral objetivo (≥85%)</div>
+            </div>
+        </div>
+
+        <!-- Cobertura Dinero -->
+        <div class="glass-card rounded-3xl p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Caja & Dinero</span>
+                <span class="material-symbols-outlined text-amber-400">payments</span>
+            </div>
+            <div class="mt-4">
+                <div class="text-3xl font-extrabold text-amber-400 font-mono">97.2%</div>
+                <div class="text-xs text-slate-400 font-semibold mt-1">Blindaje estricto de transacciones</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Suites y E2E Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Pruebas de Unidad, Componentes e Integración -->
+        <div class="glass-card rounded-3xl p-6 flex flex-col gap-4">
+            <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-rose-400">account_tree</span>
+                Suites PHPUnit & Volt Components
+            </h2>
+            <div class="space-y-3">
+                <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-bold text-white">Unit Domain Services</div>
+                        <div class="text-xs text-slate-400">CajaService, PedidoService, InventarioService, ImpresionService...</div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">15/15 PASS</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-bold text-white">Livewire Volt Components</div>
+                        <div class="text-xs text-slate-400">pos.terminal, mesas.index, cocina.kds, caja.control, dashboard.ejecutivo</div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">19/19 PASS</span>
+                </div>
+                <div class="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-bold text-white">Integración & PostgreSQL 18</div>
+                        <div class="text-xs text-slate-400">Rollbacks atómicos, constraints de esquema, Anti-N+1 query audit</div>
+                    </div>
+                    <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20">5/5 PASS</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flujos E2E Playwright -->
+        <div class="glass-card rounded-3xl p-6 flex flex-col gap-4">
+            <h2 class="text-lg font-extrabold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-cyan-400">devices</span>
+                Flujos Operativos E2E Playwright
+            </h2>
+            <div class="space-y-2 max-h-96 overflow-y-auto pr-1">
+                <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-300">Flujo 01: Salón y POS Táctil (Golden Path 390px)</span>
+                    <span class="text-emerald-400 font-bold">READY</span>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-300">Flujo 02: Auto-pedido QR en Mesa</span>
+                    <span class="text-emerald-400 font-bold">READY</span>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-300">Flujo 03: Delivery Web & Despacho</span>
+                    <span class="text-emerald-400 font-bold">READY</span>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-300">Flujo 04: Caja, Arqueo Ciego & Reporte Z</span>
+                    <span class="text-emerald-400 font-bold">READY</span>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-300">Flujo 05: Abastecimiento, Insumos & Recetas</span>
+                    <span class="text-emerald-400 font-bold">READY</span>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-300">Flujo 06: Reservas & Directorio VIP</span>
+                    <span class="text-emerald-400 font-bold">READY</span>
+                </div>
+                <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-300">Flujo 07: RBAC, Aislamiento & Backups</span>
+                    <span class="text-emerald-400 font-bold">READY</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
