@@ -6,6 +6,33 @@
 ---
 
 ## Última Actualización
+2026-09-26 | Antigravity | 🎫 **GESTIÓN INTEGRAL DE CICLO DE VIDA DE CONVERSACIONES EN CRM: CERRAR, REABRIR, ELIMINAR Y FILTRAR TICKETS** (`app/Models/CrmConversacion.php`, `resources/views/livewire/crm/index.blade.php`, `tests/Feature/CrmChatOmnicanalTest.php`, `coordination.md`):
+- **Problema Reportado por el Usuario:**
+  - El usuario indicó: *"no puedo cerrar o eliminar una conversacion que ya no este activa"*.
+  - En la consola de chat (`Bandeja Omnicanal`), no existían acciones de interfaz ni métodos para marcar como cerrada/resuelta una conversación, ni para eliminar permanentemente un ticket inactivo/spam junto con su historial de mensajes.
+- **Solución Implementada:**
+  1. **Modelo `CrmConversacion`:**
+     - `cerrar(?int $userId = null)`: Marca el estado como `'cerrada'`, resetea los mensajes no leídos del staff y limpia borradores de reserva huérfanos.
+     - `reabrir()`: Reactiva una conversación cerrada devolviéndola al estado `'activa'`.
+     - `esCerrada(): bool`: Helper semántico para condicionales de negocio e interfaz.
+     - `eliminarConHistorial()`: Elimina permanentemente los mensajes asociados (`crm_mensajes`) y la conversación raíz de la base de datos de manera limpia y segura.
+  2. **Consola CRM Livewire (`crm.index`):**
+     - Acciones añadidas: `cerrarConversacion(?int $id)`, `reabrirConversacion(?int $id)`, `eliminarConversacion(int $id)`.
+     - Si el staff responde en el input de un ticket cerrado, el sistema automáticamente reabre la conversación (`enviarRespuestaStaff`).
+     - Botón directo en la barra superior del ticket: `Cerrar Ticket` cuando está activo, o `Reabrir` cuando está cerrado.
+     - Menú contextual desplegable (`more_vert`) con confirmación segura `wire:confirm` para eliminación irreversible.
+     - Banner informativo en la barra inferior cuando el ticket está cerrado: *"Ticket cerrado. Enviar un mensaje o pulsar Reabrir reactivará la conversación."* con botón *"Reabrir ahora"*.
+     - Filtros rápidos en la bandeja lateral: `Activos` (por defecto, excluye tickets cerrados), `Unresolved`, `☆ VIP`, `Cerrados` (solo cerrados) y `Todos`.
+     - Badges de estado dinámicos: `Activo` (esmeralda), `Esperando Staff` (rosa pulsante), `Cerrado` (piedra con candado).
+     - Sincronización inteligente de selección al alternar filtros entre pestañas.
+  3. **Pruebas Automatizadas:**
+     - 16/16 pruebas pasando en `CrmChatOmnicanalTest` (77 aserciones).
+     - Validación integral de la suite CRM: 23/23 tests pasando (103 aserciones).
+     - Código 100% formateado según estándar PSR-12 con Laravel Pint.
+
+---
+
+## Actualización previa
 2026-09-26 | Antigravity | 🔄 **MÁQUINA DE ESTADO DE RESERVAS, RECONOCIMIENTO DE RESPUESTAS DIRECTAS (EJ. NOMBRE AISLADO) Y VISUALIZACIÓN EN VIVO DEL ESTADO DEL PROCESO** (`app/Services/Ai/CrmAiAgentService.php`, `app/Models/CrmConversacion.php`, `tests/Feature/CrmChatReservaAutomaticaTest.php`, `coordination.md`):
 - **Diagnóstico del Bucle de Respuestas Reportado por el Usuario:**
   - Caso 1 (Datos fantasmas): Al escribir *"quiero agendar una mesa"*, el escaneo retrospectivo buscaba en todo el historial acumulado en la sesión de pruebas, inyectando datos viejos de turnos pasados (*"Tomamos nota para 4 personas para hoy a las 4:00 PM"*).

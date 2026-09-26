@@ -287,4 +287,116 @@ class CrmChatOmnicanalTest extends TestCase
             ->call('conmutarModoChat', 'humano')
             ->assertSee('Devolver a la IA');
     }
+
+    public function test_cerrar_reabrir_y_eliminar_conversacion_desde_livewire_crm(): void
+    {
+        $conv = CrmConversacion::create([
+            'canal' => 'web',
+            'identificador_remoto' => 'test-session-close',
+            'session_token' => 'test-session-close',
+            'nombre_contacto' => 'Cliente Para Cerrar',
+            'modo_atencion' => 'humano',
+            'estado' => 'activa',
+            'ultimo_mensaje_texto' => 'Consulta resuelta, gracias',
+            'ultimo_mensaje_at' => now(),
+        ]);
+
+        $mensaje = CrmMensaje::create([
+            'crm_conversacion_id' => $conv->id,
+            'emisor' => 'cliente',
+            'contenido' => 'Consulta resuelta, gracias',
+            'canal_origen' => 'web',
+        ]);
+
+        $this->actingAs($this->adminUser);
+
+        // 1. Cerrar conversación
+        Livewire::test('crm.index')
+            ->set('tab', 'chats')
+            ->call('seleccionarChat', $conv->id)
+            ->call('cerrarConversacion', $conv->id)
+            ->assertSet('chatConversacionSeleccionadaId', $conv->id);
+
+        $conv->refresh();
+        $this->assertEquals('cerrada', $conv->estado);
+        $this->assertTrue($conv->esCerrada());
+
+        // 2. Reabrir conversación
+        Livewire::test('crm.index')
+            ->set('tab', 'chats')
+            ->call('seleccionarChat', $conv->id)
+            ->call('reabrirConversacion', $conv->id);
+
+        $conv->refresh();
+        $this->assertEquals('activa', $conv->estado);
+        $this->assertFalse($conv->esCerrada());
+
+        // 3. Responder staff auto-reabre si estaba cerrada
+        $conv->cerrar();
+        $this->assertTrue($conv->fresh()->esCerrada());
+
+        Livewire::test('crm.index')
+            ->set('tab', 'chats')
+            ->call('seleccionarChat', $conv->id)
+            ->set('chatRespuestaInput', '¡Un placer haberle atendido!')
+            ->call('enviarRespuestaStaff');
+
+        $conv->refresh();
+        $this->assertEquals('activa', $conv->estado);
+
+        // 4. Eliminar conversación permanentemente con sus mensajes
+        Livewire::test('crm.index')
+            ->set('tab', 'chats')
+            ->call('seleccionarChat', $conv->id)
+            ->call('eliminarConversacion', $conv->id)
+            ->assertSet('chatConversacionSeleccionadaId', null);
+
+        $this->assertDatabaseMissing('crm_conversaciones', ['id' => $conv->id]);
+        $this->assertDatabaseMissing('crm_mensajes', ['id' => $mensaje->id]);
+    }
+
+    public function test_filtro_tickets_activos_vs_cerrados_en_livewire_crm(): void
+    {
+        $convActiva = CrmConversacion::create([
+            'canal' => 'web',
+            'identificador_remoto' => 'test-active',
+            'nombre_contacto' => 'Visitante Activo',
+            'modo_atencion' => 'ia',
+            'estado' => 'activa',
+            'ultimo_mensaje_texto' => 'Necesito ayuda',
+            'ultimo_mensaje_at' => now(),
+        ]);
+
+        $convCerrada = CrmConversacion::create([
+            'canal' => 'web',
+            'identificador_remoto' => 'test-closed',
+            'nombre_contacto' => 'Visitante Cerrado',
+            'modo_atencion' => 'humano',
+            'estado' => 'cerrada',
+            'ultimo_mensaje_texto' => 'Ya todo listo',
+            'ultimo_mensaje_at' => now(),
+        ]);
+
+        $this->actingAs($this->adminUser);
+
+        // Por defecto (filtro 'activos'): se ve la activa, NO la cerrada
+        Livewire::test('crm.index')
+            ->set('tab', 'chats')
+            ->assertSee('Visitante Activo')
+            ->assertDontSee('Visitante Cerrado');
+
+        // Filtro 'cerradas': se ve la cerrada, NO la activa
+        Livewire::test('crm.index')
+            ->set('tab', 'chats')
+            ->set('chatFiltroEstado', 'cerradas')
+            ->assertSee('Visitante Cerrado')
+            ->assertDontSee('Visitante Activo');
+
+        // Filtro 'todos': se ven ambas
+        Livewire::test('crm.index')
+            ->set('tab', 'chats')
+            ->set('chatFiltroEstado', 'todos')
+            ->assertSee('Visitante Activo')
+            ->assertSee('Visitante Cerrado');
+    }
 }

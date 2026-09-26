@@ -166,7 +166,8 @@ new class extends Component
         }
 
         if (\Illuminate\Support\Facades\Schema::hasTable('crm_conversaciones')) {
-            $primerChat = \App\Models\CrmConversacion::latest('ultimo_mensaje_at')->first();
+            $primerChat = \App\Models\CrmConversacion::where('estado', '!=', 'cerrada')->latest('ultimo_mensaje_at')->first()
+                ?? \App\Models\CrmConversacion::latest('ultimo_mensaje_at')->first();
             if ($primerChat) {
                 $this->chatConversacionSeleccionadaId = $primerChat->id;
             }
@@ -569,6 +570,10 @@ new class extends Component
         }
 
         $conv = \App\Models\CrmConversacion::findOrFail($this->chatConversacionSeleccionadaId);
+        if ($conv->esCerrada()) {
+            $conv->reabrir();
+        }
+
         /** @var \App\Services\Ai\CrmChatOrchestratorService $orchestrator */
         $orchestrator = app(\App\Services\Ai\CrmChatOrchestratorService::class);
         $orchestrator->enviarMensajeStaff($conv, $texto, (int) (auth()->id() ?? 1));
@@ -591,6 +596,62 @@ new class extends Component
 
         $this->mensajeAlerta = $modo === 'ia' ? 'Control de conversación cedido a la IA.' : 'Control tomado por el staff humano.';
         $this->tipoAlerta = 'info';
+    }
+
+    public function updatedChatFiltroEstado(): void
+    {
+        $this->chatConversacionSeleccionadaId = null;
+    }
+
+    public function updatedChatFiltroCanal(): void
+    {
+        $this->chatConversacionSeleccionadaId = null;
+    }
+
+    public function cerrarConversacion(?int $id = null): void
+    {
+        $id = $id ?? $this->chatConversacionSeleccionadaId;
+        if (! $id) {
+            return;
+        }
+
+        $conv = \App\Models\CrmConversacion::find($id);
+        if ($conv) {
+            $conv->cerrar(auth()->id());
+            $this->mensajeAlerta = "Conversación #{$conv->ticket_codigo} cerrada y marcada como resuelta.";
+            $this->tipoAlerta = 'success';
+        }
+    }
+
+    public function reabrirConversacion(?int $id = null): void
+    {
+        $id = $id ?? $this->chatConversacionSeleccionadaId;
+        if (! $id) {
+            return;
+        }
+
+        $conv = \App\Models\CrmConversacion::find($id);
+        if ($conv) {
+            $conv->reabrir();
+            $this->mensajeAlerta = "Conversación #{$conv->ticket_codigo} reabierta con éxito.";
+            $this->tipoAlerta = 'info';
+        }
+    }
+
+    public function eliminarConversacion(int $id): void
+    {
+        $conv = \App\Models\CrmConversacion::find($id);
+        if ($conv) {
+            $ticket = $conv->ticket_codigo;
+            $conv->eliminarConHistorial();
+
+            if ($this->chatConversacionSeleccionadaId === $id) {
+                $this->chatConversacionSeleccionadaId = null;
+            }
+
+            $this->mensajeAlerta = "Conversación #{$ticket} eliminada permanentemente.";
+            $this->tipoAlerta = 'warning';
+        }
     }
 
     public function aplicarPlantillaRespuesta(string $texto): void
@@ -624,20 +685,34 @@ new class extends Component
             $chatsQuery = \App\Models\CrmConversacion::with(['cliente.reservas', 'usuarioAsignado'])
                 ->when($this->chatFiltroCanal, fn ($q) => $q->where('canal', $this->chatFiltroCanal))
                 ->when($this->chatFiltroEstado === 'esperando_humano', fn ($q) => $q->where('estado', 'esperando_humano'))
-                ->when($this->chatFiltroEstado === 'ia', fn ($q) => $q->where('modo_atencion', 'ia'))
-                ->when($this->chatFiltroEstado === 'humano', fn ($q) => $q->where('modo_atencion', 'humano'))
+                ->when($this->chatFiltroEstado === 'ia', fn ($q) => $q->where('modo_atencion', 'ia')->where('estado', '!=', 'cerrada'))
+                ->when($this->chatFiltroEstado === 'humano', fn ($q) => $q->where('modo_atencion', 'humano')->where('estado', '!=', 'cerrada'))
+                ->when($this->chatFiltroEstado === 'cerradas' || $this->chatFiltroEstado === 'cerrada', fn ($q) => $q->where('estado', 'cerrada'))
+                ->when($this->chatFiltroEstado === '' || $this->chatFiltroEstado === 'activos' || $this->chatFiltroEstado === 'activas', fn ($q) => $q->where('estado', '!=', 'cerrada'))
+                ->when($this->chatFiltroEstado === 'todos', fn ($q) => $q)
                 ->when($this->chatFiltroEstado === 'vip', fn ($q) => $q->whereHas('cliente', fn ($sq) => $sq->whereIn('tier', ['vip', 'black', 'gold', 'oro'])))
-                ->when($this->chatBusqueda, fn ($q) => $q->where(function ($sub) {
-                    $sub->where('nombre_contacto', 'ilike', "%{$this->chatBusqueda}%")
-                        ->orWhere('identificador_remoto', 'ilike', "%{$this->chatBusqueda}%")
-                        ->orWhere('ultimo_mensaje_texto', 'ilike', "%{$this->chatBusqueda}%")
-                        ->orWhere('ticket_codigo', 'ilike', "%{$this->chatBusqueda}%");
-                }))
+                ->when($this->chatBusqueda, function ($q) {
+                    $op = config('database.default') === 'pgsql' ? 'ilike' : 'like';
+                    $q->where(function ($sub) use ($op) {
+                        $sub->where('nombre_contacto', $op, "%{$this->chatBusqueda}%")
+                            ->orWhere('identificador_remoto', $op, "%{$this->chatBusqueda}%")
+                            ->orWhere('ultimo_mensaje_texto', $op, "%{$this->chatBusqueda}%")
+                            ->orWhere('ticket_codigo', $op, "%{$this->chatBusqueda}%");
+                    });
+                })
                 ->orderByDesc('ultimo_mensaje_at');
 
             $conversaciones = $chatsQuery->take(40)->get();
 
             if ($this->chatConversacionSeleccionadaId) {
+                $conversacionActiva = \App\Models\CrmConversacion::with([
+                    'cliente.reservas' => fn ($q) => $q->latest()->take(3),
+                    'mensajes' => fn ($q) => $q->with('usuario')->orderBy('created_at', 'asc'),
+                ])->find($this->chatConversacionSeleccionadaId);
+            }
+
+            if (! $conversacionActiva && $conversaciones->isNotEmpty()) {
+                $this->chatConversacionSeleccionadaId = $conversaciones->first()->id;
                 $conversacionActiva = \App\Models\CrmConversacion::with([
                     'cliente.reservas' => fn ($q) => $q->latest()->take(3),
                     'mensajes' => fn ($q) => $q->with('usuario')->orderBy('created_at', 'asc'),
@@ -1879,25 +1954,38 @@ new class extends Component
                     <span class="material-symbols-outlined absolute right-3 top-2.5 text-[#7d655a] text-[18px]">tune</span>
                 </div>
 
-                <!-- Filtros rápidos estilo Mockup B: VIP, Unresolved / Requiere Asesor, My Tickets / Todos -->
+                <!-- Filtros rápidos estilo Mockup B: Activos, Unresolved, VIP, Cerrados, Todos -->
                 <div class="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar pb-1 text-xs">
                     <button 
-                        wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'vip' ? '' : 'vip')"
-                        class="px-3 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'vip' ? 'border border-[#d49a3d] text-[#e8a348] bg-[#2a1a0f]/80 shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
+                        wire:click="$set('chatFiltroEstado', '')"
+                        class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ ($chatFiltroEstado === '' || $chatFiltroEstado === 'activos') ? 'border border-[#3d251a] text-[#f0e6df] bg-[#22140e]' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
                     >
-                        <span>☆ VIP</span>
+                        <span>Activos</span>
                     </button>
                     <button 
                         wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'esperando_humano' ? '' : 'esperando_humano')"
-                        class="px-3 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'esperando_humano' ? 'border border-rose-500/60 text-rose-300 bg-rose-950/40 shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
+                        class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'esperando_humano' ? 'border border-rose-500/60 text-rose-300 bg-rose-950/40 shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
                     >
                         <span>Unresolved</span>
                     </button>
                     <button 
-                        wire:click="$set('chatFiltroEstado', '')"
-                        class="px-3 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === '' ? 'border border-[#3d251a] text-[#f0e6df] bg-[#22140e]' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
+                        wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'vip' ? '' : 'vip')"
+                        class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'vip' ? 'border border-[#d49a3d] text-[#e8a348] bg-[#2a1a0f]/80 shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
                     >
-                        <span>My Tickets</span>
+                        <span>☆ VIP</span>
+                    </button>
+                    <button 
+                        wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'cerradas' ? '' : 'cerradas')"
+                        class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'cerradas' ? 'border border-stone-600 text-stone-200 bg-stone-900 shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
+                    >
+                        <span class="material-symbols-outlined text-[13px]">lock</span>
+                        <span>Cerrados</span>
+                    </button>
+                    <button 
+                        wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'todos' ? '' : 'todos')"
+                        class="px-2 py-1 rounded-xl transition-all text-[11px] font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'todos' ? 'border border-[#3d251a] text-[#f0e6df] bg-[#22140e]' : 'border border-[#281812] bg-[#180e0a] text-[#7d655a] hover:text-[#f0e6df]' }}"
+                    >
+                        <span>Todos</span>
                     </button>
                 </div>
 
@@ -1924,13 +2012,16 @@ new class extends Component
                             <!-- Línea 1: Punto indicador + Código de Ticket + Badge Fecha/Reserva -->
                             <div class="flex items-center justify-between gap-2">
                                 <div class="flex items-center gap-2 min-w-0">
-                                    <span class="w-2 h-2 rounded-full {{ $c->requiere_humano ? 'bg-rose-500 animate-ping' : ($c->modo_atencion === 'ia' ? 'bg-[#e88834]' : 'bg-emerald-400') }} shrink-0"></span>
+                                    <span class="w-2 h-2 rounded-full {{ $c->estado === 'cerrada' ? 'bg-stone-500' : ($c->requiere_humano ? 'bg-rose-500 animate-ping' : ($c->modo_atencion === 'ia' ? 'bg-[#e88834]' : 'bg-emerald-400')) }} shrink-0"></span>
                                     <span class="font-mono text-xs font-bold text-[#f0e6df] tracking-tight whitespace-nowrap">
                                         #{{ $codigoTicket }}
                                     </span>
+                                    @if($c->estado === 'cerrada')
+                                        <span class="text-[9px] font-bold text-stone-400 bg-stone-900 border border-stone-800 px-1.5 py-0.5 rounded-full">Cerrado</span>
+                                    @endif
                                 </div>
                                 <span class="text-[10px] font-medium text-[#9b8377] bg-[#22130c] border border-[#331d14] px-2.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-                                    {{ $tieneReserva ? 'Reservation Today @ 7 PM' : ($c->ultimo_mensaje_at?->diffForHumans(null, true, true) ?? 'Nuevo') }}
+                                    {{ $tieneReserva ? 'Reservation Today' : ($c->ultimo_mensaje_at?->diffForHumans(null, true, true) ?? 'Nuevo') }}
                                 </span>
                             </div>
 
@@ -1962,7 +2053,7 @@ new class extends Component
                     $mesaNombre = $reservaActiva?->mesa?->nombre ?? 'Table 4';
                 @endphp
                 <div class="lg:col-span-8 xl:col-span-6 bg-[#120a07] border border-[#261711] rounded-3xl p-5 flex flex-col h-[780px] shadow-2xl">
-                    <!-- Encabezado del Ticket Activo (Exacto a Mockup B) -->
+                    <!-- Encabezado del Ticket Activo (Exacto a Mockup B con Acciones de Cierre y Eliminación) -->
                     <div class="pb-3 border-b border-[#23150f] flex items-center justify-between">
                         <div>
                             <div class="flex items-center gap-2" x-data="{ copied: false }">
@@ -1978,6 +2069,23 @@ new class extends Component
                                     <span class="material-symbols-outlined text-[16px] text-emerald-400" x-show="copied" x-cloak>check</span>
                                 </button>
                                 <span class="text-[10px] font-mono text-emerald-400 font-bold" x-show="copied" x-cloak>Copiado</span>
+
+                                @if($conversacionActiva->estado === 'cerrada')
+                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-stone-900 text-stone-300 border border-stone-700 flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[12px]">lock</span>
+                                        <span>Cerrado</span>
+                                    </span>
+                                @elseif($conversacionActiva->estado === 'esperando_humano')
+                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                                        <span>Esperando Staff</span>
+                                    </span>
+                                @else
+                                    <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                                        <span>Activo</span>
+                                    </span>
+                                @endif
                             </div>
                             <div class="text-xs text-[#8f7568] flex items-center gap-1.5 mt-0.5">
                                 <span>Guest: <strong class="text-[#c5b2a8] font-semibold">{{ $conversacionActiva->nombre_contacto ?: ($conversacionActiva->cliente?->nombre ?: 'Guest ' . substr($conversacionActiva->identificador_remoto, 0, 8)) }}</strong></span>
@@ -1987,8 +2095,76 @@ new class extends Component
                                 <span>{{ $mesaNombre }}</span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 text-[#7d655a]">
-                            <span class="material-symbols-outlined text-[20px] cursor-pointer hover:text-[#e8a348]">more_vert</span>
+
+                        <!-- Acciones del Ticket: Botón Cerrar/Reabrir + Dropdown de Más Opciones -->
+                        <div class="flex items-center gap-2" x-data="{ menuOpen: false }">
+                            @if($conversacionActiva->estado === 'cerrada')
+                                <button 
+                                    wire:click="reabrirConversacion({{ $conversacionActiva->id }})"
+                                    class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#22130c] hover:bg-[#331d14] text-[#e8a348] border border-[#3e2318] flex items-center gap-1.5 transition-all cursor-pointer"
+                                    title="Reabrir esta conversación"
+                                >
+                                    <span class="material-symbols-outlined text-[15px]">lock_open</span>
+                                    <span>Reabrir</span>
+                                </button>
+                            @else
+                                <button 
+                                    wire:click="cerrarConversacion({{ $conversacionActiva->id }})"
+                                    class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#180e0a] hover:bg-[#23150f] text-[#c5b2a8] hover:text-emerald-400 border border-[#2d1b14] hover:border-emerald-500/40 flex items-center gap-1.5 transition-all cursor-pointer"
+                                    title="Finalizar y cerrar este ticket"
+                                >
+                                    <span class="material-symbols-outlined text-[15px] text-emerald-400">check_circle</span>
+                                    <span>Cerrar Ticket</span>
+                                </button>
+                            @endif
+
+                            <!-- Menú de Opciones (Eliminar, etc.) -->
+                            <div class="relative">
+                                <button 
+                                    @click="menuOpen = !menuOpen" 
+                                    @click.away="menuOpen = false"
+                                    class="p-1.5 text-[#8f7568] hover:text-[#f0e6df] hover:bg-[#22130c] rounded-xl border border-transparent hover:border-[#382218] transition-all cursor-pointer"
+                                    title="Opciones de ticket"
+                                >
+                                    <span class="material-symbols-outlined text-[20px]">more_vert</span>
+                                </button>
+
+                                <div 
+                                    x-show="menuOpen" 
+                                    x-cloak 
+                                    x-transition
+                                    class="absolute right-0 mt-2 w-56 bg-[#180e0a] border border-[#3e2318] rounded-2xl shadow-2xl p-1.5 z-50 space-y-1 backdrop-blur-md"
+                                >
+                                    @if($conversacionActiva->estado === 'cerrada')
+                                        <button 
+                                            wire:click="reabrirConversacion({{ $conversacionActiva->id }}); menuOpen = false"
+                                            class="w-full text-left px-3 py-2 text-xs font-medium text-[#c5b2a8] hover:text-[#f0e6df] hover:bg-[#28160e] rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                        >
+                                            <span class="material-symbols-outlined text-[16px] text-amber-400">lock_open</span>
+                                            <span>Reabrir conversación</span>
+                                        </button>
+                                    @else
+                                        <button 
+                                            wire:click="cerrarConversacion({{ $conversacionActiva->id }}); menuOpen = false"
+                                            class="w-full text-left px-3 py-2 text-xs font-medium text-[#c5b2a8] hover:text-[#f0e6df] hover:bg-[#28160e] rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                        >
+                                            <span class="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
+                                            <span>Cerrar ticket (Resuelto)</span>
+                                        </button>
+                                    @endif
+
+                                    <div class="border-t border-[#2d1b14] my-1"></div>
+
+                                    <button 
+                                        wire:click="eliminarConversacion({{ $conversacionActiva->id }}); menuOpen = false"
+                                        wire:confirm="¿Estás seguro de eliminar permanentemente esta conversación y todos sus mensajes? Esta acción no se puede deshacer."
+                                        class="w-full text-left px-3 py-2 text-xs font-medium text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 rounded-xl flex items-center gap-2 transition-all cursor-pointer"
+                                    >
+                                        <span class="material-symbols-outlined text-[16px] text-rose-400">delete_forever</span>
+                                        <span>Eliminar conversación</span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -2065,12 +2241,24 @@ new class extends Component
                     </div>
 
                     <!-- Input Bar Píldora Elegante (Mockup B) -->
+                    @if($conversacionActiva->estado === 'cerrada')
+                        <div class="flex items-center justify-between px-4 py-2 mt-2 rounded-2xl bg-[#1a120e] border border-[#3d2419] text-xs text-[#a89286]">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[16px] text-amber-400">lock</span>
+                                <span>Ticket cerrado. Enviar un mensaje o pulsar <strong>Reabrir</strong> reactivará la conversación.</span>
+                            </div>
+                            <button type="button" wire:click="reabrirConversacion({{ $conversacionActiva->id }})" class="text-amber-400 hover:text-amber-300 font-semibold underline underline-offset-2 ml-3 shrink-0 cursor-pointer">
+                                Reabrir ahora
+                            </button>
+                        </div>
+                    @endif
+
                     <form wire:submit.prevent="enviarRespuestaStaff" class="flex items-center gap-2 pt-2">
                         <div class="flex-1 flex items-center bg-[#180e0a] border border-[#2d1b14] rounded-full px-5 py-2.5 focus-within:border-[#ba7b30] transition-colors shadow-inner">
                             <input 
                                 type="text" 
                                 wire:model="chatRespuestaInput" 
-                                placeholder="Type a message..." 
+                                placeholder="{{ $conversacionActiva->estado === 'cerrada' ? 'Escribe una respuesta para reabrir y contestar...' : 'Escribe una respuesta...' }}" 
                                 class="w-full bg-transparent text-xs text-[#f0e6df] placeholder-[#7d655a] focus:outline-none"
                             >
                         </div>

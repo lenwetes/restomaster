@@ -141,4 +141,49 @@ class CrmConversacion extends Model
 
         $this->update($datos);
     }
+
+    /**
+     * Marca la conversación como cerrada y limpia el contexto en curso.
+     */
+    public function cerrar(?int $userId = null): void
+    {
+        $datos = [
+            'estado' => 'cerrada',
+            'no_leidos_staff' => 0,
+        ];
+
+        if ($userId !== null) {
+            $datos['user_id_asignado'] = $userId;
+        }
+
+        $this->update($datos);
+        $this->limpiarContextoFlujo();
+    }
+
+    /**
+     * Reabre una conversación previamente cerrada.
+     */
+    public function reabrir(): void
+    {
+        $this->update([
+            'estado' => 'activa',
+        ]);
+    }
+
+    /**
+     * Indica si la conversación se encuentra cerrada o archivada.
+     */
+    public function esCerrada(): bool
+    {
+        return $this->estado === 'cerrada';
+    }
+
+    /**
+     * Elimina permanentemente la conversación junto con todos sus mensajes.
+     */
+    public function eliminarConHistorial(): void
+    {
+        $this->mensajes()->delete();
+        $this->delete();
+    }
 }
