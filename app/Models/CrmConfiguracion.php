@@ -57,7 +57,7 @@ class CrmConfiguracion extends Model
     /**
      * Accesor tolerante a fallos para WhatsApp Access Token (evita 500 por payload inválido o texto plano heredado).
      */
-    public function getWhatsappAccessTokenAttribute($value): ?string
+    public function getWhatsappAccessTokenAttribute(?string $value): ?string
     {
         if (empty($value)) {
             return null;
@@ -70,7 +70,7 @@ class CrmConfiguracion extends Model
         }
     }
 
-    public function setWhatsappAccessTokenAttribute($value): void
+    public function setWhatsappAccessTokenAttribute(?string $value): void
     {
         if (empty($value)) {
             $this->attributes['whatsapp_access_token'] = null;
@@ -89,7 +89,7 @@ class CrmConfiguracion extends Model
     /**
      * Accesor tolerante a fallos para API Key de IA.
      */
-    public function getIaApiKeyAttribute($value): ?string
+    public function getIaApiKeyAttribute(?string $value): ?string
     {
         if (empty($value)) {
             return null;
@@ -102,7 +102,7 @@ class CrmConfiguracion extends Model
         }
     }
 
-    public function setIaApiKeyAttribute($value): void
+    public function setIaApiKeyAttribute(?string $value): void
     {
         if (empty($value)) {
             $this->attributes['ia_api_key'] = null;
@@ -121,7 +121,7 @@ class CrmConfiguracion extends Model
     /**
      * Accesor tolerante a fallos para contraseña SMTP.
      */
-    public function getEmailSmtpPasswordAttribute($value): ?string
+    public function getEmailSmtpPasswordAttribute(?string $value): ?string
     {
         if (empty($value)) {
             return null;
@@ -134,7 +134,7 @@ class CrmConfiguracion extends Model
         }
     }
 
-    public function setEmailSmtpPasswordAttribute($value): void
+    public function setEmailSmtpPasswordAttribute(?string $value): void
     {
         if (empty($value)) {
             $this->attributes['email_smtp_password'] = null;
