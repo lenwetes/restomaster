@@ -105,15 +105,15 @@ class CrmChatReservaAutomaticaTest extends TestCase
         $this->assertEquals('18:00', substr((string) $reserva->hora_llegada, 0, 5));
         $this->assertEquals('ia_concierge', $reserva->origen);
 
-        // 4. El mensaje del bot debe confirmar la reserva con su ID
+        // 4. El mensaje del bot debe confirmar la reserva con su ID y estado
         $ultimoMensaje = $conv->mensajes()->latest('id')->first();
         $this->assertEquals('bot', $ultimoMensaje->emisor);
         $this->assertStringContainsString('Luis Eduardo', $ultimoMensaje->contenido);
-        $this->assertStringContainsString('agendada con éxito', $ultimoMensaje->contenido);
-        $this->assertStringContainsString("Reserva #{$reserva->id}", $ultimoMensaje->contenido);
+        $this->assertStringContainsString('confirmada con éxito', $ultimoMensaje->contenido);
+        $this->assertStringContainsString("Reserva (#{$reserva->id})", $ultimoMensaje->contenido);
     }
 
-    public function test_pide_datos_faltantes_cuando_la_solicitud_esta_incompleta(): void
+    public function test_inicia_reserva_muestra_estado_y_acepta_nombre_aislado(): void
     {
         /** @var CrmChatOrchestratorService $orchestrator */
         $orchestrator = app(CrmChatOrchestratorService::class);
@@ -121,19 +121,42 @@ class CrmChatReservaAutomaticaTest extends TestCase
         $uuid = (string) Str::uuid();
         $conv = $orchestrator->obtenerOCrearConversacion('web', $uuid, 'Visitante Web');
 
-        // El cliente pregunta por disponibilidad pero no da nombre, hora exacta ni personas
-        $orchestrator->procesarMensajeCliente($conv, 'hay mesa disponible para hoy en las horas de la tarde?');
+        // Turno 1: El cliente escribe solo "quiero agendar una mesa"
+        $orchestrator->procesarMensajeCliente($conv, 'quiero agendar una mesa');
 
         $conv->refresh();
         $this->assertEquals('ia', $conv->modo_atencion);
-
-        // No debe crear reserva aún
         $this->assertEquals(0, Reserva::count());
 
-        $ultimoMensaje = $conv->mensajes()->latest('id')->first();
-        $this->assertEquals('bot', $ultimoMensaje->emisor);
-        $this->assertStringContainsString('nombre', $ultimoMensaje->contenido);
-        $this->assertStringContainsString('hora', $ultimoMensaje->contenido);
+        $msg1 = $conv->mensajes()->latest('id')->first();
+        $this->assertEquals('bot', $msg1->emisor);
+        // Debe mostrar el estado del proceso con pendientes
+        $this->assertStringContainsString('Estado del proceso de reserva', $msg1->contenido);
+        $this->assertStringContainsString('Pendiente ⏳', $msg1->contenido);
+
+        // Turno 2: El cliente responde con su nombre aislado "luis eduardo" (Caso exacto del pantallazo)
+        $orchestrator->procesarMensajeCliente($conv, 'luis eduardo');
+
+        $conv->refresh();
+        $msg2 = $conv->mensajes()->latest('id')->first();
+        $this->assertEquals('bot', $msg2->emisor);
+        // NO debe reiniciar con el saludo genérico "¡Hola! Soy la anfitriona virtual..."
+        $this->assertStringNotContainsString('Soy la anfitriona virtual de RestoMaster', $msg2->contenido);
+        // Debe mostrar que el Titular ya fue capturado con éxito
+        $this->assertStringContainsString('Luis Eduardo ✅', $msg2->contenido);
+        $this->assertStringContainsString('¿Para **cuántas personas**', $msg2->contenido);
+
+        // Turno 3: El cliente da comensales, fecha y hora
+        $orchestrator->procesarMensajeCliente($conv, 'seremos 4 personas para hoy a las 8 de la noche');
+
+        $conv->refresh();
+        $msg3 = $conv->mensajes()->latest('id')->first();
+        $this->assertStringContainsString('confirmada con éxito', $msg3->contenido);
+
+        $reserva = Reserva::where('nombre_contacto', 'Luis Eduardo')->first();
+        $this->assertNotNull($reserva);
+        $this->assertEquals(4, $reserva->personas);
+        $this->assertEquals('20:00', substr((string) $reserva->hora_llegada, 0, 5));
     }
 
     public function test_completa_reserva_en_flujo_multiturn(): void
@@ -160,6 +183,24 @@ class CrmChatReservaAutomaticaTest extends TestCase
         $this->assertEquals(2, $reserva->personas);
         $this->assertEquals(today()->toDateString(), $reserva->fecha->toDateString());
         $this->assertEquals('20:00', substr((string) $reserva->hora_llegada, 0, 5));
+    }
+
+    public function test_cancela_reserva_en_curso_si_el_usuario_lo_solicita(): void
+    {
+        /** @var CrmChatOrchestratorService $orchestrator */
+        $orchestrator = app(CrmChatOrchestratorService::class);
+
+        $uuid = (string) Str::uuid();
+        $conv = $orchestrator->obtenerOCrearConversacion('web', $uuid, 'Visitante Web');
+
+        $orchestrator->procesarMensajeCliente($conv, 'quiero reservar una mesa');
+        $orchestrator->procesarMensajeCliente($conv, 'olvídalo, cancelar reserva');
+
+        $conv->refresh();
+        $this->assertEquals(0, Reserva::count());
+
+        $msg = $conv->mensajes()->latest('id')->first();
+        $this->assertStringContainsString('cancelado el proceso de reserva', $msg->contenido);
     }
 
     public function test_rechaza_reserva_que_excede_limite_de_comensales(): void

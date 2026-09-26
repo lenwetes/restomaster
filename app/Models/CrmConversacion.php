@@ -49,7 +49,43 @@ class CrmConversacion extends Model
         'ultimo_mensaje_at' => 'datetime',
         'no_leidos_staff' => 'integer',
         'no_leidos_cliente' => 'integer',
+        'resumen_contexto' => 'array',
     ];
+
+    /**
+     * Recupera el estado o borrador del flujo activo (p. ej. reserva en curso).
+     */
+    public function getContextoFlujo(): array
+    {
+        $val = $this->resumen_contexto;
+        if (is_array($val)) {
+            return $val;
+        }
+        if (is_string($val) && ! empty($val)) {
+            $dec = json_decode($val, true);
+            if (is_array($dec)) {
+                return $dec;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Actualiza el borrador del flujo activo.
+     */
+    public function setContextoFlujo(array $contexto): void
+    {
+        $this->update(['resumen_contexto' => $contexto]);
+    }
+
+    /**
+     * Limpia el borrador del flujo activo.
+     */
+    public function limpiarContextoFlujo(): void
+    {
+        $this->update(['resumen_contexto' => null]);
+    }
 
     public function mensajes(): HasMany
     {

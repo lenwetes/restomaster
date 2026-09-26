@@ -6,23 +6,35 @@
 ---
 
 ## Última Actualización
-2026-09-26 | Antigravity | 🍽️ **CONCIERGE IA: RECONOCIMIENTO DE INTENCIÓN DE RESERVA, AGENDAMIENTO AUTOMÁTICO EN BD Y FIX DE FALSOS POSITIVOS DE ATENCIÓN HUMANA** (`app/Services/Ai/CrmChatOrchestratorService.php`, `app/Services/Ai/CrmAiAgentService.php`, `app/Models/CrmConversacion.php`, `app/Services/ReservaService.php`, `tests/Feature/CrmChatReservaAutomaticaTest.php`, `coordination.md`):
-- **Diagnóstico del Problema del Usuario:**
-  - Al indicar el cliente: *"quiero una mesa para las 6 de la tarde mi nombre es luis eduardo , seremos 3 personas y la quiero para hoy"*, el bot transfería erróneamente a humano (*"Con gusto te comunico con uno de nuestros anfitriones..."*).
-  - Causa raíz 1: `CrmChatOrchestratorService::solicitaHumano()` contenía la palabra clave `'persona'`, y mediante `str_contains($textoLimpio, 'persona')` confundía la cantidad de comensales (*"3 personas"*) con una solicitud de intervención humana.
-  - Causa raíz 2: En `CrmAiAgentService`, las intenciones de reserva tenían únicamente un mensaje estático de bienvenida solicitando datos, sin motor de extracción de parámetros ni persistencia de la reserva en base de datos.
-- **Solución y Mejoras Implementadas:**
-  1. **Blindaje contra Falsos Handoffs (`CrmChatOrchestratorService::solicitaHumano`):**
-     - Se depuran automáticamente las menciones de comensales numéricas o en palabras (`/\b(\d+|dos|tres...)\s+personas?\b/`, `/\b(?:para|de|mesa para|somos|seremos)\s+una persona\b/`).
-     - Se exige contexto explícito para requerir un humano (`hablar con una persona/humano/asesor`, `atención humana`, `persona real`, `gerente`, `queja/reclamo`, etc.), preservando la capacidad de pedir atención humana sin colisionar con reservas.
-  2. **Motor Semántico de Extracción y Creación de Reservas (`CrmAiAgentService`):**
-     - Extracción en lenguaje natural de:
-       - `nombre_contacto` (e.g. "Luis Eduardo").
-       - `personas` (e.g. 3, "tres", "somos dos").
-       - `fecha` ("hoy", "mañana", "pasado mañana", días de la semana, fechas exactas).
-       - `hora_llegada` (conversión automática a formato 24h, ej. "6 de la tarde" -> "18:00").
-       - `telefono_contacto` (número en texto, remitente de WhatsApp o perfil de cliente).
-     - **Flujo Multi-Turno:** Si el comensal responde por partes, el historial conversacional acumula y completa los parámetros faltantes.
+2026-09-26 | Antigravity | 🔄 **MÁQUINA DE ESTADO DE RESERVAS, RECONOCIMIENTO DE RESPUESTAS DIRECTAS (EJ. NOMBRE AISLADO) Y VISUALIZACIÓN EN VIVO DEL ESTADO DEL PROCESO** (`app/Services/Ai/CrmAiAgentService.php`, `app/Models/CrmConversacion.php`, `tests/Feature/CrmChatReservaAutomaticaTest.php`, `coordination.md`):
+- **Diagnóstico del Bucle de Respuestas Reportado por el Usuario:**
+  - Caso 1 (Datos fantasmas): Al escribir *"quiero agendar una mesa"*, el escaneo retrospectivo buscaba en todo el historial acumulado en la sesión de pruebas, inyectando datos viejos de turnos pasados (*"Tomamos nota para 4 personas para hoy a las 4:00 PM"*).
+  - Caso 2 (Pérdida de contexto / Bucle): Cuando el bot preguntaba *"Por favor indícanos tu nombre"*, el usuario respondía simplemente *"luis eduardo"*. El sistema anterior exigía prefijos como *"mi nombre es"* para detectar el nombre, y al no contener palabras clave de reserva (*"mesa"*, *"reservar"*), `esIntencionReserva()` retornaba falso y reiniciaba el chat con el saludo genérico de bienvenida (*"¡Hola! Soy la anfitriona virtual..."*).
+- **Solución Definitiva Implementada:**
+  1. **Máquina de Estado de Flujo de Reserva (`CrmConversacion::resumen_contexto`):**
+     - Se dotó a `CrmConversacion` de persistencia de borrador activo (`flujo => 'reserva'`, `estado => 'en_proceso'`, `datos`, `ultimo_campo_solicitado`).
+     - Si la conversación está en flujo activo, cualquier mensaje entrante se evalúa como respuesta al paso actual, impidiendo que el bot se reinicie o se pierda.
+     - Posibilidad de cancelación limpia diciendo *"cancelar"*, *"olvídalo"* o *"reiniciar"*.
+  2. **Reconocimiento de Entradas Aisladas Directas:**
+     - Si se le solicitó el nombre y el usuario solo responde *"luis eduardo"*, se captura y formatea como *"Luis Eduardo"*.
+     - Si se le solicitaron personas y solo responde *"3"* o *"dos"*, se captura como cantidad de comensales.
+     - Las reservas nuevas inician con borrador limpio, evitando filtraciones de datos obsoletos.
+  3. **Visualización Clara y Transparente del Estado del Proceso:**
+     - Cada respuesta en curso muestra un bloque visual estructurado con checkmarks y relojes de arena:
+       ```
+       📋 Estado del proceso de reserva:
+       • 👤 Titular: Luis Eduardo ✅
+       • 👥 Comensales: Pendiente ⏳
+       • 📅 Fecha y hora: Pendiente ⏳
+       ```
+     - Al completarse todos los datos, emite la confirmación final con el detalle completo de la reserva (#ID, mesa asignada y saludo de bienvenida).
+- **Verificación Automatizada:**
+  - 14/14 pruebas aprobadas (61 aserciones en `CrmChatReservaAutomaticaTest` y `CrmChatOmnicanalTest`).
+  - Formateado y validado al 100% con `vendor/bin/pint` (PSR-12).
+
+---
+
+## Actualización previa
      - **Gestión Inteligente de Faltantes:** Si faltan datos clave (ej. solo dijo la hora pero falta el nombre y comensales), formula una pregunta cálida y directa pidiendo *únicamente* los campos pendientes.
      - **Persistencia y Confirmación Inmediata:** Si todos los datos están presentes, valida los topes de comensales de la plantilla y crea la `Reserva` en la tabla `reservas` mediante `ReservaService::crear` (origen: `ia_concierge`), intentando auto-confirmar y preasignar mesa/mesero de turno (`RotacionMeseroService`), y actualiza el nombre del contacto en el chat.
   3. **Corrección de Ordenamiento en `CrmConversacion::mensajes()`:**

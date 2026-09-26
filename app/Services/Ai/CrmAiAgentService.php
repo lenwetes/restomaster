@@ -22,7 +22,7 @@ class CrmAiAgentService
     ) {}
 
     /**
-     * Procesa un mensaje de usuario a través del flujo de seguridad y agente de IA.
+     * Procesa un mensaje de usuario a través del flujo de seguridad, máquina de estado y agente de IA.
      *
      * @return array{
      *     respuesta: string,
@@ -74,59 +74,36 @@ class CrmAiAgentService
             ];
         }
 
-        // 3. INTENCIÓN DE RESERVA / GESTIÓN DE MESA
-        $intencionReserva = $this->esIntencionReserva($mensaje, $historial);
+        // 3. MÁQUINA DE ESTADO DE RESERVAS: Detección de flujo activo o nueva intención
+        $contexto = $conversacion?->getContextoFlujo() ?? [];
+        $enFlujoReserva = ($contexto['flujo'] ?? '') === 'reserva' && ($contexto['estado'] ?? '') === 'en_proceso';
+        $intencionReserva = $this->esIntencionReserva($mensaje);
 
-        if ($intencionReserva) {
-            if (! $plantilla->permitir_crear_reservas) {
-                return [
-                    'respuesta' => 'Con gusto te informo sobre nuestra carta y horarios, pero actualmente las reservas deben realizarse directamente en nuestro sitio web oficial o comunicándote al restaurante.',
-                    'estado' => 'privilegio_denegado',
-                    'tools_invocadas' => [],
-                    'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
-                ];
-            }
+        // Cancelación explícita de la reserva en curso
+        if ($enFlujoReserva && $this->esCancelacion($mensaje)) {
+            $conversacion?->limpiarContextoFlujo();
 
-            $datosReserva = $this->extraerDatosReserva($mensaje, $historial, $cliente, $telefono, $nombreContacto);
-
-            // Validar si la cantidad de comensales excede el límite permitido por la plantilla
-            if ($datosReserva['personas'] && $this->gatekeeper->excedeLimiteComensales($datosReserva['personas'], $plantilla)) {
-                return [
-                    'respuesta' => "Para reservas de más de {$plantilla->max_personas_reserva} personas, por favor comunícate directamente con la administración de RestoMaster para coordinar la logística de grupos y eventos especiales.",
-                    'estado' => 'limite_alcanzado',
-                    'tools_invocadas' => [],
-                    'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
-                ];
-            }
-
-            $faltantes = $this->obtenerCamposFaltantes($datosReserva);
-
-            // Si contamos con todos los datos necesarios, crear y confirmar la reserva de inmediato
-            if (empty($faltantes)) {
-                $resultado = $this->ejecutarCreacionReserva(
-                    datos: $datosReserva,
-                    plantilla: $plantilla,
-                    cliente: $cliente,
-                    sucursalId: $sucursalId,
-                    conversacion: $conversacion,
-                    telefono: $telefono
-                );
-
-                return [
-                    'respuesta' => $resultado['texto'],
-                    'estado' => 'autorizado',
-                    'tools_invocadas' => ['verificar_disponibilidad_mesas', 'crear_reserva'],
-                    'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
-                ];
-            }
-
-            // Si faltan datos clave, solicitar específicamente lo que falta de manera cálida y concisa
             return [
-                'respuesta' => $this->generarPreguntaDatosFaltantes($datosReserva, $faltantes, $plantilla),
+                'respuesta' => 'Entendido, hemos cancelado el proceso de reserva en curso. ¿Deseas consultar nuestra carta, horarios o en qué más te podemos colaborar hoy?',
                 'estado' => 'autorizado',
-                'tools_invocadas' => ['verificar_disponibilidad_mesas'],
+                'tools_invocadas' => [],
                 'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
             ];
+        }
+
+        if ($enFlujoReserva || $intencionReserva) {
+            return $this->gestionarFlujoReserva(
+                mensaje: $mensaje,
+                plantilla: $plantilla,
+                cliente: $cliente,
+                sucursalId: $sucursalId,
+                telefono: $telefono,
+                nombreContacto: $nombreContacto,
+                conversacion: $conversacion,
+                historial: $historial,
+                enFlujoReserva: $enFlujoReserva,
+                inicio: $inicio
+            );
         }
 
         // 4. RESPUESTA ASISTIDA / SIMULADA O LLM (Consultas de Carta, Alérgenos, Puntos, General)
@@ -162,16 +139,191 @@ class CrmAiAgentService
     }
 
     /**
+     * Gestiona el flujo conversacional y persistente de reservas.
+     */
+    protected function gestionarFlujoReserva(
+        string $mensaje,
+        CrmIaPlantillaPrivilegio $plantilla,
+        ?Cliente $cliente,
+        ?int $sucursalId,
+        ?string $telefono,
+        ?string $nombreContacto,
+        ?CrmConversacion $conversacion,
+        array $historial,
+        bool $enFlujoReserva,
+        float $inicio
+    ): array {
+        if (! $plantilla->permitir_crear_reservas) {
+            return [
+                'respuesta' => 'Con gusto te informo sobre nuestra carta y horarios, pero actualmente las reservas deben realizarse directamente en nuestro sitio web oficial o comunicándote al restaurante.',
+                'estado' => 'privilegio_denegado',
+                'tools_invocadas' => [],
+                'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
+            ];
+        }
+
+        $contexto = $conversacion?->getContextoFlujo() ?? [];
+
+        // Inicializar borrador limpio o recuperar el del flujo activo
+        $draft = ($enFlujoReserva && ! empty($contexto['datos'])) ? $contexto['datos'] : [
+            'nombre' => $cliente?->nombre ?: ($nombreContacto && ! str_starts_with($nombreContacto, 'Visitante') && ! str_starts_with($nombreContacto, 'WhatsApp') ? $nombreContacto : null),
+            'fecha' => null,
+            'hora' => null,
+            'personas' => null,
+            'telefono' => $telefono ?: ($cliente?->telefono ?: null),
+        ];
+
+        $ultimoCampo = $contexto['ultimo_campo_solicitado'] ?? null;
+
+        // Extraer los datos que el usuario acaba de enviar en este mensaje
+        $extraidos = $this->extraerDatosDesdeMensaje($mensaje, $ultimoCampo, $cliente, $telefono, $nombreContacto);
+
+        if (! empty($extraidos['nombre'])) {
+            $draft['nombre'] = $extraidos['nombre'];
+        }
+        if (! empty($extraidos['fecha'])) {
+            $draft['fecha'] = $extraidos['fecha'];
+        }
+        if (! empty($extraidos['hora'])) {
+            $draft['hora'] = $extraidos['hora'];
+        }
+        if (! empty($extraidos['personas'])) {
+            $draft['personas'] = $extraidos['personas'];
+        }
+        if (! empty($extraidos['telefono']) && $extraidos['telefono'] !== 'Canal Web') {
+            $draft['telefono'] = $extraidos['telefono'];
+        }
+
+        // Si es el inicio de la intención y faltan datos, buscar solo en los turnos inmediatos previos
+        if (! $enFlujoReserva && (! $draft['nombre'] || ! $draft['fecha'] || ! $draft['hora'] || ! $draft['personas'])) {
+            $draft = $this->completarConHistorialInmediato($draft, $historial, $cliente, $nombreContacto);
+        }
+
+        // Validar límite máximo de comensales
+        if ($draft['personas'] && $this->gatekeeper->excedeLimiteComensales($draft['personas'], $plantilla)) {
+            $conversacion?->limpiarContextoFlujo();
+
+            return [
+                'respuesta' => "Para reservas de más de {$plantilla->max_personas_reserva} personas, por favor comunícate directamente con la administración de RestoMaster para coordinar la logística de grupos y eventos especiales.",
+                'estado' => 'limite_alcanzado',
+                'tools_invocadas' => [],
+                'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
+            ];
+        }
+
+        $faltantes = $this->obtenerCamposFaltantes($draft);
+
+        // Si todos los datos están completos, crear la reserva en base de datos
+        if (empty($faltantes)) {
+            $resultado = $this->ejecutarCreacionReserva(
+                datos: $draft,
+                plantilla: $plantilla,
+                cliente: $cliente,
+                sucursalId: $sucursalId,
+                conversacion: $conversacion,
+                telefono: $telefono
+            );
+
+            $conversacion?->setContextoFlujo([
+                'flujo' => 'reserva',
+                'estado' => 'completada',
+                'reserva_id' => $resultado['reserva']->id,
+                'datos' => $draft,
+            ]);
+
+            return [
+                'respuesta' => $resultado['texto'],
+                'estado' => 'autorizado',
+                'tools_invocadas' => ['verificar_disponibilidad_mesas', 'crear_reserva'],
+                'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
+            ];
+        }
+
+        // Guardar el estado en progreso con el campo prioritario a pedir
+        $campoASolicitar = array_key_first($faltantes);
+
+        $conversacion?->setContextoFlujo([
+            'flujo' => 'reserva',
+            'estado' => 'en_proceso',
+            'datos' => $draft,
+            'ultimo_campo_solicitado' => $campoASolicitar,
+        ]);
+
+        $respuestaTexto = $this->generarRespuestaEstadoReserva($draft, $faltantes, $plantilla);
+
+        return [
+            'respuesta' => $respuestaTexto,
+            'estado' => 'autorizado',
+            'tools_invocadas' => ['verificar_disponibilidad_mesas'],
+            'tiempo_ms' => (int) round((microtime(true) - $inicio) * 1000),
+        ];
+    }
+
+    /**
+     * Formula una respuesta estructurada que detalla el estado actual del proceso y solicita lo pendiente.
+     *
+     * @param  array<string, mixed>  $draft
+     * @param  array<string, string>  $faltantes
+     */
+    protected function generarRespuestaEstadoReserva(array $draft, array $faltantes, CrmIaPlantillaPrivilegio $plantilla): string
+    {
+        $titularTxt = ! empty($draft['nombre']) ? "{$draft['nombre']} ✅" : 'Pendiente ⏳';
+        $personasTxt = ! empty($draft['personas']) ? "{$draft['personas']} personas ✅" : 'Pendiente ⏳';
+
+        if (! empty($draft['fecha']) && ! empty($draft['hora'])) {
+            $esHoy = $draft['fecha'] === today()->toDateString();
+            $esManana = $draft['fecha'] === today()->addDay()->toDateString();
+            $fechaDesc = $esHoy ? 'Hoy' : ($esManana ? 'Mañana' : $draft['fecha']);
+            $horaDesc = Carbon::createFromFormat('H:i', $draft['hora'])->format('g:i A');
+            $fechaHoraTxt = "{$fechaDesc} a las {$horaDesc} ✅";
+        } elseif (! empty($draft['fecha'])) {
+            $esHoy = $draft['fecha'] === today()->toDateString();
+            $esManana = $draft['fecha'] === today()->addDay()->toDateString();
+            $fechaDesc = $esHoy ? 'Hoy' : ($esManana ? 'Mañana' : $draft['fecha']);
+            $fechaHoraTxt = "{$fechaDesc} (hora pendiente) ⏳";
+        } elseif (! empty($draft['hora'])) {
+            $horaDesc = Carbon::createFromFormat('H:i', $draft['hora'])->format('g:i A');
+            $fechaHoraTxt = "{$horaDesc} (fecha pendiente) ⏳";
+        } else {
+            $fechaHoraTxt = 'Pendiente ⏳';
+        }
+
+        $resumenEstado = "📋 **Estado del proceso de reserva:**\n".
+            "• 👤 **Titular:** {$titularTxt}\n".
+            "• 👥 **Comensales:** {$personasTxt}\n".
+            "• 📅 **Fecha y hora:** {$fechaHoraTxt}\n\n";
+
+        // Formular la pregunta concisa para el campo faltante
+        if (empty($draft['nombre'])) {
+            $pregunta = 'Para avanzar con tu solicitud, por favor indícame **a nombre de quién** registramos la mesa.';
+        } elseif (empty($draft['personas'])) {
+            $pregunta = "¡Mucho gusto, {$draft['nombre']}! ¿Para **cuántas personas** sería la reserva?";
+        } elseif (empty($draft['fecha']) && empty($draft['hora'])) {
+            $pregunta = "¡Perfecto, {$draft['nombre']}! ¿Para **qué fecha y hora** deseas tu mesa?";
+        } elseif (empty($draft['hora'])) {
+            $pregunta = "Excelente, {$draft['nombre']}. ¿A **qué hora** te gustaría acompañarnos ese día?";
+        } elseif (empty($draft['fecha'])) {
+            $pregunta = "Perfecto, {$draft['nombre']}. ¿Para **qué fecha** prefieres la reserva?";
+        } else {
+            $lista = implode(', ', array_values($faltantes));
+            $pregunta = "Por favor indícanos {$lista} para confirmar tu mesa.";
+        }
+
+        return $resumenEstado.$pregunta;
+    }
+
+    /**
      * Determina si el mensaje del usuario expresa una intención de reservar mesa.
      */
-    public function esIntencionReserva(string $mensaje, array $historial = []): bool
+    public function esIntencionReserva(string $mensaje): bool
     {
         $mensajeLower = mb_strtolower($mensaje, 'UTF-8');
 
         $palabrasReserva = [
             'reserva', 'reservar', 'reservacion', 'reservación', 'apartar', 'agendar',
             'mesa para', 'quiero una mesa', 'hay mesa', 'disponibilidad de mesa',
-            'separar mesa', 'mesa disponible', 'comensales', 'visitar el restaurante',
+            'separar mesa', 'mesa disponible', 'agendar una mesa', 'agendar mesa',
+            'visitar el restaurante',
         ];
 
         foreach ($palabrasReserva as $palabra) {
@@ -180,13 +332,20 @@ class CrmAiAgentService
             }
         }
 
-        // Si el comensal menciona personas o acompañantes tras una pregunta de reserva previa
-        if (str_contains($mensajeLower, 'persona') || str_contains($mensajeLower, 'seremos') || str_contains($mensajeLower, 'somos')) {
-            foreach (array_reverse($historial) as $turno) {
-                $txt = mb_strtolower($turno['parts'][0]['text'] ?? '', 'UTF-8');
-                if (str_contains($txt, 'reserva') || str_contains($txt, 'mesa') || str_contains($txt, 'agendar')) {
-                    return true;
-                }
+        return false;
+    }
+
+    /**
+     * Detecta si el usuario desea cancelar el flujo de reserva activo.
+     */
+    protected function esCancelacion(string $texto): bool
+    {
+        $t = mb_strtolower($texto, 'UTF-8');
+        $palabras = ['cancelar', 'olvídalo', 'olvidalo', 'no quiero reservar', 'dejar así', 'dejar asi', 'reiniciar'];
+
+        foreach ($palabras as $p) {
+            if (str_contains($t, $p)) {
+                return true;
             }
         }
 
@@ -194,7 +353,7 @@ class CrmAiAgentService
     }
 
     /**
-     * Extrae los datos esenciales de reserva desde el mensaje actual y el contexto histórico.
+     * Extrae los datos que el usuario aportó en su mensaje actual, teniendo en cuenta el campo que se le preguntó.
      *
      * @return array{
      *     nombre: ?string,
@@ -204,9 +363,9 @@ class CrmAiAgentService
      *     telefono: ?string
      * }
      */
-    public function extraerDatosReserva(
+    public function extraerDatosDesdeMensaje(
         string $mensaje,
-        array $historial = [],
+        ?string $ultimoCampoSolicitado = null,
         ?Cliente $cliente = null,
         ?string $telefono = null,
         ?string $nombreContacto = null
@@ -215,28 +374,30 @@ class CrmAiAgentService
         $fecha = $this->extraerFecha($mensaje);
         $hora = $this->extraerHora($mensaje);
         $personas = $this->extraerPersonas($mensaje);
-        $telefonoFinal = $this->extraerTelefono($mensaje, $telefono, $cliente);
+        $tel = $this->extraerTelefono($mensaje, $telefono, $cliente);
 
-        // Si falta alguno de los datos obligatorios, buscar en el historial de mensajes del usuario
-        if (! $nombre || ! $fecha || ! $hora || ! $personas) {
-            foreach (array_reverse($historial) as $turno) {
-                if (($turno['role'] ?? '') === 'user') {
-                    $txtTurno = $turno['parts'][0]['text'] ?? '';
-                    if (! empty($txtTurno)) {
-                        if (! $nombre) {
-                            $nombre = $this->extraerNombre($txtTurno, $nombreContacto, $cliente);
-                        }
-                        if (! $fecha) {
-                            $fecha = $this->extraerFecha($txtTurno);
-                        }
-                        if (! $hora) {
-                            $hora = $this->extraerHora($txtTurno);
-                        }
-                        if (! $personas) {
-                            $personas = $this->extraerPersonas($txtTurno);
-                        }
-                    }
-                }
+        $textoLimpio = trim($mensaje);
+
+        // Si estábamos esperando el NOMBRE y el usuario solo respondió con su nombre (ej. "luis eduardo"):
+        if (! $nombre && $ultimoCampoSolicitado === 'nombre') {
+            if (preg_match('/^[a-záéíóúñA-ZÁÉÍÓÚÑ\s]{2,40}$/u', $textoLimpio) && ! $this->esPalabraReservada($textoLimpio)) {
+                $nombre = Str::title($textoLimpio);
+            }
+        }
+
+        // Si estábamos esperando PERSONAS y el usuario solo escribió el número (ej. "3" o "dos"):
+        if (! $personas && $ultimoCampoSolicitado === 'personas') {
+            $num = $this->extraerNumeroAislado($textoLimpio);
+            if ($num) {
+                $personas = $num;
+            }
+        }
+
+        // Si estábamos esperando HORA o FECHA y el usuario envió la hora o fecha:
+        if (! $hora && ($ultimoCampoSolicitado === 'hora' || $ultimoCampoSolicitado === 'fecha')) {
+            $h = $this->extraerHora($textoLimpio);
+            if ($h) {
+                $hora = $h;
             }
         }
 
@@ -245,8 +406,77 @@ class CrmAiAgentService
             'fecha' => $fecha,
             'hora' => $hora,
             'personas' => $personas,
-            'telefono' => $telefonoFinal,
+            'telefono' => $tel,
         ];
+    }
+
+    /**
+     * Extrae un número aislado expresado en dígito o palabra en español.
+     */
+    protected function extraerNumeroAislado(string $texto): ?int
+    {
+        $palabras = [
+            'un' => 1, 'uno' => 1, 'una' => 1, 'dos' => 2, 'tres' => 3, 'cuatro' => 4,
+            'cinco' => 5, 'seis' => 6, 'siete' => 7, 'ocho' => 8, 'nueve' => 9, 'diez' => 10,
+        ];
+
+        $t = mb_strtolower(trim($texto), 'UTF-8');
+        if (isset($palabras[$t])) {
+            return $palabras[$t];
+        }
+        if (preg_match('/^(\d{1,2})$/', $t, $m)) {
+            return (int) $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Valida si un texto es un comando o palabra clave del sistema y no un nombre de persona.
+     */
+    protected function esPalabraReservada(string $texto): bool
+    {
+        $palabras = [
+            'menu', 'menú', 'carta', 'horario', 'horarios', 'precio', 'precios',
+            'hola', 'buenas', 'buenos dias', 'buenas tardes', 'gracias', 'adios',
+            'cancelar', 'humano', 'asesor', 'ayuda', 'reserva', 'mesa', 'si', 'no',
+        ];
+
+        return in_array(mb_strtolower(trim($texto), 'UTF-8'), $palabras, true);
+    }
+
+    /**
+     * Revisa únicamente los últimos 2 turnos inmediatos para no jalar datos viejos de conversaciones anteriores.
+     */
+    protected function completarConHistorialInmediato(
+        array $draft,
+        array $historial,
+        ?Cliente $cliente = null,
+        ?string $nombreContacto = null
+    ): array {
+        $turnosUsuario = array_values(array_filter($historial, fn ($t) => ($t['role'] ?? '') === 'user'));
+        $recientes = array_slice($turnosUsuario, -2);
+
+        foreach (array_reverse($recientes) as $turno) {
+            $txt = $turno['parts'][0]['text'] ?? '';
+            if (empty($txt)) {
+                continue;
+            }
+            if (! $draft['nombre']) {
+                $draft['nombre'] = $this->extraerNombre($txt, $nombreContacto, $cliente);
+            }
+            if (! $draft['fecha']) {
+                $draft['fecha'] = $this->extraerFecha($txt);
+            }
+            if (! $draft['hora']) {
+                $draft['hora'] = $this->extraerHora($txt);
+            }
+            if (! $draft['personas']) {
+                $draft['personas'] = $this->extraerPersonas($txt);
+            }
+        }
+
+        return $draft;
     }
 
     /**
@@ -348,7 +578,6 @@ class CrmAiAgentService
                 $h = 0;
             }
         } else {
-            // Sin modifier explícito: en restaurante 1..6 suele ser tarde (13..18) y 7..11 cena (19..23)
             if ($h >= 1 && $h <= 6) {
                 $h += 12;
             } elseif ($h >= 7 && $h <= 11) {
@@ -416,7 +645,7 @@ class CrmAiAgentService
             $raw = trim($partes[0] ?? '');
             $raw = preg_replace('/\s+y\s*$/iu', '', $raw);
             $raw = trim($raw);
-            if (mb_strlen($raw) >= 3 && ! in_array(mb_strtolower($raw), ['un', 'una', 'el', 'la', 'los', 'las', 'cliente', 'usuario', 'amigo'])) {
+            if (mb_strlen($raw) >= 3 && ! in_array(mb_strtolower($raw), ['un', 'una', 'el', 'la', 'los', 'las', 'cliente', 'usuario', 'amigo'], true)) {
                 return Str::title($raw);
             }
         }
@@ -460,6 +689,7 @@ class CrmAiAgentService
     /**
      * Determina los campos que aún faltan para poder procesar la reserva.
      *
+     * @param  array<string, mixed>  $datos
      * @return array<string, string>
      */
     protected function obtenerCamposFaltantes(array $datos): array
@@ -468,52 +698,17 @@ class CrmAiAgentService
         if (empty($datos['nombre'])) {
             $faltantes['nombre'] = 'tu nombre';
         }
+        if (empty($datos['personas'])) {
+            $faltantes['personas'] = 'la cantidad de comensales';
+        }
         if (empty($datos['fecha'])) {
-            $faltantes['fecha'] = 'la fecha';
+            $faltantes['fecha'] = 'la fecha deseada';
         }
         if (empty($datos['hora'])) {
             $faltantes['hora'] = 'la hora deseada';
         }
-        if (empty($datos['personas'])) {
-            $faltantes['personas'] = 'la cantidad de comensales';
-        }
 
         return $faltantes;
-    }
-
-    /**
-     * Formula una respuesta natural que solicita exclusivamente los datos pendientes.
-     */
-    protected function generarPreguntaDatosFaltantes(array $datos, array $faltantes, CrmIaPlantillaPrivilegio $plantilla): string
-    {
-        $saludo = ! empty($datos['nombre']) ? "¡Con gusto, {$datos['nombre']}! " : '¡Excelente! ';
-
-        if (count($faltantes) === 4) {
-            return "¡Excelente! Tenemos disponibilidad para grupos de hasta {$plantilla->max_personas_reserva} personas. Para agendar tu mesa, por favor indícame tu nombre, la fecha, hora deseada y la cantidad de comensales.";
-        }
-
-        // Acuse de recibo de los datos ya capturados
-        $partesReconocidas = [];
-        if (! empty($datos['personas'])) {
-            $partesReconocidas[] = "para {$datos['personas']} personas";
-        }
-        if (! empty($datos['fecha'])) {
-            $esHoy = $datos['fecha'] === today()->toDateString();
-            $esManana = $datos['fecha'] === today()->addDay()->toDateString();
-            $partesReconocidas[] = 'para '.($esHoy ? 'hoy' : ($esManana ? 'mañana' : $datos['fecha']));
-        }
-        if (! empty($datos['hora'])) {
-            $horaForm = Carbon::createFromFormat('H:i', $datos['hora'])->format('g:i A');
-            $partesReconocidas[] = "a las {$horaForm}";
-        }
-
-        $reconocidoTexto = ! empty($partesReconocidas)
-            ? 'Tomamos nota de tu solicitud '.implode(' ', $partesReconocidas).'. '
-            : '';
-
-        $listaFaltantes = implode(', ', array_values($faltantes));
-
-        return "{$saludo}{$reconocidoTexto}Para completar tu reserva, por favor indícanos {$listaFaltantes}.";
     }
 
     /**
@@ -544,15 +739,15 @@ class CrmAiAgentService
             'notas' => 'Reserva agendada automáticamente por IA Concierge desde el chat.',
         ], 'ia_concierge');
 
-        $mesaTexto = '';
+        $mesaTexto = 'Asignación automática al llegar';
         try {
             $reservaConfirmada = $reservaService->confirmar($reserva);
             $mesa = $reservaConfirmada->mesas->first();
             if ($mesa) {
-                $mesaTexto = " Te hemos preasignado la **Mesa #{$mesa->numero}**.";
+                $mesaTexto = "Mesa #{$mesa->numero}";
             }
         } catch (\Throwable $e) {
-            // Si no hay mesa disponible para confirmar de inmediato, se mantiene en estado solicitada
+            // Se mantiene en solicitada si no hay mesa inmediata
         }
 
         // Actualizar el nombre de contacto en la conversación si aún era genérico
@@ -565,11 +760,20 @@ class CrmAiAgentService
 
         $esHoy = $datos['fecha'] === today()->toDateString();
         $esManana = $datos['fecha'] === today()->addDay()->toDateString();
-        $fechaDesc = $esHoy ? 'hoy' : ($esManana ? 'mañana' : $datos['fecha']);
+        $fechaDesc = $esHoy ? "Hoy ({$datos['fecha']})" : ($esManana ? "Mañana ({$datos['fecha']})" : $datos['fecha']);
 
         $horaFormatted = Carbon::createFromFormat('H:i', $datos['hora'])->format('g:i A');
 
-        $texto = "¡Listo, {$datos['nombre']}! 🎉 Tu mesa ha sido agendada con éxito para **{$fechaDesc} a las {$horaFormatted}** para **{$datos['personas']} personas** (Reserva #{$reserva->id}).{$mesaTexto}\n\n¡Te esperamos con los brazos abiertos en RestoMaster para brindarte una gran experiencia gastronómica! Si necesitas modificar algún detalle, solo avísanos por este chat.";
+        $texto = "🎉 **¡Tu reserva ha sido confirmada con éxito!**\n".
+            "━━━━━━━━━━━━━━━━━━━━━━\n".
+            "📋 **Detalles de la Reserva (#{$reserva->id}):**\n".
+            "• 👤 **Titular:** {$datos['nombre']}\n".
+            "• 👥 **Comensales:** {$datos['personas']} personas\n".
+            "• 📅 **Fecha:** {$fechaDesc}\n".
+            "• ⏰ **Hora:** {$horaFormatted}\n".
+            "• 📍 **Mesa:** {$mesaTexto}\n".
+            "━━━━━━━━━━━━━━━━━━━━━━\n".
+            '¡Te esperamos con los brazos abiertos en RestoMaster para una experiencia gastronómica inolvidable! Si necesitas modificar algún detalle, solo avísanos por este chat.';
 
         return [
             'texto' => $texto,
