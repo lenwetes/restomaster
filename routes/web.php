@@ -67,9 +67,9 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('impresion', 'impresion.index')->middleware('role:gerente,admin')->name('impresion');
 });
 
-// Webhook Meta WhatsApp Cloud API (CRM Automatizaciones)
-Route::get('api/webhooks/whatsapp', [CrmWebhookController::class, 'verificar'])->name('crm.webhook.verificar');
-Route::post('api/webhooks/whatsapp', [CrmWebhookController::class, 'recibir'])->name('crm.webhook.recibir');
+// Webhook Meta WhatsApp Cloud API (CRM Automatizaciones con Rate Limiting)
+Route::get('api/webhooks/whatsapp', [CrmWebhookController::class, 'verificar'])->middleware('throttle:60,1')->name('crm.webhook.verificar');
+Route::post('api/webhooks/whatsapp', [CrmWebhookController::class, 'recibir'])->middleware('throttle:60,1')->name('crm.webhook.recibir');
 
 // Portal Público de Clientes (F7-06)
 Route::prefix('cliente')->name('cliente.')->group(function () {

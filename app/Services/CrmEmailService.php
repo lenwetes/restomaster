@@ -61,6 +61,8 @@ class CrmEmailService
         }
 
         try {
+            $config->aplicarConfiguracionMailer();
+
             Mail::to($cliente->email)->send(
                 new EncuestaClienteMailable(
                     cliente: $cliente,
@@ -87,5 +89,36 @@ class CrmEmailService
         }
 
         return $log;
+    }
+
+    /**
+     * Enviar correo de prueba inmediato para verificar credenciales del motor.
+     */
+    public function enviarCorreoPrueba(string $destinatario, ?int $sucursalId = null): array
+    {
+        $config = CrmConfiguracion::activa($sucursalId);
+        $config->aplicarConfiguracionMailer();
+
+        try {
+            Mail::raw(
+                "¡Hola! Este es un correo de prueba oficial de RestoMaster CRM.\n\n".
+                "Tu motor de correo ({$config->email_driver}) y credenciales SMTP están correctamente configurados y listos para despachar encuestas y notificaciones.\n\n".
+                'Fecha y hora del despacho: '.now()->format('d/m/Y H:i:s'),
+                function ($message) use ($destinatario) {
+                    $message->to($destinatario)
+                        ->subject('✅ Prueba Exitosa de Correo — RestoMaster CRM');
+                }
+            );
+
+            return [
+                'success' => true,
+                'mensaje' => "¡Correo de prueba despachado con éxito a {$destinatario}!",
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'mensaje' => 'Error al enviar correo de prueba: '.$e->getMessage(),
+            ];
+        }
     }
 }

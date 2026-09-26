@@ -53,6 +53,10 @@ services:
       WHATSAPP_VERIFY_TOKEN: "${WHATSAPP_VERIFY_TOKEN:-}"
       WHATSAPP_SIMULADO: "${WHATSAPP_SIMULADO:-true}"
 
+      # IA & LLM Provider (Google Gemini / OpenAI)
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+
       # Social Auth (Google OAuth2)
       GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"

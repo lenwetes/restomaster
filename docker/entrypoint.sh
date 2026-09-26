@@ -61,6 +61,9 @@ WHATSAPP_ACCESS_TOKEN="${WHATSAPP_ACCESS_TOKEN:-}"
 WHATSAPP_VERIFY_TOKEN="${WHATSAPP_VERIFY_TOKEN:-}"
 WHATSAPP_SIMULADO="${WHATSAPP_SIMULADO:-true}"
 
+GEMINI_API_KEY="${GEMINI_API_KEY:-}"
+OPENAI_API_KEY="${OPENAI_API_KEY:-}"
+
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
 GOOGLE_REDIRECT_URI="${GOOGLE_REDIRECT_URI:-}"
@@ -130,6 +133,10 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
 
     echo "==> Running php artisan migrate --force..."
     php /var/www/html/artisan migrate --force || echo "==> Migrations failed or DB not ready"
+
+    # Always ensure default CRM AI Privilege Templates exist (idempotent updateOrCreate)
+    echo "==> Ensuring default CRM AI Privilege Templates are seeded..."
+    php /var/www/html/artisan db:seed --class=CrmIaPlantillaSeeder --force || true
 
     # Run database seeds if AUTO_SEED is enabled
     if [ "${AUTO_SEED:-false}" = "true" ]; then

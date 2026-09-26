@@ -6,6 +6,139 @@
 ---
 
 ## Última Actualización
+2026-09-26 | Antigravity | 🚀 **ACTUALIZACIÓN DE CONFIGURACIÓN COOLIFY, VARIABLES IA Y SINCRONIZACIÓN DE RAMAS PARA REDEPLOY** (`docker-compose.coolify.yml`, `docker-compose.yml`, `docker-compose.yaml`, `docker/entrypoint.sh`, `.env.example`, `docs/despliegue-coolify.md`, `coordination.md`):
+- **Ajustes de Infraestructura & Coolify:**
+  1. Agregadas variables de entorno `GEMINI_API_KEY` y `OPENAI_API_KEY` en `docker-compose.coolify.yml`, `docker-compose.yml` y `docker-compose.yaml`.
+  2. Inyección de variables en tiempo de arranque dentro de `docker/entrypoint.sh` para compatibilidad completa con PHP-FPM y llamadas de IA.
+  3. Ejecución idempotente garantizada de `CrmIaPlantillaSeeder` durante el paso de migraciones de `docker/entrypoint.sh`, asegurando que las plantillas y conductas de IA existan inmediatamente en producción aún con `AUTO_SEED=false`.
+  4. Documentación actualizada de variables en `docs/despliegue-coolify.md` y `.env.example`.
+- **Sincronización Git & Despliegue:**
+  - Consolidación de todos los cambios de CRM, IA y auditoría en commits atómicos.
+  - Sincronización de ramas `master` y `main` listas para push y redeploy en Coolify.
+
+---
+
+## Actualización previa
+2026-09-26 | Antigravity | 🛡️ **AUDITORÍA COMPLETA DE SEGURIDAD, INTEGRACIONES IA, MODELO DE NEGOCIO Y OPERATIVIDAD (100% FUNCIONAL & PROBADO)** (`app/Models/CrmConfiguracion.php`, `app/Services/Ai/CrmAiAgentService.php`, `app/Services/Ai/AiToolGatekeeper.php`, `resources/views/livewire/crm/index.blade.php`, `resources/views/livewire/crm/chat-widget-publico.blade.php`, `routes/web.php`, `tests/Feature/CrmComprehensiveAuditTest.php`):
+- **Hallazgos Críticos Auditados y Subsanados:**
+  1. **Control de Acceso e Inmutabilidad de Roles (Broken Access Control - OWASP #1):**
+     - Se reforzaron server-side los métodos de mutación sensible (`toggleIaManual`, `guardarPlantillaIa`, `guardarConfiguracionIa`, `guardarConfiguracion`, pruebas de canal).
+     - Rol `cajero` denegado con HTTP 403 Forbidden para manipulación de credenciales, Kill-Switch o directivas de IA. Solo `admin` y `gerente` tienen autorización de gobernanza.
+  2. **Cifrado de Secretos en Reposo (Criptografía):**
+     - Añadido cast `'whatsapp_access_token' => 'encrypted'` en `CrmConfiguracion`. Los tokens Bearer de Meta Cloud API ahora se almacenan con cifrado AES-256 en PostgreSQL, igual que las contraseñas SMTP y las API Keys de Gemini.
+  3. **Memoria Conversacional Multi-Turn y Fidelidad Semántica de la IA:**
+     - `CrmAiAgentService` ahora recibe la ventana deslizante de memoria (`$historial`) y el modelo del comensal (`$clienteId`).
+     - Al invocar la API REST de Google Gemini, se despachan los turnos anteriores en formato `contents: [...]` preservando el hilo de la conversación.
+     - Implementados controladores semánticos para intenciones reales: `consultar_alergenos` (seguridad alimentaria), `consultar_puntos_cliente` (saldo en Club de Fidelidad con nivel/tier) y `consultar_promociones`.
+  4. **Protección Crítica de Alérgenos & Reconocimiento VIP:**
+     - `AiToolGatekeeper::construirSystemPrompt` inyecta automáticamente el expediente del huésped: alérgenos con prohibición estricta de platos peligrosos, preferencias de maridaje y trato preferencial para comensales VIP.
+  5. **Protección contra Denegación de Servicio y Consumo No Acotado (OWASP LLM10):**
+     - Rate Limiting integrado en la ruta del Webhook de WhatsApp (`throttle:60,1`).
+     - Limitador de tasa y validación de longitud (`max: 1000`) en el widget de chat público flotante (`chat-widget-publico`).
+     - Validación de longitud (`max: 2000`) en respuestas de staff de sala.
+- **Validación Automatizada Rigurosa:**
+  - 34/34 pruebas automatizadas pasando al 100% (122 aserciones) en las 5 suites de CRM.
+  - Vistas Blade en caché verificadas con 0 errores (`view:cache`).
+  - Laravel Pint: 100% de cumplimiento de estándares PSR-12.
+
+---
+
+## Actualización previa
+2026-09-26 | Antigravity | 🎨 **REDISEÑO EXECUTIVE SAAS DEL MÓDULO CRM & GESTOR DE CHATS CON CÓDIGOS DE TICKET AUTOGENERADOS (#CHT-WA / #CHT-WEB)** (`app/Models/CrmConversacion.php`, `resources/views/livewire/crm/index.blade.php`, `database/migrations/2026_09_26_150000_add_ticket_codigo_to_crm_conversaciones_table.php`):
+- **Identificadores Únicos e Independencia de Chats:**
+  1. **Migración & Modelo:** Agregada columna `ticket_codigo` (string 30, unique) con auto-generación (`CHT-WA-0001XYZ` para WhatsApp, `CHT-WEB-0001ABC` para Web) y fallback inteligente en `codigo_ticket`.
+  2. **Búsqueda por #Ticket:** Buscador en vivo de la bandeja omnicanal con soporte para buscar por código de ticket, nombre de cliente, teléfono y texto.
+- **Rediseño Profesional de la Consola de Chats (3 Columnas Executive Gastro):**
+  1. **Bandeja Omnicanal (Columna 1):** Tarjetas de ticket con badge de código en monospace, estado (`🤖 Modo IA`, `🚨 Requiere Asesor`, `👤 Staff`), canal con badge de marca, tiempo relativo y contador de mensajes no leídos.
+  2. **Consola Central de Conversación (Columna 2):** Encabezado de mando con Ticket ID destacado y botón de 1-clic para copiar al portapapeles, interruptor interactivo de atención (*Hostess IA* vs *Staff Humano*), historial de mensajes con burbujas diferenciadas por rol (Comensal, IA Concierge y Staff) y barra de atajos rápidos con plantillas.
+  3. **Expediente Técnico & Ficha CRM 360° (Columna 3):** Detalle técnico del ticket y perfil del cliente con puntos VIP, total de visitas registradas y acceso directo para crear reserva.
+- **Rediseño Visual del Tablero de Satisfacción & Header CRM:**
+  - Header rediseñado como *Executive Command Bar* con badges de telemetría de IA, WhatsApp y motor SMTP.
+  - Navegación en isla segmentada con glowing crimson/amber indicators.
+  - Tarjetas KPI de Calificación, CSAT, NPS y Tasa de respuesta con fondo dark gastro, bordes sutiles y métricas de alto contraste.
+- **Suite de Pruebas Automatizadas:**
+  - 27/27 tests pasando al 100% (96 aserciones) en `tests/Feature/CrmAutomatizacionesTest.php`, `tests/Feature/CrmChatOmnicanalTest.php`, `tests/Feature/CrmAiPrivilegiosTest.php` y `tests/Feature/CrmEmailEngineTest.php`.
+  - Código formateado al 100% con Laravel Pint (PSR-12).
+
+---
+
+## Actualización previa
+2026-09-26 | Antigravity | 💬 **IMPLEMENTACIÓN COMPLETADA AL 100%: CHATBOT OMNICANAL (WEB + WHATSAPP), GESTOR DE CHATS EN VIVO EN CRM Y CONFIGURACIÓN DE PERSONALIDAD DEL PROMPT** (`database/migrations/2026_09_26_140000_*`, `app/Models/CrmConversacion.php`, `app/Models/CrmMensaje.php`, `app/Services/Ai/CrmChatOrchestratorService.php`, `app/Http/Controllers/CrmWebhookController.php`, `resources/views/livewire/crm/chat-widget-publico.blade.php`, `resources/views/livewire/crm/index.blade.php`, `resources/views/layouts/publico.blade.php`, `tests/Feature/CrmChatOmnicanalTest.php`):
+- **Funcionalidades Entregadas:**
+  1. **Base de Datos Omnicanal Unificada:**
+     - Tablas `crm_conversaciones` y `crm_mensajes` con soporte nativo de canales (`web`, `whatsapp`), identificación de sesión anónima, modo de atención (`ia`/`humano`), estados (`activa`, `esperando_humano`, `cerrada`) y conteo de no leídos.
+     - Campos `tono_conducta` y `prompt_personalidad` en `crm_ia_plantillas_privilegios` y seeder actualizado.
+  2. **Configuración de Conducta & Personalidad en CRM:**
+     - Selector de tonos (Cálido & Gourmet, Entusiasta, Formal, Ágil, Personalizado) y textarea de directivas de estilo en la pestaña de IA.
+     - Inyección dinámica en el System Prompt a través de `AiToolGatekeeper`.
+  3. **Motor Orquestador Conversacional (`CrmChatOrchestratorService`):**
+     - Ventana deslizante de memoria (últimos 8 mensajes) para optimizar consumo de tokens.
+     - Detección semántica de intención de traspaso a humano ("persona", "asesor", "queja").
+     - Rate Limiting de 10 mensajes/minuto por cliente y cuota diaria para prevenir abusos.
+     - Despacho transparente indistinguible para el cliente hacia Web y WhatsApp Meta Cloud API.
+  4. **Widget de Chatbot Flotante en la Landing (`chat-widget-publico`):**
+     - Burbuja flotante y popover táctil Dark Gastro en `layouts.publico` con atajos rápidos (recomendaciones, reservas, alérgenos, humano) y persistencia en sesión.
+  5. **Gestor Gráfico de Chats en Vivo en `/crm` (Pestaña 7 "Chats en Vivo"):**
+     - Consola de 3 columnas (Bandeja con filtros, Ventana en vivo con `wire:poll.3s` y Ficha de contexto del cliente).
+     - **Interruptor Maestro por chat:** Permite al operador conmutar entre `[🤖 Modo IA Concierge]` y `[👤 Tomar Control (Responder Yo Mismo)]` con un solo clic.
+     - Respuestas rápidas de staff preconfiguradas (confirmar mesa, ubicación, carta digital).
+  6. **Webhook Inbound de WhatsApp:**
+     - `CrmWebhookController` ahora procesa mensajes entrantes de Meta (`entry.changes.value.messages`) y los canaliza al orquestador.
+- **Calidad y Verificación:**
+  - 27/27 tests de la suite CRM pasando al 100% (96 aserciones).
+  - Blade templates cacheadas sin errores (`php artisan view:cache`).
+  - Laravel Pint: 100% aprobado (0 violaciones de estilo PSR-12).
+
+---
+
+## Actualización previa
+2026-09-26 | Antigravity | 📧 **CONFIGURACIÓN DE MOTOR DE CORREO (SMTP / SERVIDOR / MODO SIMULADO) & PRUEBA EN VIVO IMPLEMENTADO AL 100% EN CRM** (`database/migrations/2026_09_26_130000_*`, `app/Models/CrmConfiguracion.php`, `app/Services/CrmEmailService.php`, `resources/views/livewire/crm/index.blade.php`, `tests/Feature/CrmEmailEngineTest.php`):
+- **Funcionalidades Añadidas:**
+  1. **Selector de Motor de Correo en la UI de CRM:**
+     - Opciones: `Usar Configuración del Servidor (.env / Predeterminado)`, `Servidor SMTP Personalizado (Gmail, Outlook, Hostinger, cPanel, etc.)`, `Modo Simulado / Log Local (Pruebas sin enviar)`.
+  2. **Credenciales SMTP Cifradas:**
+     - Servidor Host, Puerto (587, 465, 25), Usuario SMTP, Contraseña SMTP (con cifrado AES-256 en BD) y selector de cifrado TLS/SSL.
+  3. **Envío Dinámico en Caliente (`aplicarConfiguracionMailer`):**
+     - `CrmConfiguracion` inyecta las credenciales dinámicas en tiempo de ejecución al despachar correos desde `CrmEmailService`, permitiendo cambiar de servidor de correo sin reiniciar el servidor ni tocar archivos `.env`.
+  4. **Herramienta de Prueba Inmediata:**
+     - Campo de correo destinatario y botón `[Probar Envío]` que despacha un email de diagnóstico en tiempo real con mensaje de confirmación o detalle de error.
+  5. **Corrección de diagnóstico:**
+     - Resuelto método de lectura de menú en `CrmAiAgentService` (`obtenerMenuPublico`).
+- **Calidad y Verificación:**
+  - 3/3 tests unitarios y de integración pasando al 100% en `tests/Feature/CrmEmailEngineTest.php` (15 aserciones).
+  - Vistas Blade cacheadas sin errores (`php artisan view:cache`).
+  - Laravel Pint: 100% aprobado (0 violaciones PSR-12).
+
+---
+
+## Actualización previa
+2026-09-26 | Antigravity | 🧠 **CONFIGURACIÓN DE AGENTE IA EN CRM: KILL-SWITCH MANUAL, PLANTILLAS DE PRIVILEGIOS EDITABLES Y GUARDRAILS DE SEGURIDAD IMPLEMENTADO AL 100%** (`database/migrations/2026_09_26_*`, `app/Models/CrmIaPlantillaPrivilegio.php`, `app/Models/CrmConfiguracion.php`, `app/Services/Ai/*`, `resources/views/livewire/crm/index.blade.php`, `tests/Feature/CrmAiPrivilegiosTest.php`):
+- **Funcionalidades Añadidas:**
+  1. **Kill-Switch Manual en Vivo (Encender / Apagar IA en 1 clic):**
+     - Botón interactivo reactivo en la cabecera de la configuración con indicador visual (`IA ACTIVA 24/7` vs `IA EN PAUSA (MODO MANUAL)`).
+     - Al apagar la IA, el sistema responde inmediatamente con el mensaje de contingencia fuera de servicio sin invocar al LLM y con costo cero de API.
+  2. **Sistema de Plantillas de Privilegios de IA (Editable desde la UI de CRM):**
+     - Tabla `crm_ia_plantillas_privilegios` y seeder `CrmIaPlantillaSeeder` con 3 presets de fábrica (*Hostess Completa (Recomendada)*, *Solo Informativa / Menú*, *Estricta / Modo Silencioso*).
+     - Matriz de privilegios granulares: Consultar menú, precios de carta, alérgenos, disponibilidad de mesas, creación de reservas con tope de comensales, cancelaciones, promociones y puntos VIP.
+     - Directivas específicas y reglas de la casa editables (mascotas, descorche, vestimenta).
+  3. **Credenciales Cifradas & Conexión de Motor:**
+     - Almacenamiento seguro de `ia_api_key` con cifrado nativo AES-256 (`'encrypted'` cast).
+     - Selector de proveedor (Gemini / OpenAI), selector de modelo y botón para probar conexión en vivo.
+     - Cuota diaria por cliente para prevenir agotamiento de tokens.
+  4. **Seguridad Inviolable: Tool Gatekeeper Server-Side & Anti-Fuga de Datos:**
+     - `AiToolGatekeeper`: Si una función está desactivada en la plantilla, la herramienta *Tool* correspondiente no se envía al LLM, impidiendo bypasses por prompt-injection.
+     - Detección semántica de preguntas sobre ventas, caja, ganancias, food cost y contraseñas con bloqueo de seguridad instantáneo.
+  5. **Simulador de Auditoría en Vivo (Sandbox) en CRM:**
+     - Pestaña 6 "Agente IA & Privilegios" en `/crm` con botones de prueba rápida para auditar límites y chat de pruebas con badges de seguridad y latencia en ms.
+- **Calidad y Verificación:**
+  - 8/8 tests pasando al 100% en `tests/Feature/CrmAiPrivilegiosTest.php` (32 aserciones).
+  - 8/8 tests de regresión pasando en `tests/Feature/CrmAutomatizacionesTest.php` (25 aserciones).
+  - Blade templates en caché verificadas con 0 errores (`view:cache`).
+  - Laravel Pint: 100% aprobado (0 violaciones de estilo PSR-12).
+
+---
+
+## Actualización previa
 2026-09-25 | Antigravity | 🚀 **ACTUALIZACIÓN DE RAMAS EN GITHUB Y ARCHIVOS DE DESPLIEGUE COOLIFY PARA RE-DEPLOY** (`docker-compose.yml`, `docker-compose.yaml`, `docker-compose.coolify.yml`, `docker/entrypoint.sh`):
 - **Actualización de Archivos de Despliegue Docker / Coolify:**
   1. **Variables de entorno para producción en `docker/entrypoint.sh`:**

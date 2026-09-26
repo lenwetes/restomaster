@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             ZonaSeeder::class,
             ConfiguracionSeeder::class,
             AdminUserSeeder::class,
+            CrmIaPlantillaSeeder::class,
         ]);
     }
 }

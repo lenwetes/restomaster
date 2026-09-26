@@ -48,6 +48,11 @@ En la pestaña **Environment Variables** de tu aplicación en Coolify, puedes co
 | `AUTO_SEED` | `true` | Crea usuarios principales y configuración inicial |
 | `DEMO_USERS_PASSWORD`| *(vacío = aleatoria segura)* | Contraseña unificada para los 4 usuarios base |
 | `APP_PORT` | `8004` | Puerto directo en el VPS (http://IP_VPS:8004) |
+| `GEMINI_API_KEY` | *(opcional)* | Clave de Google Gemini API para asistente de IA y chat en vivo |
+| `WHATSAPP_ACCESS_TOKEN` | *(opcional)* | Token Bearer permanente de Meta Cloud API para WhatsApp Business |
+| `WHATSAPP_PHONE_NUMBER_ID`| *(opcional)* | ID de número de teléfono en Meta Cloud API |
+| `WHATSAPP_VERIFY_TOKEN` | *(opcional)* | Token secreto de verificación del Webhook de WhatsApp |
+| `WHATSAPP_SIMULADO` | `true` | Modo seguro de pruebas sin despachar mensajes reales a Meta |
 
 ---
 

@@ -23,21 +23,100 @@ class CrmConfiguracion extends Model
         'email_activo',
         'email_remitente_nombre',
         'email_remitente_correo',
+        'email_driver',
+        'email_smtp_host',
+        'email_smtp_port',
+        'email_smtp_username',
+        'email_smtp_password',
+        'email_smtp_encryption',
+        'email_correo_pruebas',
         'horario_envio_inicio',
         'horario_envio_fin',
         'delay_encuesta_minutos',
         'winback_dias_inactividad',
+        'ia_activo',
+        'ia_plantilla_privilegio_id',
+        'ia_proveedor',
+        'ia_modelo',
+        'ia_api_key',
+        'ia_limite_mensajes_por_cliente_dia',
+        'ia_mensaje_apagado',
     ];
 
     protected $casts = [
+        'whatsapp_access_token' => 'encrypted',
         'email_activo' => 'boolean',
+        'email_smtp_port' => 'integer',
+        'email_smtp_password' => 'encrypted',
         'delay_encuesta_minutos' => 'integer',
         'winback_dias_inactividad' => 'integer',
+        'ia_activo' => 'boolean',
+        'ia_api_key' => 'encrypted',
+        'ia_limite_mensajes_por_cliente_dia' => 'integer',
+        'ia_plantilla_privilegio_id' => 'integer',
     ];
 
     public function sucursal(): BelongsTo
     {
         return $this->belongsTo(Sucursal::class, 'sucursal_id');
+    }
+
+    public function plantillaIa(): BelongsTo
+    {
+        return $this->belongsTo(CrmIaPlantillaPrivilegio::class, 'ia_plantilla_privilegio_id');
+    }
+
+    /**
+     * Aplica la configuración de correo dinámicamente si no está en modo .env estándar.
+     */
+    public function aplicarConfiguracionMailer(): void
+    {
+        if ($this->email_driver === 'log') {
+            config(['mail.default' => 'log']);
+
+            return;
+        }
+
+        if ($this->email_driver === 'smtp' && ! empty($this->email_smtp_host)) {
+            config([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.host' => $this->email_smtp_host,
+                'mail.mailers.smtp.port' => $this->email_smtp_port ?: 587,
+                'mail.mailers.smtp.username' => $this->email_smtp_username,
+                'mail.mailers.smtp.password' => $this->email_smtp_password,
+                'mail.mailers.smtp.encryption' => $this->email_smtp_encryption ?: 'tls',
+            ]);
+        }
+
+        if (! empty($this->email_remitente_correo)) {
+            config([
+                'mail.from.address' => $this->email_remitente_correo,
+                'mail.from.name' => $this->email_remitente_nombre ?: config('app.name'),
+            ]);
+        }
+    }
+
+    /**
+     * Determina si el asistente de IA está activo manualmente (Kill-Switch).
+     */
+    public function iaActiva(): bool
+    {
+        return (bool) $this->ia_activo;
+    }
+
+    /**
+     * Obtiene la API Key desencriptada de la IA con fallback a variables de entorno.
+     */
+    public function obtenerApiKeyIa(): ?string
+    {
+        if (! empty($this->ia_api_key)) {
+            return $this->ia_api_key;
+        }
+
+        return match ($this->ia_proveedor) {
+            'openai' => config('services.openai.key', env('OPENAI_API_KEY')),
+            default => config('services.gemini.key', env('GEMINI_API_KEY')),
+        };
     }
 
     /**
@@ -61,6 +140,11 @@ class CrmConfiguracion extends Model
                 'horario_envio_fin' => '22:00',
                 'delay_encuesta_minutos' => 20,
                 'winback_dias_inactividad' => 45,
+                'ia_activo' => false,
+                'ia_proveedor' => 'gemini',
+                'ia_modelo' => 'gemini-2.5-flash',
+                'ia_limite_mensajes_por_cliente_dia' => 15,
+                'ia_mensaje_apagado' => 'En este momento nuestro asistente virtual está en pausa. Para reservas o consultas urgentes, por favor comunícate a nuestra línea de atención telefónica.',
             ]
         );
     }

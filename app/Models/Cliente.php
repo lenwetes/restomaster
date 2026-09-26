@@ -91,6 +91,11 @@ class Cliente extends Model
         return $this->hasMany(MovimientoPuntos::class, 'cliente_id');
     }
 
+    public function reservas(): HasMany
+    {
+        return $this->hasMany(Reserva::class, 'cliente_id');
+    }
+
     public function isOcasional(): bool
     {
         return strtolower($this->tier ?? '') === self::TIER_OCASIONAL || empty($this->tier);

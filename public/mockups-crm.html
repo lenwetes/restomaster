@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RestoMaster CRM — Propuestas de Diseño UI/UX</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            red: '#e0442e',
+                            amber: '#f59e0b',
+                            emerald: '#10b981',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #090a0f; color: #f1f5f9; }
+        .glass-panel { background: rgba(18, 20, 29, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .zoom-img { transition: transform 0.3s ease; }
+        .zoom-img:hover { transform: scale(1.015); }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8 lg:p-12 space-y-10">
+
+    <!-- Header Principal -->
+    <header class="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/10 pb-8">
+        <div>
+            <div class="flex items-center gap-2 text-xs font-mono font-bold tracking-widest text-brand-red uppercase mb-1">
+                <span>RestoMaster Pro</span>
+                <span>/</span>
+                <span>Laboratorio de Diseño UI/UX</span>
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-3">
+                <span>3 Visiones de Diseño para el CRM & Gestor de Chats</span>
+            </h1>
+            <p class="text-sm text-slate-400 mt-2 max-w-3xl leading-relaxed">
+                Revisa los mockups a pantalla completa. Cada propuesta fue diseñada con una filosofía distinta de estética, densidad de información y jerarquía operativa para sustituir la interfaz anterior.
+            </p>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+            <a href="/crm" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center gap-2 border border-white/10 transition-all">
+                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                <span>Volver al CRM Actual</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Contenedor de Mockups -->
+    <main class="max-w-7xl mx-auto space-y-16">
+
+        <!-- OPCIÓN A -->
+        <section id="opcion-a" class="glass-panel rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-2xl">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/80 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold uppercase tracking-wider">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <span>Opción A — Estilo Linear / Stripe</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">Obsidian Slate & Glass Luxury</h2>
+                    <p class="text-xs text-slate-400">Enfoque: Minimalismo quirúrgico, bordes de 1px, badges de ticket de alto contraste y cero sobrecarga visual.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-mono text-slate-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">Ideal para: Operación SaaS moderna & ágil</span>
+                </div>
+            </div>
+
+            <!-- Preview Image -->
+            <div class="rounded-2xl overflow-hidden border border-white/15 shadow-2xl bg-black group relative cursor-pointer" onclick="openLightbox('/images/mockups/mockup-a-obsidian.jpg', 'Opción A: Obsidian Slate & Glass Luxury')">
+                <img src="/images/mockups/mockup-a-obsidian.jpg" alt="Mockup A - Obsidian Slate" class="w-full h-auto object-cover zoom-img">
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-bold text-sm backdrop-blur-xs">
+                    <span class="material-symbols-outlined text-[24px]">zoom_in</span>
+                    <span>Clic para ver en pantalla completa</span>
+                </div>
+            </div>
+
+            <!-- Características Destacadas -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div class="p-4 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="flex items-center gap-2 text-cyan-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">tag</span>
+                        <span>Tickets de Alto Contraste</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">Badges mono como <code class="text-emerald-400 font-mono">#CHT-WA-8492</code> con botón directo de copia y badges de estado limpios.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="flex items-center gap-2 text-purple-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">toggle_on</span>
+                        <span>Interruptor IA vs Staff</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">Segmented control de un toque para ceder o recuperar el control de la conversación al instante.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">account_circle</span>
+                        <span>Drawer Lateral de Cliente</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">Ficha 360° limpia con puntos VIP acumulados, visitas y botón directo para agendar mesa.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- OPCIÓN B -->
+        <section id="opcion-b" class="glass-panel rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-2xl border-amber-500/20">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-950/80 border border-amber-500/40 text-amber-300 font-mono text-xs font-bold uppercase tracking-wider">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span>Opción B — Estilo SevenRooms / Michelin</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">Bespoke Gastro-Lounge & Warm Amber Prestige</h2>
+                    <p class="text-xs text-amber-200/80">Enfoque: Hospitalidad de autor, fondos café espresso cálido (#120905), acentos oro ámbar (#F59E0B) y atmósfera de restaurante premium.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-mono text-amber-300 bg-amber-950/60 px-3 py-1.5 rounded-xl border border-amber-500/30">Ideal para: Alta gastronomía & Restaurantes de Autor</span>
+                </div>
+            </div>
+
+            <!-- Preview Image -->
+            <div class="rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl bg-black group relative cursor-pointer" onclick="openLightbox('/images/mockups/mockup-b-gastro.jpg', 'Opción B: Bespoke Gastro-Lounge & Warm Amber Prestige')">
+                <img src="/images/mockups/mockup-b-gastro.jpg" alt="Mockup B - Gastro Prestige" class="w-full h-auto object-cover zoom-img">
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-bold text-sm backdrop-blur-xs">
+                    <span class="material-symbols-outlined text-[24px]">zoom_in</span>
+                    <span>Clic para ver en pantalla completa</span>
+                </div>
+            </div>
+
+            <!-- Características Destacadas -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div class="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-1.5">
+                    <div class="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">restaurant</span>
+                        <span>Cultura Hospitalaria</span>
+                    </div>
+                    <p class="text-xs text-stone-300 leading-relaxed">Muestra de inmediato el estatus de reserva ("Mesa 4 hoy @ 7PM") y preferencias gastronómicas.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-1.5">
+                    <div class="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">verified</span>
+                        <span>Acabado en Latón & Oro</span>
+                    </div>
+                    <p class="text-xs text-stone-300 leading-relaxed">Controles táctiles pulidos con el selector "AI Sommelier Concierge" vs "Maitre D' Staff Control".</p>
+                </div>
+                <div class="p-4 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-1.5">
+                    <div class="flex items-center gap-2 text-amber-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">medical_services</span>
+                        <span>Dossier de Alérgenos & Consumo</span>
+                    </div>
+                    <p class="text-xs text-stone-300 leading-relaxed">Ficha lateral con historial de consumo de por vida, vinos favoritos y alertas de alérgenos.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- OPCIÓN C -->
+        <section id="opcion-c" class="glass-panel rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden shadow-2xl border-emerald-500/20">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold uppercase tracking-wider">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Opción C — Estilo Datadog / Intercom Enterprise</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">Cyber-Command & Real-Time Operational Matrix</h2>
+                    <p class="text-xs text-emerald-200/80">Enfoque: Alta densidad de datos, telemetría de latencia en vivo, prioridad P1/P2 con cronómetros y auditoría de guardrails de IA.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-mono text-emerald-300 bg-emerald-950/60 px-3 py-1.5 rounded-xl border border-emerald-500/30">Ideal para: Alto volumen de chats & Operación multipersonal</span>
+                </div>
+            </div>
+
+            <!-- Preview Image -->
+            <div class="rounded-2xl overflow-hidden border border-emerald-500/30 shadow-2xl bg-black group relative cursor-pointer" onclick="openLightbox('/images/mockups/mockup-c-cyber.jpg', 'Opción C: Cyber-Command & Real-Time Operational Matrix')">
+                <img src="/images/mockups/mockup-c-cyber.jpg" alt="Mockup C - Cyber Command" class="w-full h-auto object-cover zoom-img">
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-bold text-sm backdrop-blur-xs">
+                    <span class="material-symbols-outlined text-[24px]">zoom_in</span>
+                    <span>Clic para ver en pantalla completa</span>
+                </div>
+            </div>
+
+            <!-- Características Destacadas -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-1.5">
+                    <div class="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">speed</span>
+                        <span>Barra de Telemetría Superior</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">Métricas de latencia del motor de IA (420ms), salud de webhooks (99.9%) y tickets resueltos en tiempo real.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-1.5">
+                    <div class="flex items-center gap-2 text-red-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">warning</span>
+                        <span>Matriz de Prioridades P1 / P2</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">Etiquetas de urgencia inmediata con cronómetro de espera por comensal para evitar demoras.</p>
+                </div>
+                <div class="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 space-y-1.5">
+                    <div class="flex items-center gap-2 text-purple-400 font-bold text-xs">
+                        <span class="material-symbols-outlined text-[18px]">verified_user</span>
+                        <span>Auditoría de Guardrails en Vivo</span>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed">Badges visuales en el chat que certifican las herramientas ejecutadas por la IA con sello verde de seguridad.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal Lightbox Pantalla Completa -->
+    <div id="lightbox-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden items-center justify-center p-4" onclick="closeLightbox()">
+        <div class="max-w-6xl w-full space-y-4" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between text-white border-b border-white/10 pb-3">
+                <h3 id="lightbox-title" class="font-black text-lg"></h3>
+                <button onclick="closeLightbox()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+            <div class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl">
+                <img id="lightbox-img" src="" alt="Vista previa" class="w-full h-auto">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openLightbox(src, title) {
+            document.getElementById('lightbox-img').src = src;
+            document.getElementById('lightbox-title').innerText = title;
+            const modal = document.getElementById('lightbox-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+        function closeLightbox() {
+            const modal = document.getElementById('lightbox-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    </script>
+</body>
+</html>

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\CrmConfiguracion;
+use App\Models\CrmMensaje;
 use App\Models\CrmMensajeLog;
+use App\Services\Ai\CrmChatOrchestratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -59,27 +61,45 @@ class CrmWebhookController extends Controller
                     }
 
                     $log = CrmMensajeLog::where('mensaje_id_externo', $wamid)->first();
-                    if (! $log) {
-                        continue;
+                    if ($log) {
+                        if ($statusName === 'delivered') {
+                            $log->update(['estado' => 'entregado', 'entregado_en' => now()]);
+                        } elseif ($statusName === 'read') {
+                            $log->update(['estado' => 'leido', 'leido_en' => now()]);
+                        } elseif ($statusName === 'failed') {
+                            $errors = $status['errors'] ?? [];
+                            $errMsg = ! empty($errors) ? ($errors[0]['title'] ?? 'Error de Meta') : 'Error al entregar';
+                            $log->update(['estado' => 'fallido', 'error_mensaje' => $errMsg]);
+                        }
                     }
 
-                    if ($statusName === 'delivered') {
-                        $log->update([
-                            'estado' => 'entregado',
-                            'entregado_en' => now(),
-                        ]);
-                    } elseif ($statusName === 'read') {
-                        $log->update([
-                            'estado' => 'leido',
-                            'leido_en' => now(),
-                        ]);
-                    } elseif ($statusName === 'failed') {
-                        $errors = $status['errors'] ?? [];
-                        $errMsg = ! empty($errors) ? ($errors[0]['title'] ?? 'Error desconocido de Meta') : 'Error al entregar';
-                        $log->update([
-                            'estado' => 'fallido',
-                            'error_mensaje' => $errMsg,
-                        ]);
+                    // Actualizar también en crm_mensajes si coincide el wamid
+                    CrmMensaje::where('wamid', $wamid)->update(['estado_entrega' => $statusName]);
+                }
+
+                // Procesamiento de Mensajes Entrantes de Clientes (Inbound WhatsApp)
+                $messages = $value['messages'] ?? [];
+                $contacts = $value['contacts'] ?? [];
+                $contactName = $contacts[0]['profile']['name'] ?? null;
+
+                if (! empty($messages)) {
+                    /** @var CrmChatOrchestratorService $orchestrator */
+                    $orchestrator = app(CrmChatOrchestratorService::class);
+
+                    foreach ($messages as $msg) {
+                        $from = $msg['from'] ?? null;
+                        $wamid = $msg['id'] ?? null;
+                        $body = $msg['text']['body'] ?? ($msg['button']['text'] ?? ($msg['interactive']['button_reply']['title'] ?? null));
+
+                        if ($from && $body) {
+                            $conversacion = $orchestrator->obtenerOCrearConversacion(
+                                canal: 'whatsapp',
+                                identificadorRemoto: $from,
+                                nombre: $contactName
+                            );
+
+                            $orchestrator->procesarMensajeCliente($conversacion, $body, $wamid);
+                        }
                     }
                 }
             }

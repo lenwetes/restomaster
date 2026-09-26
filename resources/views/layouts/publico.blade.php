@@ -303,6 +303,9 @@
         </div>
     </footer>
 
+    <!-- Widget Flotante de Chatbot & Concierge IA -->
+    <livewire:crm.chat-widget-publico />
+
     @livewireScripts
 </body>
 </html>
