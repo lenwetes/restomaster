@@ -53,7 +53,7 @@ class CrmConversacion extends Model
 
     public function mensajes(): HasMany
     {
-        return $this->hasMany(CrmMensaje::class, 'crm_conversacion_id')->orderBy('created_at', 'asc');
+        return $this->hasMany(CrmMensaje::class, 'crm_conversacion_id');
     }
 
     public function cliente(): BelongsTo

@@ -6,16 +6,34 @@
 ---
 
 ## Última Actualización
-2026-09-26 | Antigravity | 🩹 **HOTFIX CRÍTICO: RESOLUCIÓN DE ERROR 500 EN /CRM (DECRYPTEXCEPTION & BLINDAJE DE MIGRACIONES)** (`app/Models/CrmConfiguracion.php`, `resources/views/livewire/crm/index.blade.php`, `database/migrations/2026_09_26_*`, `docker/entrypoint.sh`, `coordination.md`):
-- **Causa Raíz del Error 500 en Producción:**
-  - Al acceder a `/crm`, `CrmConfiguracion::cargarConfiguracion()` leía `whatsapp_access_token`, `ia_api_key` o `email_smtp_password`.
-  - El cast nativo `'encrypted'` de Eloquent arrojaba `Illuminate\Contracts\Encryption\DecryptException: The payload is invalid` si el valor en la base de datos de producción provenía de semillas previas en texto plano o cifrado con un `APP_KEY` anterior.
-- **Solución y Blindaje Aplicados:**
-  1. **Accesores y Mutadores Criptográficos con Fallback Seguro:** Se sustituyó el cast rígido por accesores con try/catch en `CrmConfiguracion`. Si el valor almacenado es texto plano o la clave no coincide, se devuelve el valor en crudo de forma transparente sin disparar excepciones no controladas; al guardar, se cifra automáticamente con AES-256.
-  2. **Defensa en Profundidad en la Vista `crm.index`:** Se blindaron los métodos `mount()`, `cargarConfiguracion()` y `with()` con verificaciones de existencia de esquemas (`Schema::hasTable`) y bloques try/catch con logging preventivo, evitando que caiga la vista completa.
-  3. **Migraciones Idempotentes:** Se agregaron guardas `Schema::hasTable` y `Schema::hasColumn` a todas las migraciones del 26 de septiembre para prevenir errores de tablas o columnas duplicadas en redeploys de Coolify.
-  4. **Paso de Inicialización en Docker:** Asegurada la ejecución de `CrmIaPlantillaSeeder` y `MeseroPruebaSeeder` en `docker/entrypoint.sh`.
-- **Verificación:** 38/38 pruebas automatizadas aprobadas (182 aserciones) en CRM y rotaciones.
+2026-09-26 | Antigravity | 🍽️ **CONCIERGE IA: RECONOCIMIENTO DE INTENCIÓN DE RESERVA, AGENDAMIENTO AUTOMÁTICO EN BD Y FIX DE FALSOS POSITIVOS DE ATENCIÓN HUMANA** (`app/Services/Ai/CrmChatOrchestratorService.php`, `app/Services/Ai/CrmAiAgentService.php`, `app/Models/CrmConversacion.php`, `app/Services/ReservaService.php`, `tests/Feature/CrmChatReservaAutomaticaTest.php`, `coordination.md`):
+- **Diagnóstico del Problema del Usuario:**
+  - Al indicar el cliente: *"quiero una mesa para las 6 de la tarde mi nombre es luis eduardo , seremos 3 personas y la quiero para hoy"*, el bot transfería erróneamente a humano (*"Con gusto te comunico con uno de nuestros anfitriones..."*).
+  - Causa raíz 1: `CrmChatOrchestratorService::solicitaHumano()` contenía la palabra clave `'persona'`, y mediante `str_contains($textoLimpio, 'persona')` confundía la cantidad de comensales (*"3 personas"*) con una solicitud de intervención humana.
+  - Causa raíz 2: En `CrmAiAgentService`, las intenciones de reserva tenían únicamente un mensaje estático de bienvenida solicitando datos, sin motor de extracción de parámetros ni persistencia de la reserva en base de datos.
+- **Solución y Mejoras Implementadas:**
+  1. **Blindaje contra Falsos Handoffs (`CrmChatOrchestratorService::solicitaHumano`):**
+     - Se depuran automáticamente las menciones de comensales numéricas o en palabras (`/\b(\d+|dos|tres...)\s+personas?\b/`, `/\b(?:para|de|mesa para|somos|seremos)\s+una persona\b/`).
+     - Se exige contexto explícito para requerir un humano (`hablar con una persona/humano/asesor`, `atención humana`, `persona real`, `gerente`, `queja/reclamo`, etc.), preservando la capacidad de pedir atención humana sin colisionar con reservas.
+  2. **Motor Semántico de Extracción y Creación de Reservas (`CrmAiAgentService`):**
+     - Extracción en lenguaje natural de:
+       - `nombre_contacto` (e.g. "Luis Eduardo").
+       - `personas` (e.g. 3, "tres", "somos dos").
+       - `fecha` ("hoy", "mañana", "pasado mañana", días de la semana, fechas exactas).
+       - `hora_llegada` (conversión automática a formato 24h, ej. "6 de la tarde" -> "18:00").
+       - `telefono_contacto` (número en texto, remitente de WhatsApp o perfil de cliente).
+     - **Flujo Multi-Turno:** Si el comensal responde por partes, el historial conversacional acumula y completa los parámetros faltantes.
+     - **Gestión Inteligente de Faltantes:** Si faltan datos clave (ej. solo dijo la hora pero falta el nombre y comensales), formula una pregunta cálida y directa pidiendo *únicamente* los campos pendientes.
+     - **Persistencia y Confirmación Inmediata:** Si todos los datos están presentes, valida los topes de comensales de la plantilla y crea la `Reserva` en la tabla `reservas` mediante `ReservaService::crear` (origen: `ia_concierge`), intentando auto-confirmar y preasignar mesa/mesero de turno (`RotacionMeseroService`), y actualiza el nombre del contacto en el chat.
+  3. **Corrección de Ordenamiento en `CrmConversacion::mensajes()`:**
+     - Se eliminó el `orderBy('created_at', 'asc')` rígido en la relación base del modelo para permitir que `latest('id')` funcione de forma natural sin colisionar con timestamps idénticos.
+  4. **Blindaje en `ReservaService`:**
+     - Manejo seguro de `sucursal_id` sin forzar ID 1 si no existen registros de sucursales en BD de prueba.
+- **Verificación Automatizada:**
+  - 13/13 pruebas aprobadas (51 aserciones):
+    - `CrmChatReservaAutomaticaTest`: 5/5 pruebas pasadas (reserva inmediata completa, solicitud de faltantes, multi-turn, rechazo por tope de comensales, handoff a humano legítimo).
+    - `CrmChatOmnicanalTest`: 8/8 pruebas pasadas.
+  - Validación 100% aprobada con `vendor/bin/pint` (PSR-12).
 
 ---
 

@@ -144,7 +144,20 @@ class CrmChatOrchestratorService
 
         // 6. Consultar a CrmAiAgentService
         $historialMensajes = $this->obtenerVentanaDeslizante($conversacion);
-        $respuestaIa = $this->aiAgentService->procesarConversacion($texto, $conversacion->cliente_id, $historialMensajes);
+        $telefono = $conversacion->canal === 'whatsapp' ? $conversacion->identificador_remoto : null;
+        $nombreContacto = ($conversacion->nombre_contacto && ! str_starts_with($conversacion->nombre_contacto, 'Visitante Web') && ! str_starts_with($conversacion->nombre_contacto, 'WhatsApp'))
+            ? $conversacion->nombre_contacto
+            : null;
+
+        $respuestaIa = $this->aiAgentService->procesarConversacion(
+            mensaje: $texto,
+            clienteId: $conversacion->cliente_id,
+            historial: $historialMensajes,
+            sucursalId: $conversacion->sucursal_id,
+            telefono: $telefono,
+            nombreContacto: $nombreContacto,
+            conversacion: $conversacion
+        );
 
         $this->despacharRespuestaBot($conversacion, $respuestaIa['respuesta'], [
             'tokens' => $respuestaIa['tokens_estimados'] ?? 0,
@@ -254,13 +267,42 @@ class CrmChatOrchestratorService
     }
 
     /**
-     * Detecta si el texto del comensal contiene solicitudes de atención humana.
+     * Detecta si el texto del comensal contiene solicitudes explícitas de atención humana.
+     * Evita falsos positivos como la cantidad de comensales en reservas ("3 personas").
      */
     protected function solicitaHumano(string $texto): bool
     {
         $textoLimpio = Str::lower($texto);
-        foreach (self::PALABRAS_CLAVE_HUMANO as $palabra) {
-            if (str_contains($textoLimpio, $palabra)) {
+
+        // Limpiar indicaciones de comensales para no confundir con solicitud de humano
+        $regexComensales = '/\b(\d+|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+personas?\b|\b(?:para|de|mesa\s+para|somos|seremos)\s+un[ao]?\s+persona\b/iu';
+        $textoSinComensales = preg_replace($regexComensales, '', $textoLimpio);
+
+        // 1. Patrones contextuales de solicitud de atención humana
+        $patronesHumano = [
+            '/\b(hablar|comunicar|pasar|transferir|contactar|atender)\s+(con\s+)?(un\s+|una\s+)?(humano|persona|asesor|agente|alguien|operador|anfitri[oó]n)\b/iu',
+            '/\b(atenci[oó]n\s+humana|persona\s+real|asesor\s+humano|agente\s+humano|asistente\s+humano)\b/iu',
+            '/\b(quiero|necesito)\s+(un\s+|una\s+)?(asesor|humano)\b/iu',
+            '/\b(gerente|administrador|supervisora?)\b/iu',
+            '/\b(queja|reclamo|denuncia)\b/iu',
+            '/\b(problema\s+con\s+mi\s+cuenta|problema\s+con\s+el\s+pago)\b/iu',
+            '/\bno\s+quiero\s+(un\s+)?bot\b/iu',
+            '/\bhablar\s+con\s+alguien\b/iu',
+        ];
+
+        foreach ($patronesHumano as $patron) {
+            if (preg_match($patron, $textoSinComensales)) {
+                return true;
+            }
+        }
+
+        // 2. Términos directos sin ambigüedad
+        $palabrasDirectas = [
+            'asesor', 'atención humana', 'atencion humana',
+        ];
+
+        foreach ($palabrasDirectas as $frase) {
+            if (str_contains($textoSinComensales, $frase)) {
                 return true;
             }
         }

@@ -63,11 +63,11 @@ class ReservaService
             throw new InvalidArgumentException('Debe elegirse una fecha igual o posterior a hoy.');
         }
 
-        $sucursalId = (int) ($datos['sucursal_id'] ?? auth()->user()?->sucursal_id);
-        if ($sucursalId === 0) {
-            $sucursalId = (int) (Sucursal::value('id') ?? 1);
-        }
-        if (auth()->user()?->sucursal_id && $sucursalId !== (int) auth()->user()->sucursal_id) {
+        $sucursalId = ! empty($datos['sucursal_id'])
+            ? (int) $datos['sucursal_id']
+            : (auth()->user()?->sucursal_id ?? Sucursal::value('id'));
+
+        if (auth()->user()?->sucursal_id && $sucursalId && (int) $sucursalId !== (int) auth()->user()->sucursal_id) {
             throw new AuthorizationException('No puede crear reservas en otra sucursal.');
         }
 
