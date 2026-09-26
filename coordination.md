@@ -6,6 +6,20 @@
 ---
 
 ## Última Actualización
+2026-09-26 | Antigravity | 🩹 **HOTFIX CRÍTICO: RESOLUCIÓN DE ERROR 500 EN /CRM (DECRYPTEXCEPTION & BLINDAJE DE MIGRACIONES)** (`app/Models/CrmConfiguracion.php`, `resources/views/livewire/crm/index.blade.php`, `database/migrations/2026_09_26_*`, `docker/entrypoint.sh`, `coordination.md`):
+- **Causa Raíz del Error 500 en Producción:**
+  - Al acceder a `/crm`, `CrmConfiguracion::cargarConfiguracion()` leía `whatsapp_access_token`, `ia_api_key` o `email_smtp_password`.
+  - El cast nativo `'encrypted'` de Eloquent arrojaba `Illuminate\Contracts\Encryption\DecryptException: The payload is invalid` si el valor en la base de datos de producción provenía de semillas previas en texto plano o cifrado con un `APP_KEY` anterior.
+- **Solución y Blindaje Aplicados:**
+  1. **Accesores y Mutadores Criptográficos con Fallback Seguro:** Se sustituyó el cast rígido por accesores con try/catch en `CrmConfiguracion`. Si el valor almacenado es texto plano o la clave no coincide, se devuelve el valor en crudo de forma transparente sin disparar excepciones no controladas; al guardar, se cifra automáticamente con AES-256.
+  2. **Defensa en Profundidad en la Vista `crm.index`:** Se blindaron los métodos `mount()`, `cargarConfiguracion()` y `with()` con verificaciones de existencia de esquemas (`Schema::hasTable`) y bloques try/catch con logging preventivo, evitando que caiga la vista completa.
+  3. **Migraciones Idempotentes:** Se agregaron guardas `Schema::hasTable` y `Schema::hasColumn` a todas las migraciones del 26 de septiembre para prevenir errores de tablas o columnas duplicadas en redeploys de Coolify.
+  4. **Paso de Inicialización en Docker:** Asegurada la ejecución de `CrmIaPlantillaSeeder` y `MeseroPruebaSeeder` en `docker/entrypoint.sh`.
+- **Verificación:** 38/38 pruebas automatizadas aprobadas (182 aserciones) en CRM y rotaciones.
+
+---
+
+## Actualización previa
 2026-09-26 | Antigravity | 👨‍🍳 **SEED DE MESEROS COLOMBIANOS DE PRUEBA Y CONFIGURACIÓN DE AUTO-ROTACIÓN INTEGRAL** (`database/seeders/MeseroPruebaSeeder.php`, `database/seeders/DatabaseSeeder.php`, `app/Console/Commands/CargarDatosDemoCommand.php`, `tests/Feature/MeseroPruebaSeederTest.php`, `coordination.md`):
 - **Funcionalidades de Prueba Entregadas:**
   1. **10 Meseros con Perfiles Colombianos Completos:**

@@ -158,14 +158,18 @@ new class extends Component
         $this->hasta = now()->toDateString();
         $this->cargarConfiguracion();
 
-        $primeraPlantilla = CrmPlantilla::first();
-        if ($primeraPlantilla) {
-            $this->seleccionarPlantilla($primeraPlantilla->id);
+        if (\Illuminate\Support\Facades\Schema::hasTable('crm_plantillas')) {
+            $primeraPlantilla = CrmPlantilla::first();
+            if ($primeraPlantilla) {
+                $this->seleccionarPlantilla($primeraPlantilla->id);
+            }
         }
 
-        $primerChat = \App\Models\CrmConversacion::latest('ultimo_mensaje_at')->first();
-        if ($primerChat) {
-            $this->chatConversacionSeleccionadaId = $primerChat->id;
+        if (\Illuminate\Support\Facades\Schema::hasTable('crm_conversaciones')) {
+            $primerChat = \App\Models\CrmConversacion::latest('ultimo_mensaje_at')->first();
+            if ($primerChat) {
+                $this->chatConversacionSeleccionadaId = $primerChat->id;
+            }
         }
     }
 
@@ -193,45 +197,51 @@ new class extends Component
 
     public function cargarConfiguracion(): void
     {
-        $config = CrmConfiguracion::activa();
-        $this->whatsapp_proveedor = $config->whatsapp_proveedor;
-        $this->whatsapp_phone_number_id = (string) $config->whatsapp_phone_number_id;
-        $this->whatsapp_waba_id = (string) $config->whatsapp_waba_id;
-        $this->whatsapp_access_token = (string) $config->whatsapp_access_token;
-        $this->whatsapp_webhook_secret = (string) $config->whatsapp_webhook_secret;
-        $this->whatsapp_telefono_pruebas = (string) $config->whatsapp_telefono_pruebas;
-        $this->email_activo = (bool) $config->email_activo;
-        $this->email_remitente_nombre = (string) $config->email_remitente_nombre;
-        $this->email_remitente_correo = (string) $config->email_remitente_correo;
-        $this->email_driver = (string) ($config->email_driver ?: 'env');
-        $this->email_smtp_host = (string) $config->email_smtp_host;
-        $this->email_smtp_port = (int) ($config->email_smtp_port ?: 587);
-        $this->email_smtp_username = (string) $config->email_smtp_username;
-        $this->email_smtp_password = $config->email_smtp_password ? '••••••••••••••••' : '';
-        $this->email_smtp_encryption = (string) ($config->email_smtp_encryption ?: 'tls');
-        $this->email_correo_pruebas = (string) ($config->email_correo_pruebas ?: '');
-        $this->horario_envio_inicio = (string) $config->horario_envio_inicio;
-        $this->horario_envio_fin = (string) $config->horario_envio_fin;
-        $this->delay_encuesta_minutos = (int) $config->delay_encuesta_minutos;
-        $this->winback_dias_inactividad = (int) $config->winback_dias_inactividad;
+        try {
+            $config = CrmConfiguracion::activa();
+            $this->whatsapp_proveedor = $config->whatsapp_proveedor ?? 'meta_cloud';
+            $this->whatsapp_phone_number_id = (string) ($config->whatsapp_phone_number_id ?? '');
+            $this->whatsapp_waba_id = (string) ($config->whatsapp_waba_id ?? '');
+            $this->whatsapp_access_token = (string) ($config->whatsapp_access_token ?? '');
+            $this->whatsapp_webhook_secret = (string) ($config->whatsapp_webhook_secret ?? '');
+            $this->whatsapp_telefono_pruebas = (string) ($config->whatsapp_telefono_pruebas ?? '');
+            $this->email_activo = (bool) ($config->email_activo ?? true);
+            $this->email_remitente_nombre = (string) ($config->email_remitente_nombre ?? '');
+            $this->email_remitente_correo = (string) ($config->email_remitente_correo ?? '');
+            $this->email_driver = (string) ($config->email_driver ?: 'env');
+            $this->email_smtp_host = (string) ($config->email_smtp_host ?? '');
+            $this->email_smtp_port = (int) ($config->email_smtp_port ?: 587);
+            $this->email_smtp_username = (string) ($config->email_smtp_username ?? '');
+            $this->email_smtp_password = $config->email_smtp_password ? '••••••••••••••••' : '';
+            $this->email_smtp_encryption = (string) ($config->email_smtp_encryption ?: 'tls');
+            $this->email_correo_pruebas = (string) ($config->email_correo_pruebas ?: '');
+            $this->horario_envio_inicio = (string) ($config->horario_envio_inicio ?? '10:00');
+            $this->horario_envio_fin = (string) ($config->horario_envio_fin ?? '22:00');
+            $this->delay_encuesta_minutos = (int) ($config->delay_encuesta_minutos ?? 15);
+            $this->winback_dias_inactividad = (int) ($config->winback_dias_inactividad ?? 45);
 
-        // Cargar datos de IA
-        $this->ia_activo = (bool) $config->ia_activo;
-        $this->ia_plantilla_privilegio_id = $config->ia_plantilla_privilegio_id;
-        $this->ia_proveedor = $config->ia_proveedor ?: 'gemini';
-        $this->ia_modelo = $config->ia_modelo ?: 'gemini-2.5-flash';
-        $this->ia_api_key = $config->ia_api_key ? '••••••••••••••••' : '';
-        $this->ia_limite_mensajes_por_cliente_dia = (int) ($config->ia_limite_mensajes_por_cliente_dia ?: 15);
-        $this->ia_mensaje_apagado = (string) ($config->ia_mensaje_apagado ?: 'En este momento nuestro asistente virtual está en pausa. Comunícate a nuestra línea de atención.');
+            // Cargar datos de IA
+            $this->ia_activo = (bool) ($config->ia_activo ?? false);
+            $this->ia_plantilla_privilegio_id = $config->ia_plantilla_privilegio_id ?? null;
+            $this->ia_proveedor = $config->ia_proveedor ?: 'gemini';
+            $this->ia_modelo = $config->ia_modelo ?: 'gemini-2.5-flash';
+            $this->ia_api_key = $config->ia_api_key ? '••••••••••••••••' : '';
+            $this->ia_limite_mensajes_por_cliente_dia = (int) ($config->ia_limite_mensajes_por_cliente_dia ?: 15);
+            $this->ia_mensaje_apagado = (string) ($config->ia_mensaje_apagado ?: 'En este momento nuestro asistente virtual está en pausa. Comunícate a nuestra línea de atención.');
 
-        if ($this->ia_plantilla_privilegio_id) {
-            $this->seleccionarPlantillaIa($this->ia_plantilla_privilegio_id);
-        } else {
-            $def = CrmIaPlantillaPrivilegio::first();
-            if ($def) {
-                $this->ia_plantilla_privilegio_id = $def->id;
-                $this->seleccionarPlantillaIa($def->id);
+            if (\Illuminate\Support\Facades\Schema::hasTable('crm_ia_plantillas_privilegios')) {
+                if ($this->ia_plantilla_privilegio_id) {
+                    $this->seleccionarPlantillaIa($this->ia_plantilla_privilegio_id);
+                } else {
+                    $def = CrmIaPlantillaPrivilegio::first();
+                    if ($def) {
+                        $this->ia_plantilla_privilegio_id = $def->id;
+                        $this->seleccionarPlantillaIa($def->id);
+                    }
+                }
             }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Error cargando configuración CRM: '.$e->getMessage());
         }
     }
 
@@ -606,31 +616,40 @@ new class extends Component
         $logs = $logsQuery->paginate(15);
 
         // Chats en Vivo
-        $chatsQuery = \App\Models\CrmConversacion::with(['cliente.reservas', 'usuarioAsignado'])
-            ->when($this->chatFiltroCanal, fn ($q) => $q->where('canal', $this->chatFiltroCanal))
-            ->when($this->chatFiltroEstado === 'esperando_humano', fn ($q) => $q->where('estado', 'esperando_humano'))
-            ->when($this->chatFiltroEstado === 'ia', fn ($q) => $q->where('modo_atencion', 'ia'))
-            ->when($this->chatFiltroEstado === 'humano', fn ($q) => $q->where('modo_atencion', 'humano'))
-            ->when($this->chatFiltroEstado === 'vip', fn ($q) => $q->whereHas('cliente', fn ($sq) => $sq->whereIn('tier', ['vip', 'black', 'gold', 'oro'])))
-            ->when($this->chatBusqueda, fn ($q) => $q->where(function ($sub) {
-                $sub->where('nombre_contacto', 'ilike', "%{$this->chatBusqueda}%")
-                    ->orWhere('identificador_remoto', 'ilike', "%{$this->chatBusqueda}%")
-                    ->orWhere('ultimo_mensaje_texto', 'ilike', "%{$this->chatBusqueda}%")
-                    ->orWhere('ticket_codigo', 'ilike', "%{$this->chatBusqueda}%");
-            }))
-            ->orderByDesc('ultimo_mensaje_at');
-
-        $conversaciones = $chatsQuery->take(40)->get();
-
+        $conversaciones = collect();
         $conversacionActiva = null;
-        if ($this->chatConversacionSeleccionadaId) {
-            $conversacionActiva = \App\Models\CrmConversacion::with([
-                'cliente.reservas' => fn ($q) => $q->latest()->take(3),
-                'mensajes' => fn ($q) => $q->with('usuario')->orderBy('created_at', 'asc'),
-            ])->find($this->chatConversacionSeleccionadaId);
+        $totalChatsEsperandoHumano = 0;
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('crm_conversaciones')) {
+            $chatsQuery = \App\Models\CrmConversacion::with(['cliente.reservas', 'usuarioAsignado'])
+                ->when($this->chatFiltroCanal, fn ($q) => $q->where('canal', $this->chatFiltroCanal))
+                ->when($this->chatFiltroEstado === 'esperando_humano', fn ($q) => $q->where('estado', 'esperando_humano'))
+                ->when($this->chatFiltroEstado === 'ia', fn ($q) => $q->where('modo_atencion', 'ia'))
+                ->when($this->chatFiltroEstado === 'humano', fn ($q) => $q->where('modo_atencion', 'humano'))
+                ->when($this->chatFiltroEstado === 'vip', fn ($q) => $q->whereHas('cliente', fn ($sq) => $sq->whereIn('tier', ['vip', 'black', 'gold', 'oro'])))
+                ->when($this->chatBusqueda, fn ($q) => $q->where(function ($sub) {
+                    $sub->where('nombre_contacto', 'ilike', "%{$this->chatBusqueda}%")
+                        ->orWhere('identificador_remoto', 'ilike', "%{$this->chatBusqueda}%")
+                        ->orWhere('ultimo_mensaje_texto', 'ilike', "%{$this->chatBusqueda}%")
+                        ->orWhere('ticket_codigo', 'ilike', "%{$this->chatBusqueda}%");
+                }))
+                ->orderByDesc('ultimo_mensaje_at');
+
+            $conversaciones = $chatsQuery->take(40)->get();
+
+            if ($this->chatConversacionSeleccionadaId) {
+                $conversacionActiva = \App\Models\CrmConversacion::with([
+                    'cliente.reservas' => fn ($q) => $q->latest()->take(3),
+                    'mensajes' => fn ($q) => $q->with('usuario')->orderBy('created_at', 'asc'),
+                ])->find($this->chatConversacionSeleccionadaId);
+            }
+
+            $totalChatsEsperandoHumano = \App\Models\CrmConversacion::where('estado', 'esperando_humano')->count();
         }
 
-        $totalChatsEsperandoHumano = \App\Models\CrmConversacion::where('estado', 'esperando_humano')->count();
+        $plantillasIa = \Illuminate\Support\Facades\Schema::hasTable('crm_ia_plantillas_privilegios')
+            ? CrmIaPlantillaPrivilegio::orderBy('id')->get()
+            : collect();
 
         return [
             'kpis' => $kpis,
@@ -639,7 +658,7 @@ new class extends Component
             'automatizaciones' => $automatizaciones,
             'plantillas' => $plantillas,
             'logs' => $logs,
-            'plantillasIa' => CrmIaPlantillaPrivilegio::orderBy('id')->get(),
+            'plantillasIa' => $plantillasIa,
             'conversaciones' => $conversaciones,
             'conversacionActiva' => $conversacionActiva,
             'totalChatsEsperandoHumano' => $totalChatsEsperandoHumano,

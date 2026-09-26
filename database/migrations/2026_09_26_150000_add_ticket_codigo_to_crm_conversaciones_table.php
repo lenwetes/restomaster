@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('crm_conversaciones', function (Blueprint $table) {
-            $table->string('ticket_codigo', 30)->nullable()->unique()->after('id');
+            if (! Schema::hasColumn('crm_conversaciones', 'ticket_codigo')) {
+                $table->string('ticket_codigo', 30)->nullable()->unique()->after('id');
+            }
         });
     }
 

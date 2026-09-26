@@ -138,6 +138,10 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
     echo "==> Ensuring default CRM AI Privilege Templates are seeded..."
     php /var/www/html/artisan db:seed --class=CrmIaPlantillaSeeder --force || true
 
+    # Always ensure default Colombian Waiters and Rotation Queues exist (idempotent updateOrCreate)
+    echo "==> Ensuring default Colombian Waiters and Rotation Queues are seeded..."
+    php /var/www/html/artisan db:seed --class=MeseroPruebaSeeder --force || true
+
     # Run database seeds if AUTO_SEED is enabled
     if [ "${AUTO_SEED:-false}" = "true" ]; then
         echo "==> AUTO_SEED is enabled. Seeding demo and essential data (php artisan db:seed --force)..."

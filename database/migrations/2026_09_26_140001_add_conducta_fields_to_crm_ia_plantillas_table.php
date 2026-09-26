@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('crm_ia_plantillas_privilegios', function (Blueprint $table) {
-            $table->string('tono_conducta', 50)->default('amable_calido')->after('descripcion');
-            $table->text('prompt_personalidad')->nullable()->after('directivas_sistema');
+            if (! Schema::hasColumn('crm_ia_plantillas_privilegios', 'tono_conducta')) {
+                $table->string('tono_conducta', 50)->default('amable_calido')->after('descripcion');
+            }
+            if (! Schema::hasColumn('crm_ia_plantillas_privilegios', 'prompt_personalidad')) {
+                $table->text('prompt_personalidad')->nullable()->after('directivas_sistema');
+            }
         });
     }
 

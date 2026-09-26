@@ -13,21 +13,35 @@ return new class extends Migration
     {
         Schema::table('crm_configuraciones', function (Blueprint $table) {
             // Kill-Switch y Plantilla
-            $table->boolean('ia_activo')->default(false)->after('winback_dias_inactividad');
-            $table->foreignId('ia_plantilla_privilegio_id')
-                ->nullable()
-                ->after('ia_activo')
-                ->constrained('crm_ia_plantillas_privilegios')
-                ->nullOnDelete();
+            if (! Schema::hasColumn('crm_configuraciones', 'ia_activo')) {
+                $table->boolean('ia_activo')->default(false)->after('winback_dias_inactividad');
+            }
+            if (! Schema::hasColumn('crm_configuraciones', 'ia_plantilla_privilegio_id')) {
+                $table->foreignId('ia_plantilla_privilegio_id')
+                    ->nullable()
+                    ->after('ia_activo')
+                    ->constrained('crm_ia_plantillas_privilegios')
+                    ->nullOnDelete();
+            }
 
             // Motor y API Key (cifrada)
-            $table->string('ia_proveedor')->default('gemini')->after('ia_plantilla_privilegio_id');
-            $table->string('ia_modelo')->default('gemini-2.5-flash')->after('ia_proveedor');
-            $table->text('ia_api_key')->nullable()->after('ia_modelo');
+            if (! Schema::hasColumn('crm_configuraciones', 'ia_proveedor')) {
+                $table->string('ia_proveedor')->default('gemini')->after('ia_plantilla_privilegio_id');
+            }
+            if (! Schema::hasColumn('crm_configuraciones', 'ia_modelo')) {
+                $table->string('ia_modelo')->default('gemini-2.5-flash')->after('ia_proveedor');
+            }
+            if (! Schema::hasColumn('crm_configuraciones', 'ia_api_key')) {
+                $table->text('ia_api_key')->nullable()->after('ia_modelo');
+            }
 
             // Cuotas y Mensajes de fuera de servicio
-            $table->integer('ia_limite_mensajes_por_cliente_dia')->default(15)->after('ia_api_key');
-            $table->text('ia_mensaje_apagado')->nullable()->after('ia_limite_mensajes_por_cliente_dia');
+            if (! Schema::hasColumn('crm_configuraciones', 'ia_limite_mensajes_por_cliente_dia')) {
+                $table->integer('ia_limite_mensajes_por_cliente_dia')->default(15)->after('ia_api_key');
+            }
+            if (! Schema::hasColumn('crm_configuraciones', 'ia_mensaje_apagado')) {
+                $table->text('ia_mensaje_apagado')->nullable()->after('ia_limite_mensajes_por_cliente_dia');
+            }
         });
     }
 

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Crypt;
 
 class CrmConfiguracion extends Model
 {
@@ -44,17 +45,110 @@ class CrmConfiguracion extends Model
     ];
 
     protected $casts = [
-        'whatsapp_access_token' => 'encrypted',
         'email_activo' => 'boolean',
         'email_smtp_port' => 'integer',
-        'email_smtp_password' => 'encrypted',
         'delay_encuesta_minutos' => 'integer',
         'winback_dias_inactividad' => 'integer',
         'ia_activo' => 'boolean',
-        'ia_api_key' => 'encrypted',
         'ia_limite_mensajes_por_cliente_dia' => 'integer',
         'ia_plantilla_privilegio_id' => 'integer',
     ];
+
+    /**
+     * Accesor tolerante a fallos para WhatsApp Access Token (evita 500 por payload inválido o texto plano heredado).
+     */
+    public function getWhatsappAccessTokenAttribute($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    public function setWhatsappAccessTokenAttribute($value): void
+    {
+        if (empty($value)) {
+            $this->attributes['whatsapp_access_token'] = null;
+
+            return;
+        }
+
+        try {
+            Crypt::decryptString($value);
+            $this->attributes['whatsapp_access_token'] = $value;
+        } catch (\Throwable) {
+            $this->attributes['whatsapp_access_token'] = Crypt::encryptString($value);
+        }
+    }
+
+    /**
+     * Accesor tolerante a fallos para API Key de IA.
+     */
+    public function getIaApiKeyAttribute($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    public function setIaApiKeyAttribute($value): void
+    {
+        if (empty($value)) {
+            $this->attributes['ia_api_key'] = null;
+
+            return;
+        }
+
+        try {
+            Crypt::decryptString($value);
+            $this->attributes['ia_api_key'] = $value;
+        } catch (\Throwable) {
+            $this->attributes['ia_api_key'] = Crypt::encryptString($value);
+        }
+    }
+
+    /**
+     * Accesor tolerante a fallos para contraseña SMTP.
+     */
+    public function getEmailSmtpPasswordAttribute($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (\Throwable) {
+            return $value;
+        }
+    }
+
+    public function setEmailSmtpPasswordAttribute($value): void
+    {
+        if (empty($value)) {
+            $this->attributes['email_smtp_password'] = null;
+
+            return;
+        }
+
+        try {
+            Crypt::decryptString($value);
+            $this->attributes['email_smtp_password'] = $value;
+        } catch (\Throwable) {
+            $this->attributes['email_smtp_password'] = Crypt::encryptString($value);
+        }
+    }
 
     public function sucursal(): BelongsTo
     {
