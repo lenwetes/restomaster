@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             ConfiguracionSeeder::class,
             AdminUserSeeder::class,
             CrmIaPlantillaSeeder::class,
+            MeseroPruebaSeeder::class,
         ]);
     }
 }

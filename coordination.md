@@ -6,6 +6,26 @@
 ---
 
 ## Última Actualización
+2026-09-26 | Antigravity | 👨‍🍳 **SEED DE MESEROS COLOMBIANOS DE PRUEBA Y CONFIGURACIÓN DE AUTO-ROTACIÓN INTEGRAL** (`database/seeders/MeseroPruebaSeeder.php`, `database/seeders/DatabaseSeeder.php`, `app/Console/Commands/CargarDatosDemoCommand.php`, `tests/Feature/MeseroPruebaSeederTest.php`, `coordination.md`):
+- **Funcionalidades de Prueba Entregadas:**
+  1. **10 Meseros con Perfiles Colombianos Completos:**
+     - Nombres, apellidos y números celulares colombianos con prefijo internacional (`+57 310...`, `+57 312...`, `+57 315...`, `+57 320...`, etc.).
+     - Cuentas de correo institucionales activas y contraseña demo unificada (`RestoDemo2026`).
+  2. **Configuración de Auto-Rotación por Zonas (Salón, Terraza, Barra, VIP):**
+     - Colas de turnos ordenadas secuencialmente (`TurnoMeseroZona` y `RotacionMesero`).
+     - Activación del modo `round_robin` en la sucursal para auto-asignación equitativa.
+  3. **Asignación Viva de Mesas y Pedidos:**
+     - Vinculación directa de mesas activas a meseros para reflejar el estado operativo del salón en vivo (`/mesas`).
+     - Vinculación de pedidos abiertos a meseros para auditoría de comandas, comisiones y KDS.
+  4. **Integración en Ciclo de Vida & Docker:**
+     - Registrado en `DatabaseSeeder.php` y `CargarDatosDemoCommand.php` (`restomaster:seed-demo`).
+- **Verificación Automatizada:**
+  - 17/17 tests de rotación pasando al 100% (107 aserciones) en `MeseroPruebaSeederTest`, `RotacionMeserosLivewireTest`, `RotacionMeseroZonaTest` y `RotacionMeseroServiceTest`.
+  - Código formateado al 100% con Laravel Pint (PSR-12).
+
+---
+
+## Actualización previa
 2026-09-26 | Antigravity | 🚀 **ACTUALIZACIÓN DE CONFIGURACIÓN COOLIFY, VARIABLES IA Y SINCRONIZACIÓN DE RAMAS PARA REDEPLOY** (`docker-compose.coolify.yml`, `docker-compose.yml`, `docker-compose.yaml`, `docker/entrypoint.sh`, `.env.example`, `docs/despliegue-coolify.md`, `coordination.md`):
 - **Ajustes de Infraestructura & Coolify:**
   1. Agregadas variables de entorno `GEMINI_API_KEY` y `OPENAI_API_KEY` en `docker-compose.coolify.yml`, `docker-compose.yml` y `docker-compose.yaml`.

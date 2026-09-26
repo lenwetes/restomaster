@@ -9,6 +9,7 @@ use Database\Seeders\ImpresoraSeeder;
 use Database\Seeders\InventarioSeeder;
 use Database\Seeders\MenuSeeder;
 use Database\Seeders\MesaSeeder;
+use Database\Seeders\MeseroPruebaSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -31,6 +32,7 @@ class CargarDatosDemoCommand extends Command
         $seedersDemo = [
             MenuSeeder::class,
             MesaSeeder::class,
+            MeseroPruebaSeeder::class,
             CajaSeeder::class,
             ImpresoraSeeder::class,
             InventarioSeeder::class,
