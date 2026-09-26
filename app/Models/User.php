@@ -38,6 +38,8 @@ class User extends Authenticatable
 
     /**
      * Get the role associated with the user.
+     *
+     * @return BelongsTo<Role, $this>
      */
     public function role(): BelongsTo
     {
@@ -46,6 +48,8 @@ class User extends Authenticatable
 
     /**
      * Get the branch (sucursal) associated with the user.
+     *
+     * @return BelongsTo<Sucursal, $this>
      */
     public function sucursal(): BelongsTo
     {

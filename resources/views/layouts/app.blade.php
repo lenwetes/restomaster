@@ -140,6 +140,10 @@
 
         <!-- Toast global de notificaciones (eventos Livewire 'notificacion') -->
         <div id="app-toasts" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 items-end"></div>
+
+        <!-- Alerta flotante de alta visibilidad: Cocina a Mesero (Tiempo Real) -->
+        <x-alerta-cocina-mesero />
+
         @stack('scripts')
     </body>
 </html>

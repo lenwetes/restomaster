@@ -17,7 +17,7 @@ class RestaurarEstadoCeroCommand extends Command
                             {--force : Ejecutar sin solicitar confirmación interactiva}
                             {--dump : Restaurar directamente desde el archivo SQL database/dumps/estado_0.sql}';
 
-    protected $aliases = ['db:estado-cero', 'sushixpress:estado-cero'];
+    protected $aliases = ['db:estado-cero'];
 
     protected $description = 'Restaura la base de datos de RestoMaster a ESTADO 0 (limpia, sin platos/inventario, solo 1 usuario por rol)';
 

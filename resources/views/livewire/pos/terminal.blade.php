@@ -1145,7 +1145,7 @@ new class extends Component
         } catch (\Throwable $e) {
             $this->addError('montoPagado', $e->getMessage());
             $this->dispatch('notificacion', [
-                'mensaje' => 'No se pudo procesar el cobro: ' . $e->getMessage(),
+                'mensaje' => 'No se pudo procesar el cobro: '.$e->getMessage(),
                 'tipo' => 'error',
             ]);
 
@@ -1158,21 +1158,45 @@ new class extends Component
         $this->limpiarCarrito();
     }
 
+    public function previsualizarUltimoTicketPos(): void
+    {
+        $ultimo = Pedido::with(['items.producto', 'mesa', 'mesero', 'usuario'])
+            ->whereNotNull('pagado_en')
+            ->orderByDesc('pagado_en')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $ultimo) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'No se encontraron tickets cobrados recientes para previsualizar.',
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
+
+        $this->pedidoCompletado = $ultimo;
+        $this->mostrarTicket = true;
+    }
+
     public function cerrarTicket(): void
     {
         $this->mostrarTicket = false;
         $this->pedidoCompletado = null;
 
-        // rol intencional, no permiso: el mesero vuelve a su comandera al cerrar el ticket
-        if (Auth::user()?->role?->slug === 'mesero') {
-            $this->mesaId = null;
-            $this->limpiarCarrito();
-            $this->redirect(route('pos'), navigate: true);
+        // Si se estaba cobrando una mesa específica, redirigir según el rol
+        if ($this->mesaId) {
+            // rol intencional, no permiso: el mesero vuelve a su comandera al cerrar el ticket
+            if (Auth::user()?->role?->slug === 'mesero') {
+                $this->mesaId = null;
+                $this->limpiarCarrito();
+                $this->redirect(route('pos'), navigate: true);
 
-            return;
+                return;
+            }
+
+            $this->redirect(route('mesas'), navigate: true);
         }
-
-        $this->redirect(route('mesas'), navigate: true);
     }
 
     public function atenderPedidoQrActual(): void
@@ -2437,16 +2461,28 @@ new class extends Component
 
                     <div class="shrink-0">
                         @if($turnoActivo)
-                            <a 
-                                href="{{ route('caja') }}" 
-                                wire:navigate 
-                                class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#2eb8b4]/10 border border-[#2eb8b4]/25 text-[#2eb8b4] text-xs font-bold hover:bg-[#2eb8b4]/20 transition"
-                                title="Turno de caja abierto - Clic para ir a control de caja"
-                            >
-                                <span class="w-1.5 h-1.5 rounded-full bg-[#2eb8b4] animate-pulse"></span>
-                                <span class="font-extrabold truncate max-w-[130px]">{{ $turnoActivo->caja->nombre }}</span>
-                                <span class="text-[10px] font-mono text-[#2eb8b4]/70">#{{ $turnoActivo->id }}</span>
-                            </a>
+                            <div class="flex items-center gap-1.5">
+                                <a 
+                                    href="{{ route('caja') }}" 
+                                    wire:navigate 
+                                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#2eb8b4]/10 border border-[#2eb8b4]/25 text-[#2eb8b4] text-xs font-bold hover:bg-[#2eb8b4]/20 transition"
+                                    title="Turno de caja abierto - Clic para ir a control de caja"
+                                >
+                                    <span class="w-1.5 h-1.5 rounded-full bg-[#2eb8b4] animate-pulse"></span>
+                                    <span class="font-extrabold truncate max-w-[130px]">{{ $turnoActivo->caja->nombre }}</span>
+                                    <span class="text-[10px] font-mono text-[#2eb8b4]/70">#{{ $turnoActivo->id }}</span>
+                                </a>
+
+                                <button 
+                                    type="button" 
+                                    wire:click="previsualizarUltimoTicketPos"
+                                    class="flex items-center gap-1 px-2 py-1 rounded-xl bg-[#e0442e]/10 border border-[#e0442e]/25 text-[#e0442e] text-xs font-black hover:bg-[#e0442e]/20 transition cursor-pointer shadow-xs active:scale-95"
+                                    title="Previsualizar el último ticket generado para confirmar datos en BD"
+                                >
+                                    <span class="material-symbols-outlined text-[15px]">receipt_long</span>
+                                    <span class="hidden sm:inline">Último Ticket</span>
+                                </button>
+                            </div>
                         @else
                             @can('abrir', App\Models\TurnoCaja::class)
                                 <button 
@@ -2536,6 +2572,7 @@ new class extends Component
                         <!-- Botón scroll Izquierda (PC Friendly) -->
                         <button 
                             type="button"
+                            id="btnCatNavLeft"
                             @click="scrollLeft()"
                             x-show="canScrollLeft"
                             x-cloak
@@ -2609,6 +2646,7 @@ new class extends Component
                         <!-- Botón scroll Derecha (PC Friendly) -->
                         <button 
                             type="button"
+                            id="btnCatNavRight"
                             @click="scrollRight()"
                             x-show="canScrollRight"
                             x-cloak
@@ -2617,6 +2655,23 @@ new class extends Component
                         >
                             <span class="material-symbols-outlined text-[20px]">chevron_right</span>
                         </button>
+
+                        <!-- Botón Crear Producto: Habilitado para Administrador y Gerente (Invisible para mesero) -->
+                        @if(in_array(auth()->user()?->role?->slug, ['admin', 'gerente'], true))
+                            <div class="shrink-0 border-l border-white/10 pl-2">
+                                <a 
+                                    href="{{ route('menu') }}"
+                                    wire:navigate
+                                    id="btnPosCrearProductoAdmin"
+                                    class="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black text-white bg-primary hover:bg-primary-container border border-primary shadow-sm transition-all active:scale-95"
+                                    title="Solo Administrador: Crear o personalizar nuevo producto en la carta"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">add_circle</span>
+                                    <span class="hidden sm:inline">+ Nuevo Producto</span>
+                                    <span class="sm:hidden">+</span>
+                                </a>
+                            </div>
+                        @endif
                     </div>
 
                     <!-- BANNER BLOQUEO PREVENTIVO: SI ES SERVICIO EN MESA Y NO HAY MESA SELECCIONADA -->
@@ -3310,6 +3365,15 @@ new class extends Component
     @if($mostrarTicket && $pedidoCompletado)
         <div x-data @keydown.escape.window="$wire.cerrarTicket()" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
             <div role="dialog" aria-modal="true" aria-labelledby="modal-ticket-title" class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs max-h-[90vh] overflow-y-auto">
+                <!-- Badge de Confirmación de Persistencia Real en BD -->
+                <div class="no-print mb-3 p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-emerald-600">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">verified</span>
+                        <span class="font-extrabold text-[11px]">Ticket Guardado en BD</span>
+                    </div>
+                    <span class="font-mono text-[10px] font-black">ID #{{ $pedidoCompletado->id }}</span>
+                </div>
+
                 <!-- Thermal Receipt Header (configurable ticket_80mm) -->
                 <div class="text-center border-b border-dashed border-surface-container-high pb-4">
                     <p id="modal-ticket-title" class="text-base font-black tracking-tight text-primary">{{ $ticketConfig['nombre_comercial'] ?? 'RESTOMASTER' }}</p>

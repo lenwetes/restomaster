@@ -1,23 +1,24 @@
-# Sistema de Gestión para Restaurante 
+# RestoMaster — Sistema Integral de Gestión para Restaurantes
 
-Aplicativo web completo para gestionar un restaurante de sushi con soporte táctil para punto de venta (POS) y visualización móvil. **Stack: Laravel + PostgreSQL.**
+Aplicativo web integral de alto rendimiento para gestión de restaurantes gastronómicos, parrilla y bares, con soporte táctil para punto de venta (POS), KDS de cocina en tiempo real, CRM multicanal (WhatsApp y Email), control de caja multi-turno y reservas. **Stack: Laravel 13 + PHP 8.3 + PostgreSQL 18 + Livewire.**
 
-## Módulos
+## Módulos del Sistema
 
 | Módulo | Descripción |
 |--------|-------------|
-| [Pedidos](docs/modulos/pedidos.md) | Flujo de órdenes para mesas, mostrador y delivery |
-| [Mesas](docs/modulos/mesas.md) | Gestión del salón y asignación de mesas |
-| [Cocina](docs/modulos/cocina.md) | Pantalla de cocina y producción de platos |
-| [Inventario](docs/modulos/inventario.md) | Materia prima, insumos y stock |
-| [Clientes](docs/modulos/clientes.md) | Base de datos de clientes y fidelización |
-| [Trabajadores](docs/modulos/trabajadores.md) | Personal, roles y permisos |
-| [POS Táctil](docs/modulos/pos.md) | Punto de venta táctil |
-| [Impresión de Tickets](docs/modulos/impresion.md) | Impresión de comandas, facturas y recibo |
-| [Reportes](docs/modulos/reportes.md) | Estadísticas e indicadores (KPIs) |
-| [Reservas](docs/modulos/reservas.md) | Reservaciones de mesas |
-| [Control de Caja](docs/modulos/caja.md) | Apertura, arqueo, cierre y reportes de caja |
-| [Contabilidad](docs/modulos/contabilidad.md) | Registros financieros y CBC |
+| [Pedidos](docs/modulos/pedidos.md) | Flujo de órdenes para salón, mostrador, QR en mesa y delivery |
+| [Mesas](docs/modulos/mesas.md) | Gestión del salón, zonas visuales y asignación inteligente con rotación de meseros |
+| [Cocina (KDS)](docs/modulos/cocina.md) | Pantalla de cocina en tiempo real y producción de platos |
+| [Inventario y Recetas](docs/modulos/inventario.md) | Materia prima, insumos, escandallo, proveedores y stock automático |
+| [Clientes y Fidelización](docs/modulos/clientes.md) | Base de clientes VIP, programa de puntos, cashback y portal social |
+| [CRM y Automatizaciones](docs/modulos/clientes.md) | Campañas WhatsApp Cloud API, encuestas CSAT/NPS y correos automáticos |
+| [Trabajadores y Roles](docs/modulos/trabajadores.md) | Personal, RBAC, permisos granulares y turnos |
+| [POS Táctil](docs/modulos/pos.md) | Terminal de punto de venta táctil ultra-rápido |
+| [Impresión de Tickets](docs/modulos/impresion.md) | Impresión ESC/POS de comandas, facturas y auditoría visual de tickets |
+| [Reportes y Analítica](docs/modulos/reportes.md) | KPIs en tiempo real, ventas por canal y gráficos interactivos |
+| [Reservas](docs/modulos/reservas.md) | Agenda de reservaciones con auto-asignación de mesa y mesero |
+| [Control de Caja](docs/modulos/caja.md) | Aperturas, turnos simultáneos, arqueos ciegos, cortes Z y egresos |
+| [Contabilidad](docs/modulos/contabilidad.md) | Libro diario contable, balance de ingresos/egresos y cuentas por pagar |
 
 ## Documentación general
 

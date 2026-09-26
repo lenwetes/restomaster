@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\MesaEstado;
+use App\Events\MesaActualizada;
 use App\Models\Mesa;
 use App\Models\Sucursal;
 use App\Models\User;
@@ -53,9 +54,8 @@ class MesaService
         }
 
         $mesa->update(['estado' => $target->value]);
-        Cache::forget('pos.terminal.mesas');
 
-        return $mesa->fresh();
+        return $this->notificarMesaActualizada($mesa);
     }
 
     /**
@@ -196,7 +196,7 @@ class MesaService
             datos: ['mesa_id' => $mesa->id, 'mesero_id' => $mesero->id]
         );
 
-        return $mesa->fresh(['mesero', 'pedidos']);
+        return $this->notificarMesaActualizada($mesa);
     }
 
     /**
@@ -222,7 +222,7 @@ class MesaService
             ]
         );
 
-        return $mesa->fresh(['mesero', 'pedidos']);
+        return $this->notificarMesaActualizada($mesa);
     }
 
     /**
@@ -252,7 +252,7 @@ class MesaService
             );
         }
 
-        return $mesa->fresh(['mesero', 'pedidos']);
+        return $this->notificarMesaActualizada($mesa);
     }
 
     /**
@@ -285,7 +285,7 @@ class MesaService
             ]
         );
 
-        return $mesa->fresh(['mesero', 'pedidos']);
+        return $this->notificarMesaActualizada($mesa);
     }
 
     /**
@@ -293,14 +293,18 @@ class MesaService
      */
     public function liberarMesa(Mesa $mesa): Mesa
     {
+        $meseroAnteriorId = $mesa->mesero_id;
+
         $mesa->update([
             'estado' => MesaEstado::LIBRE->value,
             'mesero_id' => null,
         ]);
 
-        Cache::forget('pos.terminal.mesas');
+        if ($meseroAnteriorId) {
+            app(RotacionMeseroService::class)->liberarMesa($mesa, $meseroAnteriorId);
+        }
 
-        return $mesa->fresh(['mesero']);
+        return $this->notificarMesaActualizada($mesa);
     }
 
     /**
@@ -379,6 +383,21 @@ class MesaService
 
         $mesa->update(['zona' => $zona->slug]);
 
-        return $mesa->fresh();
+        return $this->notificarMesaActualizada($mesa);
+    }
+
+    /**
+     * Invalida caché y emite evento en tiempo real para sincronización de mapas y POS.
+     */
+    private function notificarMesaActualizada(Mesa $mesa): Mesa
+    {
+        Cache::forget('pos.terminal.mesas');
+        $mesaFresh = $mesa->fresh(['mesero', 'pedidos']);
+
+        if ($mesaFresh) {
+            broadcast(new MesaActualizada($mesaFresh))->toOthers();
+        }
+
+        return $mesaFresh;
     }
 }

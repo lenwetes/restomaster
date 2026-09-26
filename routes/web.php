@@ -1,8 +1,13 @@
 <?php
 
+use App\Http\Controllers\Cliente\AuthClienteController;
+use App\Http\Controllers\Cliente\PerfilClienteController;
+use App\Http\Controllers\CrmWebhookController;
+use App\Http\Controllers\EncuestaPublicaController;
 use App\Http\Controllers\ReporteExportController;
 use App\Http\Controllers\ReservaPublicaController;
 use App\Http\Controllers\ReservaWebhookController;
+use App\Http\Middleware\AuthCliente;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -48,6 +53,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('caja', 'caja.control')->middleware('role:cajero,gerente')->name('caja');
     Volt::route('inventario', 'inventario.index')->middleware('role:gerente,cajero')->name('inventario');
     Volt::route('clientes', 'clientes.index')->middleware('role:cajero,gerente')->name('clientes');
+    Volt::route('crm', 'crm.index')->middleware('role:cajero,gerente,admin')->name('crm');
     Volt::route('delivery', 'delivery.index')->middleware('role:cajero,delivery,repartidor,gerente')->name('delivery');
     Volt::route('trabajadores', 'trabajadores.index')->middleware('role:admin')->name('trabajadores');
     Volt::route('menu', 'menu.index')->middleware('role:gerente,admin')->name('menu');
@@ -60,5 +66,27 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('configuracion', 'configuracion.index')->middleware('role:admin')->name('configuracion');
     Volt::route('impresion', 'impresion.index')->middleware('role:gerente,admin')->name('impresion');
 });
+
+// Webhook Meta WhatsApp Cloud API (CRM Automatizaciones)
+Route::get('api/webhooks/whatsapp', [CrmWebhookController::class, 'verificar'])->name('crm.webhook.verificar');
+Route::post('api/webhooks/whatsapp', [CrmWebhookController::class, 'recibir'])->name('crm.webhook.recibir');
+
+// Portal Público de Clientes (F7-06)
+Route::prefix('cliente')->name('cliente.')->group(function () {
+    Route::get('login', [AuthClienteController::class, 'showLogin'])->name('login');
+    Route::get('auth/{provider}', [AuthClienteController::class, 'redirectToGoogle'])->name('auth.provider');
+    Route::get('auth/{provider}/callback', [AuthClienteController::class, 'handleGoogleCallback'])->name('auth.callback');
+    Route::post('magic-send', [AuthClienteController::class, 'sendMagicLink'])->middleware('throttle:5,1')->name('magic_send');
+    Route::get('magic-verify', [AuthClienteController::class, 'verifyMagicLink'])->name('magic_verify');
+    Route::post('logout', [AuthClienteController::class, 'logout'])->name('logout');
+
+    Route::get('perfil', [PerfilClienteController::class, 'showPerfil'])
+        ->middleware(AuthCliente::class)
+        ->name('perfil');
+});
+
+// Encuestas Públicas de Experiencia (F7-07)
+Route::get('encuesta/{token}', [EncuestaPublicaController::class, 'mostrar'])->name('encuesta.responder');
+Route::post('encuesta/{token}', [EncuestaPublicaController::class, 'guardar'])->middleware('throttle:10,1')->name('encuesta.guardar');
 
 require __DIR__.'/auth.php';

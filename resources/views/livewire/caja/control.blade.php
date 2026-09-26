@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Caja;
+use App\Models\Pedido;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\CajaService;
@@ -53,6 +54,15 @@ new class extends Component
         'codigo' => '',
     ];
 
+    // Vista y Gestión Individual por Caja (F7-04)
+    public string $vistaCaja = 'operacion'; // 'operacion', 'por_caja', 'comparativo'
+
+    public ?int $cajaReporteSeleccionadaId = null;
+
+    public string $filtroFechaDesde = '';
+
+    public string $filtroFechaHasta = '';
+
     // Gestión y Administración de Terminales State
     public bool $modalGestionTerminalesOpen = false;
 
@@ -61,7 +71,76 @@ new class extends Component
     public array $formEditarCaja = [
         'nombre' => '',
         'codigo' => '',
+        'tipo' => 'principal',
+        'descripcion' => '',
     ];
+
+    // Previsualización Rápida de Tickets Generados (Auditoría Anti-Fantasma)
+    public bool $modalPrevisualizarTicket = false;
+
+    public ?int $ticketPrevisualizadoId = null;
+
+    public ?Pedido $pedidoTicketSeleccionado = null;
+
+    public ?string $ticketTextoEscPos = null;
+
+    public string $modoVistaTicket = 'visual'; // 'visual' o 'escpos'
+
+    public function abrirPrevisualizarTicket(int $pedidoId): void
+    {
+        $this->pedidoTicketSeleccionado = Pedido::with([
+            'mesa',
+            'mesero',
+            'usuario',
+            'cliente',
+            'items.producto',
+            'turnoCaja.caja',
+            'turnoCaja.cajero',
+        ])->findOrFail($pedidoId);
+
+        $this->ticketPrevisualizadoId = $pedidoId;
+        $this->ticketTextoEscPos = app(\App\Services\ImpresionService::class)->formatearTicketVentaTexto($this->pedidoTicketSeleccionado);
+        $this->modalPrevisualizarTicket = true;
+    }
+
+    public function previsualizarUltimoTicket(): void
+    {
+        $query = Pedido::whereNotNull('pagado_en')->orderByDesc('pagado_en')->orderByDesc('id');
+        if ($this->turnoId) {
+            $query->where('turno_caja_id', $this->turnoId);
+        }
+        $ultimo = $query->first();
+
+        if (! $ultimo) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'Aún no hay tickets cobrados en este turno.',
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
+
+        $this->abrirPrevisualizarTicket($ultimo->id);
+    }
+
+    public function cerrarModalTicket(): void
+    {
+        $this->modalPrevisualizarTicket = false;
+        $this->pedidoTicketSeleccionado = null;
+        $this->ticketPrevisualizadoId = null;
+        $this->ticketTextoEscPos = null;
+    }
+
+    public function reenviarImpresionTicket(int $pedidoId): void
+    {
+        $pedido = Pedido::findOrFail($pedidoId);
+        app(\App\Services\ImpresionService::class)->despacharTicketVenta($pedido, Auth::user());
+
+        $this->dispatch('notificacion', [
+            'mensaje' => "Ticket #{$pedido->codigo} re-enviado exitosamente a la cola de impresión.",
+            'tipo' => 'success',
+        ]);
+    }
 
     public function abrirModalGestionTerminales(): void
     {
@@ -76,13 +155,15 @@ new class extends Component
         $this->formEditarCaja = [
             'nombre' => $caja->nombre,
             'codigo' => $caja->codigo,
+            'tipo' => $caja->tipo ?? 'principal',
+            'descripcion' => $caja->descripcion ?? '',
         ];
     }
 
     public function cancelarEdicionCaja(): void
     {
         $this->cajaEditandoId = null;
-        $this->formEditarCaja = ['nombre' => '', 'codigo' => ''];
+        $this->formEditarCaja = ['nombre' => '', 'codigo' => '', 'tipo' => 'principal', 'descripcion' => ''];
     }
 
     public function guardarEdicionCaja(): void
@@ -97,6 +178,8 @@ new class extends Component
         $this->validate([
             'formEditarCaja.nombre' => 'required|string|max:60',
             'formEditarCaja.codigo' => 'required|string|max:20|unique:cajas,codigo,'.$caja->id,
+            'formEditarCaja.tipo' => 'nullable|string|in:principal,barra,delivery',
+            'formEditarCaja.descripcion' => 'nullable|string|max:255',
         ]);
 
         app(CajaService::class)->actualizarCaja($caja, $this->formEditarCaja, Auth::user());
@@ -152,6 +235,8 @@ new class extends Component
         $this->formCaja = [
             'nombre' => "Caja {$conteo} Barra",
             'codigo' => "CAJA-0{$conteo}",
+            'tipo' => 'principal',
+            'descripcion' => '',
         ];
         $this->modalNuevaCajaOpen = true;
     }
@@ -163,6 +248,8 @@ new class extends Component
         $this->validate([
             'formCaja.nombre' => 'required|string|max:60',
             'formCaja.codigo' => 'required|string|max:20|unique:cajas,codigo',
+            'formCaja.tipo' => 'nullable|string|in:principal,barra,delivery',
+            'formCaja.descripcion' => 'nullable|string|max:255',
         ]);
 
         $caja = app(CajaService::class)->crearCaja($this->formCaja, Auth::user());
@@ -295,6 +382,7 @@ new class extends Component
             && strcasecmp(trim($this->autorizadoPor), trim($usuarioActual?->name ?? '')) === 0
             && ! in_array($usuarioActual?->role?->slug, ['admin', 'gerente'])) {
             $this->addError('autorizadoPor', 'Un cajero no puede auto-autorizarse un egreso o retiro. Requiere autorización de un superior.');
+
             return;
         }
 
@@ -403,7 +491,17 @@ new class extends Component
 
     public function with(): array
     {
-        $turnoActivo = $this->turnoId ? TurnoCaja::with(['caja.sucursal', 'cajero', 'movimientos.usuario', 'pedidos' => fn ($q) => $q->orderByDesc('pagado_en')->orderByDesc('id'), 'pedidos.mesa', 'pedidos.usuario'])->withCount('pedidos')->find($this->turnoId) : null;
+        $turnoActivo = $this->turnoId ? TurnoCaja::with([
+            'caja.sucursal',
+            'cajero',
+            'movimientos.usuario',
+            'pedidos' => fn ($q) => $q->orderByDesc('pagado_en')->orderByDesc('id'),
+            'pedidos.mesa',
+            'pedidos.usuario',
+            'pedidos.mesero',
+            'pedidos.items.producto',
+        ])->withCount('pedidos')->find($this->turnoId) : null;
+
         $cajas = Caja::where('activa', true)->get();
         $ultimosTurnos = TurnoCaja::with(['caja', 'cajero'])->latest()->take(5)->get();
 
@@ -415,12 +513,40 @@ new class extends Component
         }
         $turnosAbiertos = $turnosAbiertosQuery->latest()->get();
 
+        // Gestión Individual y Comparativa de Cajas (F7-04)
+        $cajaReporteService = app(\App\Services\CajaReporteService::class);
+        $resumenPorCaja = null;
+        $historialTurnosPorCaja = collect();
+        $gastosPorCaja = null;
+        $comparativaCajas = null;
+
+        if ($this->vistaCaja === 'por_caja') {
+            $cajaIdReporte = $this->cajaReporteSeleccionadaId ?? ($cajas->first()?->id ?? 1);
+            $resumenPorCaja = $cajaReporteService->resumenPorCaja($cajaIdReporte, $this->filtroFechaDesde ?: null, $this->filtroFechaHasta ?: null);
+            $historialTurnosPorCaja = $cajaReporteService->historialTurnos($cajaIdReporte);
+            $gastosPorCaja = $cajaReporteService->gastosPorCaja($cajaIdReporte, $this->filtroFechaDesde ?: null, $this->filtroFechaHasta ?: null);
+        } elseif ($this->vistaCaja === 'comparativo') {
+            $comparativaCajas = $cajaReporteService->compararCajas(Auth::user()?->sucursal_id ?? 1, $this->filtroFechaDesde ?: null, $this->filtroFechaHasta ?: null);
+        }
+
+        $ticketSvc = app(\App\Services\ConfiguracionService::class);
+        $ticketDefaults = $ticketSvc->valoresPorDefectoTicket80mm();
+        $ticketConfig = [];
+        foreach ($ticketDefaults as $clave => $defecto) {
+            $ticketConfig[$clave] = $ticketSvc->obtener('ticket_80mm', $clave, $defecto);
+        }
+
         return [
             'turno' => $turnoActivo,
             'cajas' => $cajas,
             'todasLasCajas' => Caja::withCount('turnos')->orderBy('id')->get(),
             'ultimosTurnos' => $ultimosTurnos,
             'turnosAbiertos' => $turnosAbiertos,
+            'resumenPorCaja' => $resumenPorCaja,
+            'historialTurnosPorCaja' => $historialTurnosPorCaja,
+            'gastosPorCaja' => $gastosPorCaja,
+            'comparativaCajas' => $comparativaCajas,
+            'ticketConfig' => $ticketConfig,
         ];
     }
 }; ?>
@@ -469,6 +595,35 @@ new class extends Component
         </div>
     </header>
 
+    <!-- PESTAÑAS DE NAVEGACIÓN: OPERACIÓN EN VIVO / GESTIÓN POR CAJA / COMPARATIVO -->
+    <div class="flex items-center gap-2 p-1.5 bg-surface-container rounded-2xl border border-surface-container-highest max-w-xl">
+        <button
+            type="button"
+            wire:click="$set('vistaCaja', 'operacion')"
+            class="flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 {{ $vistaCaja === 'operacion' ? 'bg-surface-container-lowest text-primary shadow-sm font-extrabold border border-surface-container-highest' : 'text-on-surface-variant hover:text-on-surface' }}"
+        >
+            <span class="material-symbols-outlined text-[16px]">point_of_sale</span>
+            <span>Turno Operativo</span>
+        </button>
+        <button
+            type="button"
+            wire:click="$set('vistaCaja', 'por_caja')"
+            class="flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 {{ $vistaCaja === 'por_caja' ? 'bg-surface-container-lowest text-primary shadow-sm font-extrabold border border-surface-container-highest' : 'text-on-surface-variant hover:text-on-surface' }}"
+        >
+            <span class="material-symbols-outlined text-[16px]">bar_chart</span>
+            <span>Gestión por Caja</span>
+        </button>
+        <button
+            type="button"
+            wire:click="$set('vistaCaja', 'comparativo')"
+            class="flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 {{ $vistaCaja === 'comparativo' ? 'bg-surface-container-lowest text-primary shadow-sm font-extrabold border border-surface-container-highest' : 'text-on-surface-variant hover:text-on-surface' }}"
+        >
+            <span class="material-symbols-outlined text-[16px]">compare_arrows</span>
+            <span>Comparativo</span>
+        </button>
+    </div>
+
+    @if($vistaCaja === 'operacion')
     @if($turno && $turno->estado === 'abierto')
         <!-- SUB-HEADER CONTEXTUAL Y COMANDOS DE TURNO (Stitch CAJ-01 Aura Gastro Expressive OS) -->
         <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-4">
@@ -682,14 +837,25 @@ new class extends Component
 
         <!-- TICKETS COBRADOS DEL TURNO (ventas registradas en esta caja) -->
         <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div class="flex items-center gap-2">
                     <span class="material-symbols-outlined text-[20px] text-secondary">receipt_long</span>
                     <h3 class="text-sm font-extrabold text-on-surface">Tickets Cobrados del Turno · {{ $turno->caja->codigo }}</h3>
                 </div>
-                <span class="text-xs font-mono text-on-surface-variant">
-                    {{ $turno->pedidos->count() }} tickets · ${{ number_format($turno->pedidos->sum('total'), 2) }}
-                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button 
+                        type="button"
+                        wire:click="previsualizarUltimoTicket"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-black border border-primary/20 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="Previsualizar el último ticket generado en este turno"
+                    >
+                        <span class="material-symbols-outlined text-[16px]">visibility</span>
+                        <span>Previsualizar Último Ticket</span>
+                    </button>
+                    <span class="text-xs font-mono text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-xl">
+                        {{ $turno->pedidos->count() }} tickets · ${{ number_format($turno->pedidos->sum('total'), 2) }}
+                    </span>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -701,7 +867,8 @@ new class extends Component
                             <th class="py-3 px-3">Mesa / Cliente</th>
                             <th class="py-3 px-3">Método</th>
                             <th class="py-3 px-3">Cambio</th>
-                            <th class="py-3 px-3 text-right rounded-r-xl">Total</th>
+                            <th class="py-3 px-3 text-right">Total</th>
+                            <th class="py-3 px-3 text-center rounded-r-xl">Acción</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-surface-container-high font-medium">
@@ -715,10 +882,21 @@ new class extends Component
                                 </td>
                                 <td class="py-2.5 px-3 font-mono text-on-surface-variant">${{ number_format((float) $ticket->cambio, 2) }}</td>
                                 <td class="py-2.5 px-3 text-right font-mono font-black text-secondary">${{ number_format((float) $ticket->total, 2) }}</td>
+                                <td class="py-2.5 px-3 text-center">
+                                    <button 
+                                        wire:click="abrirPrevisualizarTicket({{ $ticket->id }})"
+                                        type="button"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface-container hover:bg-primary hover:text-white text-on-surface font-bold text-xs border border-surface-container-highest transition-all cursor-pointer shadow-xs active:scale-95"
+                                        title="Ver ticket térmico generado y verificar datos"
+                                    >
+                                        <span class="material-symbols-outlined text-[14px]">receipt_long</span>
+                                        <span>Ver Ticket</span>
+                                    </button>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-8 px-3 text-center text-on-surface-variant text-xs font-medium">
+                                <td colspan="7" class="py-8 px-3 text-center text-on-surface-variant text-xs font-medium">
                                     Aún no hay tickets cobrados en este turno.
                                 </td>
                             </tr>
@@ -850,6 +1028,281 @@ new class extends Component
                     </tbody>
                 </table>
             </div>
+        </div>
+    @endif
+    @elseif($vistaCaja === 'por_caja')
+        <!-- PANEL DE CONTROL Y REPORTES POR CAJA INDIVIDUAL (F7-04) -->
+        <div class="space-y-6">
+            <!-- Barra superior de selección y filtros de caja -->
+            <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-3 w-full md:w-auto">
+                    <div class="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0">
+                        <span class="material-symbols-outlined text-[22px]">point_of_sale</span>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-extrabold uppercase text-on-surface-variant block tracking-wider">Caja Seleccionada</label>
+                        <select wire:model.live="cajaReporteSeleccionadaId" class="mt-0.5 h-10 rounded-xl border border-surface-container-high bg-surface-container-low px-3 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                            @foreach($todasLasCajas as $c)
+                                <option value="{{ $c->id }}">{{ $c->nombre }} ({{ $c->codigo }}) · {{ ucfirst($c->tipo ?? 'principal') }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                    <div>
+                        <label class="text-[10px] font-extrabold uppercase text-on-surface-variant block tracking-wider">Desde</label>
+                        <input type="date" wire:model.live="filtroFechaDesde" class="h-10 rounded-xl border border-surface-container-high bg-surface-container-low px-2.5 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-extrabold uppercase text-on-surface-variant block tracking-wider">Hasta</label>
+                        <input type="date" wire:model.live="filtroFechaHasta" class="h-10 rounded-xl border border-surface-container-high bg-surface-container-low px-2.5 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                    </div>
+                    @if($filtroFechaDesde || $filtroFechaHasta)
+                        <button type="button" wire:click="$set('filtroFechaDesde', ''); $set('filtroFechaHasta', '')" class="mt-4 px-3 py-2 text-xs font-bold rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all">
+                            Limpiar Filtros
+                        </button>
+                    @endif
+                </div>
+            </div>
+
+            @if($resumenPorCaja)
+                <!-- Tarjetas KPI de la Caja Seleccionada -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container-highest shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-extrabold text-on-surface-variant uppercase">Ventas Totales</span>
+                            <span class="p-2 rounded-xl bg-primary/10 text-primary material-symbols-outlined text-[18px]">payments</span>
+                        </div>
+                        <p class="text-2xl font-black font-mono text-primary">${{ number_format($resumenPorCaja['total_ventas'], 0, ',', '.') }}</p>
+                        <div class="mt-2 text-[11px] text-on-surface-variant flex flex-col gap-0.5 font-mono">
+                            <span>Efectivo: ${{ number_format($resumenPorCaja['ventas_efectivo'], 0, ',', '.') }}</span>
+                            <span>Tarjetas: ${{ number_format($resumenPorCaja['ventas_tarjeta'], 0, ',', '.') }}</span>
+                            <span>Transf: ${{ number_format($resumenPorCaja['ventas_transferencia'], 0, ',', '.') }}</span>
+                        </div>
+                    </div>
+
+                    <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container-highest shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-extrabold text-on-surface-variant uppercase">Total Egresos / Gastos</span>
+                            <span class="p-2 rounded-xl bg-error/10 text-error material-symbols-outlined text-[18px]">trending_down</span>
+                        </div>
+                        <p class="text-2xl font-black font-mono text-error">${{ number_format($resumenPorCaja['total_gastos'], 0, ',', '.') }}</p>
+                        <p class="mt-2 text-[11px] text-on-surface-variant">Gastos operativos pagados desde esta terminal</p>
+                    </div>
+
+                    <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container-highest shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-extrabold text-on-surface-variant uppercase">Balance Neto Caja</span>
+                            <span class="p-2 rounded-xl bg-secondary/10 text-secondary material-symbols-outlined text-[18px]">account_balance_wallet</span>
+                        </div>
+                        <p class="text-2xl font-black font-mono {{ $resumenPorCaja['neto'] >= 0 ? 'text-secondary' : 'text-error' }}">
+                            {{ $resumenPorCaja['neto'] >= 0 ? '+' : '' }}${{ number_format($resumenPorCaja['neto'], 0, ',', '.') }}
+                        </p>
+                        <p class="mt-2 text-[11px] text-on-surface-variant">Ingresos netos menos egresos</p>
+                    </div>
+
+                    <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container-highest shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-extrabold text-on-surface-variant uppercase">Estado Operativo</span>
+                            <span class="p-2 rounded-xl bg-surface-container text-on-surface material-symbols-outlined text-[18px]">info</span>
+                        </div>
+                        @if($resumenPorCaja['tiene_turno_activo'])
+                            <div class="flex items-center gap-1.5 text-secondary font-black text-sm">
+                                <span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse"></span>
+                                <span>TURNO EN CURSO</span>
+                            </div>
+                            <p class="text-[11px] text-on-surface-variant mt-1">Cajero: <strong>{{ $resumenPorCaja['turno_activo']['cajero'] }}</strong></p>
+                        @else
+                            <div class="flex items-center gap-1.5 text-on-surface-variant font-bold text-sm">
+                                <span class="w-2.5 h-2.5 rounded-full bg-surface-container-highest"></span>
+                                <span>SIN TURNO ACTIVO</span>
+                            </div>
+                            <p class="text-[11px] text-on-surface-variant mt-1">{{ $resumenPorCaja['turnos_count'] }} turnos históricos</p>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Historial de Turnos de esta Caja -->
+                <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-[20px]">history</span>
+                            <h3 class="text-sm font-extrabold text-on-surface">Historial de Turnos de {{ $resumenPorCaja['caja']['nombre'] }}</h3>
+                        </div>
+                        <span class="text-xs text-on-surface-variant font-mono">{{ $historialTurnosPorCaja->count() }} turnos</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-surface-container-high text-on-surface-variant uppercase text-[10px] font-black">
+                                    <th class="py-2.5 px-3">Turno</th>
+                                    <th class="py-2.5 px-3">Cajero</th>
+                                    <th class="py-2.5 px-3">Apertura</th>
+                                    <th class="py-2.5 px-3">Cierre</th>
+                                    <th class="py-2.5 px-3 text-right">Fondo Base</th>
+                                    <th class="py-2.5 px-3 text-right">Ventas</th>
+                                    <th class="py-2.5 px-3 text-right">Egresos</th>
+                                    <th class="py-2.5 px-3 text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-container-high/60">
+                                @forelse($historialTurnosPorCaja as $t)
+                                    <tr class="hover:bg-surface-container/40 transition-colors">
+                                        <td class="py-3 px-3 font-mono font-bold text-primary">#{{ $t->id }}</td>
+                                        <td class="py-3 px-3 font-medium text-on-surface">{{ $t->user?->name ?? 'N/A' }}</td>
+                                        <td class="py-3 px-3 text-on-surface-variant font-mono">{{ $t->apertura_en?->format('d/m/Y H:i') }}</td>
+                                        <td class="py-3 px-3 text-on-surface-variant font-mono">{{ $t->cierre_en?->format('d/m/Y H:i') ?? 'En curso...' }}</td>
+                                        <td class="py-3 px-3 text-right font-mono">${{ number_format($t->monto_inicial, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-right font-mono font-bold text-on-surface">${{ number_format((float)$t->total_ventas_efectivo + (float)$t->total_ventas_tarjeta + (float)$t->total_ventas_transferencia, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-right font-mono text-error">-${{ number_format((float)$t->total_egresos, 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-center">
+                                            @if($t->estado === 'abierto')
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-secondary-container/50 text-on-secondary-container border border-secondary/30">Abierto</span>
+                                            @else
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-surface-container-high text-on-surface-variant">Cerrado</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="8" class="text-center py-6 text-on-surface-variant">No se encontraron turnos registrados para esta caja.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                @if($gastosPorCaja && $gastosPorCaja['conteo'] > 0)
+                    <!-- Desglose de Gastos de esta Caja -->
+                    <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-error text-[20px]">money_off</span>
+                                <h3 class="text-sm font-extrabold text-on-surface">Gastos Registrados en {{ $resumenPorCaja['caja']['nombre'] }}</h3>
+                            </div>
+                            <span class="text-xs font-mono font-bold text-error">Total: ${{ number_format($gastosPorCaja['total_gastos'], 0, ',', '.') }}</span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead>
+                                    <tr class="border-b border-surface-container-high text-on-surface-variant uppercase text-[10px] font-black">
+                                        <th class="py-2.5 px-3">Fecha</th>
+                                        <th class="py-2.5 px-3">Concepto</th>
+                                        <th class="py-2.5 px-3">Categoría</th>
+                                        <th class="py-2.5 px-3">Autorizado por</th>
+                                        <th class="py-2.5 px-3 text-right">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-surface-container-high/60">
+                                    @foreach($gastosPorCaja['movimientos'] as $g)
+                                        <tr class="hover:bg-surface-container/40 transition-colors">
+                                            <td class="py-3 px-3 font-mono text-on-surface-variant">{{ \Illuminate\Support\Carbon::parse($g['fecha'])->format('d/m/Y H:i') }}</td>
+                                            <td class="py-3 px-3 font-bold text-on-surface">{{ $g['concepto'] }}</td>
+                                            <td class="py-3 px-3 text-on-surface-variant">{{ $g['categoria'] ?? 'Operativo' }}</td>
+                                            <td class="py-3 px-3 text-on-surface-variant">{{ $g['autorizado_por'] ?? 'N/A' }}</td>
+                                            <td class="py-3 px-3 text-right font-mono font-bold text-error">-${{ number_format($g['monto'], 0, ',', '.') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                @endif
+            @endif
+        </div>
+    @elseif($vistaCaja === 'comparativo')
+        <!-- PANEL COMPARATIVO ENTRE TODAS LAS CAJAS DE LA SEDE (F7-04) -->
+        <div class="space-y-6">
+            @if($comparativaCajas)
+                <!-- Gran Total de la Sede -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container-highest shadow-sm">
+                        <span class="text-xs font-extrabold text-on-surface-variant uppercase">Facturación Total Sede</span>
+                        <p class="text-2xl font-black font-mono text-primary mt-2">${{ number_format($comparativaCajas['gran_total_ventas'], 0, ',', '.') }}</p>
+                        <p class="text-[11px] text-on-surface-variant mt-1">{{ $comparativaCajas['total_cajas'] }} terminales en la sucursal</p>
+                    </div>
+
+                    <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container-highest shadow-sm">
+                        <span class="text-xs font-extrabold text-on-surface-variant uppercase">Gastos Totales Registrados</span>
+                        <p class="text-2xl font-black font-mono text-error mt-2">${{ number_format($comparativaCajas['gran_total_gastos'], 0, ',', '.') }}</p>
+                        <p class="text-[11px] text-on-surface-variant mt-1">Egresos operativos consolidados</p>
+                    </div>
+
+                    <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container-highest shadow-sm">
+                        <span class="text-xs font-extrabold text-on-surface-variant uppercase">Balance Neto de Cajas</span>
+                        <p class="text-2xl font-black font-mono {{ $comparativaCajas['gran_total_neto'] >= 0 ? 'text-secondary' : 'text-error' }} mt-2">
+                            {{ $comparativaCajas['gran_total_neto'] >= 0 ? '+' : '' }}${{ number_format($comparativaCajas['gran_total_neto'], 0, ',', '.') }}
+                        </p>
+                        <p class="text-[11px] text-on-surface-variant mt-1">Margen neto operativo en cajas</p>
+                    </div>
+                </div>
+
+                <!-- Tabla Comparativa Caja por Caja -->
+                <div class="bg-surface-container-lowest rounded-3xl p-5 border border-surface-container-highest shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary text-[20px]">compare_arrows</span>
+                            <h3 class="text-sm font-extrabold text-on-surface">Comparativa Financiera por Terminal de Cobro</h3>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="border-b border-surface-container-high text-on-surface-variant uppercase text-[10px] font-black">
+                                    <th class="py-2.5 px-3">Caja / Terminal</th>
+                                    <th class="py-2.5 px-3">Tipo</th>
+                                    <th class="py-2.5 px-3 text-center">Turnos</th>
+                                    <th class="py-2.5 px-3 text-right">Efectivo</th>
+                                    <th class="py-2.5 px-3 text-right">Tarjeta</th>
+                                    <th class="py-2.5 px-3 text-right">Transferencia</th>
+                                    <th class="py-2.5 px-3 text-right">Total Ventas</th>
+                                    <th class="py-2.5 px-3 text-right">Egresos</th>
+                                    <th class="py-2.5 px-3 text-right">Neto</th>
+                                    <th class="py-2.5 px-3 text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-surface-container-high/60">
+                                @foreach($comparativaCajas['cajas'] as $cItem)
+                                    <tr class="hover:bg-surface-container/40 transition-colors">
+                                        <td class="py-3 px-3">
+                                            <div class="font-bold text-on-surface">{{ $cItem['caja']['nombre'] }}</div>
+                                            <div class="text-[10px] font-mono text-on-surface-variant">{{ $cItem['caja']['codigo'] }}</div>
+                                        </td>
+                                        <td class="py-3 px-3">
+                                            <span class="inline-flex px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-surface-container text-on-surface-variant border border-surface-container-high">
+                                                {{ $cItem['caja']['tipo'] }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-3 text-center font-mono">{{ $cItem['turnos_count'] }}</td>
+                                        <td class="py-3 px-3 text-right font-mono">${{ number_format($cItem['ventas_efectivo'], 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-right font-mono">${{ number_format($cItem['ventas_tarjeta'], 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-right font-mono">${{ number_format($cItem['ventas_transferencia'], 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-right font-mono font-black text-primary">${{ number_format($cItem['total_ventas'], 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-right font-mono text-error">-${{ number_format($cItem['total_gastos'], 0, ',', '.') }}</td>
+                                        <td class="py-3 px-3 text-right font-mono font-bold {{ $cItem['neto'] >= 0 ? 'text-secondary' : 'text-error' }}">
+                                            ${{ number_format($cItem['neto'], 0, ',', '.') }}
+                                        </td>
+                                        <td class="py-3 px-3 text-center">
+                                            @if($cItem['tiene_turno_activo'])
+                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-secondary-container/50 text-on-secondary-container">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Activo
+                                                </span>
+                                            @else
+                                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-container text-on-surface-variant">Cerrada</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -1274,6 +1727,262 @@ new class extends Component
         </div>
     @endif
 
+    <!-- MODAL: PREVISUALIZACIÓN Y AUDITORÍA RÁPIDA DE TICKET FISCAL GENERADO -->
+    @if($modalPrevisualizarTicket && $pedidoTicketSeleccionado)
+        <div 
+            x-data 
+            @keydown.escape.window="$wire.cerrarModalTicket()" 
+            role="dialog" 
+            aria-modal="true" 
+            aria-labelledby="modal-ticket-preview-title" 
+            class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in"
+            wire:click.self="cerrarModalTicket"
+        >
+            <div class="w-full max-w-lg rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest max-h-[92vh] flex flex-col">
+                
+                <!-- CABECERA DEL MODAL -->
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-3 mb-3 shrink-0">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center border border-secondary/20">
+                            <span class="material-symbols-outlined text-[20px]">verified</span>
+                        </div>
+                        <div>
+                            <h3 id="modal-ticket-preview-title" class="text-sm font-black text-on-surface flex items-center gap-1.5">
+                                <span>Ticket Fiscal POS #{{ $pedidoTicketSeleccionado->codigo ?? $pedidoTicketSeleccionado->id }}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                    Generado en BD
+                                </span>
+                            </h3>
+                            <p class="text-[11px] text-on-surface-variant font-mono">
+                                ID Transacción: #{{ $pedidoTicketSeleccionado->id }} · {{ $pedidoTicketSeleccionado->pagado_en?->format('d/m/Y H:i:s') ?? $pedidoTicketSeleccionado->created_at->format('d/m/Y H:i:s') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <button 
+                        type="button" 
+                        wire:click="cerrarModalTicket" 
+                        aria-label="Cerrar previsualización de ticket"
+                        class="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                </div>
+
+                <!-- SELECTOR DE VISTA: VISUAL vs ESC/POS IMPRESORA -->
+                <div class="flex items-center justify-between mb-3 bg-surface-container-low p-1 rounded-2xl border border-surface-container-highest shrink-0">
+                    <span class="text-[11px] font-extrabold text-on-surface-variant px-2">Formato de Ticket:</span>
+                    <div class="flex items-center gap-1">
+                        <button 
+                            type="button" 
+                            wire:click="$set('modoVistaTicket', 'visual')"
+                            class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {{ $modoVistaTicket === 'visual' ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface' }}"
+                        >
+                            <span class="inline-flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">receipt</span>
+                                <span>Térmico 80mm</span>
+                            </span>
+                        </button>
+                        <button 
+                            type="button" 
+                            wire:click="$set('modoVistaTicket', 'escpos')"
+                            class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {{ $modoVistaTicket === 'escpos' ? 'bg-surface-container-lowest text-primary shadow-xs' : 'text-on-surface-variant hover:text-on-surface' }}"
+                        >
+                            <span class="inline-flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">terminal</span>
+                                <span>Texto ESC/POS</span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CUERPO CON SCROLL -->
+                <div class="overflow-y-auto flex-1 pr-1 space-y-3 font-mono text-xs">
+                    @if($modoVistaTicket === 'visual')
+                        <div class="rounded-2xl border border-dashed border-surface-container-high bg-surface-container-low/40 p-4 space-y-3 text-on-surface">
+                            
+                            <!-- ENCABEZADO FISCAL -->
+                            <div class="text-center border-b border-dashed border-surface-container-high pb-3 space-y-0.5">
+                                <p class="text-base font-black tracking-tight text-primary">{{ $ticketConfig['nombre_comercial'] ?? 'RESTOMASTER' }}</p>
+                                @if(!empty($ticketConfig['lema']))
+                                    <p class="text-[11px] text-on-surface-variant">{{ $ticketConfig['lema'] }}</p>
+                                @endif
+                                @if(!empty($ticketConfig['razon_social']))
+                                    <p class="text-[10px] text-on-surface-variant/80">{{ $ticketConfig['razon_social'] }}</p>
+                                @endif
+                                <p class="text-[10px] text-on-surface-variant/80">
+                                    NIT: {{ $ticketConfig['nit'] ?? '901.884.200-1' }}
+                                    @if(!empty($ticketConfig['regimen'])) · {{ $ticketConfig['regimen'] }} @endif
+                                </p>
+                                @if(!empty($ticketConfig['direccion']))
+                                    <p class="text-[10px] text-on-surface-variant/80">{{ $ticketConfig['direccion'] }}</p>
+                                @endif
+                                @if(!empty($ticketConfig['telefono']))
+                                    <p class="text-[10px] text-on-surface-variant/80">Tel: {{ $ticketConfig['telefono'] }}</p>
+                                @endif
+                                @if(!empty($ticketConfig['resolucion_dian']))
+                                    <p class="text-[9px] text-on-surface-variant/70">{{ $ticketConfig['resolucion_dian'] }}</p>
+                                @endif
+                                @if(!empty($ticketConfig['rango_autorizado']))
+                                    <p class="text-[9px] text-on-surface-variant/70">{{ $ticketConfig['rango_autorizado'] }}</p>
+                                @endif
+                            </div>
+
+                            <!-- DATOS DE LA TRANSACCIÓN -->
+                            <div class="border-b border-dashed border-surface-container-high pb-3 space-y-1 text-[11px]">
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">FACTURA POS:</span>
+                                    <span class="font-black text-on-surface">#{{ $pedidoTicketSeleccionado->codigo ?? $pedidoTicketSeleccionado->id }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">FECHA / HORA:</span>
+                                    <span class="font-bold">{{ $pedidoTicketSeleccionado->pagado_en?->format('d/m/Y H:i') ?? $pedidoTicketSeleccionado->created_at->format('d/m/Y H:i') }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">CAJERO:</span>
+                                    <span class="font-bold">{{ $pedidoTicketSeleccionado->usuario?->name ?? 'Caja Central' }}</span>
+                                </div>
+                                @if($pedidoTicketSeleccionado->mesero)
+                                    <div class="flex justify-between">
+                                        <span class="text-on-surface-variant">MESERO:</span>
+                                        <span>{{ $pedidoTicketSeleccionado->mesero->name }}</span>
+                                    </div>
+                                @endif
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">UBICACIÓN / CLIENTE:</span>
+                                    <span class="font-bold">
+                                        {{ $pedidoTicketSeleccionado->mesa?->numero ? 'Mesa #'.$pedidoTicketSeleccionado->mesa->numero : ($pedidoTicketSeleccionado->nombre_cliente ?? 'Mostrador / Venta Directa') }}
+                                    </span>
+                                </div>
+                                @if($pedidoTicketSeleccionado->cliente)
+                                    <div class="flex justify-between">
+                                        <span class="text-on-surface-variant">CLIENTE VIP:</span>
+                                        <span>{{ $pedidoTicketSeleccionado->cliente->nombre }} ({{ $pedidoTicketSeleccionado->cliente->puntos_fidelidad }} pts)</span>
+                                    </div>
+                                @endif
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">TURNO DE CAJA:</span>
+                                    <span>#{{ $pedidoTicketSeleccionado->turno_caja_id ?? '1' }} ({{ $pedidoTicketSeleccionado->turnoCaja?->caja?->nombre ?? 'Caja' }})</span>
+                                </div>
+                            </div>
+
+                            <!-- TABLA DE ITEMS VENDIDOS -->
+                            <div class="border-b border-dashed border-surface-container-high pb-3 space-y-1.5">
+                                <div class="flex justify-between text-[10px] font-black text-on-surface-variant border-b border-dashed border-surface-container-high/60 pb-1">
+                                    <span class="w-8">CNT</span>
+                                    <span class="flex-1 px-1">PRODUCTO</span>
+                                    <span class="w-16 text-right">VR.UNI</span>
+                                    <span class="w-16 text-right">TOTAL</span>
+                                </div>
+                                @forelse($pedidoTicketSeleccionado->items as $item)
+                                    <div class="flex justify-between text-[11px] leading-tight">
+                                        <span class="w-8 font-black text-primary">{{ $item->cantidad }}x</span>
+                                        <span class="flex-1 px-1 font-bold truncate">{{ $item->nombre_producto }}</span>
+                                        <span class="w-16 text-right text-on-surface-variant">${{ number_format((float) $item->precio_unitario, 0, ',', '.') }}</span>
+                                        <span class="w-16 text-right font-black text-on-surface">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</span>
+                                    </div>
+                                    @if($item->notas)
+                                        <p class="text-[10px] text-amber-500 italic pl-8">↳ {{ $item->notas }}</p>
+                                    @endif
+                                @empty
+                                    <p class="text-center text-[10px] text-on-surface-variant py-2">Sin items asociados.</p>
+                                @endforelse
+                            </div>
+
+                            <!-- TOTALES Y DESGLOSE FINANCIERO -->
+                            <div class="space-y-1 text-[11px] border-b border-dashed border-surface-container-high pb-3">
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">SUBTOTAL:</span>
+                                    <span class="font-mono">${{ number_format((float) $pedidoTicketSeleccionado->subtotal, 2) }}</span>
+                                </div>
+                                @if((float) $pedidoTicketSeleccionado->descuento > 0)
+                                    <div class="flex justify-between text-secondary">
+                                        <span>DESCUENTO:</span>
+                                        <span class="font-mono">-${{ number_format((float) $pedidoTicketSeleccionado->descuento, 2) }}</span>
+                                    </div>
+                                @endif
+                                @if((float) $pedidoTicketSeleccionado->propina > 0)
+                                    <div class="flex justify-between text-on-surface-variant">
+                                        <span>PROPINA VOLUNTARIA:</span>
+                                        <span class="font-mono">${{ number_format((float) $pedidoTicketSeleccionado->propina, 2) }}</span>
+                                    </div>
+                                @endif
+                                <div class="flex justify-between text-sm font-black text-on-surface pt-1 border-t border-dashed border-surface-container-high">
+                                    <span>TOTAL COBRADO:</span>
+                                    <span class="text-primary font-mono">${{ number_format((float) $pedidoTicketSeleccionado->total, 2) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- PAGO Y CAMBIO -->
+                            <div class="space-y-1 text-[11px] border-b border-dashed border-surface-container-high pb-3">
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">MÉTODO DE PAGO:</span>
+                                    <span class="font-black uppercase text-secondary">{{ $pedidoTicketSeleccionado->metodo_pago ?? 'Efectivo' }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">MONTO RECIBIDO:</span>
+                                    <span class="font-mono font-bold">${{ number_format((float) ($pedidoTicketSeleccionado->monto_pagado ?? $pedidoTicketSeleccionado->total), 2) }}</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-on-surface-variant">CAMBIO / DEVUELTA:</span>
+                                    <span class="font-mono font-black text-secondary">${{ number_format((float) $pedidoTicketSeleccionado->cambio, 2) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- PIE Y AUDITORÍA VERIFICADA -->
+                            <div class="text-center pt-1 space-y-1 text-[10px] text-on-surface-variant">
+                                @if(!empty($ticketConfig['pie_pagina']))
+                                    <p class="font-bold text-on-surface">{{ $ticketConfig['pie_pagina'] }}</p>
+                                @endif
+                                <p class="text-[9px] text-emerald-600 font-bold flex items-center justify-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px]">check_circle</span>
+                                    <span>REGISTRO REAL EN BD · IDEMPOTENCIA: {{ substr($pedidoTicketSeleccionado->idempotencia_uuid ?? ('UUID-'.$pedidoTicketSeleccionado->id), 0, 18) }}...</span>
+                                </p>
+                            </div>
+                        </div>
+                    @else
+                        <!-- FORMATO TEXTO PURO ESC/POS -->
+                        <div class="rounded-2xl bg-black text-emerald-400 p-4 border border-surface-container-highest shadow-inner font-mono text-[11px] whitespace-pre overflow-x-auto leading-relaxed select-all">
+                            {{ $ticketTextoEscPos ?? 'Cargando texto térmico...' }}
+                        </div>
+                    @endif
+                </div>
+
+                <!-- ACCIONES INFERIORES -->
+                <div class="mt-4 pt-3 border-t border-surface-container-high flex flex-wrap items-center justify-between gap-2 shrink-0">
+                    <button 
+                        type="button"
+                        onclick="window.print()" 
+                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-surface-container-high bg-surface-container hover:bg-surface-container-high text-on-surface font-bold text-xs transition cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-[16px]">print</span>
+                        <span>Imprimir Web</span>
+                    </button>
+
+                    <div class="flex items-center gap-2">
+                        <button 
+                            type="button"
+                            wire:click="reenviarImpresionTicket({{ $pedidoTicketSeleccionado->id }})"
+                            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-secondary/15 hover:bg-secondary/25 border border-secondary/30 text-secondary font-black text-xs transition cursor-pointer"
+                            title="Re-encolar trabajo a la impresora física de tickets"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">local_printshop</span>
+                            <span>Reimprimir Térmica</span>
+                        </button>
+
+                        <button 
+                            type="button" 
+                            wire:click="cerrarModalTicket" 
+                            class="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold text-xs hover:bg-primary-container transition shadow-xs cursor-pointer"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- MODAL: GESTIÓN DE TERMINALES DE CAJA -->
     @if($modalGestionTerminalesOpen)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
@@ -1473,16 +2182,36 @@ new class extends Component
                         @error('formCaja.nombre') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Código (Único):</label>
+                            <input 
+                                type="text" 
+                                wire:model="formCaja.codigo" 
+                                placeholder="Ej. CAJA-02"
+                                class="w-full h-11 rounded-xl border border-surface-container-high bg-surface-container-low px-3 font-mono text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
+                                required
+                            />
+                            @error('formCaja.codigo') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Tipo de Terminal:</label>
+                            <select wire:model="formCaja.tipo" class="w-full h-11 rounded-xl border border-surface-container-high bg-surface-container-low px-3 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                                <option value="principal">Principal / Salón</option>
+                                <option value="barra">Barra & Bebidas</option>
+                                <option value="delivery">Delivery & Domicilios</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div>
-                        <label class="text-xs font-bold text-on-surface-variant block mb-1">Código de Terminal (Único):</label>
+                        <label class="text-xs font-bold text-on-surface-variant block mb-1">Descripción / Ubicación (Opcional):</label>
                         <input 
                             type="text" 
-                            wire:model="formCaja.codigo" 
-                            placeholder="Ej. CAJA-02"
-                            class="w-full h-11 rounded-xl border border-surface-container-high bg-surface-container-low px-3 font-mono text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
-                            required
+                            wire:model="formCaja.descripcion" 
+                            placeholder="Ubicación física en el restaurante..."
+                            class="w-full h-10 rounded-xl border border-surface-container-high bg-surface-container-low px-3 text-xs text-on-surface focus:border-primary focus:ring-0"
                         />
-                        @error('formCaja.codigo') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="pt-3 border-t border-surface-container-high grid grid-cols-2 gap-2">

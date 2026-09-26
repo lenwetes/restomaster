@@ -15,7 +15,7 @@ class BackupDatabaseCommand extends Command
                             {--keep=14 : Cantidad de respaldos recientes a conservar en rotación}
                             {--dump : Forzar uso de pg_dump binario si está disponible}';
 
-    protected $aliases = ['sushixpress:backup'];
+    protected $aliases = ['db:backup'];
 
     protected $description = 'Genera un volcado estructurado de respaldo de la base de datos de RestoMaster con streaming y rotación';
 

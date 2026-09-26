@@ -193,4 +193,30 @@ class FidelizacionService
             return $movimiento;
         });
     }
+
+    /**
+     * Bonificación de puntos por responder encuesta de satisfacción (F7-07).
+     */
+    public function bonusPorEncuesta(Cliente $cliente, int $puntosBonus, string $motivo = 'Respuesta de encuesta de satisfacción'): MovimientoPuntos
+    {
+        return DB::transaction(function () use ($cliente, $puntosBonus, $motivo) {
+            $clienteLocked = Cliente::whereKey($cliente->id)->lockForUpdate()->firstOrFail();
+            $saldoAnterior = (int) $clienteLocked->puntos_fidelidad;
+            $saldoNuevo = $saldoAnterior + $puntosBonus;
+
+            $movimiento = MovimientoPuntos::create([
+                'cliente_id' => $clienteLocked->id,
+                'pedido_id' => null,
+                'tipo' => 'acumulacion',
+                'puntos' => $puntosBonus,
+                'saldo_anterior' => $saldoAnterior,
+                'saldo_nuevo' => $saldoNuevo,
+                'concepto' => $motivo,
+            ]);
+
+            $clienteLocked->update(['puntos_fidelidad' => $saldoNuevo]);
+
+            return $movimiento;
+        });
+    }
 }

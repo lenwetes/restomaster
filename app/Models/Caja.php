@@ -17,6 +17,8 @@ class Caja extends Model
         'sucursal_id',
         'nombre',
         'codigo',
+        'tipo',
+        'descripcion',
         'activa',
     ];
 

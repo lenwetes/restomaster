@@ -65,7 +65,7 @@ class CompraService
                     'numero_factura' => $compra->numero_factura,
                     'concepto' => "Compra factura {$compra->numero_factura} (".count($lineas).' líneas)',
                     'monto_total' => $subtotal,
-                    'fecha_emision' => $compra->fecha->toDateString(),
+                    'fecha_emision' => Carbon::parse($compra->fecha)->toDateString(),
                     'fecha_vencimiento' => Carbon::parse($compra->fecha)->addDays((int) $proveedor->dias_credito)->toDateString(),
                     'compra_id' => $compra->id,
                     'user_id' => $usuario?->id,
@@ -90,6 +90,7 @@ class CompraService
                 throw new DomainException('La factura tiene pagos aplicados y no puede anularse.');
             }
 
+            /** @var CompraLinea $linea */
             foreach ($compra->lineas as $linea) {
                 $insumo = Insumo::where('id', $linea->insumo_id)->lockForUpdate()->firstOrFail();
                 $stock = (float) $insumo->stock_actual;

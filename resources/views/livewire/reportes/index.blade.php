@@ -7,7 +7,7 @@ new class extends Component
 {
     public string $desde = '';
     public string $hasta = '';
-    public string $pestana = 'estado';
+    public string $pestana = 'graficas';
 
     public function mount(): void
     {
@@ -15,11 +15,46 @@ new class extends Component
         $this->hasta = now()->toDateString();
     }
 
+    public function setPeriodo(string $preset): void
+    {
+        switch ($preset) {
+            case 'hoy':
+                $this->desde = now()->toDateString();
+                $this->hasta = now()->toDateString();
+                break;
+            case 'ayer':
+                $this->desde = now()->subDay()->toDateString();
+                $this->hasta = now()->subDay()->toDateString();
+                break;
+            case 'esta_semana':
+                $this->desde = now()->startOfWeek()->toDateString();
+                $this->hasta = now()->toDateString();
+                break;
+            case 'este_mes':
+                $this->desde = now()->startOfMonth()->toDateString();
+                $this->hasta = now()->toDateString();
+                break;
+            case 'mes_anterior':
+                $this->desde = now()->subMonth()->startOfMonth()->toDateString();
+                $this->hasta = now()->subMonth()->endOfMonth()->toDateString();
+                break;
+        }
+    }
+
     public function with(): array
     {
         $service = app(ReporteService::class);
 
         return [
+            'graficaVentas' => in_array($this->pestana, ['graficas', 'ventas', 'estado'], true)
+                ? $service->datosGraficaVentas($this->desde, $this->hasta)
+                : null,
+            'comparativaVisual' => in_array($this->pestana, ['graficas', 'ventas'], true)
+                ? $service->comparativaPeriodosVisual($this->desde, $this->hasta)
+                : null,
+            'distribucion' => in_array($this->pestana, ['graficas', 'ventas'], true)
+                ? $service->distribucionCanalesYMetodos($this->desde, $this->hasta)
+                : null,
             'datos' => match ($this->pestana) {
                 'ventas' => [
                     'por_periodo' => $service->ventasPorPeriodo($this->desde, $this->hasta),
@@ -56,50 +91,247 @@ new class extends Component
             <div class="flex items-center gap-2">
                 <span class="material-symbols-outlined text-[24px] text-primary">monitoring</span>
                 <h1 class="text-xl font-extrabold tracking-tight text-on-surface">
-                    Reportes Contables
+                    Reportes y Analítica
                 </h1>
                 <span class="rounded-full bg-secondary/15 px-2.5 py-0.5 text-[11px] font-bold text-secondary border border-secondary/30">
                     REP-01
                 </span>
             </div>
             <p class="text-xs text-on-surface-variant mt-0.5">
-                Estado de Resultados y trazabilidad de asientos contables
+                Gráficas comparativas interactivas, estado de resultados y métricas del restaurante
             </p>
         </div>
     </div>
 </x-slot>
 
 <div class="space-y-6">
+    <!-- Carga ApexCharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
     <div class="h-1 w-full rounded-full bg-gradient-to-r from-primary via-primary-container to-secondary"></div>
 
     <!-- Range Filter -->
-    <div class="bg-surface-container-lowest rounded-3xl p-5 border border-outline-variant/20 shadow-sm">
+    <div class="bg-surface-container-lowest rounded-3xl p-5 border border-outline-variant/20 shadow-sm space-y-4">
         <div class="flex flex-wrap items-end gap-4">
             <div>
                 <label class="text-xs font-bold text-on-surface-variant">Desde:</label>
-                <input type="date" wire:model="desde" class="mt-1 rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
+                <input type="date" wire:model.live="desde" class="mt-1 rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
             </div>
             <div>
                 <label class="text-xs font-bold text-on-surface-variant">Hasta:</label>
-                <input type="date" wire:model="hasta" class="mt-1 rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
+                <input type="date" wire:model.live="hasta" class="mt-1 rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
             </div>
             <div class="ml-auto flex items-center gap-2">
                 <a href="{{ route('reportes.pdf', ['reporte' => $pestana, 'desde' => $desde, 'hasta' => $hasta]) }}" class="rounded-xl bg-surface-container-high px-3 py-2 text-xs font-bold text-on-surface">PDF</a>
                 <a href="{{ route('reportes.csv', ['reporte' => $pestana, 'desde' => $desde, 'hasta' => $hasta]) }}" class="rounded-xl bg-surface-container-high px-3 py-2 text-xs font-bold text-on-surface">CSV</a>
             </div>
-            <p class="w-full text-[11px] text-on-surface-variant font-mono">Ventas + ingresos − gastos = Resultado del período</p>
+        </div>
+
+        <!-- Presets de Período Rápido -->
+        <div class="flex flex-wrap items-center gap-1.5 pt-3 border-t border-outline-variant/15">
+            <span class="text-[11px] font-bold text-on-surface-variant mr-1">Rango rápido:</span>
+            <button type="button" wire:click="setPeriodo('hoy')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Hoy</button>
+            <button type="button" wire:click="setPeriodo('ayer')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Ayer</button>
+            <button type="button" wire:click="setPeriodo('esta_semana')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Esta Semana</button>
+            <button type="button" wire:click="setPeriodo('este_mes')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Este Mes</button>
+            <button type="button" wire:click="setPeriodo('mes_anterior')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Mes Anterior</button>
         </div>
     </div>
 
     <!-- Tabs -->
     <div class="flex flex-wrap gap-2">
-        @foreach (['estado' => 'Estado de resultados', 'ventas' => 'Ventas', 'meseros' => 'Rendimiento Meseros', 'clientes' => 'Clientes & Delivery', 'reservas' => 'Reservas'] as $k => $label)
+        @foreach (['graficas' => 'Gráficas Comparativas', 'estado' => 'Estado de resultados', 'ventas' => 'Ventas', 'meseros' => 'Rendimiento Meseros', 'clientes' => 'Clientes & Delivery', 'reservas' => 'Reservas'] as $k => $label)
             <button wire:click="$set('pestana', '{{ $k }}')" class="rounded-full px-4 py-2 text-xs font-bold transition-colors
-                {{ $pestana === $k ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface-variant border border-outline-variant/20' }}">
+                {{ $pestana === $k ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant border border-outline-variant/20 hover:text-on-surface' }}">
                 {{ $label }}
             </button>
         @endforeach
     </div>
+
+    @if ($pestana === 'graficas')
+        <!-- Tab Gráficas Comparativas (F7-08) -->
+        <div class="space-y-6"
+             x-data="{
+                charts: {},
+                renderAll() {
+                    if (typeof ApexCharts === 'undefined') return;
+
+                    // 1. Gráfica de Área de Facturación Diaria
+                    const elVentas = document.getElementById('chart-ventas-diarias');
+                    if (elVentas) {
+                        if (this.charts.ventas) this.charts.ventas.destroy();
+                        this.charts.ventas = new ApexCharts(elVentas, {
+                            chart: { type: 'area', height: 320, toolbar: { show: false }, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: [{ name: 'Ventas ($)', data: {{ json_encode($graficaVentas['ventas'] ?? []) }} }],
+                            xaxis: { categories: {{ json_encode($graficaVentas['etiquetas'] ?? []) }}, labels: { style: { colors: '#94a3b8', fontSize: '11px' } } },
+                            yaxis: { labels: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO'), style: { colors: '#94a3b8', fontSize: '11px' } } },
+                            colors: ['#e0442e'],
+                            stroke: { curve: 'smooth', width: 3 },
+                            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05 } },
+                            dataLabels: { enabled: false },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.ventas.render();
+                    }
+
+                    // 2. Gráfica de Comparativa Período Actual vs Anterior
+                    const elComp = document.getElementById('chart-comparativa-periodos');
+                    if (elComp) {
+                        if (this.charts.comp) this.charts.comp.destroy();
+                        this.charts.comp = new ApexCharts(elComp, {
+                            chart: { type: 'bar', height: 320, toolbar: { show: false }, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: [
+                                { name: 'Período Actual', data: {{ json_encode($comparativaVisual['serie_actual'] ?? []) }} },
+                                { name: 'Período Anterior', data: {{ json_encode($comparativaVisual['serie_anterior'] ?? []) }} }
+                            ],
+                            xaxis: { categories: {{ json_encode($comparativaVisual['etiquetas'] ?? []) }}, labels: { style: { colors: '#94a3b8', fontSize: '11px' } } },
+                            yaxis: { labels: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO'), style: { colors: '#94a3b8', fontSize: '11px' } } },
+                            colors: ['#e0442e', '#475569'],
+                            plotOptions: { bar: { horizontal: false, columnWidth: '55%', borderRadius: 4 } },
+                            dataLabels: { enabled: false },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.comp.render();
+                    }
+
+                    // 3. Gráfica Donut de Canales
+                    const elCanales = document.getElementById('chart-canales-venta');
+                    if (elCanales) {
+                        if (this.charts.canales) this.charts.canales.destroy();
+                        this.charts.canales = new ApexCharts(elCanales, {
+                            chart: { type: 'donut', height: 280, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: {{ json_encode($distribucion['canales']['series'] ?? []) }},
+                            labels: {{ json_encode($distribucion['canales']['etiquetas'] ?? []) }},
+                            colors: ['#e0442e', '#e8a020', '#2eb8b4', '#8b5cf6'],
+                            legend: { position: 'bottom', labels: { colors: '#94a3b8' } },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.canales.render();
+                    }
+
+                    // 4. Gráfica Donut de Métodos
+                    const elMetodos = document.getElementById('chart-metodos-pago');
+                    if (elMetodos) {
+                        if (this.charts.metodos) this.charts.metodos.destroy();
+                        this.charts.metodos = new ApexCharts(elMetodos, {
+                            chart: { type: 'donut', height: 280, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: {{ json_encode($distribucion['metodos']['series'] ?? []) }},
+                            labels: {{ json_encode($distribucion['metodos']['etiquetas'] ?? []) }},
+                            colors: ['#10b981', '#3b82f6', '#f59e0b', '#ec4899'],
+                            legend: { position: 'bottom', labels: { colors: '#94a3b8' } },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.metodos.render();
+                    }
+                }
+             }"
+             x-init="$nextTick(() => renderAll())"
+             x-effect="renderAll()">
+
+            <!-- KPI Cards Resumen Gráficas -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 shadow-sm">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant block">Facturación Total (Ventas netas)</span>
+                    <div class="text-2xl font-black text-on-surface mt-1">
+                        ${{ number_format((float) ($graficaVentas['total_periodo'] ?? 0), 0, ',', '.') }}
+                    </div>
+                    <span class="text-[10px] text-emerald-400 font-bold block mt-1">Período seleccionado</span>
+                </div>
+
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 shadow-sm">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant block">Promedio Diario</span>
+                    <div class="text-2xl font-black text-on-surface mt-1">
+                        ${{ number_format((float) ($graficaVentas['promedio_diario'] ?? 0), 0, ',', '.') }}
+                    </div>
+                    <span class="text-[10px] text-on-surface-variant font-bold block mt-1">Por día en el rango</span>
+                </div>
+
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 shadow-sm">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant block">Variación vs Anterior</span>
+                    @php $crec = (float) ($comparativaVisual['crecimiento'] ?? 0); @endphp
+                    <div class="text-2xl font-black {{ $crec >= 0 ? 'text-emerald-400' : 'text-rose-400' }} mt-1 flex items-center gap-1">
+                        <span>{{ $crec >= 0 ? '+'.$crec : $crec }}%</span>
+                        <span class="material-symbols-outlined text-lg">{{ $crec >= 0 ? 'trending_up' : 'trending_down' }}</span>
+                    </div>
+                    <span class="text-[10px] text-on-surface-variant font-bold block mt-1">Vs. ${{ number_format((float) ($comparativaVisual['total_anterior'] ?? 0), 0, ',', '.') }}</span>
+                </div>
+
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 shadow-sm">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant block">Días en Análisis</span>
+                    <div class="text-2xl font-black text-on-surface mt-1">
+                        {{ count($graficaVentas['fechas'] ?? []) }} días
+                    </div>
+                    <span class="text-[10px] text-secondary font-bold block mt-1">Rango continuo</span>
+                </div>
+            </div>
+
+            <!-- Gráficas Principales: Área y Barras Dobles -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Evolución Diaria -->
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[18px] text-primary">show_chart</span>
+                                Evolución Diaria de Ventas
+                            </h3>
+                            <p class="text-[11px] text-on-surface-variant mt-0.5">Ingresos cobrados por día en el período seleccionado</p>
+                        </div>
+                    </div>
+                    <div id="chart-ventas-diarias" class="min-h-[320px]"></div>
+                </div>
+
+                <!-- Comparativa Período Actual vs Anterior -->
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[18px] text-secondary">compare_arrows</span>
+                                Comparativa: Actual vs Anterior
+                            </h3>
+                            <p class="text-[11px] text-on-surface-variant mt-0.5">Ventas comparadas día por día con la ventana previa</p>
+                        </div>
+                    </div>
+                    <div id="chart-comparativa-periodos" class="min-h-[320px]"></div>
+                </div>
+            </div>
+
+            <!-- Gráficas Secundarias: Donuts Canales y Métodos de Pago -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Canales de Venta -->
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[18px] text-amber-500">pie_chart</span>
+                                Ventas por Canal
+                            </h3>
+                            <p class="text-[11px] text-on-surface-variant mt-0.5">Distribución entre Salón, Delivery y Autoservicio QR</p>
+                        </div>
+                    </div>
+                    <div id="chart-canales-venta" class="min-h-[280px]"></div>
+                </div>
+
+                <!-- Métodos de Pago -->
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[18px] text-emerald-500">account_balance_wallet</span>
+                                Métodos de Pago
+                            </h3>
+                            <p class="text-[11px] text-on-surface-variant mt-0.5">Efectivo, Tarjetas, Transferencias bancarias y Mixto</p>
+                        </div>
+                    </div>
+                    <div id="chart-metodos-pago" class="min-h-[280px]"></div>
+                </div>
+            </div>
+        </div>
+    @endif
 
     @if ($pestana === 'ventas')
         <!-- Ventas tab -->

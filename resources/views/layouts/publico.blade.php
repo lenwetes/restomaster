@@ -137,6 +137,15 @@
                     <span>WhatsApp</span>
                 </a>
 
+                <a 
+                    href="{{ route('cliente.login') }}" 
+                    class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600/20 to-amber-500/20 hover:from-rose-600/30 hover:to-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition-all shadow-sm"
+                    title="Accede a tus puntos y beneficios VIP"
+                >
+                    <span class="material-symbols-outlined text-[16px] text-amber-400">loyalty</span>
+                    <span class="hidden sm:inline">Club Clientes</span>
+                </a>
+
                 @auth
                     <a 
                         href="{{ route('dashboard') }}" 

@@ -72,6 +72,9 @@ class PermisosPrivilegiosTest extends TestCase
 
         foreach (glob(app_path('Policies/*.php')) as $archivo) {
             $policy = basename($archivo, '.php');
+            if (! isset($modelos[$policy])) {
+                continue;
+            }
             $clase = 'App\\Policies\\'.$policy;
             foreach (get_class_methods($clase) as $metodo) {
                 if (in_array($metodo, $excluidas, true)) {

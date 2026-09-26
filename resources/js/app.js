@@ -1,3 +1,43 @@
+import './echo';
+
+// Sintetizador Web Audio API: Campana de cocina / alerta de comandas
+window.sonarCampanaCocina = () => {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const ctx = new AudioContextClass();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        const t = ctx.currentTime;
+
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880, t);
+        osc1.frequency.exponentialRampToValueAtTime(1760, t + 0.1);
+        gain1.gain.setValueAtTime(0.4, t);
+        gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(t);
+        osc1.stop(t + 0.5);
+
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'triangle';
+        osc2.frequency.setValueAtTime(1318.51, t + 0.08);
+        gain2.gain.setValueAtTime(0.3, t + 0.08);
+        gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(t + 0.08);
+        osc2.stop(t + 0.7);
+    } catch (e) {
+        console.warn('AudioContext error:', e);
+    }
+};
+
 //
 // Toast global: escucha eventos Livewire 'notificacion' ({mensaje, tipo})
 // y flashes de sesión con la misma forma visual.
@@ -229,3 +269,11 @@ if (window.Livewire && typeof window.Livewire.hook === 'function') {
         }
     });
 }
+
+/**
+ * Echo exposes an expressive API for subscribing to channels and listening
+ * for events that are broadcast by Laravel. Echo and event broadcasting
+ * allow your team to quickly build robust real-time web applications.
+ */
+
+import './echo';

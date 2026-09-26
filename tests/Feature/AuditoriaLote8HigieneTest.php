@@ -55,7 +55,10 @@ class AuditoriaLote8HigieneTest extends TestCase
     public function test_r28_only_standard_docker_compose_exists(): void
     {
         $this->assertTrue(File::exists(base_path('docker-compose.yml')));
-        $this->assertFalse(File::exists(base_path('docker-compose.yaml')));
+        if (File::exists(base_path('docker-compose.yaml'))) {
+            // Espejo para despliegue en Coolify (commit 876792c)
+            $this->assertStringContainsString('ESPEJO de docker-compose.yml', File::get(base_path('docker-compose.yaml')));
+        }
         $this->assertFalse(File::exists(base_path('compose.yml')));
     }
 
@@ -151,7 +154,7 @@ class AuditoriaLote8HigieneTest extends TestCase
             'telefono_cliente' => '3001234567',
             'direccion_delivery' => 'Calle 50 # 20-10',
             'sucursal_id' => $this->sucursal->id,
-        ], []);
+        ]);
 
         $this->assertStringStartsWith('DLV-', $d1->codigo);
     }

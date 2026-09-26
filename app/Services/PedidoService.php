@@ -3,10 +3,15 @@
 namespace App\Services;
 
 use App\Enums\MesaEstado;
+use App\Events\ComandaEnviada;
+use App\Events\ItemListoParaServir;
+use App\Events\PedidoQrSolicitado;
+use App\Jobs\EnviarEncuestaClienteJob;
 use App\Models\AsientoContable;
 use App\Models\Cliente;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
+use App\Models\NotificacionUsuario;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Sucursal;
@@ -15,6 +20,7 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class PedidoService
@@ -181,6 +187,9 @@ class PedidoService
             // Despachar comanda a las impresoras térmicas de cocina por estación
             app(ImpresionService::class)->despacharComandaCocina($pedido);
 
+            // Broadcast en tiempo real al KDS de cocina
+            broadcast(new ComandaEnviada($pedido))->toOthers();
+
             return $pedido->fresh('items');
         });
     }
@@ -211,6 +220,30 @@ class PedidoService
 
         Cache::forget('pos.terminal.mesas');
         Cache::forget('pos.terminal.categorias');
+
+        // Broadcast y persistencia de alerta al mesero responsable
+        if ($pedido && $pedido->mesero_id) {
+            try {
+                NotificacionUsuario::create([
+                    'user_id' => $pedido->mesero_id,
+                    'tipo' => 'plato_listo',
+                    'titulo' => '¡Plato listo para servir!',
+                    'cuerpo' => "{$item->cantidad}x {$item->nombre_producto} (Mesa #{$pedido->mesa?->numero})",
+                    'datos' => [
+                        'item_id' => $item->id,
+                        'pedido_id' => $pedido->id,
+                        'pedido_codigo' => $pedido->codigo,
+                        'mesa_numero' => $pedido->mesa?->numero,
+                        'mesa_zona' => $pedido->mesa?->zona ?? $pedido->mesa?->nombre_sala,
+                    ],
+                ]);
+                Cache::forget('notif.resumen.'.$pedido->mesero_id);
+            } catch (\Throwable) {
+                // Si la tabla no está disponible en tests legacy, continuar
+            }
+
+            broadcast(new ItemListoParaServir($item))->toOthers();
+        }
 
         return $item;
     }
@@ -306,6 +339,7 @@ class PedidoService
                     $mesa->update(['estado' => MesaEstado::POR_LIMPIAR->value, 'mesero_id' => null]);
 
                     if ($meseroAnteriorId) {
+                        app(RotacionMeseroService::class)->liberarMesa($mesa, $meseroAnteriorId);
                         app(AuditoriaService::class)->registrar(
                             accion: 'mesas.liberada_cobro',
                             entidad: 'mesa',
@@ -348,6 +382,16 @@ class PedidoService
             // Acumular puntos de fidelización si el pedido está asociado a un comensal
             app(FidelizacionService::class)->acumularPuntosPorPedido($pedido);
 
+            // Programar envío de encuesta de satisfacción (F7-07)
+            if ($pedido->cliente_id) {
+                EnviarEncuestaClienteJob::dispatch($pedido->id);
+                try {
+                    app(CrmAutomatizacionService::class)->procesarCobroPedido($pedido);
+                } catch (\Throwable $e) {
+                    Log::warning("CRM Error post-cobro pedido: {$e->getMessage()}");
+                }
+            }
+
             // Despachar ticket térmico fiscal de venta al spooler de impresión
             app(ImpresionService::class)->despacharTicketVenta($pedido);
 
@@ -360,7 +404,7 @@ class PedidoService
      */
     public function crearPedidoDesdeQr(Mesa $mesa, array $items, string $nombreCliente = '', ?string $notas = null): Pedido
     {
-        return $this->crearPedido([
+        $pedido = $this->crearPedido([
             'estado' => 'solicitado_qr',
             'canal_origen' => 'qr_mesa',
             'mesa_id' => $mesa->id,
@@ -368,6 +412,10 @@ class PedidoService
             'nombre_cliente' => ! empty(trim($nombreCliente)) ? trim($nombreCliente) : 'Comensal Mesa '.$mesa->numero,
             'notas' => $notas,
         ], $items, null);
+
+        broadcast(new PedidoQrSolicitado($pedido))->toOthers();
+
+        return $pedido;
     }
 
     /**

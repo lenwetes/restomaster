@@ -614,6 +614,20 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">CLI</span>
                 </a>
 
+                <!-- CRM & Automatización (CRM-01) -->
+                <a 
+                    href="{{ route('crm') }}" 
+                    wire:navigate
+                    title="CRM & Automatización"
+                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('crm') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                >
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">mark_chat_unread</span>
+                        <span class="sidebar-text truncate">CRM & Automatización</span>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">CRM</span>
+                </a>
+
                 <!-- Despacho Delivery (PED-04) -->
                 <a 
                     href="{{ route('delivery') }}" 
@@ -647,12 +661,12 @@ new class extends Component
                     <a 
                         href="{{ route('reportes') }}" 
                         wire:navigate
-                        title="Reportes DIAN"
+                        title="Reportes"
                         class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="material-symbols-outlined text-[20px] shrink-0">monitoring</span>
-                            <span class="sidebar-text truncate">Reportes DIAN</span>
+                            <span class="sidebar-text truncate">Reportes</span>
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">REP</span>
                     </a>
@@ -980,6 +994,19 @@ new class extends Component
                 </a>
 
                 <a 
+                    href="{{ route('crm') }}" 
+                    @click="mobileMenuOpen = false" 
+                    wire:navigate 
+                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('crm') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[20px]">mark_chat_unread</span>
+                        <span>CRM & Automatización</span>
+                    </div>
+                    <span class="text-[10px] font-bold">CRM</span>
+                </a>
+
+                <a 
                     href="{{ route('delivery') }}" 
                     @click="mobileMenuOpen = false" 
                     wire:navigate 
@@ -1014,7 +1041,7 @@ new class extends Component
                     >
                         <div class="flex items-center gap-3">
                             <span class="material-symbols-outlined text-[20px]">monitoring</span>
-                            <span>Reportes DIAN</span>
+                            <span>Reportes</span>
                         </div>
                         <span class="text-[10px] font-bold">REP</span>
                     </a>

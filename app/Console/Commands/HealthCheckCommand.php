@@ -13,7 +13,7 @@ class HealthCheckCommand extends Command
 {
     protected $signature = 'restomaster:health';
 
-    protected $aliases = ['sushixpress:health'];
+    protected $aliases = ['health:check'];
 
     protected $description = 'Verifica el estado operativo y salud integral de los servicios de RestoMaster';
 

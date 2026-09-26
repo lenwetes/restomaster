@@ -6,6 +6,159 @@
 ---
 
 ## Última Actualización
+2026-09-25 | Antigravity | 🧹 **DEPURACIÓN Y SANEAMIENTO DE ARCHIVOS HUÉRFANOS Y BASURA COMPLETADA** (`README-laravel.md`, `public/mockups-pos.html`, `public/images/sushi-*.jpg`, `qa-report.*`, `public/qa-dashboard.html`, `storage/logs/browser.log`, `README.md`):
+- **Acciones Ejecutadas:**
+  1. **Eliminación de archivos huérfanos / basura:**
+     - Eliminado `README-laravel.md` (plantilla estándar en inglés de Laravel).
+     - Eliminado `scratch/` (directorio vacío residual en raíz).
+     - Eliminado `public/mockups-pos.html` (prototipo estático obsoleto).
+     - Eliminadas imágenes huérfanas legacy de sushi: `public/images/sushi-chef.jpg` y `public/images/sushi-hero.jpg` (~1.55 MB liberados).
+     - Eliminados reportes estáticos pasados de la raíz: `qa-report.json`, `qa-report.md` y `public/qa-dashboard.html`.
+     - Vaciado `storage/logs/browser.log` (36.1 MB de espacio recuperado).
+  2. **Actualización de Documentación:**
+     - Actualizado `README.md` con identidad 100% **RestoMaster** y catálogo completo de los 13 módulos del restaurante incluyendo el módulo nuevo de CRM & Automatizaciones.
+  3. **Protección de Herramientas de IA:**
+     - Todos los recursos de IA (`.agents/`, `.ai/`, `.opencode/`, `.claude/`, `.superpowers/`, `AGENTS.md`, `coordination.md`, `CLAUDE.md`, `skills-lock.json`, `boost.json`, `opencode.json`, `.locks/`) preservados al 100% sin modificaciones.
+- **Calidad y Verificación:**
+  - Laravel Pint: 100% aprobado (0 violaciones de estilo).
+  - Repositorio limpio y optimizado.
+
+---
+
+## Actualización previa
+2026-09-25 | Antigravity | 🛡️ **AUDITORÍA INTEGRAL DE CÓDIGO, CORRECCIÓN DE TIPADO, SEGURIDAD NULA Y LIMPIEZA DE CÓDIGO FANTASMA COMPLETADA** (`app/Services/CajaReporteService.php`, `app/Http/Controllers/Cliente/AuthClienteController.php`, `app/Services/CajaService.php`, `app/Services/CompraService.php`, `app/Jobs/EnviarEncuestaClienteJob.php`, `app/Console/Commands/*`):
+- **Correcciones de Tipado, Runtime & Seguridad:**
+  1. **`app/Services/CajaReporteService.php`:**
+     - Corregido acceso a columna inexistente/fantasma `$m->categoria` en `MovimientoCaja`. Se mapeó a `'tipo' => $m->tipo` y `'categoria' => $m->tipo` evitando `null` en reportes de egresos de caja.
+     - Parsing seguro de fecha con `Carbon::parse($turnoActivo->apertura_en)->toIso8601String()` evitando excepciones de método en caso de hidratación como string.
+  2. **`app/Http/Controllers/Cliente/AuthClienteController.php`:**
+     - Corregido error fatal de covarianza de tipos en PHP 8.3 (`redirectToGoogle` retornando `\Symfony\Component\HttpFoundation\Response` en vez de subtipo rígido `RedirectResponse`).
+     - Verificación estricta de `$cliente instanceof Cliente` en callback OAuth Google antes de iniciar sesión para prevenir `TypeError`.
+  3. **`app/Services/CajaService.php`:**
+     - Parsing seguro con `Carbon::parse` en formateo de fechas de apertura y cierre de turnos (`d/m/Y H:i`).
+  4. **`app/Services/CompraService.php`:**
+     - Parsing seguro con `Carbon::parse($compra->fecha)->toDateString()` en creación de cuentas por pagar.
+     - Tipado estricto `/** @var CompraLinea $linea */` para cálculo de reversión de inventarios y costo promedio.
+  5. **`app/Jobs/EnviarEncuestaClienteJob.php`:**
+     - Verificación segura `$pedido->cliente instanceof Cliente` antes de despachar encuestas de satisfacción.
+  6. **Limpieza de Aliases Legados / Código Huérfano (`app/Console/Commands/`):**
+     - Eliminadas referencias huérfanas `sushixpress:*` en `RestaurarEstadoCeroCommand`, `HealthCheckCommand`, `CargarDatosDemoCommand` y `BackupDatabaseCommand`, reemplazándolas por nombres de comando oficiales RestoMaster (`restomaster:*` / `db:*`).
+- **Verificación y Pruebas:**
+  - Laravel Pint: 100% aprobado (0 violaciones de estilo PSR-12).
+  - Test suites: 27/27 pruebas pasando al 100% (111 aserciones en verde en `CrmAutomatizacionesTest`, `ClienteAuthSocialTest`, `CajaReporteGestionTest`, `TurnoCajaMultipleShiftsTest`).
+
+---
+
+## Actualización previa
+2026-09-25 | Antigravity | 📲 **CRM & AUTOMATIZACIONES DE MENSAJES (WHATSAPP BUSINESS CLOUD API & EMAIL) + ANALÍTICA DE CALIDAD (CSAT / NPS) IMPLEMENTADO AL 100%** (`app/Models/Crm*`, `app/Services/Crm*`, `app/Jobs/DespacharMensajeCrmJob.php`, `app/Http/Controllers/CrmWebhookController.php`, `resources/views/livewire/crm/index.blade.php`, `resources/views/emails/crm/encuesta.blade.php`, `tests/Feature/CrmAutomatizacionesTest.php`):
+- **Funcionalidades Añadidas:**
+  1. **Motor de Comunicación Multicanal (WhatsApp & Correo):**
+     - Integración directa con **Meta WhatsApp Business Cloud API (Graph API v21.0)** con normalización telefónica internacional (E.164) y modo simulado para desarrollo local sin requerir credenciales externas obligatorias.
+     - Webhook completo para Meta: Handshake de verificación (GET) y recepción de estados de entrega y lectura (POST: `sent`, `delivered`, `read`, `failed`).
+     - Despacho de correos transaccionales con plantilla responsiva (`EncuestaClienteMailable`), diseño premium RestoMaster e incentivo de +50 Puntos VIP.
+  2. **Automatizaciones & Disparadores en Tiempo Real:**
+     - Post-cobro de pedido (`pedido_cobrado`): Despacho de encuesta de satisfacción con delay anti-spam configurable.
+     - Confirmación de reserva (`reserva_confirmada`): Envío inmediato por WhatsApp con fecha, hora, comensales y mesa.
+     - Recordatorio de reserva (`reserva_recordatorio_2h`): Alerta 2 horas antes de la llegada.
+     - Winback (`cliente_inactivo`): Reactivación de clientes tras 45 días de inactividad con código de cortesía.
+     - Cumpleaños VIP (`cliente_cumpleanos`): Felicitación con postre de la casa.
+  3. **Tablero de Satisfacción & Analítica de Calidad (5 Pestañas):**
+     - Barra de navegación de pestañas rediseñada con `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5` y contenedor segmentado para garantizar que el 100% de las 5 opciones (incluyendo "Configuración API") sean visibles y clicables en cualquier pantalla sin cortes ni desbordamientos horizontales.
+     - Pestaña 1: Calificación General (⭐), CSAT % (Satisfacción), Net Promoter Score (NPS), Tasa de respuesta, histograma de 5 estrellas, ranking de calidad por mesero y muro de opiniones recientes.
+     - Pestaña 2: Gestor reactivo de automatizaciones con switches activar/pausar, selector de canal y delays.
+     - Pestaña 3: Gestor de plantillas con previsualizador WhatsApp en burbuja interactiva y tags dinámicos (`{nombre}`, `{url_encuesta}`, etc.).
+     - Pestaña 4: Bandeja de auditoría (logs) con filtros por canal/estado, reintento inmediato y modal de detalle.
+     - Pestaña 5: Configuración de credenciales Meta, Webhook URL para copiar con 1 clic, teléfono de prueba inmediata y políticas anti-spam (horarios de envío).
+  4. **Navegación e Integración Global:**
+     - Enlace en sidebar y menú móvil: **"CRM & Automatización"** con badge `CRM` inmediatamente después de "Clientes VIP".
+- **Calidad y Verificación:**
+  - 8/8 pruebas unitarias y de integración pasando al 100% en `tests/Feature/CrmAutomatizacionesTest.php`.
+  - 0 violaciones detectadas con Laravel Pint (`vendor/bin/pint --test`).
+  - Suite de pruebas de regresión verificada en verde.
+
+---
+
+## Actualización previa
+2026-09-25 | Antigravity | 🧾 **PREVISUALIZACIÓN Y AUDITORÍA RÁPIDA DE TICKETS FISCALES EN MODAL IMPLEMENTADO** (`resources/views/livewire/caja/control.blade.php`, `resources/views/livewire/pos/terminal.blade.php`, `tests/Feature/PrevisualizacionTicketsTest.php`):
+- **Funcionalidades Añadidas:**
+  1. **Modal de Previsualización Rápida en Caja (`/caja`):**
+     - Botón `[Previsualizar Último Ticket]` en la cabecera de la tabla de ventas del turno.
+     - Botón `[Ver Ticket]` en cada fila de tickets cobrados.
+     - Modal con doble visualización: Formato Térmico 80mm visual y Texto Puro ESC/POS.
+     - Sello de verificación en tiempo real: ID de base de datos, fecha exacta, cajero, mesero, desglose de ítems, propina, cambio y hash de transacción/idempotencia (garantiza que no es información fantasma).
+     - Botón directo para re-imprimir en impresora térmica o imprimir desde el navegador.
+  2. **Acceso Rápido y Confirmación en Terminal POS (`/pos`):**
+     - Botón `[Último Ticket]` en la barra superior junto al estado de caja.
+     - Insignia de confirmación en base de datos (`✅ Ticket Guardado en BD #ID`) integrada en la simulación post-cobro.
+- **Calidad y Verificación:**
+  - 3 pruebas en `tests/Feature/PrevisualizacionTicketsTest.php` (100% pasando).
+  - Pint PSR-12 verificado con 0 violaciones.
+
+---
+
+## Actualización previa
+2026-09-25 | Antigravity | 🎯 **ASIGNACIÓN DIRECTA/AUTO DE MESAS Y ROTACIÓN INMEDIATA DE MESERO EN RESERVAS IMPLEMENTADO** (`app/Services/ReservaService.php`, `resources/views/livewire/reservas/index.blade.php`, `tests/Feature/ReservaAsignacionMesaMeseroTest.php`):
+- **Funcionalidades Añadidas:**
+  1. **Asignación Manual Directa & Auto-asignación Inteligente:**
+     - En el modal de agenda del día (`$modalDiaOpen`) y en la agenda diaria detallada (`modoVista === 'diario'`), las reservas sin mesa muestran botones inmediatos: `[⚡ Auto-asignar]` y `[🪑 Asignar mesa...]`.
+     - `ReservaService::autoAsignarMesa`: Detecta automáticamente la mesa óptima disponible por horario y capacidad, la asigna a la reserva e invoca la rotación.
+     - `ReservaService::asignarMesa`: Permite asignar cualquier mesa libre manualmente y enlaza la reserva.
+  2. **Asignación Inmediata del Mesero de Turno de la Zona:**
+     - Al asignar la mesa (manual o automáticamente), se consulta `RotacionMeseroService` / `TurnoMeseroZona` de la zona de dicha mesa.
+     - Se asigna de forma inmediata el mesero de turno tanto a la mesa como al campo `reserva.mesero_id`.
+     - La interfaz despliega la insignia con avatar y nombre del mesero (`👤 {mesero->name}`) y botones para cambiar mesa o liberar asignación (`✕`).
+  3. **Selector Modal Interactivo:**
+     - Modal `$modalSelectorMesaOpen` muestra tarjetas de cada mesa con su capacidad, estado actual y el **mesero de turno** que le corresponderá al seleccionarla.
+- **Calidad y Verificación:**
+  - 3 nuevas pruebas automatizadas en `tests/Feature/ReservaAsignacionMesaMeseroTest.php` (100% pasando).
+  - Pint PSR-12 verificado con 0 violaciones.
+
+---
+
+## Actualización previa
+2026-09-25 | Antigravity | 🚀 **FASE 7 CULMINADA AL 100%: 8 MÓDULOS OPERATIVOS (F7-01 A F7-08), 42/42 PRUEBAS PASADAS, PINT 0 VIOLACIONES** (`app/Events/*`, `routes/channels.php`, `app/Services/*`, `app/Models/*`, `app/Http/Controllers/*`, `app/Jobs/*`, `app/Http/Middleware/*`, `resources/views/*`, `tests/Feature/*`):
+- **Alcance culminado según plan maestro de implementación (`plan_implementacion_fase7.md`):**
+  1. **F7-01: WebSockets Reverb & Eventos en Tiempo Real:**
+     - Reverb WebSockets configurado con canales privados autorizados (`mesero.{id}`, `cocina.{id}`, `sucursal.{id}`, `caja.{id}`).
+     - Eventos de difusión: `ItemListoParaServir`, `ComandaEnviada`, `MesaActualizada`, `PedidoQrSolicitado`.
+  2. **F7-02: Notificaciones Push Cocina → Mesero:**
+     - Notificaciones persistentes en base de datos (`notificaciones_usuario`).
+     - Componente global `<x-alerta-cocina-mesero />` con audio sintetizado Web Audio API, cola de platos listos, timer en vivo y descarte explícito.
+  3. **F7-03: Rotación de Meseros por Zona:**
+     - Tablas `rotaciones_zona` y `turno_mesero_zona`.
+     - `RotacionMeseroService` con cola round-robin, ordenamiento, balanceo de carga de mesas activas y liberación automática tras cobro de pedido.
+  4. **F7-04: Gestión Individual de Cajas (por Caja):**
+     - Migración con campos `tipo` y `descripcion` en `cajas`.
+     - Servicio `CajaReporteService` con resumen financiero por caja, gastos por terminal, comparativa de cajas y desglose por turnos.
+     - Interfaz `resources/views/livewire/caja/control.blade.php` con 3 vistas segmentadas: Turno Operativo, Gestión por Caja y Comparativa.
+  5. **F7-05: Asignación Automática Reservas → Mesa + Mesero:**
+     - Campos `mesero_id`, `zona_preferida_id`, `asignacion_automatica` en `reservas`.
+     - `ReservaService` prioriza mesas libres en la zona preferida y asigna el siguiente mesero en rotación al confirmar la reserva.
+  6. **F7-06: Login Social de Clientes (Google OAuth2 + Magic Link) & Registro Web:**
+     - Instalación de `laravel/socialite`.
+     - Migración `cliente_social_accounts` y campos de sesión (`auth_token`, `auth_token_expires_at`, `avatar_url`, `proveedor_auth`).
+     - Middleware `AuthCliente`, controladores `AuthClienteController` y `PerfilClienteController`.
+     - Vistas públicas responsivas `/cliente/login` y `/cliente/perfil` con enlace en el navbar público.
+  7. **F7-07: Encuestas de Experiencia + Fidelización + Estrellas:**
+     - Migraciones `encuestas`, `encuesta_envios`, `encuesta_respuestas` y métricas en `clientes` (`rating_promedio`, `encuestas_respondidas`).
+     - `EncuestaService` y job `EnviarEncuestaClienteJob` despachado post-cobro en `PedidoService`.
+     - Sistema de bonificación: +50 pts de fidelización al completar encuesta y +25 pts adicionales por valoración de 5 estrellas con comentario.
+     - Controlador público y vista `/encuesta/{token}` con estrellas interactivas.
+  8. **F7-08: Reportes con Gráficas Comparativas (ApexCharts):**
+     - Métodos en `ReporteService`: `datosGraficaVentas`, `comparativaPeriodosVisual`, `distribucionCanalesYMetodos`.
+     - Nueva pestaña "Gráficas Comparativas" en `resources/views/livewire/reportes/index.blade.php` con 4 gráficas interactivas ApexCharts: Evolución Diaria (Área), Comparativa vs Período Anterior (Barras dobles), Canales de Venta (Donut) y Métodos de Pago (Donut).
+     - Botones de presets rápidos: Hoy, Ayer, Esta Semana, Este Mes, Mes Anterior.
+     - Etiqueta del módulo verificada y renombrada consistentemente a **"Reportes"** en la navegación.
+- **Calidad y Verificación:**
+  - Diagnósticos estáticos reportados resueltos en `AuthClienteController`, `ReservaService`, `RotacionMesero`, `Zona`.
+  - Unificación de identidad de marca a **RestoMaster** en vistas de clientes (`login.blade.php`, `perfil.blade.php`, `responder.blade.php`).
+  - Configurado límite de memoria a 512M en `phpunit.xml`.
+  - 564/564 tests ejecutados y PASADOS con 2,202 aserciones (100% de la suite completa del proyecto en verde).
+  - 0 violaciones de código tras escaneo con `vendor/bin/pint --test`.
+
+---
+
+## Actualización previa
 2026-09-23 | Antigravity | 🧪 **PLAN MAESTRO DE PRUEBAS INTEGRALES Y QUALITY GATE QA CULMINADO (39/39 TESTS EN VERDE · PINT 0 · PLAYWRIGHT LISTO)** (`app/Console/Commands/GenerateQualityReportCommand.php`, `tests/Unit/Services/*`, `tests/Feature/Components/*`, `tests/Integration/*`, `tests/e2e/*`, `playwright.config.ts`, `qa-report.json`, `qa-report.md`, `public/qa-dashboard.html`):
 - **Alcance culminado según plan de pruebas:**
   1. **Pruebas Unitarias de Servicios (`tests/Unit/Services/` - 15/15 PASSED, 60 assertions):**

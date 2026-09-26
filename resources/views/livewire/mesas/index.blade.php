@@ -63,6 +63,15 @@ new class extends Component
     // Gestionar Zonas State
     public bool $modalZonasOpen = false;
 
+    // Rotación de Meseros State
+    public bool $modalRotacionOpen = false;
+
+    public string $modoRotacion = 'round_robin';
+
+    public ?int $rotacionNuevoMeseroId = null;
+
+    public ?string $rotacionNuevaZona = null;
+
     public ?int $zonaEditandoId = null;
 
     public array $zonaForm = [
@@ -115,7 +124,16 @@ new class extends Component
 
         $this->validate([
             'formMesa.numero' => ['required', 'string', 'max:20', $reglaUnica],
-            'formMesa.zona' => ['required', 'string', 'max:40', Rule::exists('zonas', 'slug')->where(fn ($q) => $q->where('sucursal_id', $this->sucursalEnContexto())->where('activa', true))],
+            'formMesa.zona' => [
+                'required',
+                'string',
+                'max:40',
+                Rule::when(
+                    \App\Models\Zona::where('sucursal_id', $this->sucursalEnContexto())->exists(),
+                    Rule::exists('zonas', 'slug')->where(fn ($q) => $q->where('sucursal_id', $this->sucursalEnContexto())->where('activa', true)),
+                    Rule::in(['salon', 'barra', 'terraza', 'vip', 'patio'])
+                ),
+            ],
             'formMesa.capacidad' => ['required', 'integer', 'min:1', 'max:20'],
         ], [
             'formMesa.numero.required' => 'El número o código de la mesa es obligatorio.',
@@ -163,7 +181,7 @@ new class extends Component
 
     public function sucursalEnContexto(): ?int
     {
-        return Auth::user()?->sucursal_id ?? \App\Models\Sucursal::value('id');
+        return Auth::user()?->sucursal_id ?? \App\Models\Sucursal::value('id') ?? 1;
     }
 
     public function cambiarEstado(int $mesaId, string $nuevoEstado): void
@@ -462,6 +480,73 @@ new class extends Component
         // Forzar re-renderizado automático al completarse pedidos en cocina
     }
 
+    public function abrirModalRotacion(): void
+    {
+        $this->authorize('update', Mesa::class);
+        $this->modoRotacion = app(\App\Services\RotacionMeseroService::class)->obtenerModoRotacion($this->sucursalEnContexto());
+        $this->modalRotacionOpen = true;
+    }
+
+    public function cambiarModoRotacion(string $nuevoModo): void
+    {
+        $this->authorize('update', Mesa::class);
+        $this->modoRotacion = $nuevoModo;
+        app(\App\Services\RotacionMeseroService::class)->guardarModoRotacion($this->sucursalEnContexto(), $nuevoModo);
+        $this->dispatch('notificacion', ['mensaje' => "Modo de rotación configurado: {$nuevoModo}.", 'tipo' => 'success']);
+    }
+
+    public function agregarMeseroARotacion(): void
+    {
+        $this->authorize('update', Mesa::class);
+        if (! $this->rotacionNuevoMeseroId || ! $this->rotacionNuevaZona) {
+            $this->dispatch('notificacion', ['mensaje' => 'Selecciona un mesero y una zona.', 'tipo' => 'error']);
+
+            return;
+        }
+
+        app(\App\Services\RotacionMeseroService::class)->asignarMeseroAZona(
+            $this->sucursalEnContexto(),
+            $this->rotacionNuevaZona,
+            $this->rotacionNuevoMeseroId
+        );
+
+        $this->rotacionNuevoMeseroId = null;
+        $this->dispatch('notificacion', ['mensaje' => 'Mesero asignado a la zona correctamente.', 'tipo' => 'success']);
+    }
+
+    public function removerMeseroDeRotacion(int $rotacionId): void
+    {
+        $this->authorize('update', Mesa::class);
+        app(\App\Services\RotacionMeseroService::class)->removerMeseroDeZona($rotacionId);
+        $this->dispatch('notificacion', ['mensaje' => 'Mesero removido de la zona.', 'tipo' => 'info']);
+    }
+
+    public function toggleActivoRotacion(int $rotacionId): void
+    {
+        $this->authorize('update', Mesa::class);
+        $rot = app(\App\Services\RotacionMeseroService::class)->toggleActivo($rotacionId);
+        $estado = $rot->activo ? 'activo' : 'en descanso/inactivo';
+        $this->dispatch('notificacion', ['mensaje' => "Mesero marcado {$estado}.", 'tipo' => 'info']);
+    }
+
+    public function autoasignarMesasLibres(): void
+    {
+        $this->authorize('update', Mesa::class);
+        $mesas = Mesa::where('sucursal_id', $this->sucursalEnContexto())
+            ->whereNull('mesero_id')
+            ->get();
+
+        $service = app(\App\Services\RotacionMeseroService::class);
+        $asignadas = 0;
+        foreach ($mesas as $m) {
+            if ($service->autoasignarMesa($m)) {
+                $asignadas++;
+            }
+        }
+
+        $this->dispatch('notificacion', ['mensaje' => "Se auto-asignaron {$asignadas} mesas según rotación.", 'tipo' => 'success']);
+    }
+
     public function with(): array
     {
         $query = Mesa::query()->with(['sucursal', 'mesero', 'pedidos' => function ($q) {
@@ -518,6 +603,8 @@ new class extends Component
             'mesaSeleccionada' => $this->mesaSeleccionadaId ? $mesas->firstWhere('id', $this->mesaSeleccionadaId) : null,
             'zonasDisponibles' => $zonasDisponibles,
             'zonasCatalogo' => \App\Models\Zona::deSucursal($this->sucursalEnContexto())->activas()->orderBy('orden')->orderBy('nombre')->get()->keyBy('slug'),
+            'rotacionesPorZona' => app(\App\Services\RotacionMeseroService::class)->obtenerRotacionesPorSucursal($this->sucursalEnContexto())->groupBy('zona_slug'),
+            'modoRotacionActual' => app(\App\Services\RotacionMeseroService::class)->obtenerModoRotacion($this->sucursalEnContexto()),
         ];
     }
 }; ?>
@@ -568,6 +655,13 @@ new class extends Component
                 >
                     <span class="material-symbols-outlined text-[18px]">map</span>
                     <span class="whitespace-nowrap">Gestionar Zonas</span>
+                </button>
+                <button
+                    wire:click="abrirModalRotacion"
+                    class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 px-3.5 py-2.5 text-xs font-extrabold text-amber-500 transition-all active:scale-95 cursor-pointer"
+                >
+                    <span class="material-symbols-outlined text-[18px]">sync_alt</span>
+                    <span class="whitespace-nowrap">Rotación Meseros</span>
                 </button>
             @endcan
             @can('create', App\Models\Mesa::class)
@@ -2269,6 +2363,215 @@ new class extends Component
                         type="button"
                         wire:click="$set('modalZonasOpen', false)"
                         class="rounded-xl border border-surface-container-high bg-surface-container px-4 py-2 text-xs font-extrabold text-on-surface-variant hover:text-on-surface"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL: GESTIÓN DE ROTACIÓN Y AUTO-ASIGNACIÓN DE MESEROS POR ZONA -->
+    @if ($modalRotacionOpen)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+            <div class="w-full max-w-4xl rounded-3xl bg-surface-container-lowest border border-outline-variant/30 p-6 shadow-2xl space-y-6 my-8">
+                <!-- Encabezado Modal -->
+                <div class="flex items-center justify-between border-b border-outline-variant/20 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-2xl">sync_alt</span>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-black text-on-surface tracking-tight">
+                                Rotación & Auto-Asignación de Meseros
+                            </h3>
+                            <p class="text-xs text-on-surface-variant">
+                                Asigna meseros por zona de salón y configura la rotación automática o manual
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        wire:click="$set('modalRotacionOpen', false)"
+                        class="p-2 rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-xl">close</span>
+                    </button>
+                </div>
+
+                <!-- Selector de Modo de Asignación / Algoritmo -->
+                <div class="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
+                    <span class="text-xs font-black uppercase tracking-wider text-on-surface-variant block mb-2.5">
+                        Algoritmo de Rotación de Mesas
+                    </span>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <button
+                            type="button"
+                            wire:click="cambiarModoRotacion('round_robin')"
+                            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer {{ $modoRotacion === 'round_robin' ? 'border-primary bg-primary/10 ring-2 ring-primary/30 text-on-surface' : 'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container' }}"
+                        >
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="material-symbols-outlined text-lg text-primary">autorenew</span>
+                                <span class="text-xs font-black text-on-surface">Round-Robin Equitativo</span>
+                            </div>
+                            <p class="text-[11px] leading-tight text-on-surface-variant">
+                                Rota en orden secuencial garantizando el mismo número de comensales para cada mesero.
+                            </p>
+                        </button>
+
+                        <button
+                            type="button"
+                            wire:click="cambiarModoRotacion('menor_carga')"
+                            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer {{ $modoRotacion === 'menor_carga' ? 'border-secondary bg-secondary/10 ring-2 ring-secondary/30 text-on-surface' : 'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container' }}"
+                        >
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="material-symbols-outlined text-lg text-secondary">balance</span>
+                                <span class="text-xs font-black text-on-surface">Menor Carga de Trabajo</span>
+                            </div>
+                            <p class="text-[11px] leading-tight text-on-surface-variant">
+                                Asigna la nueva mesa al mesero que tenga menos comandas y mesas activas en ese momento.
+                            </p>
+                        </button>
+
+                        <button
+                            type="button"
+                            wire:click="cambiarModoRotacion('manual')"
+                            class="p-3.5 rounded-xl border text-left transition-all cursor-pointer {{ $modoRotacion === 'manual' ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/30 text-on-surface' : 'border-outline-variant/30 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container' }}"
+                        >
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="material-symbols-outlined text-lg text-amber-500">pan_tool</span>
+                                <span class="text-xs font-black text-on-surface">Asignación Manual</span>
+                            </div>
+                            <p class="text-[11px] leading-tight text-on-surface-variant">
+                                No autoasigna automáticamente; el mesero o capitán toma la mesa desde el POS o plano.
+                            </p>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formulario Rápido: Asignar Mesero a Zona -->
+                <div class="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/20">
+                    <span class="text-xs font-black uppercase tracking-wider text-on-surface-variant block mb-2.5">
+                        Asignar Mesero a una Zona de Servicio
+                    </span>
+                    <div class="flex flex-col sm:flex-row items-center gap-3">
+                        <select
+                            wire:model="rotacionNuevoMeseroId"
+                            class="w-full sm:flex-1 h-11 rounded-xl bg-surface-container-lowest border border-outline-variant/40 px-3 text-xs font-bold text-on-surface"
+                        >
+                            <option value="">Selecciona Mesero...</option>
+                            @foreach ($meserosDisponibles as $mesero)
+                                <option value="{{ $mesero->id }}">{{ $mesero->name }}</option>
+                            @endforeach
+                        </select>
+
+                        <select
+                            wire:model="rotacionNuevaZona"
+                            class="w-full sm:flex-1 h-11 rounded-xl bg-surface-container-lowest border border-outline-variant/40 px-3 text-xs font-bold text-on-surface"
+                        >
+                            <option value="">Selecciona Zona...</option>
+                            @foreach ($zonasCatalogo as $z)
+                                <option value="{{ $z->slug }}">{{ $z->nombre }}</option>
+                            @endforeach
+                        </select>
+
+                        <button
+                            type="button"
+                            wire:click="agregarMeseroARotacion"
+                            class="w-full sm:w-auto h-11 px-5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-black text-xs uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer"
+                        >
+                            <span class="material-symbols-outlined text-base">person_add</span>
+                            <span>Asignar</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cuadrícula de Zonas y Meseros en Turno -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    @forelse ($zonasCatalogo as $slug => $zona)
+                        @php
+                            $rotacionesZona = $rotacionesPorZona[$slug] ?? collect();
+                            $colorInfo = \App\Models\Zona::PALETA[$zona->color] ?? \App\Models\Zona::PALETA['terracota'];
+                        @endphp
+                        <div class="rounded-2xl border border-outline-variant/30 bg-surface-container-lowest p-4 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-3 h-3 rounded-full {{ $colorInfo['punto'] }}"></span>
+                                    <h4 class="font-black text-sm text-on-surface uppercase tracking-wide">
+                                        {{ $zona->nombre }}
+                                    </h4>
+                                    <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                                        {{ $rotacionesZona->count() }} mesero(s)
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Lista de Meseros en la Zona -->
+                            <div class="space-y-1.5 min-h-[60px]">
+                                @forelse ($rotacionesZona as $rot)
+                                    <div class="flex items-center justify-between p-2.5 rounded-xl border border-outline-variant/20 bg-surface-container-low transition-all">
+                                        <div class="flex items-center gap-2.5">
+                                            <span class="w-2 h-2 rounded-full {{ $rot->activo ? 'bg-emerald-500' : 'bg-slate-400' }}"></span>
+                                            <div>
+                                                <span class="text-xs font-bold text-on-surface block leading-tight">
+                                                    {{ $rot->mesero?->name ?? 'Mesero' }}
+                                                </span>
+                                                <span class="text-[10px] text-on-surface-variant">
+                                                    {{ $rot->activo ? 'En rotación activa' : 'En pausa / descanso' }}
+                                                    @if ($rot->ultimo_asignado_en)
+                                                        · Última: {{ $rot->ultimo_asignado_en->format('H:i') }}
+                                                    @endif
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                wire:click="toggleActivoRotacion({{ $rot->id }})"
+                                                class="px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer {{ $rot->activo ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20' : 'bg-slate-700/10 border-slate-600/30 text-slate-400 hover:bg-slate-700/20' }}"
+                                            >
+                                                {{ $rot->activo ? 'Pausar' : 'Activar' }}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                wire:click="removerMeseroDeRotacion({{ $rot->id }})"
+                                                class="p-1 rounded-lg text-error hover:bg-error/10 transition-colors cursor-pointer"
+                                                title="Remover de la zona"
+                                            >
+                                                <span class="material-symbols-outlined text-base">delete</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="text-center py-4 text-xs text-on-surface-variant italic border border-dashed border-outline-variant/30 rounded-xl">
+                                        Sin meseros asignados a esta zona.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </div>
+                    @empty
+                        <div class="col-span-2 text-center py-8 text-on-surface-variant text-xs">
+                            No hay zonas configuradas en esta sucursal.
+                        </div>
+                    @endforelse
+                </div>
+
+                <!-- Footer del Modal -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-outline-variant/20 pt-4">
+                    <button
+                        type="button"
+                        wire:click="autoasignarMesasLibres"
+                        class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-secondary/40 bg-secondary/10 hover:bg-secondary/20 text-secondary font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-base">auto_mode</span>
+                        <span>Auto-asignar mesas sin mesero ahora</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        wire:click="$set('modalRotacionOpen', false)"
+                        class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-xs font-black text-on-surface transition-all cursor-pointer"
                     >
                         Cerrar
                     </button>

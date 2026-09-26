@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -29,7 +30,7 @@ class ReservaService
             ->filter(fn (Reserva $r) => $this->seSolapan($horaInicio, $horaFin, $r->hora_llegada, $this->sumarMinutos($r->hora_llegada, $r->duracion_min)))
             ->pluck('id');
 
-        $mesasBloqueadas = \DB::table('reserva_mesa')
+        $mesasBloqueadas = DB::table('reserva_mesa')
             ->whereIn('reserva_id', $bloqueadas)
             ->pluck('mesa_id');
 
@@ -84,6 +85,8 @@ class ReservaService
             'origen' => $origen,
             'notas' => $datos['notas'] ?? null,
             'anticipo' => $datos['anticipo'] ?? null,
+            'zona_preferida_id' => $datos['zona_preferida_id'] ?? null,
+            'mesero_id' => $datos['mesero_id'] ?? null,
             'token_publico' => Str::random(32),
             'created_by' => $datos['created_by'] ?? auth()->id(),
         ]);
@@ -139,18 +142,37 @@ class ReservaService
                     throw new InvalidArgumentException('No hay mesas disponibles para esta reserva.');
                 }
 
-                $mejor = $disponibles->filter(fn ($m) => $m->capacidad >= $reservaLocked->personas)->sortBy('capacidad')->first();
+                $zonaSlug = $reservaLocked->zonaPreferida?->slug;
+                $disponiblesZona = $zonaSlug ? $disponibles->filter(fn ($m) => $m->zona === $zonaSlug) : collect();
+                $candidatos = $disponiblesZona->isNotEmpty() ? $disponiblesZona : $disponibles;
+
+                $mejor = $candidatos->filter(fn ($m) => $m->capacidad >= $reservaLocked->personas)->sortBy('capacidad')->first();
+
+                if (! $mejor && $disponiblesZona->isNotEmpty()) {
+                    $mejor = $disponibles->filter(fn ($m) => $m->capacidad >= $reservaLocked->personas)->sortBy('capacidad')->first();
+                }
 
                 if ($mejor) {
                     $reservaLocked->mesas()->attach($mejor->id);
                 } else {
                     $acum = 0;
                     $asignadas = [];
-                    foreach ($disponibles->sortByDesc('capacidad') as $m) {
+                    foreach ($candidatos->sortByDesc('capacidad') as $m) {
                         $asignadas[] = $m->id;
                         $acum += $m->capacidad;
                         if ($acum >= $reservaLocked->personas) {
                             break;
+                        }
+                    }
+                    if ($acum < $reservaLocked->personas) {
+                        foreach ($disponibles->sortByDesc('capacidad') as $m) {
+                            if (! in_array($m->id, $asignadas, true)) {
+                                $asignadas[] = $m->id;
+                                $acum += $m->capacidad;
+                                if ($acum >= $reservaLocked->personas) {
+                                    break;
+                                }
+                            }
                         }
                     }
                     $reservaLocked->mesas()->sync($asignadas);
@@ -166,19 +188,143 @@ class ReservaService
                 'confirmado_por' => $usuario?->id ?? auth()->id(),
             ]);
 
-            $reservaLocked->mesas->each(fn (Mesa $mesa) => $mesa->update(['estado' => MesaEstado::RESERVADA->value]));
-            Cache::forget('pos.terminal.mesas');
+            $primerMeseroId = null;
+            $rotacionService = app(RotacionMeseroService::class);
+            $reservaLocked->mesas->each(function (Mesa $mesa) use ($rotacionService, &$primerMeseroId) {
+                $mesa->update(['estado' => MesaEstado::RESERVADA->value]);
+                $mesero = $rotacionService->asignarMesaAutomatico($mesa) ?? $rotacionService->autoasignarMesa($mesa);
+                if ($mesero && ! $primerMeseroId) {
+                    $primerMeseroId = $mesero->id;
+                }
+            });
 
+            if ($primerMeseroId) {
+                $reservaLocked->update([
+                    'mesero_id' => $primerMeseroId,
+                    'asignacion_automatica' => true,
+                ]);
+            }
+            Cache::forget('pos.terminal.mesas');
             $this->auditar('reserva.confirmada', $reservaLocked);
 
+            try {
+                app(CrmAutomatizacionService::class)->procesarConfirmacionReserva($reservaLocked);
+            } catch (\Throwable $e) {
+                Log::warning("CRM Error en confirmación de reserva: {$e->getMessage()}");
+            }
+
             return $reservaLocked;
+        });
+    }
+
+    /**
+     * Asignar mesa específica a una reserva y vincular de inmediato el mesero de turno de esa zona.
+     */
+    public function asignarMesa(Reserva $reserva, Mesa|int $mesa): Reserva
+    {
+        return DB::transaction(function () use ($reserva, $mesa) {
+            $reservaLocked = Reserva::whereKey($reserva->id)->lockForUpdate()->firstOrFail();
+            $mesaModel = $mesa instanceof Mesa ? $mesa : Mesa::findOrFail($mesa);
+
+            if ($reservaLocked->sucursal_id && $mesaModel->sucursal_id && $reservaLocked->sucursal_id !== $mesaModel->sucursal_id) {
+                throw new AuthorizationException('La mesa seleccionada no pertenece a la misma sucursal de la reserva.');
+            }
+
+            $reservaLocked->mesas()->sync([$mesaModel->id]);
+
+            $nuevoEstado = $reservaLocked->estado === 'llego' ? MesaEstado::OCUPADA->value : MesaEstado::RESERVADA->value;
+            $mesaModel->update(['estado' => $nuevoEstado]);
+
+            $rotacionService = app(RotacionMeseroService::class);
+            $mesero = $rotacionService->asignarMesaAutomatico($mesaModel)
+                ?? $rotacionService->asignarMesaYMeseroAReserva($reservaLocked, $mesaModel)
+                ?? $mesaModel->mesero;
+
+            if ($mesero) {
+                $reservaLocked->update([
+                    'mesero_id' => $mesero->id,
+                    'asignacion_automatica' => true,
+                ]);
+            }
+
+            Cache::forget('pos.terminal.mesas');
+            $this->auditar('reserva.mesa_asignada', $reservaLocked, [
+                'mesa_id' => $mesaModel->id,
+                'mesero_id' => $mesero?->id,
+            ]);
+
+            return $reservaLocked->fresh(['mesas', 'mesero']);
+        });
+    }
+
+    /**
+     * Auto-asignar la mejor mesa disponible para la reserva y el mesero de turno de esa zona.
+     */
+    public function autoAsignarMesa(Reserva $reserva): ?Mesa
+    {
+        $disponibles = $this->verificarDisponibilidad(
+            $reserva->fecha->toDateString(),
+            $reserva->hora_llegada,
+            $reserva->personas,
+            $reserva->duracion_min,
+            $reserva->sucursal_id
+        );
+
+        if ($disponibles->isEmpty()) {
+            throw new InvalidArgumentException('No hay mesas disponibles con capacidad suficiente para este horario.');
+        }
+
+        $zonaSlug = $reserva->zonaPreferida?->slug;
+        $disponiblesZona = $zonaSlug ? $disponibles->filter(fn ($m) => $m->zona === $zonaSlug) : collect();
+        $candidatos = $disponiblesZona->isNotEmpty() ? $disponiblesZona : $disponibles;
+
+        $mejor = $candidatos->filter(fn ($m) => $m->capacidad >= $reserva->personas)->sortBy('capacidad')->first();
+
+        if (! $mejor && $disponiblesZona->isNotEmpty()) {
+            $mejor = $disponibles->filter(fn ($m) => $m->capacidad >= $reserva->personas)->sortBy('capacidad')->first();
+        }
+
+        if (! $mejor) {
+            $mejor = $disponibles->sortByDesc('capacidad')->first();
+        }
+
+        if ($mejor) {
+            $this->asignarMesa($reserva, $mejor);
+
+            return $mejor->fresh(['mesero']);
+        }
+
+        return null;
+    }
+
+    /**
+     * Desasignar y liberar las mesas de una reserva.
+     */
+    public function desasignarMesas(Reserva $reserva): Reserva
+    {
+        return DB::transaction(function () use ($reserva) {
+            $reservaLocked = Reserva::whereKey($reserva->id)->lockForUpdate()->firstOrFail();
+            $reservaLocked->mesas->each(function (Mesa $m) {
+                $m->update(['estado' => MesaEstado::LIBRE->value]);
+            });
+            $reservaLocked->mesas()->detach();
+            $reservaLocked->update(['mesero_id' => null, 'asignacion_automatica' => false]);
+
+            Cache::forget('pos.terminal.mesas');
+            $this->auditar('reserva.mesas_liberadas', $reservaLocked);
+
+            return $reservaLocked->fresh(['mesas', 'mesero']);
         });
     }
 
     public function marcarLlego(Reserva $reserva): Reserva
     {
         $reserva->update(['estado' => 'llego']);
-        $reserva->mesas->each(fn (Mesa $mesa) => $mesa->update(['estado' => MesaEstado::OCUPADA->value]));
+        $rotacionService = app(RotacionMeseroService::class);
+        $reserva->mesas->each(function (Mesa $mesa) use ($rotacionService) {
+            $mesa->update(['estado' => MesaEstado::OCUPADA->value]);
+            $rotacionService->autoasignarMesa($mesa);
+        });
         Cache::forget('pos.terminal.mesas');
         $this->auditar('reserva.llego', $reserva);
 
@@ -214,7 +360,7 @@ class ReservaService
 
     public function reservasDelDia(string $fecha): \Illuminate\Database\Eloquent\Collection
     {
-        return Reserva::with(['mesas', 'cliente', 'confirmadoPor'])
+        return Reserva::with(['mesas', 'cliente', 'confirmadoPor', 'mesero'])
             ->whereDate('fecha', $fecha)
             ->orderBy('hora_llegada')
             ->get();
@@ -288,13 +434,14 @@ class ReservaService
         return Carbon::parse($hora)->addMinutes($minutos)->format('H:i:s');
     }
 
-    private function auditar(string $accion, Reserva $reserva): void
+    private function auditar(string $accion, Reserva $reserva, array $datos = []): void
     {
         app(AuditoriaService::class)->registrar(
             accion: $accion,
             entidad: 'reserva',
             entidadId: $reserva->id,
             descripcion: "{$reserva->nombre_contacto} · {$reserva->fecha->toDateString()} {$reserva->hora_llegada}",
+            datos: $datos,
         );
     }
 }

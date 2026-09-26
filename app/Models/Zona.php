@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,12 +61,24 @@ class Zona extends Model
         return $this->belongsTo(Sucursal::class);
     }
 
-    public function scopeDeSucursal($query, int $sucursalId)
+    public function rotacion()
     {
-        return $query->where('sucursal_id', $sucursalId);
+        return $this->hasOne(RotacionZona::class, 'zona_id');
     }
 
-    public function scopeActivas($query)
+    public function turnosMesero()
+    {
+        return $this->hasMany(TurnoMeseroZona::class, 'zona_id')->orderBy('orden', 'asc');
+    }
+
+    public function scopeDeSucursal(Builder $query, ?int $sucursalId = null): Builder
+    {
+        $id = $sucursalId ?? auth()->user()?->sucursal_id ?? 1;
+
+        return $query->where('sucursal_id', $id);
+    }
+
+    public function scopeActivas(Builder $query): Builder
     {
         return $query->where('activa', true);
     }

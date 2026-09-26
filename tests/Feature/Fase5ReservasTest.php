@@ -49,7 +49,7 @@ class Fase5ReservasTest extends TestCase
             'sucursal_id' => $this->sucursal->id,
             'nombre_contacto' => 'Ana Torres',
             'telefono_contacto' => '3005551122',
-            'fecha' => '2026-09-20',
+            'fecha' => now()->toDateString(),
             'hora_llegada' => '13:00',
             'personas' => 4,
             'mesa_ids' => [$m4->id],
@@ -77,7 +77,7 @@ class Fase5ReservasTest extends TestCase
         [$m1, $m4] = $this->crearMesas();
         $ocupada = Mesa::create(['sucursal_id' => $this->sucursal->id, 'numero' => 3, 'zona' => 'barra', 'capacidad' => 4, 'estado' => MesaEstado::OCUPADA->value, 'activa' => true]);
 
-        $disponibles = $this->service->verificarDisponibilidad('2026-09-20', '13:00', 2);
+        $disponibles = $this->service->verificarDisponibilidad(now()->toDateString(), '13:00', 2);
 
         $this->assertTrue($disponibles->contains('id', $m1->id));
         $this->assertTrue($disponibles->contains('id', $m4->id));
@@ -92,7 +92,7 @@ class Fase5ReservasTest extends TestCase
         $reserva = $this->service->crear([
             'sucursal_id' => $this->sucursal->id,
             'nombre_contacto' => 'Ana', 'telefono_contacto' => '300',
-            'fecha' => '2026-09-20', 'hora_llegada' => '13:00', 'personas' => 2,
+            'fecha' => now()->toDateString(), 'hora_llegada' => '13:00', 'personas' => 2,
             'mesa_ids' => [$m1->id],
         ]);
 
@@ -104,7 +104,7 @@ class Fase5ReservasTest extends TestCase
         $otra = $this->service->crear([
             'sucursal_id' => $this->sucursal->id,
             'nombre_contacto' => 'Luis', 'telefono_contacto' => '301',
-            'fecha' => '2026-09-20', 'hora_llegada' => '13:30', 'personas' => 2,
+            'fecha' => now()->toDateString(), 'hora_llegada' => '13:30', 'personas' => 2,
             'mesa_ids' => [$m1->id],
         ]);
 
@@ -118,7 +118,7 @@ class Fase5ReservasTest extends TestCase
         $reserva = $this->service->crear([
             'sucursal_id' => $this->sucursal->id,
             'nombre_contacto' => 'Ana', 'telefono_contacto' => '300',
-            'fecha' => '2026-09-20', 'hora_llegada' => '13:00', 'personas' => 2,
+            'fecha' => now()->toDateString(), 'hora_llegada' => '13:00', 'personas' => 2,
             'mesa_ids' => [$m1->id],
         ]);
 
@@ -135,13 +135,13 @@ class Fase5ReservasTest extends TestCase
     public function test_cancelar_y_no_show_liberan_mesa(): void
     {
         [$m1] = $this->crearMesas();
-        $r1 = $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'A', 'telefono_contacto' => '1', 'fecha' => '2026-09-21', 'hora_llegada' => '20:00', 'personas' => 2, 'mesa_ids' => [$m1->id]]);
+        $r1 = $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'A', 'telefono_contacto' => '1', 'fecha' => now()->addDays(1)->toDateString(), 'hora_llegada' => '20:00', 'personas' => 2, 'mesa_ids' => [$m1->id]]);
         $this->service->confirmar($r1);
         $this->service->cancelar($r1);
         $this->assertSame('cancelada', $r1->fresh()->estado);
         $this->assertSame(MesaEstado::LIBRE->value, $m1->fresh()->estado);
 
-        $r2 = $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'B', 'telefono_contacto' => '2', 'fecha' => '2026-09-22', 'hora_llegada' => '20:00', 'personas' => 2, 'mesa_ids' => [$m1->id]]);
+        $r2 = $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'B', 'telefono_contacto' => '2', 'fecha' => now()->addDays(2)->toDateString(), 'hora_llegada' => '20:00', 'personas' => 2, 'mesa_ids' => [$m1->id]]);
         $this->service->confirmar($r2);
         $this->service->marcarNoShow($r2);
         $this->assertSame('no_mostro', $r2->fresh()->estado);
@@ -151,10 +151,12 @@ class Fase5ReservasTest extends TestCase
     public function test_reservas_del_dia_filtra_fecha(): void
     {
         $this->crearMesas();
-        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'A', 'telefono_contacto' => '1', 'fecha' => '2026-09-20', 'hora_llegada' => '13:00', 'personas' => 2]);
-        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'B', 'telefono_contacto' => '2', 'fecha' => '2026-09-21', 'hora_llegada' => '13:00', 'personas' => 2]);
+        $hoy = now()->toDateString();
+        $manana = now()->addDays(1)->toDateString();
+        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'A', 'telefono_contacto' => '1', 'fecha' => $hoy, 'hora_llegada' => '13:00', 'personas' => 2]);
+        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'B', 'telefono_contacto' => '2', 'fecha' => $manana, 'hora_llegada' => '13:00', 'personas' => 2]);
 
-        $dia = $this->service->reservasDelDia('2026-09-20');
+        $dia = $this->service->reservasDelDia($hoy);
         $this->assertCount(1, $dia);
         $this->assertSame('A', $dia->first()->nombre_contacto);
     }
@@ -162,7 +164,7 @@ class Fase5ReservasTest extends TestCase
     public function test_auditoria_registra_reserva_creada(): void
     {
         $this->crearMesas();
-        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'A', 'telefono_contacto' => '1', 'fecha' => '2026-09-20', 'hora_llegada' => '13:00', 'personas' => 2]);
+        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'A', 'telefono_contacto' => '1', 'fecha' => now()->toDateString(), 'hora_llegada' => '13:00', 'personas' => 2]);
 
         $this->assertDatabaseHas('auditorias', ['accion' => 'reserva.creada', 'entidad' => 'reserva']);
     }
@@ -187,25 +189,27 @@ class Fase5ReservasTest extends TestCase
     public function test_agenda_muestra_reservas_del_dia(): void
     {
         $this->crearMesas();
-        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'Clara Estrada', 'telefono_contacto' => '300', 'fecha' => '2026-09-20', 'hora_llegada' => '13:00', 'personas' => 2]);
+        $hoy = now()->toDateString();
+        $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'Clara Estrada', 'telefono_contacto' => '300', 'fecha' => $hoy, 'hora_llegada' => '13:00', 'personas' => 2]);
 
         $admin = User::create(['name' => 'Ad', 'email' => 'ad2@test.com', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'admin')->value('id'), 'activo' => true]);
 
         Volt::actingAs($admin)
             ->test('reservas.index')
-            ->set('fecha', '2026-09-20')
+            ->set('fecha', $hoy)
             ->assertSee('Clara Estrada');
     }
 
     public function test_confirmar_desde_ui_bloquea_mesa(): void
     {
         [$m1] = $this->crearMesas();
-        $reserva = $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'Ana', 'telefono_contacto' => '300', 'fecha' => '2026-09-20', 'hora_llegada' => '13:00', 'personas' => 2, 'mesa_ids' => [$m1->id]]);
+        $hoy = now()->toDateString();
+        $reserva = $this->service->crear(['sucursal_id' => $this->sucursal->id, 'nombre_contacto' => 'Ana', 'telefono_contacto' => '300', 'fecha' => $hoy, 'hora_llegada' => '13:00', 'personas' => 2, 'mesa_ids' => [$m1->id]]);
         $admin = User::create(['name' => 'Ad', 'email' => 'ad3@test.com', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'admin')->value('id'), 'activo' => true]);
 
         Volt::actingAs($admin)
             ->test('reservas.index')
-            ->set('fecha', '2026-09-20')
+            ->set('fecha', $hoy)
             ->set('reservaSeleccionada', $reserva->id)
             ->call('confirmar')
             ->assertHasNoErrors();

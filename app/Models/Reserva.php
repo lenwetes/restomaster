@@ -15,7 +15,8 @@ class Reserva extends Model
     protected $table = 'reservas';
 
     protected $fillable = [
-        'sucursal_id', 'cliente_id', 'nombre_contacto', 'telefono_contacto', 'email_contacto',
+        'sucursal_id', 'cliente_id', 'mesero_id', 'zona_preferida_id', 'asignacion_automatica',
+        'nombre_contacto', 'telefono_contacto', 'email_contacto',
         'fecha', 'hora_llegada', 'duracion_min', 'personas', 'estado', 'origen',
         'notas', 'anticipo', 'confirmado_por', 'token_publico', 'created_by',
     ];
@@ -27,6 +28,7 @@ class Reserva extends Model
             'anticipo' => 'decimal:2',
             'duracion_min' => 'integer',
             'personas' => 'integer',
+            'asignacion_automatica' => 'boolean',
         ];
     }
 
@@ -42,6 +44,16 @@ class Reserva extends Model
     public function mesas(): BelongsToMany
     {
         return $this->belongsToMany(Mesa::class, 'reserva_mesa');
+    }
+
+    public function mesero(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mesero_id');
+    }
+
+    public function zonaPreferida(): BelongsTo
+    {
+        return $this->belongsTo(Zona::class, 'zona_preferida_id');
     }
 
     public function cliente(): BelongsTo

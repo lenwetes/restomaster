@@ -11,6 +11,7 @@ use App\Models\TurnoCaja;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -27,6 +28,8 @@ class CajaService
             'sucursal_id' => $sucursalId,
             'nombre' => trim($datos['nombre']),
             'codigo' => strtoupper(trim($datos['codigo'])),
+            'tipo' => $datos['tipo'] ?? 'principal',
+            'descripcion' => $datos['descripcion'] ?? null,
             'activa' => $datos['activa'] ?? true,
         ]);
 
@@ -49,11 +52,13 @@ class CajaService
      */
     public function actualizarCaja(Caja $caja, array $datos, ?User $usuario = null): Caja
     {
-        $datosAnteriores = $caja->only(['nombre', 'codigo', 'activa']);
+        $datosAnteriores = $caja->only(['nombre', 'codigo', 'tipo', 'descripcion', 'activa']);
 
         $caja->update([
             'nombre' => trim($datos['nombre']),
             'codigo' => strtoupper(trim($datos['codigo'])),
+            'tipo' => $datos['tipo'] ?? $caja->tipo ?? 'principal',
+            'descripcion' => array_key_exists('descripcion', $datos) ? $datos['descripcion'] : $caja->descripcion,
             'activa' => $datos['activa'] ?? $caja->activa,
         ]);
 
@@ -455,8 +460,8 @@ class CajaService
             'sucursal' => $turno->caja->sucursal->nombre,
             'cajero' => $turno->cajero->name,
             'cerrado_por' => $turno->cerradoPor?->name ?? 'N/A',
-            'apertura' => $turno->apertura_en->format('d/m/Y H:i'),
-            'cierre' => $turno->cierre_en?->format('d/m/Y H:i') ?? 'En curso',
+            'apertura' => Carbon::parse($turno->apertura_en)->format('d/m/Y H:i'),
+            'cierre' => $turno->cierre_en ? Carbon::parse($turno->cierre_en)->format('d/m/Y H:i') : 'En curso',
             'fondo_inicial' => (float) $turno->monto_inicial,
             'total_transacciones' => $pedidos->count(),
             'subtotal_ventas' => (float) $subtotal,

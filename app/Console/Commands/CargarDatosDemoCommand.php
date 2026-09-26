@@ -16,7 +16,7 @@ class CargarDatosDemoCommand extends Command
 {
     protected $signature = 'restomaster:seed-demo';
 
-    protected $aliases = ['db:seed-demo', 'sushixpress:seed-demo'];
+    protected $aliases = ['db:seed-demo'];
 
     protected $description = 'Carga todo lo necesario para una demo lista para clientes: esenciales, catálogo parrilla, mesas, cajas, inventario, operación de ejemplo e imágenes de platos';
 

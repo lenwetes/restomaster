@@ -444,4 +444,106 @@ class ReporteService
             'transacciones' => $transacciones,
         ];
     }
+
+    /**
+     * Datos formateados para la gráfica interactiva de ventas por día (ApexCharts).
+     */
+    public function datosGraficaVentas(string $desde, string $hasta): array
+    {
+        $inicio = Carbon::parse($desde);
+        $fin = Carbon::parse($hasta);
+
+        $pedidos = Pedido::query()
+            ->where('estado', 'pagado')
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
+            ->selectRaw('date(pagado_en) as dia, sum(total) as ventas, count(*) as transacciones')
+            ->groupByRaw('date(pagado_en)')
+            ->pluck('ventas', 'dia')
+            ->toArray();
+
+        $fechas = [];
+        $etiquetas = [];
+        $ventas = [];
+
+        $cursor = $inicio->copy();
+        while ($cursor->lte($fin)) {
+            $diaStr = $cursor->toDateString();
+            $fechas[] = $diaStr;
+            $etiquetas[] = $cursor->format('d M');
+            $ventas[] = (float) ($pedidos[$diaStr] ?? 0.0);
+            $cursor->addDay();
+        }
+
+        return [
+            'fechas' => $fechas,
+            'etiquetas' => $etiquetas,
+            'ventas' => $ventas,
+            'total_periodo' => round(array_sum($ventas), 2),
+            'promedio_diario' => count($ventas) > 0 ? round(array_sum($ventas) / count($ventas), 2) : 0.0,
+        ];
+    }
+
+    /**
+     * Comparativa visual estructurada para series de barras dobles (ApexCharts).
+     */
+    public function comparativaPeriodosVisual(string $desde, string $hasta): array
+    {
+        $inicio = Carbon::parse($desde);
+        $fin = Carbon::parse($hasta);
+        $dias = $inicio->diffInDays($fin) + 1;
+
+        $anteriorDesde = $inicio->copy()->subDays($dias)->toDateString();
+        $anteriorHasta = $inicio->copy()->subDay()->toDateString();
+
+        $actual = $this->datosGraficaVentas($desde, $hasta);
+        $anterior = $this->datosGraficaVentas($anteriorDesde, $anteriorHasta);
+
+        return [
+            'dias' => count($actual['ventas']),
+            'serie_actual' => $actual['ventas'],
+            'serie_anterior' => $anterior['ventas'],
+            'etiquetas' => array_map(fn ($i) => 'Día '.($i + 1), range(0, count($actual['ventas']) - 1)),
+            'total_actual' => $actual['total_periodo'],
+            'total_anterior' => $anterior['total_periodo'],
+            'crecimiento' => $anterior['total_periodo'] > 0
+                ? round(($actual['total_periodo'] - $anterior['total_periodo']) / $anterior['total_periodo'] * 100, 1)
+                : 0.0,
+        ];
+    }
+
+    /**
+     * Distribución de ventas por canal y métodos de pago para gráficas Donut.
+     */
+    public function distribucionCanalesYMetodos(string $desde, string $hasta): array
+    {
+        $pedidos = Pedido::query()
+            ->where('estado', 'pagado')
+            ->whereBetween('pagado_en', [$desde.' 00:00:00', $hasta.' 23:59:59'])
+            ->get();
+
+        $canales = [
+            'En Sala' => (float) $pedidos->whereIn('tipo', ['en_sitio', 'mesa', null])->sum('total'),
+            'Delivery' => (float) $pedidos->where('tipo', 'delivery')->sum('total'),
+            'QR Mesa' => (float) $pedidos->where('canal_origen', 'qr_mesa')->sum('total'),
+            'Para Llevar' => (float) $pedidos->where('tipo', 'para_llevar')->sum('total'),
+        ];
+
+        $metodos = [
+            'Efectivo' => (float) $pedidos->whereIn('metodo_pago', ['efectivo'])->sum('total'),
+            'Tarjeta' => (float) $pedidos->whereIn('metodo_pago', ['tarjeta', 'tarjeta_credito', 'tarjeta_debito', 'datafono'])->sum('total'),
+            'Transferencia' => (float) $pedidos->whereIn('metodo_pago', ['transferencia', 'nequi', 'daviplata', 'bancolombia'])->sum('total'),
+            'Mixto' => (float) $pedidos->where('metodo_pago', 'mixto')->sum('total'),
+        ];
+
+        return [
+            'canales' => [
+                'etiquetas' => array_keys($canales),
+                'series' => array_values($canales),
+            ],
+            'metodos' => [
+                'etiquetas' => array_keys($metodos),
+                'series' => array_values($metodos),
+            ],
+        ];
+    }
 }

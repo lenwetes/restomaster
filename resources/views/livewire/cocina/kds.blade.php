@@ -300,7 +300,18 @@ new class extends Component
     }
 }; ?>
 
-<div wire:poll.15s class="space-y-5">
+<div wire:poll.15s
+     x-data
+     x-init="if (window.Echo) {
+         window.Echo.private('cocina.{{ Auth::user()?->sucursal_id ?? 1 }}')
+             .listen('.comanda.enviada', (e) => {
+                 if (typeof window.sonarCampanaCocina === 'function') {
+                     window.sonarCampanaCocina();
+                 }
+                 $wire.$refresh();
+             });
+     }"
+     class="space-y-5">
     <!-- ENCABEZADO PRINCIPAL: SWITCH KDS EN VIVO vs HISTORIAL DE COMANDAS -->
     <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>

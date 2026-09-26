@@ -36,6 +36,10 @@ new class extends Component
 
     public array $mesaSeleccionadaIds = [];
 
+    public ?int $reservaParaAsignarMesaId = null;
+
+    public bool $modalSelectorMesaOpen = false;
+
     public ?string $errorModal = null;
 
     public bool $modalCrear = false;
@@ -131,6 +135,18 @@ new class extends Component
         $this->modalCrear = true;
     }
 
+    public function confirmarDirecto(int $id): void
+    {
+        $this->authorize('confirmar', Reserva::class);
+        try {
+            $reserva = Reserva::findOrFail($id);
+            app(ReservaService::class)->confirmar($reserva, Auth::user());
+            session()->flash('status', "Reserva de {$reserva->nombre_contacto} confirmada con éxito.");
+        } catch (\Throwable $e) {
+            session()->flash('error', $e->getMessage());
+        }
+    }
+
     public function marcarLlegoId(int $id): void
     {
         $this->authorize('update', Reserva::class);
@@ -153,6 +169,68 @@ new class extends Component
         $reserva = Reserva::findOrFail($id);
         app(ReservaService::class)->cancelar($reserva);
         session()->flash('status', "Reserva de {$reserva->nombre_contacto} cancelada.");
+    }
+
+    public function autoAsignarMesa(int $id): void
+    {
+        $this->authorize('update', Reserva::class);
+
+        try {
+            $reserva = Reserva::findOrFail($id);
+            $mesa = app(ReservaService::class)->autoAsignarMesa($reserva);
+            $reservaFresh = $reserva->fresh(['mesas', 'mesero']);
+            $nombreMesero = $reservaFresh->mesero?->name ?? 'Mesero de turno asignado';
+            $mesaNum = $mesa ? ($mesa->nombre ?: "Mesa #{$mesa->numero}") : 'Mesa';
+            session()->flash('status', "⚡ {$mesaNum} auto-asignada con éxito. Mesero de turno asignado: {$nombreMesero}");
+            $this->modalSelectorMesaOpen = false;
+            $this->reservaParaAsignarMesaId = null;
+        } catch (\Throwable $e) {
+            session()->flash('error', $e->getMessage());
+        }
+    }
+
+    public function abrirModalSelectorMesa(int $id): void
+    {
+        $this->reservaParaAsignarMesaId = $id;
+        $this->modalSelectorMesaOpen = true;
+    }
+
+    public function cerrarModalSelectorMesa(): void
+    {
+        $this->modalSelectorMesaOpen = false;
+        $this->reservaParaAsignarMesaId = null;
+    }
+
+    public function asignarMesaManual(int $reservaId, int $mesaId): void
+    {
+        $this->authorize('update', Reserva::class);
+
+        try {
+            $reserva = Reserva::findOrFail($reservaId);
+            $mesa = \App\Models\Mesa::findOrFail($mesaId);
+            app(ReservaService::class)->asignarMesa($reserva, $mesa);
+            $reservaFresh = $reserva->fresh(['mesas', 'mesero']);
+            $nombreMesero = $reservaFresh->mesero?->name ?? 'Mesero de turno asignado';
+            $mesaNum = $mesa->nombre ?: "Mesa #{$mesa->numero}";
+            session()->flash('status', "✓ {$mesaNum} asignada a {$reserva->nombre_contacto}. Mesero de turno de la zona: {$nombreMesero}");
+            $this->modalSelectorMesaOpen = false;
+            $this->reservaParaAsignarMesaId = null;
+        } catch (\Throwable $e) {
+            session()->flash('error', $e->getMessage());
+        }
+    }
+
+    public function desasignarMesa(int $id): void
+    {
+        $this->authorize('update', Reserva::class);
+
+        try {
+            $reserva = Reserva::findOrFail($id);
+            app(ReservaService::class)->desasignarMesas($reserva);
+            session()->flash('status', "Mesa liberada de la reserva de {$reserva->nombre_contacto}.");
+        } catch (\Throwable $e) {
+            session()->flash('error', $e->getMessage());
+        }
     }
 
     public function with(): array
@@ -178,7 +256,7 @@ new class extends Component
         $delDia = $service->reservasDelDia($this->fecha);
 
         if ($this->filtrarEstado === 'solicitadas_pendientes') {
-            $reservas = Reserva::with(['mesas', 'cliente', 'confirmadoPor'])
+            $reservas = Reserva::with(['mesas', 'cliente', 'confirmadoPor', 'mesero'])
                 ->where('estado', 'solicitada')
                 ->orderBy('fecha')
                 ->orderBy('hora_llegada')
@@ -189,7 +267,7 @@ new class extends Component
         }
 
         // Consultas agrupadas para el mes (1 sola consulta eficiente)
-        $reservasDelMesQuery = Reserva::with(['mesas', 'cliente', 'confirmadoPor'])
+        $reservasDelMesQuery = Reserva::with(['mesas', 'cliente', 'confirmadoPor', 'mesero'])
             ->whereYear('fecha', $this->anioActual)
             ->whereMonth('fecha', $this->mesActual)
             ->orderBy('hora_llegada');
@@ -305,11 +383,49 @@ new class extends Component
 
         // Reservas del día seleccionado para el modal
         $reservasDiaSeleccionado = $this->diaSeleccionado
-            ? Reserva::with(['mesas', 'cliente', 'confirmadoPor'])
+            ? Reserva::with(['mesas', 'cliente', 'confirmadoPor', 'mesero'])
                 ->whereDate('fecha', $this->diaSeleccionado)
                 ->orderBy('hora_llegada')
                 ->get()
             : collect();
+
+        $reservaParaAsignar = $this->reservaParaAsignarMesaId
+            ? Reserva::with(['mesas', 'mesero', 'zonaPreferida'])->find($this->reservaParaAsignarMesaId)
+            : null;
+
+        $mesasParaAsignar = collect();
+        if ($reservaParaAsignar) {
+            $rotacionService = app(\App\Services\RotacionMeseroService::class);
+            $sucursalId = $reservaParaAsignar->sucursal_id ?? auth()->user()?->sucursal_id ?? 1;
+            $todasMesas = \App\Models\Mesa::where('sucursal_id', $sucursalId)
+                ->with('mesero')
+                ->orderBy('numero')
+                ->get();
+
+            $mesasParaAsignar = $todasMesas->map(function ($mesa) use ($rotacionService) {
+                $meseroTurno = $mesa->mesero;
+                if (! $meseroTurno) {
+                    $zona = \App\Models\Zona::where('sucursal_id', $mesa->sucursal_id)
+                        ->where(function ($q) use ($mesa) {
+                            $q->where('slug', $mesa->zona)->orWhere('id', is_numeric($mesa->zona) ? (int) $mesa->zona : 0);
+                        })->first();
+                    if ($zona) {
+                        $turno = \App\Models\TurnoMeseroZona::with('mesero')
+                            ->where('zona_id', $zona->id)
+                            ->where('activo', true)
+                            ->orderBy('orden')
+                            ->first();
+                        $meseroTurno = $turno?->mesero;
+                    }
+                    if (! $meseroTurno) {
+                        $meseroTurno = $rotacionService->obtenerSiguienteMeseroParaZona($mesa->zona, $mesa->sucursal_id);
+                    }
+                }
+                $mesa->mesero_de_turno = $meseroTurno;
+
+                return $mesa;
+            });
+        }
 
         $mesesNombres = [
             1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',
@@ -318,7 +434,7 @@ new class extends Component
         ];
         $nombreMesActual = $mesesNombres[$this->mesActual] ?? 'Mes';
 
-        $reservaActiva = $this->reservaSeleccionada ? Reserva::with(['mesas', 'confirmadoPor'])->find($this->reservaSeleccionada) : null;
+        $reservaActiva = $this->reservaSeleccionada ? Reserva::with(['mesas', 'confirmadoPor', 'mesero'])->find($this->reservaSeleccionada) : null;
         $mesasDisponiblesModal = collect();
         if ($reservaActiva) {
             $mesasDisponiblesModal = $service->verificarDisponibilidad(
@@ -343,6 +459,8 @@ new class extends Component
             'kpisMes' => $kpisMes,
             'nombreMesActual' => $nombreMesActual,
             'reservasDiaSeleccionado' => $reservasDiaSeleccionado,
+            'reservaParaAsignar' => $reservaParaAsignar,
+            'mesasParaAsignar' => $mesasParaAsignar,
         ];
     }
 
@@ -822,11 +940,62 @@ new class extends Component
                                         <span>📞 {{ $reserva->telefono_contacto }}</span>
                                         <span>•</span>
                                         @if ($reserva->mesas->isNotEmpty())
-                                            <span class="text-secondary font-bold">
-                                                {{ $reserva->mesas->pluck('nombre')->filter()->join(', ') ?: $reserva->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }}
-                                            </span>
+                                            <div class="inline-flex flex-wrap items-center gap-1.5">
+                                                <span class="inline-flex items-center gap-1 font-extrabold text-secondary bg-secondary/10 px-2 py-0.5 rounded-lg border border-secondary/20">
+                                                    <span class="material-symbols-outlined text-[14px]">table_restaurant</span>
+                                                    <span>{{ $reserva->mesas->pluck('nombre')->filter()->join(', ') ?: $reserva->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }}</span>
+                                                </span>
+                                                @if ($reserva->mesero)
+                                                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-on-surface bg-surface-container px-2 py-0.5 rounded-lg border border-outline-variant/30">
+                                                        <span class="material-symbols-outlined text-[13px] text-primary">person</span>
+                                                        <span>{{ $reserva->mesero->name }}</span>
+                                                    </span>
+                                                @endif
+                                                <button 
+                                                    type="button" 
+                                                    wire:click="abrirModalSelectorMesa({{ $reserva->id }})" 
+                                                    class="text-[11px] font-bold text-primary hover:underline cursor-pointer ml-0.5"
+                                                    title="Cambiar mesa asignada">
+                                                    Cambiar
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    wire:click="desasignarMesa({{ $reserva->id }})" 
+                                                    class="text-[11px] font-bold text-on-surface-variant hover:text-error cursor-pointer ml-0.5"
+                                                    title="Liberar mesa de esta reserva">
+                                                    ✕
+                                                </button>
+                                            </div>
                                         @else
-                                            <span class="text-amber-600 font-bold">⚠️ Sin mesa</span>
+                                            <div class="inline-flex flex-wrap items-center gap-1.5">
+                                                <span class="inline-flex items-center gap-1 text-amber-500 font-black text-xs bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                                                    <span class="material-symbols-outlined text-[14px]">warning</span>
+                                                    <span>Sin mesa</span>
+                                                </span>
+
+                                                <!-- Botón Auto-asignar Mesa + Mesero inmediato -->
+                                                <button 
+                                                    type="button" 
+                                                    wire:click="autoAsignarMesa({{ $reserva->id }})"
+                                                    wire:loading.attr="disabled"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-primary text-white font-black text-xs hover:brightness-110 shadow-xs transition-all active:scale-95 cursor-pointer"
+                                                    title="Auto-asignar mesa y mesero de turno de esa zona"
+                                                >
+                                                    <span class="material-symbols-outlined text-[14px]">auto_fix_high</span>
+                                                    <span>Auto-asignar</span>
+                                                </button>
+
+                                                <!-- Botón Selector Manual -->
+                                                <button 
+                                                    type="button" 
+                                                    wire:click="abrirModalSelectorMesa({{ $reserva->id }})"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface font-bold text-xs transition-all active:scale-95 cursor-pointer"
+                                                    title="Seleccionar mesa manualmente"
+                                                >
+                                                    <span class="material-symbols-outlined text-[14px] text-primary">table_restaurant</span>
+                                                    <span>Asignar mesa...</span>
+                                                </button>
+                                            </div>
                                         @endif
                                     </div>
                                 </div>
@@ -899,6 +1068,151 @@ new class extends Component
         </div>
     @endif
 
+    <!-- MODAL SELECTOR DE MESA Y ASIGNACIÓN INMEDIATA DE MESERO DE TURNO -->
+    @if ($modalSelectorMesaOpen && $reservaParaAsignar)
+        <div 
+            role="dialog"
+            aria-modal="true"
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-fade-in"
+            wire:click.self="cerrarModalSelectorMesa"
+        >
+            <div class="w-full max-w-2xl rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest space-y-5 max-h-[90vh] overflow-y-auto">
+                <!-- CABECERA -->
+                <div class="flex items-center justify-between border-b border-surface-container-high pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/30">
+                            <span class="material-symbols-outlined text-[24px]">table_restaurant</span>
+                        </div>
+                        <div>
+                            <h3 class="text-base font-extrabold text-on-surface">
+                                Asignar Mesa y Mesero de Turno
+                            </h3>
+                            <p class="text-xs text-on-surface-variant mt-0.5">
+                                Reserva de <strong>{{ $reservaParaAsignar->nombre_contacto }}</strong> · {{ $reservaParaAsignar->personas }} personas · {{ \Illuminate\Support\Carbon::parse($reservaParaAsignar->hora_llegada)->format('H:i') }}
+                            </p>
+                        </div>
+                    </div>
+                    <button 
+                        type="button" 
+                        wire:click="cerrarModalSelectorMesa" 
+                        class="p-2 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <!-- BANNER DE AUTO-ASIGNACIÓN INTELIGENTE -->
+                <div class="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-surface-container-low to-primary/10 border border-amber-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <span class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30">
+                            <span class="material-symbols-outlined text-xl">auto_fix_high</span>
+                        </span>
+                        <div>
+                            <h4 class="text-xs font-black text-white uppercase tracking-wider">Auto-asignación inteligente</h4>
+                            <p class="text-[11px] text-slate-300">Asigna la mesa óptima y vincula de inmediato al mesero en rotación de esa zona.</p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        wire:click="autoAsignarMesa({{ $reservaParaAsignar->id }})"
+                        wire:loading.attr="disabled"
+                        class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-primary text-white font-black text-xs hover:brightness-110 shadow-md flex items-center gap-1.5 shrink-0 active:scale-95 transition-all cursor-pointer"
+                    >
+                        <span class="material-symbols-outlined text-[16px]">flash_on</span>
+                        <span>Auto-asignar Ahora</span>
+                    </button>
+                </div>
+
+                <!-- LISTA DE MESAS CON MESERO DE TURNO -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-black uppercase tracking-wider text-on-surface-variant">
+                            O selecciona una mesa manualmente:
+                        </h4>
+                        <span class="text-[11px] text-on-surface-variant font-mono">
+                            {{ $mesasParaAsignar->count() }} mesas disponibles
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+                        @forelse ($mesasParaAsignar as $m)
+                            @php
+                                $esSuficiente = $m->capacidad >= $reservaParaAsignar->personas;
+                                $estaAsignadaEstaReserva = $reservaParaAsignar->mesas->contains('id', $m->id);
+                            @endphp
+                            <div class="p-3 rounded-2xl border transition-all flex flex-col justify-between gap-2.5
+                                {{ $estaAsignadaEstaReserva ? 'border-primary bg-primary/10 shadow-sm' : 'border-surface-container-highest bg-surface-container-low hover:border-primary/40' }}
+                            ">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="font-extrabold text-xs text-on-surface">
+                                                {{ $m->nombre ?: 'Mesa #' . $m->numero }}
+                                            </span>
+                                            <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant border border-outline-variant/20">
+                                                {{ ucfirst($m->zona) }}
+                                            </span>
+                                        </div>
+                                        <div class="text-[11px] text-on-surface-variant mt-0.5 flex items-center gap-1.5">
+                                            <span class="font-bold {{ $esSuficiente ? 'text-emerald-400' : 'text-amber-400' }}">
+                                                👥 {{ $m->capacidad }} pax
+                                            </span>
+                                            @if (! $esSuficiente)
+                                                <span class="text-[10px] text-amber-400">(Capacidad ajustada)</span>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border
+                                        {{ $m->estado === 'libre' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ($m->estado === 'reservada' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20') }}">
+                                        {{ ucfirst($m->estado) }}
+                                    </span>
+                                </div>
+
+                                <!-- Mesero de turno que se vinculará de inmediato -->
+                                <div class="pt-2 border-t border-surface-container-high flex items-center justify-between gap-2">
+                                    <div class="flex items-center gap-1.5 min-w-0">
+                                        <span class="material-symbols-outlined text-[15px] text-primary shrink-0">badge</span>
+                                        <span class="text-[11px] font-semibold text-on-surface truncate">
+                                            {{ $m->mesero_de_turno?->name ?? 'Mesero en rotación' }}
+                                        </span>
+                                    </div>
+
+                                    @if ($estaAsignadaEstaReserva)
+                                        <span class="text-[11px] font-bold text-primary flex items-center gap-0.5">
+                                            <span class="material-symbols-outlined text-[14px]">check</span>
+                                            Asignada
+                                        </span>
+                                    @else
+                                        <button
+                                            type="button"
+                                            wire:click="asignarMesaManual({{ $reservaParaAsignar->id }}, {{ $m->id }})"
+                                            class="px-2.5 py-1 rounded-lg bg-primary hover:bg-primary/90 text-on-primary font-bold text-xs shrink-0 shadow-xs cursor-pointer active:scale-95 transition-all"
+                                        >
+                                            Asignar
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-xs text-on-surface-variant p-4 text-center col-span-2">No se encontraron mesas registradas.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-surface-container-high flex justify-end">
+                    <button
+                        type="button"
+                        wire:click="cerrarModalSelectorMesa"
+                        class="px-4 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-xs font-bold text-on-surface cursor-pointer"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <!-- VISTA 2: AGENDA DIARIA DETALLADA -->
     @if ($modoVista === 'diario' || $filtrarEstado === 'solicitadas_pendientes')
         <div class="space-y-4 animate-fade-in">
@@ -937,38 +1251,156 @@ new class extends Component
             @else
                 <div class="space-y-3">
                     @foreach ($reservas as $reserva)
-                        <button wire:click="abrirDetalle({{ $reserva->id }})" class="w-full rounded-2xl border border-surface-container-highest bg-surface-container-low p-4 text-left cursor-pointer hover:border-primary/30 transition-colors">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                    <p class="text-sm font-extrabold text-on-surface">
-                                        {{ $reserva->nombre_contacto }} · {{ $reserva->fecha->format('d/m') }} {{ \Illuminate\Support\Carbon::parse($reserva->hora_llegada)->format('H:i') }}
-                                        @if ($reserva->origen === 'publico')
-                                            <span class="ml-2 rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 border border-amber-500/20">Web</span>
-                                        @endif
-                                    </p>
-                                    <p class="text-xs text-on-surface-variant">
-                                        {{ $reserva->personas }} personas · 
-                                        @if ($reserva->mesas->isNotEmpty())
-                                            {{ $reserva->mesas->pluck('nombre')->join(', ') ?: $reserva->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }}
-                                        @else
-                                            <span class="text-amber-500 font-bold">Sin mesa asignada</span>
-                                        @endif
-                                    </p>
+                        <div class="w-full rounded-2xl border border-surface-container-highest bg-surface-container-low p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-primary/30 transition-colors">
+                            <div class="space-y-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-mono text-xs font-black text-primary bg-primary/10 px-2 py-0.5 rounded-md">
+                                        {{ \Illuminate\Support\Carbon::parse($reserva->hora_llegada)->format('H:i') }}
+                                    </span>
+                                    <span class="text-sm font-extrabold text-on-surface">
+                                        {{ $reserva->nombre_contacto }}
+                                    </span>
+                                    <span class="text-xs text-on-surface-variant font-mono">
+                                        · {{ $reserva->fecha->format('d/m') }}
+                                    </span>
+                                    @if ($reserva->origen === 'publico')
+                                        <span class="rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 border border-amber-500/20">Web</span>
+                                    @endif
+                                    <span class="rounded-full px-2.5 py-0.5 text-[10px] font-bold
+                                        {{ match($reserva->estado) {
+                                            'confirmada' => 'bg-secondary/15 text-secondary border border-secondary/30',
+                                            'solicitada' => 'bg-amber-500/15 text-amber-600 border border-amber-500/20 animate-pulse',
+                                            'llego' => 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/20',
+                                            'finalizada' => 'bg-surface-container-high text-on-surface-variant',
+                                            'cancelada' => 'bg-error/15 text-error border border-error/20',
+                                            'no_mostro' => 'bg-error/15 text-error border border-error/20',
+                                            default => 'bg-surface-container-high text-on-surface-variant',
+                                        } }}">
+                                        {{ ucwords(str_replace('_', ' ', $reserva->estado)) }}
+                                    </span>
                                 </div>
-                                <span class="rounded-full px-3 py-1 text-[11px] font-bold
-                                    {{ match($reserva->estado) {
-                                        'confirmada' => 'bg-secondary/15 text-secondary border border-secondary/30',
-                                        'solicitada' => 'bg-primary/10 text-primary border border-primary/20',
-                                        'llego' => 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20',
-                                        'finalizada' => 'bg-surface-container-high text-on-surface-variant',
-                                        'cancelada' => 'bg-error/10 text-error border border-error/20',
-                                        'no_mostro' => 'bg-error/10 text-error border border-error/20',
-                                        default => 'bg-surface-container-high text-on-surface-variant',
-                                    } }}">
-                                    {{ ucwords(str_replace('_', ' ', $reserva->estado)) }}
-                                </span>
+
+                                <div class="text-xs text-on-surface-variant flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span>👥 {{ $reserva->personas }} personas</span>
+                                    <span>•</span>
+                                    <span>📞 {{ $reserva->telefono_contacto }}</span>
+                                    <span>•</span>
+                                    @if ($reserva->mesas->isNotEmpty())
+                                        <div class="inline-flex flex-wrap items-center gap-1.5">
+                                            <span class="inline-flex items-center gap-1 font-extrabold text-secondary bg-secondary/10 px-2 py-0.5 rounded-lg border border-secondary/20">
+                                                <span class="material-symbols-outlined text-[14px]">table_restaurant</span>
+                                                <span>{{ $reserva->mesas->pluck('nombre')->filter()->join(', ') ?: $reserva->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }}</span>
+                                            </span>
+                                            @if ($reserva->mesero)
+                                                <span class="inline-flex items-center gap-1 text-[11px] font-bold text-on-surface bg-surface-container px-2 py-0.5 rounded-lg border border-outline-variant/30" title="Mesero de turno asignado">
+                                                    <span class="material-symbols-outlined text-[13px] text-primary">person</span>
+                                                    <span>{{ $reserva->mesero->name }}</span>
+                                                </span>
+                                            @endif
+                                            <button 
+                                                type="button" 
+                                                wire:click="abrirModalSelectorMesa({{ $reserva->id }})" 
+                                                class="text-[11px] font-bold text-primary hover:underline cursor-pointer ml-0.5"
+                                                title="Cambiar mesa asignada">
+                                                Cambiar
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                wire:click="desasignarMesa({{ $reserva->id }})" 
+                                                class="text-[11px] font-bold text-on-surface-variant hover:text-error cursor-pointer ml-0.5"
+                                                title="Liberar mesa de esta reserva">
+                                                ✕
+                                            </button>
+                                        </div>
+                                    @else
+                                        <div class="inline-flex flex-wrap items-center gap-1.5">
+                                            <span class="inline-flex items-center gap-1 text-amber-500 font-black text-xs bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20">
+                                                <span class="material-symbols-outlined text-[14px]">warning</span>
+                                                <span>Sin mesa</span>
+                                            </span>
+
+                                            <!-- Botón Auto-asignar Mesa + Mesero inmediato -->
+                                            <button 
+                                                type="button" 
+                                                wire:click="autoAsignarMesa({{ $reserva->id }})"
+                                                wire:loading.attr="disabled"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gradient-to-r from-amber-500 to-primary text-white font-black text-xs hover:brightness-110 shadow-xs transition-all active:scale-95 cursor-pointer"
+                                                title="Auto-asignar mesa y mesero de turno de esa zona"
+                                            >
+                                                <span class="material-symbols-outlined text-[14px]">auto_fix_high</span>
+                                                <span>Auto-asignar</span>
+                                            </button>
+
+                                            <!-- Botón Selector Manual -->
+                                            <button 
+                                                type="button" 
+                                                wire:click="abrirModalSelectorMesa({{ $reserva->id }})"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/30 text-on-surface font-bold text-xs transition-all active:scale-95 cursor-pointer"
+                                                title="Elegir mesa específica y ver mesero de turno"
+                                            >
+                                                <span class="material-symbols-outlined text-[14px]">table_bar</span>
+                                                <span>Asignar mesa...</span>
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
-                        </button>
+
+                            <div class="flex items-center gap-2 self-end sm:self-center">
+                                @if ($reserva->estado === 'solicitada')
+                                    <button
+                                        type="button"
+                                        wire:click="confirmarDirecto({{ $reserva->id }})"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-secondary text-white text-xs font-bold hover:bg-secondary/90 transition-all shadow-xs cursor-pointer"
+                                        title="Confirmar reserva"
+                                    >
+                                        <span class="material-symbols-outlined text-[15px]">check_circle</span>
+                                        <span>Confirmar</span>
+                                    </button>
+                                @elseif ($reserva->estado === 'confirmada')
+                                    <button
+                                        type="button"
+                                        wire:click="marcarLlegoId({{ $reserva->id }})"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-all shadow-xs cursor-pointer"
+                                        title="Marcar llegada del cliente"
+                                    >
+                                        <span class="material-symbols-outlined text-[15px]">how_to_reg</span>
+                                        <span>Llegó</span>
+                                    </button>
+                                @elseif ($reserva->estado === 'llego')
+                                    <button
+                                        type="button"
+                                        wire:click="finalizarId({{ $reserva->id }})"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-surface-container-high text-on-surface text-xs font-bold hover:bg-surface-container-highest transition-all cursor-pointer"
+                                        title="Finalizar reserva"
+                                    >
+                                        <span class="material-symbols-outlined text-[15px]">task_alt</span>
+                                        <span>Finalizar</span>
+                                    </button>
+                                @endif
+
+                                <button
+                                    type="button"
+                                    wire:click="abrirDetalle({{ $reserva->id }})"
+                                    class="p-2 rounded-xl border border-surface-container-highest bg-surface-container hover:bg-surface-container-high text-on-surface transition-all cursor-pointer"
+                                    title="Ver detalle completo"
+                                >
+                                    <span class="material-symbols-outlined text-[16px]">info</span>
+                                </button>
+
+                                @if (in_array($reserva->estado, ['solicitada', 'confirmada']))
+                                    <button
+                                        type="button"
+                                        wire:click="cancelarReservaId({{ $reserva->id }})"
+                                        wire:confirm="¿Seguro que deseas cancelar la reserva de {{ $reserva->nombre_contacto }}?"
+                                        class="p-2 rounded-xl bg-error/10 text-error hover:bg-error/20 border border-error/20 transition-all cursor-pointer"
+                                        title="Cancelar reserva"
+                                    >
+                                        <span class="material-symbols-outlined text-[16px]">cancel</span>
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
                     @endforeach
                 </div>
             @endif
@@ -1041,7 +1473,7 @@ new class extends Component
 
     <!-- MODAL: DETALLE Y CONFIRMACIÓN DE RESERVA -->
     @if ($reservaSeleccionada)
-        @php $detalle = \App\Models\Reserva::with(['mesas', 'confirmadoPor'])->find($reservaSeleccionada); @endphp
+        @php $detalle = \App\Models\Reserva::with(['mesas', 'confirmadoPor', 'mesero'])->find($reservaSeleccionada); @endphp
         <div 
             x-data 
             @keydown.escape.window="$wire.cerrarDetalle()" 
@@ -1083,6 +1515,15 @@ new class extends Component
                                     {{ $detalle->mesas->pluck('nombre')->filter()->join(', ') ?: $detalle->mesas->pluck('numero')->map(fn ($n) => 'Mesa #' . $n)->join(', ') }} ({{ $detalle->mesas->sum('capacidad') }} pax)
                                 </dd>
                             </div>
+                            @if ($detalle->mesero)
+                                <div class="flex justify-between">
+                                    <dt class="text-on-surface-variant">Mesero de turno:</dt>
+                                    <dd class="font-bold text-on-surface flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[15px] text-primary">person</span>
+                                        <span>{{ $detalle->mesero->name }}</span>
+                                    </dd>
+                                </div>
+                            @endif
                         @endif
                         <div class="flex justify-between"><dt class="text-on-surface-variant">Estado:</dt><dd class="font-bold">{{ $detalle->estado }}</dd></div>
                         <div class="flex justify-between"><dt class="text-on-surface-variant">Origen:</dt><dd class="font-bold uppercase font-mono text-[11px]">{{ $detalle->origen }}</dd></div>

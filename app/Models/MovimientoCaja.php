@@ -35,8 +35,18 @@ class MovimientoCaja extends Model
         return $this->belongsTo(TurnoCaja::class, 'turno_caja_id');
     }
 
+    public function turnoCaja(): BelongsTo
+    {
+        return $this->turno();
+    }
+
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->usuario();
     }
 }

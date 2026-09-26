@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Cliente extends Model
@@ -38,6 +39,12 @@ class Cliente extends Model
         'canal_autorizacion_datos',
         'autoriza_whatsapp',
         'autoriza_email',
+        'auth_token',
+        'auth_token_expires_at',
+        'avatar_url',
+        'proveedor_auth',
+        'rating_promedio',
+        'encuestas_respondidas',
     ];
 
     protected $casts = [
@@ -49,14 +56,27 @@ class Cliente extends Model
         'fecha_autorizacion_datos' => 'datetime',
         'autoriza_whatsapp' => 'boolean',
         'autoriza_email' => 'boolean',
+        'auth_token_expires_at' => 'datetime',
+        'rating_promedio' => 'decimal:2',
+        'encuestas_respondidas' => 'integer',
     ];
+
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(ClienteSocialAccount::class, 'cliente_id');
+    }
+
+    public function encuestaEnvios(): HasMany
+    {
+        return $this->hasMany(EncuestaEnvio::class, 'cliente_id');
+    }
 
     public function direcciones(): HasMany
     {
         return $this->hasMany(DireccionCliente::class, 'cliente_id');
     }
 
-    public function direccionPredeterminada()
+    public function direccionPredeterminada(): HasOne
     {
         return $this->hasOne(DireccionCliente::class, 'cliente_id')->where('es_predeterminada', true);
     }
