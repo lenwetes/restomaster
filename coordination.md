@@ -6,6 +6,24 @@
 ---
 
 ## Última Actualización
+2026-09-25 | Antigravity | 🚀 **ACTUALIZACIÓN DE RAMAS EN GITHUB Y ARCHIVOS DE DESPLIEGUE COOLIFY PARA RE-DEPLOY** (`docker-compose.yml`, `docker-compose.yaml`, `docker-compose.coolify.yml`, `docker/entrypoint.sh`):
+- **Actualización de Archivos de Despliegue Docker / Coolify:**
+  1. **Variables de entorno para producción en `docker/entrypoint.sh`:**
+     - Agregada escritura automática a `/var/www/html/.env` de variables de:
+       - CRM & WhatsApp Business Cloud API (`WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_SIMULADO`).
+       - Google OAuth Socialite (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`).
+       - Correo Transaccional (`MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`).
+       - Broadcasting / WebSockets (`BROADCAST_CONNECTION`).
+  2. **Sincronización total de archivos Compose:**
+     - Actualizado `docker-compose.yml`, `docker-compose.yaml` y creado `docker-compose.coolify.yml` con compatibilidad 100% para Coolify (cualquiera que sea la ruta configurada en el panel VPS).
+- **Control de Versiones y Sincronización en GitHub:**
+  - Ambas ramas de producción (`master` y `main`) sincronizadas al mismo commit.
+  - Commits `52b4386` y `67ba053` empujados a `origin/master` y `origin/main` en GitHub.
+  - Repositorio limpio listo para el trigger de re-despliegue en Coolify.
+
+---
+
+## Actualización previa
 2026-09-25 | Antigravity | 🧹 **DEPURACIÓN Y SANEAMIENTO DE ARCHIVOS HUÉRFANOS Y BASURA COMPLETADA** (`README-laravel.md`, `public/mockups-pos.html`, `public/images/sushi-*.jpg`, `qa-report.*`, `public/qa-dashboard.html`, `storage/logs/browser.log`, `README.md`):
 - **Acciones Ejecutadas:**
   1. **Eliminación de archivos huérfanos / basura:**
