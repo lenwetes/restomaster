@@ -150,13 +150,13 @@ class CrmChatOrchestratorService
             : null;
 
         $respuestaIa = $this->aiAgentService->procesarConversacion(
-            mensaje: $texto,
-            clienteId: $conversacion->cliente_id,
-            historial: $historialMensajes,
-            sucursalId: $conversacion->sucursal_id,
-            telefono: $telefono,
-            nombreContacto: $nombreContacto,
-            conversacion: $conversacion
+            $texto,
+            $conversacion->cliente_id,
+            $historialMensajes,
+            $conversacion->sucursal_id,
+            $telefono,
+            $nombreContacto,
+            $conversacion
         );
 
         $this->despacharRespuestaBot($conversacion, $respuestaIa['respuesta'], [
