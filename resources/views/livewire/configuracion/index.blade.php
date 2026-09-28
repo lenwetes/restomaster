@@ -43,9 +43,18 @@ new class extends Component
 
     public string $webhookToken = '';
 
-    public array $testDbResultado = ['ok' => null, 'mensaje' => '', 'latencia_ms' => 0];
-
     public $archivoBackup = null;
+
+    public string $pinForm_nuevoPin = '';
+    public string $pinForm_confirmarPin = '';
+    public string $pinForm_pinActual = '';
+    public string $pinRescate_password = '';
+    public string $pinRescate_otp = '';
+    public string $pinRescate_nuevoPin = '';
+    public string $pinRescate_confirmarPin = '';
+    public bool $mostrarModalRescatePin = false;
+    public string $modoRescatePin = 'password';
+    public bool $otpEnviado = false;
 
     public function mount(): void
     {
@@ -447,6 +456,138 @@ new class extends Component
         $this->dispatch('notificacion', ['mensaje' => 'Configuraciones restablecidas', 'tipo' => 'success']);
     }
 
+    public function guardarPinSeguridad(): void
+    {
+        $this->authorize('administrar-configuracion');
+        $svc = app(ConfiguracionService::class);
+
+        if ($svc->tienePinSeguridad()) {
+            if (empty($this->pinForm_pinActual)) {
+                $this->addError('pinForm_pinActual', 'Debes ingresar el PIN actual para autorizar el cambio.');
+
+                return;
+            }
+            if (! $svc->verificarPinSeguridad($this->pinForm_pinActual)) {
+                $this->addError('pinForm_pinActual', 'El PIN actual ingresado no coincide.');
+
+                return;
+            }
+        }
+
+        if (! preg_match('/^[0-9]{4,6}$/', $this->pinForm_nuevoPin)) {
+            $this->addError('pinForm_nuevoPin', 'El nuevo PIN debe tener entre 4 y 6 dígitos numéricos (0-9).');
+
+            return;
+        }
+
+        if ($this->pinForm_nuevoPin !== $this->pinForm_confirmarPin) {
+            $this->addError('pinForm_confirmarPin', 'La confirmación del PIN no coincide con el nuevo PIN.');
+
+            return;
+        }
+
+        $svc->establecerPinSeguridad($this->pinForm_nuevoPin, Auth::user());
+        $this->reset(['pinForm_nuevoPin', 'pinForm_confirmarPin', 'pinForm_pinActual']);
+        session()->flash('status', 'PIN de seguridad de supervisor actualizado exitosamente.');
+        $this->dispatch('notificacion', ['mensaje' => 'PIN de seguridad guardado', 'tipo' => 'success']);
+    }
+
+    public function abrirModalRescatePin(string $modo = 'password'): void
+    {
+        $this->modoRescatePin = $modo;
+        $this->reset(['pinRescate_password', 'pinRescate_otp', 'pinRescate_nuevoPin', 'pinRescate_confirmarPin', 'otpEnviado']);
+        $this->resetErrorBag();
+        $this->mostrarModalRescatePin = true;
+
+        if ($modo === 'otp') {
+            $this->solicitarOtpRescate();
+        }
+    }
+
+    public function cerrarModalRescatePin(): void
+    {
+        $this->mostrarModalRescatePin = false;
+        $this->reset(['pinRescate_password', 'pinRescate_otp', 'pinRescate_nuevoPin', 'pinRescate_confirmarPin', 'otpEnviado']);
+        $this->resetErrorBag();
+    }
+
+    public function solicitarOtpRescate(): void
+    {
+        $this->authorize('administrar-configuracion');
+        $svc = app(ConfiguracionService::class);
+        $user = Auth::user();
+
+        if ($user) {
+            $svc->generarOtpRescatePin($user);
+            $this->otpEnviado = true;
+            $this->dispatch('notificacion', ['mensaje' => "Código de rescate enviado a {$user->email}", 'tipo' => 'info']);
+        }
+    }
+
+    public function ejecutarRescateConPassword(): void
+    {
+        $this->authorize('administrar-configuracion');
+        $user = Auth::user();
+
+        if (! $user) {
+            return;
+        }
+
+        $this->validate([
+            'pinRescate_password' => ['required', 'string'],
+            'pinRescate_nuevoPin' => ['required', 'regex:/^[0-9]{4,6}$/'],
+            'pinRescate_confirmarPin' => ['required', 'same:pinRescate_nuevoPin'],
+        ], [
+            'pinRescate_password.required' => 'Debes ingresar tu contraseña de inicio de sesión.',
+            'pinRescate_nuevoPin.required' => 'Debes ingresar el nuevo PIN.',
+            'pinRescate_nuevoPin.regex' => 'El nuevo PIN debe tener entre 4 y 6 dígitos numéricos.',
+            'pinRescate_confirmarPin.same' => 'La confirmación del PIN no coincide.',
+        ]);
+
+        $svc = app(ConfiguracionService::class);
+
+        try {
+            $svc->cambiarPinConPassword($user, $this->pinRescate_password, $this->pinRescate_nuevoPin);
+            $this->cerrarModalRescatePin();
+            session()->flash('status', 'PIN restablecido exitosamente mediante validación de contraseña de administrador.');
+            $this->dispatch('notificacion', ['mensaje' => 'PIN restablecido con éxito', 'tipo' => 'success']);
+        } catch (\Throwable $e) {
+            $this->addError('pinRescate_password', $e->getMessage());
+        }
+    }
+
+    public function ejecutarRescateConOtp(): void
+    {
+        $this->authorize('administrar-configuracion');
+        $user = Auth::user();
+
+        if (! $user) {
+            return;
+        }
+
+        $this->validate([
+            'pinRescate_otp' => ['required', 'string', 'size:6'],
+            'pinRescate_nuevoPin' => ['required', 'regex:/^[0-9]{4,6}$/'],
+            'pinRescate_confirmarPin' => ['required', 'same:pinRescate_nuevoPin'],
+        ], [
+            'pinRescate_otp.required' => 'Debes ingresar el código de 6 dígitos recibido en tu correo.',
+            'pinRescate_otp.size' => 'El código de rescate debe contener exactamente 6 dígitos.',
+            'pinRescate_nuevoPin.regex' => 'El nuevo PIN debe tener entre 4 y 6 dígitos numéricos.',
+            'pinRescate_confirmarPin.same' => 'La confirmación del PIN no coincide.',
+        ]);
+
+        $svc = app(ConfiguracionService::class);
+
+        try {
+            $svc->validarOtpYRestablecerPin($this->pinRescate_otp, $this->pinRescate_nuevoPin, $user);
+            $this->cerrarModalRescatePin();
+            session()->flash('status', 'PIN restablecido exitosamente mediante código de rescate OTP.');
+            $this->dispatch('notificacion', ['mensaje' => 'PIN restablecido con éxito', 'tipo' => 'success']);
+        } catch (\Throwable $e) {
+            $this->addError('pinRescate_otp', $e->getMessage());
+        }
+    }
+
     public function with(): array
     {
         $svc = app(ConfiguracionService::class);
@@ -455,6 +596,8 @@ new class extends Component
             'pieTicket' => $svc->obtener('impresion', 'pie_ticket', ''),
             'backups' => $svc->obtenerBackups(),
             'impresoras' => Impresora::orderBy('id')->get(),
+            'tienePin' => $svc->tienePinSeguridad(),
+            'pinActualizadoEn' => $svc->obtener('seguridad', 'pin_actualizado_en'),
         ];
     }
 }; ?>
@@ -500,6 +643,7 @@ new class extends Component
                 'dian' => ['label' => 'DIAN / Facturación', 'icon' => 'verified_user'],
                 'empresa' => ['label' => 'Establecimiento & Moneda', 'icon' => 'storefront'],
                 'reservas' => ['label' => 'Reservas & Webhook', 'icon' => 'webhook'],
+                'seguridad' => ['label' => 'Seguridad & PIN', 'icon' => 'shield_lock'],
                 'reset' => ['label' => 'Restablecimiento', 'icon' => 'restart_alt'],
             ];
         @endphp
@@ -1330,6 +1474,136 @@ new class extends Component
     @endif
 
     <!-- ===================================================================== -->
+    <!-- TAB SEGURIDAD: PIN DE AUTORIZACIÓN & RESCATE DE SUPERVISOR            -->
+    <!-- ===================================================================== -->
+    @if ($tabActiva === 'seguridad')
+        <div class="space-y-6 animate-fade-in">
+            <!-- Encabezado y Estado Actual -->
+            <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant/15 pb-4">
+                    <div>
+                        <h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">shield_lock</span>
+                            PIN de Seguridad para Autorizaciones Rápidas
+                        </h2>
+                        <p class="text-xs text-on-surface-variant mt-0.5">
+                            Utilizado por supervisores, administradores y gerentes para autorizar devoluciones de ítems, reaperturas, descuentos y aperturas de gaveta en POS y Caja.
+                        </p>
+                    </div>
+
+                    <div>
+                        @if ($tienePin)
+                            <div class="inline-flex items-center gap-2 rounded-2xl bg-secondary/15 border border-secondary/30 px-3.5 py-1.5 text-xs font-black text-secondary">
+                                <span class="material-symbols-outlined text-[18px]">verified_user</span>
+                                <span>PIN ACTIVO Y PROTEGIDO</span>
+                            </div>
+                        @else
+                            <div class="inline-flex items-center gap-2 rounded-2xl bg-amber-500/15 border border-amber-500/30 px-3.5 py-1.5 text-xs font-black text-amber-500">
+                                <span class="material-symbols-outlined text-[18px]">warning</span>
+                                <span>SIN PIN CONFIGURADO</span>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                <!-- Formulario de Configuración / Cambio de PIN -->
+                <form wire:submit.prevent="guardarPinSeguridad" class="mt-6 max-w-xl space-y-4">
+                    @if ($tienePin)
+                        <div>
+                            <label class="text-xs font-bold text-on-surface">PIN Actual</label>
+                            <input
+                                type="password"
+                                maxlength="6"
+                                wire:model="pinForm_pinActual"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2.5 text-sm tracking-widest focus:border-primary focus:ring-0"
+                                placeholder="••••"
+                            />
+                            @error('pinForm_pinActual')
+                                <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs font-bold text-on-surface">
+                                {{ $tienePin ? 'Nuevo PIN (4 a 6 dígitos)' : 'Crear PIN (4 a 6 dígitos)' }}
+                            </label>
+                            <input
+                                type="password"
+                                maxlength="6"
+                                wire:model="pinForm_nuevoPin"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2.5 text-sm tracking-widest focus:border-primary focus:ring-0"
+                                placeholder="1234"
+                            />
+                            @error('pinForm_nuevoPin')
+                                <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold text-on-surface">Confirmar Nuevo PIN</label>
+                            <input
+                                type="password"
+                                maxlength="6"
+                                wire:model="pinForm_confirmarPin"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-4 py-2.5 text-sm tracking-widest focus:border-primary focus:ring-0"
+                                placeholder="1234"
+                            />
+                            @error('pinForm_confirmarPin')
+                                <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 pt-2">
+                        <button
+                            type="submit"
+                            class="rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-on-primary shadow-md hover:bg-primary/90 cursor-pointer flex items-center gap-1.5"
+                        >
+                            <span class="material-symbols-outlined text-[16px]">save</span>
+                            <span>{{ $tienePin ? 'Actualizar PIN de Seguridad' : 'Guardar PIN de Seguridad' }}</span>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Canales de Rescate / Olvido de PIN -->
+                @if ($tienePin)
+                    <div class="mt-8 border-t border-outline-variant/15 pt-5">
+                        <h3 class="text-xs font-black text-on-surface flex items-center gap-1.5 uppercase tracking-wider text-on-surface-variant">
+                            <span class="material-symbols-outlined text-primary text-[18px]">lock_reset</span>
+                            ¿Olvidaste o perdiste el PIN de seguridad?
+                        </h3>
+                        <p class="text-xs text-on-surface-variant mt-1">
+                            Como Administrador del restaurante, dispones de dos mecanismos de rescate seguros para restablecerlo:
+                        </p>
+
+                        <div class="mt-3 flex flex-wrap gap-3">
+                            <button
+                                type="button"
+                                wire:click="abrirModalRescatePin('password')"
+                                class="rounded-xl bg-surface-container-high border border-outline-variant/30 px-3.5 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-highest cursor-pointer flex items-center gap-1.5 shadow-xs"
+                            >
+                                <span class="material-symbols-outlined text-primary text-[16px]">key</span>
+                                <span>Rescatar con mi contraseña de usuario</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                wire:click="abrirModalRescatePin('otp')"
+                                class="rounded-xl bg-surface-container-high border border-outline-variant/30 px-3.5 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-highest cursor-pointer flex items-center gap-1.5 shadow-xs"
+                            >
+                                <span class="material-symbols-outlined text-secondary text-[16px]">mail</span>
+                                <span>Enviar código de rescate OTP a mi correo</span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
+
+    <!-- ===================================================================== -->
     <!-- TAB 7: RESTABLECIMIENTO / RESET DE FÁBRICA                            -->
     <!-- ===================================================================== -->
     @if ($tabActiva === 'reset')
@@ -1359,6 +1633,141 @@ new class extends Component
                 >
                     Restablecer Todas las Configuraciones a Fábrica
                 </button>
+            </div>
+        </div>
+    @endif
+
+    <!-- ===================================================================== -->
+    <!-- MODAL DE RESCATE / RECUPERACIÓN DE PIN                                -->
+    <!-- ===================================================================== -->
+    @if ($mostrarModalRescatePin)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20 space-y-4">
+                <div class="flex items-center justify-between border-b border-outline-variant/15 pb-3">
+                    <h3 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">lock_reset</span>
+                        Rescate de PIN de Seguridad
+                    </h3>
+                    <button type="button" wire:click="cerrarModalRescatePin" class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                @if ($modoRescatePin === 'password')
+                    <div class="space-y-4 text-xs">
+                        <p class="text-on-surface-variant">
+                            Ingresa tu <strong>contraseña de inicio de sesión</strong> de Administrador para autorizar el restablecimiento inmediato del PIN.
+                        </p>
+
+                        <div>
+                            <label class="font-bold text-on-surface">Contraseña de Administrador</label>
+                            <input
+                                type="password"
+                                wire:model="pinRescate_password"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs focus:border-primary focus:ring-0"
+                                placeholder="••••••••"
+                            />
+                            @error('pinRescate_password')
+                                <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="font-bold text-on-surface">Nuevo PIN (4-6 dígitos)</label>
+                                <input
+                                    type="password"
+                                    maxlength="6"
+                                    wire:model="pinRescate_nuevoPin"
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs tracking-widest focus:border-primary focus:ring-0"
+                                    placeholder="••••"
+                                />
+                                @error('pinRescate_nuevoPin')
+                                    <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="font-bold text-on-surface">Confirmar PIN</label>
+                                <input
+                                    type="password"
+                                    maxlength="6"
+                                    wire:model="pinRescate_confirmarPin"
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs tracking-widest focus:border-primary focus:ring-0"
+                                    placeholder="••••"
+                                />
+                                @error('pinRescate_confirmarPin')
+                                    <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end gap-2 pt-2">
+                            <button type="button" wire:click="cerrarModalRescatePin" class="rounded-xl px-4 py-2 font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer">Cancelar</button>
+                            <button type="button" wire:click="ejecutarRescateConPassword" class="rounded-xl bg-primary px-4 py-2 font-bold text-on-primary shadow-xs cursor-pointer">Restablecer PIN</button>
+                        </div>
+                    </div>
+                @else
+                    <div class="space-y-4 text-xs">
+                        <div class="rounded-2xl bg-secondary/10 border border-secondary/30 p-3 text-secondary">
+                            <p class="font-bold flex items-center gap-1.5">
+                                <span class="material-symbols-outlined text-[16px]">mail</span>
+                                Código de rescate enviado a {{ auth()->user()?->email }}
+                            </p>
+                            <p class="text-[11px] mt-0.5 text-on-surface-variant">Revisa tu bandeja de entrada o spam. El código es válido por 15 minutos.</p>
+                        </div>
+
+                        <div>
+                            <label class="font-bold text-on-surface">Código de Rescate (6 dígitos)</label>
+                            <input
+                                type="text"
+                                maxlength="6"
+                                wire:model="pinRescate_otp"
+                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm text-center font-mono tracking-widest focus:border-primary focus:ring-0"
+                                placeholder="123456"
+                            />
+                            @error('pinRescate_otp')
+                                <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="font-bold text-on-surface">Nuevo PIN (4-6 dígitos)</label>
+                                <input
+                                    type="password"
+                                    maxlength="6"
+                                    wire:model="pinRescate_nuevoPin"
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs tracking-widest focus:border-primary focus:ring-0"
+                                    placeholder="••••"
+                                />
+                                @error('pinRescate_nuevoPin')
+                                    <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div>
+                                <label class="font-bold text-on-surface">Confirmar PIN</label>
+                                <input
+                                    type="password"
+                                    maxlength="6"
+                                    wire:model="pinRescate_confirmarPin"
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs tracking-widest focus:border-primary focus:ring-0"
+                                    placeholder="••••"
+                                />
+                                @error('pinRescate_confirmarPin')
+                                    <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-2">
+                            <button type="button" wire:click="solicitarOtpRescate" class="text-primary hover:underline font-bold text-[11px] cursor-pointer">Reenviar código</button>
+                            <div class="flex gap-2">
+                                <button type="button" wire:click="cerrarModalRescatePin" class="rounded-xl px-4 py-2 font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer">Cancelar</button>
+                                <button type="button" wire:click="ejecutarRescateConOtp" class="rounded-xl bg-secondary px-4 py-2 font-bold text-white shadow-xs cursor-pointer">Restablecer con OTP</button>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @endif

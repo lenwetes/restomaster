@@ -11,8 +11,10 @@ use App\Models\AsientoContable;
 use App\Models\Cliente;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
+use App\Models\MovimientoCaja;
 use App\Models\NotificacionUsuario;
 use App\Models\Pedido;
+use App\Models\PedidoDevolucion;
 use App\Models\Producto;
 use App\Models\Sucursal;
 use App\Models\TurnoCaja;
@@ -518,6 +520,143 @@ class PedidoService
             $pedido->save();
 
             return $item;
+        });
+    }
+
+    /**
+     * Procesa la anulación o devolución rápida de un ítem de ticket cobrado.
+     * Ejecuta en una transacción atómica:
+     * 1. Egreso de caja por devolución (actualiza efectivo esperado y cuadre).
+     * 2. Reingreso de insumos y recetas al inventario (Kardex).
+     * 3. Asiento contable de compensación (devoluciones_ventas).
+     * 4. Actualización del ítem y pedido.
+     * 5. Registro inmutable de auditoría.
+     */
+    public function devolverItemPedido(
+        ItemPedido $item,
+        int $cantidad,
+        string $motivo,
+        string $autorizadoPor,
+        User $usuario,
+        string $metodoReembolso = 'efectivo'
+    ): PedidoDevolucion {
+        $pedido = $item->relationLoaded('pedido') ? $item->pedido : $item->pedido()->firstOrFail();
+
+        if ($pedido->estado !== 'pagado') {
+            throw new \DomainException('Solo se pueden procesar devoluciones sobre tickets o pedidos ya cobrados.');
+        }
+
+        $disponible = $item->cantidadDisponibleDevolucion();
+        if ($cantidad <= 0 || $cantidad > $disponible) {
+            throw new \InvalidArgumentException("La cantidad a devolver ({$cantidad}) no es válida. Disponible para devolución: {$disponible}.");
+        }
+
+        if (empty(trim($motivo))) {
+            throw new \InvalidArgumentException('Debes especificar el motivo de la devolución.');
+        }
+
+        if (empty(trim($autorizadoPor))) {
+            throw new \InvalidArgumentException('La devolución requiere el nombre o PIN del supervisor autorizador.');
+        }
+
+        return DB::transaction(function () use ($item, $pedido, $cantidad, $motivo, $autorizadoPor, $usuario, $metodoReembolso) {
+            $montoDevuelto = round((float) $item->precio_unitario * $cantidad, 2);
+
+            // 1. Obtener turno de caja activo o el turno del pedido
+            $turno = null;
+            if ($pedido->turno_caja_id) {
+                $turno = TurnoCaja::where('id', $pedido->turno_caja_id)->where('estado', 'abierto')->first();
+            }
+            if (! $turno) {
+                $turno = TurnoCaja::where('estado', 'abierto')
+                    ->when($pedido->sucursal_id, fn ($q) => $q->whereHas('caja', fn ($cq) => $cq->where('sucursal_id', $pedido->sucursal_id)))
+                    ->latest()
+                    ->first();
+            }
+
+            $movimientoCaja = null;
+            if ($turno) {
+                // Registrar movimiento de egreso por devolución en caja
+                $conceptoCaja = "Devolución {$cantidad}x {$item->nombre_producto} (Ticket #{$pedido->codigo}) - Motivo: {$motivo}";
+                $movimientoCaja = MovimientoCaja::create([
+                    'turno_caja_id' => $turno->id,
+                    'user_id' => $usuario->id,
+                    'tipo' => 'egreso',
+                    'concepto' => $conceptoCaja,
+                    'monto' => $montoDevuelto,
+                    'metodo_pago' => $metodoReembolso,
+                    'numero_comprobante' => 'DEV-'.strtoupper(uniqid()),
+                    'autorizado_por' => $autorizadoPor,
+                ]);
+
+                // Actualizar acumuladores del turno de caja
+                $turno->total_egresos = (float) $turno->total_egresos + $montoDevuelto;
+                app(CajaService::class)->recalcularEsperado($turno);
+                $turno->save();
+            }
+
+            // 2. Reingreso de insumos al inventario (Kardex) si ya fueron descontados
+            if ($item->inventario_descontado) {
+                app(InventarioService::class)->revertirPorItemDevuelto($item, $cantidad, $usuario);
+            }
+
+            // 3. Asiento contable de compensación / contrapartida
+            $asientoContable = AsientoContable::create([
+                'fecha' => now()->toDateString(),
+                'tipo' => 'gasto',
+                'cuenta' => 'devoluciones_ventas',
+                'concepto' => "Devolución {$cantidad}x {$item->nombre_producto} - Pedido {$pedido->codigo} (Autorizó: {$autorizadoPor})",
+                'monto' => $montoDevuelto,
+                'referencia_tipo' => 'pedido_devolucion',
+                'referencia_id' => $pedido->id,
+                'user_id' => $usuario->id,
+            ]);
+
+            // 4. Actualizar cantidad devuelta en el ítem del pedido
+            $item->cantidad_devuelta = (int) ($item->cantidad_devuelta ?? 0) + $cantidad;
+            $item->save();
+
+            // 5. Registrar la devolución en la tabla específica
+            $devolucion = PedidoDevolucion::create([
+                'pedido_id' => $pedido->id,
+                'item_pedido_id' => $item->id,
+                'producto_id' => $item->producto_id,
+                'cantidad' => $cantidad,
+                'monto_devuelto' => $montoDevuelto,
+                'motivo' => $motivo,
+                'metodo_reembolso' => $metodoReembolso,
+                'turno_caja_id' => $turno?->id,
+                'movimiento_caja_id' => $movimientoCaja?->id,
+                'asiento_contable_id' => $asientoContable->id,
+                'autorizado_por' => $autorizadoPor,
+                'user_id' => $usuario->id,
+            ]);
+
+            // 6. Auditoría inmutable
+            app(AuditoriaService::class)->registrar(
+                usuario: $usuario,
+                accion: 'pedidos.item_devuelto',
+                entidad: 'pedido',
+                entidadId: $pedido->id,
+                descripcion: "Devolución de {$cantidad}x {$item->nombre_producto} ($" . number_format($montoDevuelto, 0) . ") por motivo: {$motivo}. Autorizado por: {$autorizadoPor}",
+                datos: [
+                    'pedido_id' => $pedido->id,
+                    'item_id' => $item->id,
+                    'cantidad' => $cantidad,
+                    'monto_devuelto' => $montoDevuelto,
+                    'motivo' => $motivo,
+                    'autorizado_por' => $autorizadoPor,
+                ]
+            );
+
+            // 7. Spooler de impresión para comprobante térmico de devolución
+            try {
+                app(ImpresionService::class)->despacharComprobanteDevolucion($devolucion);
+            } catch (\Throwable $e) {
+                Log::warning("Impresión comprobante devolución omitida: {$e->getMessage()}");
+            }
+
+            return $devolucion;
         });
     }
 }

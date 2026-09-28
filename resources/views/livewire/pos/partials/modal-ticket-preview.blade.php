@@ -140,6 +140,14 @@
                     ✓ Finalizar
                 </button>
             </div>
+
+            <!-- Botón de Corrección / Devolución Rápida en Caja si hubo error -->
+            <div class="no-print mt-2.5 text-center">
+                <a href="{{ route('caja.control') }}" class="inline-flex items-center gap-1 text-[11px] font-bold text-rose-500 hover:text-rose-600 transition-colors">
+                    <span class="material-symbols-outlined text-[14px]">undo</span>
+                    <span>¿Error en el cobro? Gestionar Devolución en Caja</span>
+                </a>
+            </div>
         </div>
     </div>
 @endif

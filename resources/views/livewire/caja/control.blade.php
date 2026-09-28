@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Caja;
+use App\Models\ItemPedido;
 use App\Models\Pedido;
 use App\Models\TurnoCaja;
 use App\Models\User;
@@ -85,6 +86,123 @@ new class extends Component
     public ?string $ticketTextoEscPos = null;
 
     public string $modoVistaTicket = 'visual'; // 'visual' o 'escpos'
+
+    public bool $modalDevolucionItem = false;
+    public ?ItemPedido $itemSeleccionadoDevolucion = null;
+    public int $cantidadDevolucion = 1;
+    public string $motivoDevolucion = 'Error de digitación del cajero';
+    public string $metodoReembolsoDevolucion = 'efectivo';
+    public string $pinAutorizacionDevolucion = '';
+    public string $supervisorNombreDevolucion = '';
+
+    public function abrirModalDevolucion(int $itemId): void
+    {
+        $item = ItemPedido::with(['pedido', 'producto'])->findOrFail($itemId);
+        if ($item->cantidadDisponibleDevolucion() <= 0) {
+            $this->dispatch('notificacion', ['mensaje' => 'Este ítem ya fue devuelto en su totalidad.', 'tipo' => 'warning']);
+
+            return;
+        }
+
+        $this->itemSeleccionadoDevolucion = $item;
+        $this->cantidadDevolucion = 1;
+        $this->motivoDevolucion = 'Error de digitación del cajero';
+        $this->metodoReembolsoDevolucion = $item->pedido?->metodo_pago ?? 'efectivo';
+        $this->pinAutorizacionDevolucion = '';
+        $this->supervisorNombreDevolucion = '';
+        $this->resetErrorBag();
+        $this->modalDevolucionItem = true;
+    }
+
+    public function cerrarModalDevolucion(): void
+    {
+        $this->modalDevolucionItem = false;
+        $this->itemSeleccionadoDevolucion = null;
+        $this->pinAutorizacionDevolucion = '';
+        $this->resetErrorBag();
+    }
+
+    public function agregarDigitoPinDevolucion(string $digito): void
+    {
+        if (strlen($this->pinAutorizacionDevolucion) < 6) {
+            $this->pinAutorizacionDevolucion .= $digito;
+        }
+    }
+
+    public function borrarDigitoPinDevolucion(): void
+    {
+        $this->pinAutorizacionDevolucion = substr($this->pinAutorizacionDevolucion, 0, -1);
+    }
+
+    public function limpiarPinDevolucion(): void
+    {
+        $this->pinAutorizacionDevolucion = '';
+    }
+
+    public function procesarDevolucionItem(): void
+    {
+        if (! $this->itemSeleccionadoDevolucion) {
+            return;
+        }
+
+        $user = Auth::user();
+        $configSvc = app(\App\Services\ConfiguracionService::class);
+        $esSupervisor = $user && in_array($user->role?->slug, ['admin', 'gerente'], true);
+
+        $autorizadoPor = $user?->name ?? 'Supervisor';
+
+        if (! $esSupervisor) {
+            if ($configSvc->tienePinSeguridad()) {
+                if (empty($this->pinAutorizacionDevolucion)) {
+                    $this->addError('pinAutorizacionDevolucion', 'Debes ingresar el PIN de supervisor para autorizar la devolución.');
+
+                    return;
+                }
+                if (! $configSvc->verificarPinSeguridad($this->pinAutorizacionDevolucion)) {
+                    $this->addError('pinAutorizacionDevolucion', 'PIN de supervisor incorrecto.');
+
+                    return;
+                }
+                $autorizadoPor = 'Supervisor (PIN Autorizado)';
+            } else {
+                if (empty(trim($this->supervisorNombreDevolucion))) {
+                    $this->addError('supervisorNombreDevolucion', 'Ingresa el nombre del supervisor que autoriza.');
+
+                    return;
+                }
+                $autorizadoPor = trim($this->supervisorNombreDevolucion);
+            }
+        } else {
+            $autorizadoPor = ($user->name ?? 'Admin') . ' (' . ucfirst($user->role?->slug ?? 'Admin') . ')';
+        }
+
+        try {
+            $devolucion = app(\App\Services\PedidoService::class)->devolverItemPedido(
+                item: $this->itemSeleccionadoDevolucion,
+                cantidad: $this->cantidadDevolucion,
+                motivo: $this->motivoDevolucion,
+                autorizadoPor: $autorizadoPor,
+                usuario: $user,
+                metodoReembolso: $this->metodoReembolsoDevolucion
+            );
+
+            $nombreProducto = $this->itemSeleccionadoDevolucion->nombre_producto;
+            $monto = number_format((float) $devolucion->monto_devuelto, 0, ',', '.');
+
+            $this->cerrarModalDevolucion();
+
+            if ($this->pedidoTicketSeleccionado) {
+                $this->abrirPrevisualizarTicket($this->pedidoTicketSeleccionado->id);
+            }
+
+            $this->dispatch('notificacion', [
+                'mensaje' => "Devolución exitosa: {$devolucion->cantidad}x {$nombreProducto} (-$" . $monto . '). Stock e inventario reajustados.',
+                'tipo' => 'success',
+            ]);
+        } catch (\Throwable $e) {
+            $this->addError('generalDevolucion', $e->getMessage());
+        }
+    }
 
     public function abrirPrevisualizarTicket(int $pedidoId): void
     {
@@ -1886,11 +2004,31 @@ new class extends Component
                                     <span class="w-16 text-right">TOTAL</span>
                                 </div>
                                 @forelse($pedidoTicketSeleccionado->items as $item)
-                                    <div class="flex justify-between text-[11px] leading-tight">
-                                        <span class="w-8 font-black text-primary">{{ $item->cantidad }}x</span>
-                                        <span class="flex-1 px-1 font-bold truncate">{{ $item->nombre_producto }}</span>
-                                        <span class="w-16 text-right text-on-surface-variant">${{ number_format((float) $item->precio_unitario, 0, ',', '.') }}</span>
-                                        <span class="w-16 text-right font-black text-on-surface">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</span>
+                                    <div class="flex items-center justify-between text-[11px] leading-tight hover:bg-surface-container/40 p-1 rounded-lg">
+                                        <div class="flex items-center gap-1 flex-1 min-w-0">
+                                            <span class="w-6 font-black text-primary">{{ $item->cantidad }}x</span>
+                                            <div class="truncate">
+                                                <span class="font-bold text-on-surface">{{ $item->nombre_producto }}</span>
+                                                @if((int)($item->cantidad_devuelta ?? 0) > 0)
+                                                    <span class="ml-1 px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-500/15 text-rose-500 border border-rose-500/30">
+                                                        -{{ $item->cantidad_devuelta }} devuelto
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                        <span class="w-14 text-right text-on-surface-variant font-mono">${{ number_format((float) $item->precio_unitario, 0, ',', '.') }}</span>
+                                        <span class="w-16 text-right font-black text-on-surface font-mono">${{ number_format((float) $item->subtotal, 0, ',', '.') }}</span>
+                                        @if($item->cantidadDisponibleDevolucion() > 0)
+                                            <button
+                                                type="button"
+                                                wire:click="abrirModalDevolucion({{ $item->id }})"
+                                                class="ml-1.5 px-2 py-0.5 rounded-lg bg-error/15 hover:bg-error text-error hover:text-white border border-error/30 text-[10px] font-black transition-all cursor-pointer flex items-center gap-0.5 shrink-0"
+                                                title="Corregir o devolver cantidad de este producto"
+                                            >
+                                                <span class="material-symbols-outlined text-[12px]">keyboard_return</span>
+                                                <span>Devolver</span>
+                                            </button>
+                                        @endif
                                     </div>
                                     @if($item->notas)
                                         <p class="text-[10px] text-amber-500 italic pl-8">↳ {{ $item->notas }}</p>
@@ -2241,6 +2379,193 @@ new class extends Component
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL TÁCTIL: DEVOLUCIÓN / REEMBOLSO RÁPIDO DE ÍTEM -->
+    @if($modalDevolucionItem && $itemSeleccionadoDevolucion)
+        <div 
+            x-data 
+            @keydown.escape.window="$wire.cerrarModalDevolucion()" 
+            class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in"
+        >
+            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-outline-variant/20 flex flex-col space-y-4">
+                
+                <!-- CABECERA -->
+                <div class="flex items-center justify-between border-b border-outline-variant/15 pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-xl bg-error/15 text-error flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[18px]">keyboard_return</span>
+                        </div>
+                        <div>
+                            <h3 class="text-sm font-black text-on-surface">Devolución / Corrección de Ítem</h3>
+                            <p class="text-[11px] text-on-surface-variant font-medium">Reajuste atómico de caja, stock y contabilidad</p>
+                        </div>
+                    </div>
+                    <button type="button" wire:click="cerrarModalDevolucion" class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                @error('generalDevolucion')
+                    <div class="p-3 rounded-xl bg-error/10 border border-error/30 text-xs text-error font-bold flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">error</span>
+                        <span>{{ $message }}</span>
+                    </div>
+                @enderror
+
+                <!-- DETALLES DEL PRODUCTO -->
+                <div class="rounded-2xl bg-surface-container-low p-3.5 border border-outline-variant/20 space-y-2">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="font-extrabold text-on-surface">{{ $itemSeleccionadoDevolucion->nombre_producto }}</span>
+                        <span class="font-mono font-bold text-primary">${{ number_format((float) $itemSeleccionadoDevolucion->precio_unitario, 0, ',', '.') }} c/u</span>
+                    </div>
+                    <div class="flex justify-between text-[11px] text-on-surface-variant">
+                        <span>Total cobrado: {{ $itemSeleccionadoDevolucion->cantidad }} unids (${{ number_format((float) $itemSeleccionadoDevolucion->subtotal, 0, ',', '.') }})</span>
+                        <span>Disponible: <strong class="text-on-surface">{{ $itemSeleccionadoDevolucion->cantidadDisponibleDevolucion() }} unids</strong></span>
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE CANTIDAD A DEVOLVER -->
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-on-surface flex justify-between">
+                        <span>Cantidad a Devolver / Reembolsar:</span>
+                        <span class="text-primary font-black font-mono">
+                            Total Reembolso: -${{ number_format((float) $itemSeleccionadoDevolucion->precio_unitario * $cantidadDevolucion, 0, ',', '.') }}
+                        </span>
+                    </label>
+                    <div class="flex items-center gap-3">
+                        <button 
+                            type="button" 
+                            wire:click="$set('cantidadDevolucion', {{ max(1, $cantidadDevolucion - 1) }})"
+                            class="w-10 h-10 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-black text-lg flex items-center justify-center cursor-pointer transition shadow-xs"
+                        >
+                            -
+                        </button>
+                        <span class="flex-1 text-center font-black text-base text-on-surface font-mono">{{ $cantidadDevolucion }}</span>
+                        <button 
+                            type="button" 
+                            wire:click="$set('cantidadDevolucion', {{ min($itemSeleccionadoDevolucion->cantidadDisponibleDevolucion(), $cantidadDevolucion + 1) }})"
+                            class="w-10 h-10 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-black text-lg flex items-center justify-center cursor-pointer transition shadow-xs"
+                        >
+                            +
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MOTIVO -->
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-on-surface">Motivo de la Devolución:</label>
+                    <select wire:model="motivoDevolucion" class="w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0">
+                        <option value="Error de digitación del cajero">Error de digitación del cajero (Cobro de más)</option>
+                        <option value="Cliente cambió de opinión">Cliente cambió de opinión / Devolución</option>
+                        <option value="Bebida/plato no consumido">Bebida o plato no consumido en mesa/barra</option>
+                        <option value="Comanda mal tomada por mesero">Comanda mal tomada por mesero</option>
+                        <option value="Plato con inconformidad">Inconformidad con el producto</option>
+                        <option value="Otro motivo extraordinario">Otro motivo extraordinario</option>
+                    </select>
+                </div>
+
+                <!-- AUTORIZACIÓN: SUPERVISOR O KEYPAD DE PIN -->
+                @php
+                    $user = auth()->user();
+                    $esSupervisor = $user && in_array($user->role?->slug, ['admin', 'gerente'], true);
+                    $configSvc = app(\App\Services\ConfiguracionService::class);
+                    $tienePin = $configSvc->tienePinSeguridad();
+                @endphp
+
+                @if($esSupervisor)
+                    <div class="rounded-xl bg-secondary/10 border border-secondary/25 p-2.5 text-xs text-secondary flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">verified_user</span>
+                        <span>Autorizado directamente por <strong>{{ $user->name }}</strong> ({{ ucfirst($user->role?->slug ?? 'Admin') }})</span>
+                    </div>
+                @else
+                    @if($tienePin)
+                        <div class="space-y-2 border-t border-outline-variant/15 pt-2">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="font-bold text-on-surface flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-primary text-[15px]">lock</span>
+                                    PIN de Supervisor Requerido:
+                                </span>
+                                <span class="font-mono text-sm tracking-widest text-primary font-black">
+                                    {{ str_repeat('•', strlen($pinAutorizacionDevolucion)) ?: 'Ingrese PIN' }}
+                                </span>
+                            </div>
+
+                            @error('pinAutorizacionDevolucion')
+                                <p class="text-xs text-error font-medium">{{ $message }}</p>
+                            @enderror
+
+                            <!-- KEYPAD NUMÉRICO TÁCTIL 3x4 -->
+                            <div class="grid grid-cols-3 gap-1.5 pt-1">
+                                @foreach(['1','2','3','4','5','6','7','8','9'] as $digito)
+                                    <button 
+                                        type="button" 
+                                        wire:click="agregarDigitoPinDevolucion('{{ $digito }}')"
+                                        class="h-10 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-mono font-black text-sm flex items-center justify-center cursor-pointer transition shadow-xs"
+                                    >
+                                        {{ $digito }}
+                                    </button>
+                                @endforeach
+                                <button 
+                                    type="button" 
+                                    wire:click="limpiarPinDevolucion"
+                                    class="h-10 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-bold text-xs flex items-center justify-center cursor-pointer transition"
+                                >
+                                    C
+                                </button>
+                                <button 
+                                    type="button" 
+                                    wire:click="agregarDigitoPinDevolucion('0')"
+                                    class="h-10 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-mono font-black text-sm flex items-center justify-center cursor-pointer transition shadow-xs"
+                                >
+                                    0
+                                </button>
+                                <button 
+                                    type="button" 
+                                    wire:click="borrarDigitoPinDevolucion"
+                                    class="h-10 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-bold text-xs flex items-center justify-center cursor-pointer transition"
+                                >
+                                    ⌫
+                                </button>
+                            </div>
+                        </div>
+                    @else
+                        <div class="space-y-1 border-t border-outline-variant/15 pt-2">
+                            <label class="text-xs font-bold text-on-surface">Nombre del Supervisor que Autoriza:</label>
+                            <input 
+                                type="text" 
+                                wire:model="supervisorNombreDevolucion" 
+                                placeholder="Nombre del gerente o encargado..."
+                                class="w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0"
+                            />
+                            @error('supervisorNombreDevolucion')
+                                <p class="text-xs text-error font-medium mt-0.5">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
+                @endif
+
+                <!-- ACCIONES -->
+                <div class="pt-3 border-t border-outline-variant/15 grid grid-cols-2 gap-2">
+                    <button 
+                        type="button" 
+                        wire:click="cerrarModalDevolucion"
+                        class="rounded-xl border border-outline-variant/30 bg-surface-container py-2.5 text-xs font-extrabold text-on-surface-variant hover:text-on-surface cursor-pointer"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        type="button" 
+                        wire:click="procesarDevolucionItem"
+                        class="rounded-xl bg-error py-2.5 text-xs font-black text-white shadow-md hover:bg-error/90 cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                        <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                        <span>Confirmar Devolución</span>
+                    </button>
+                </div>
+
             </div>
         </div>
     @endif

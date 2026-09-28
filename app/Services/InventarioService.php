@@ -72,6 +72,60 @@ class InventarioService
     }
 
     /**
+     * Revierte los insumos correspondientes a la receta de un ItemPedido que fue devuelto.
+     */
+    public function revertirPorItemDevuelto(ItemPedido $item, int $cantidadDevuelta, ?\App\Models\User $usuario = null): bool
+    {
+        if ($cantidadDevuelta <= 0) {
+            return false;
+        }
+
+        return DB::transaction(function () use ($item, $cantidadDevuelta, $usuario) {
+            $producto = $item->relationLoaded('producto')
+                ? $item->producto
+                : $item->producto()->with('recetas.insumo')->first();
+            if ($producto) {
+                $producto->loadMissing('recetas.insumo');
+            }
+
+            if (! $producto || $producto->recetas->isEmpty()) {
+                return false;
+            }
+
+            foreach ($producto->recetas as $receta) {
+                $insumo = Insumo::where('id', $receta->insumo_id)->lockForUpdate()->first();
+                if (! $insumo) {
+                    continue;
+                }
+
+                $factorMerma = 1 + ((float) $receta->merma_esperada_pct / 100);
+                $cantidadRetorno = round((float) $receta->cantidad * $factorMerma * $cantidadDevuelta, 3);
+
+                $saldoAnterior = (float) $insumo->stock_actual;
+                $saldoPosterior = round($saldoAnterior + $cantidadRetorno, 3);
+
+                $insumo->update(['stock_actual' => $saldoPosterior]);
+
+                MovimientoInventario::create([
+                    'insumo_id' => $insumo->id,
+                    'tipo' => 'devolucion_venta',
+                    'cantidad' => $cantidadRetorno,
+                    'saldo_anterior' => $saldoAnterior,
+                    'saldo_posterior' => $saldoPosterior,
+                    'costo_unitario' => $insumo->costo_unitario,
+                    'costo_total' => round($cantidadRetorno * (float) $insumo->costo_unitario, 2),
+                    'pedido_id' => $item->pedido_id,
+                    'user_id' => $usuario?->id ?? auth()->id(),
+                    'motivo' => "Reingreso por devolución #{$item->pedido_id}: {$cantidadDevuelta}x {$item->nombre_producto}",
+                    'referencia_documento' => "DEV-ITM-{$item->id}",
+                ]);
+            }
+
+            return true;
+        });
+    }
+
+    /**
      * Descuenta todos los ítems pendientes de descuento en un pedido.
      */
     public function descontarPorPedido(Pedido $pedido): int

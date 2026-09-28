@@ -6,6 +6,44 @@
 ---
 
 ## Última Actualización
+2026-09-28 | Antigravity | ↩️ **DEVOLUCIONES RÁPIDAS EN POS/CAJA + PIN DE SEGURIDAD CON RESCATE + EXPORTACIONES CONTABLES (SIIGO, ALEGRA, WORLD OFFICE, HELISA) Y LIBRO FISCAL DIAN (ART. 616-1 E.T.)** (`app/Services/ExportadorContableService.php`, `app/Http/Controllers/ExportacionContableController.php`, `app/Services/PedidoService.php`, `app/Services/ConfiguracionService.php`, `app/Services/InventarioService.php`, `app/Services/ImpresionService.php`, `app/Models/PedidoDevolucion.php`, `app/Models/ItemPedido.php`, `resources/views/livewire/caja/control.blade.php`, `resources/views/livewire/configuracion/index.blade.php`, `resources/views/livewire/reportes/index.blade.php`, `resources/views/pdf/libro-fiscal-dian.blade.php`, `routes/web.php`):
+- **1. Devolución / Anulación Rápida de Ítems en POS/Caja (Resolución Escenario Bebida Extra):**
+  - Migración y Modelo `PedidoDevolucion`: Trazabilidad completa con `cantidad_devuelta`, montos, motivos, usuario responsable y relación contable.
+  - Transacción atómica en `PedidoService::devolverItemPedido`:
+    1. Reembolso en dinero: Registra egreso en caja (`movimientos_caja`) y descuenta del turno activo.
+    2. Retorno a inventario: Revierte la receta e insumos en el Kardex (`inventario_movimientos`) si ya habían sido descontados.
+    3. Asiento contable de contrapartida: Genera registro en `asientos_contables` bajo la cuenta `devoluciones_ventas`.
+    4. Comprobante térmico: Despacha ticket de devolución para cliente y caja vía `ImpresionService`.
+    5. Auditoría inmutable de seguridad.
+  - Modal táctil en Control de Caja (`caja/control.blade.php`) con teclado numérico en pantalla para autenticación mediante PIN de Supervisor.
+  - Enlace rápido de gestión de devolución desde la previsualización del ticket en el POS (`modal-ticket-preview.blade.php`).
+- **2. Configuración y Rescate del PIN de Seguridad para Administrador:**
+  - Nueva pestaña `"Seguridad & Auditoría"` en `/configuracion` (`configuracion/index.blade.php`).
+  - Permite configurar o cambiar el PIN numérico de 4 a 6 dígitos con hash seguro (`bcrypt`).
+  - **Mecanismos de Rescate si el Administrador olvida el PIN:**
+    - Opción A (Inmediata): Confirmar con la contraseña de inicio de sesión del administrador.
+    - Opción B (Remota / Emergencia): Generación de código temporal OTP (6 dígitos) enviado al correo electrónico del administrador con expiración de 15 minutos.
+- **3. Exportaciones para Software Contable y Libro Fiscal DIAN (Art. 616-1 E.T.):**
+  - Creado `ExportadorContableService` y controlador `ExportacionContableController`:
+    - **Siigo Nube (Plantilla CC-1 / Interfaz Contable):** Genera asientos con balance estricto por partida doble (Sum Débitos == Sum Créditos). Cuentas PUC Colombia estándar: Caja General (`11050501`), Bancos/Adquirente (`11100501`), Ingresos Restaurante (`41350101`), Impuesto Nacional al Consumo 8% (`24950101`), Propinas por distribuir (`28150501`) y Devoluciones en ventas (`41750501`).
+    - **Alegra:** Formato de importación masiva de facturas/ventas con desglose detallado por ítem, precio unitario, cantidad neta vendida, tercero y tarifa INC.
+    - **World Office:** Archivo plano estructurado delimitado por punto y coma (;) para el módulo importador de World Office.
+    - **Helisa:** Archivo plano delimitado por tubería (|) con fechas AAAAMMDD para comprobantes de diario.
+    - **Libro Fiscal de Operaciones Diarias (Art. 616-1 E.T. - DIAN):**
+      - Tabla cronológica día a día con Comprobante Inicial, Comprobante Final, Número de operaciones, Ingresos Brutos, Base Gravable, INC 8%, Devoluciones revertidas, Ingresos Netos, Costos/Gastos y Saldo Fiscal (sin duplicidad contable en reembolsos).
+      - Exportación en **PDF Oficial Apaisado (Landscape)** con membrete, NIT, resolución DIAN y espacios formales de firma para Representante Legal y Contador Público (T.P.).
+      - Exportación en CSV para auditorías tributarias.
+  - Pestaña interactiva `"Contabilidad & DIAN"` integrada en el módulo de Reportes (`reportes/index.blade.php`) con KPIs, tarjetas de descarga por software y tabla visual detallada.
+- **4. Pruebas y Validación:**
+  - 100% de tests pasando:
+    - `tests/Feature/PinSeguridadConfiguracionTest.php`: 8/8 tests passed (27 aserciones).
+    - `tests/Feature/DevolucionItemsTicketTest.php`: 3/3 tests passed (18 aserciones).
+    - `tests/Feature/ExportacionContableDianTest.php`: 5/5 tests passed (48 aserciones).
+  - Assets de Vite compilados correctamente con `npm run build`.
+
+---
+
+## Actualización previa
 2026-09-28 | Antigravity | 🔒 **RESTAURACIÓN DE BLOQUEO DE COBRO SIN ENVIAR COMANDA A COCINA + SETUP LOCAL WEBSOCKETS/REDIS + PLAN PROGRAMACIÓN SEMANAL** (`resources/views/livewire/pos/terminal.blade.php`, `resources/js/echo.js`, `composer.json`, `tests/Feature/FlujoComandaCocinaPosTest.php`, `iniciar-local.bat`):
 - **Bloqueo Estricto de Cobrar sin Enviar a Cocina Restaurado:**
   - Causa reportada: En la terminal POS de mesas, el botón permitía "Cobrar Listo" aún teniendo ítems en carrito pendientes por enviar a cocina, o sin comanda activa enviada.

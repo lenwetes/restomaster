@@ -4,10 +4,15 @@ namespace App\Services;
 
 use App\Console\Commands\BackupDatabaseCommand;
 use App\Models\Configuracion;
+use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
 use ZipArchive;
@@ -402,5 +407,143 @@ class ConfiguracionService
         $this->guardar('general', 'impuesto_porcentaje', 8);
         $this->guardar('general', 'costo_envio_base', 8000);
         $this->guardar('impresion', 'pie_ticket', '¡Gracias por preferir RestoMaster!');
+    }
+
+    /**
+     * Comprueba si el PIN de supervisor/administrador está configurado en el sistema.
+     */
+    public function tienePinSeguridad(): bool
+    {
+        $hash = $this->obtener('seguridad', 'pin_supervisor_hash');
+
+        return ! empty($hash);
+    }
+
+    /**
+     * Valida si un PIN numérico ingresado coincide con el hash almacenado.
+     */
+    public function verificarPinSeguridad(string $pin): bool
+    {
+        $hash = $this->obtener('seguridad', 'pin_supervisor_hash');
+        if (empty($hash)) {
+            return false;
+        }
+
+        return Hash::check(trim($pin), $hash);
+    }
+
+    /**
+     * Establece o actualiza el PIN de seguridad del administrador con hash criptográfico.
+     */
+    public function establecerPinSeguridad(string $pin, ?User $usuario = null): void
+    {
+        $pinLimpio = trim($pin);
+        if (! preg_match('/^[0-9]{4,6}$/', $pinLimpio)) {
+            throw new \InvalidArgumentException('El PIN de seguridad debe contener entre 4 y 6 dígitos numéricos (0-9).');
+        }
+
+        $hash = Hash::make($pinLimpio);
+        $this->guardar('seguridad', 'pin_supervisor_hash', $hash);
+        $this->guardar('seguridad', 'pin_actualizado_en', now()->toIso8601String());
+
+        app(AuditoriaService::class)->registrar(
+            usuario: $usuario ?? auth()->user(),
+            accion: 'seguridad.pin_actualizado',
+            entidad: 'configuracion',
+            entidadId: null,
+            descripcion: 'PIN de seguridad de supervisor/administrador configurado/actualizado.',
+            datos: ['usuario' => $usuario?->name ?? auth()->user()?->name]
+        );
+    }
+
+    /**
+     * Permite al administrador cambiar el PIN validando primero su contraseña de cuenta.
+     */
+    public function cambiarPinConPassword(User $usuario, string $password, string $nuevoPin): bool
+    {
+        if (! Hash::check($password, $usuario->password)) {
+            throw new \InvalidArgumentException('La contraseña de administrador ingresada es incorrecta.');
+        }
+
+        $this->establecerPinSeguridad($nuevoPin, $usuario);
+
+        return true;
+    }
+
+    /**
+     * Genera un código OTP temporal de 6 dígitos para rescate de PIN por correo.
+     */
+    public function generarOtpRescatePin(User $usuario): string
+    {
+        $otp = str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
+        $hashOtp = Hash::make($otp);
+        $expiraEn = now()->addMinutes(15)->toIso8601String();
+
+        $this->guardar('seguridad', 'pin_reset_otp_hash', $hashOtp);
+        $this->guardar('seguridad', 'pin_reset_expira_en', $expiraEn);
+        $this->guardar('seguridad', 'pin_reset_user_id', $usuario->id);
+
+        app(AuditoriaService::class)->registrar(
+            usuario: $usuario,
+            accion: 'seguridad.pin_otp_solicitado',
+            entidad: 'configuracion',
+            entidadId: null,
+            descripcion: "Código OTP de rescate de PIN generado para {$usuario->email}.",
+            datos: ['email' => $usuario->email]
+        );
+
+        // Envío de correo o log de notificación
+        try {
+            Mail::raw(
+                "RestoMaster - Código de Rescate de PIN de Seguridad\n\nTu código temporal es: {$otp}\n\nEste código expira en 15 minutos. Si no solicitaste este cambio, contacta de inmediato al soporte.",
+                function ($message) use ($usuario) {
+                    $message->to($usuario->email)
+                        ->subject('RestoMaster - Código de Rescate de PIN de Seguridad');
+                }
+            );
+        } catch (\Throwable $e) {
+            Log::info("Código OTP de rescate de PIN para {$usuario->email}: {$otp}");
+        }
+
+        return $otp;
+    }
+
+    /**
+     * Valida el código OTP recibido por correo y restablece el PIN si es válido.
+     */
+    public function validarOtpYRestablecerPin(string $otp, string $nuevoPin, ?User $usuario = null): bool
+    {
+        $hashOtp = $this->obtener('seguridad', 'pin_reset_otp_hash');
+        $expiraEn = $this->obtener('seguridad', 'pin_reset_expira_en');
+
+        if (empty($hashOtp) || empty($expiraEn)) {
+            throw new \InvalidArgumentException('No hay una solicitud de rescate de PIN activa o ha expirado.');
+        }
+
+        if (now()->isAfter(Carbon::parse($expiraEn))) {
+            throw new \DomainException('El código de rescate ha expirado. Por favor solicita uno nuevo.');
+        }
+
+        if (! Hash::check(trim($otp), $hashOtp)) {
+            throw new \InvalidArgumentException('El código de rescate ingresado es incorrecto.');
+        }
+
+        // Restablecer PIN
+        $this->establecerPinSeguridad($nuevoPin, $usuario);
+
+        // Limpiar tokens de rescate
+        $this->guardar('seguridad', 'pin_reset_otp_hash', null);
+        $this->guardar('seguridad', 'pin_reset_expira_en', null);
+
+        app(AuditoriaService::class)->registrar(
+            usuario: $usuario ?? auth()->user(),
+            accion: 'seguridad.pin_rescatado_otp',
+            entidad: 'configuracion',
+            entidadId: null,
+            descripcion: 'PIN de seguridad restablecido exitosamente mediante código de rescate OTP.',
+            datos: ['usuario' => $usuario?->name ?? auth()->user()?->name]
+        );
+
+        return true;
     }
 }

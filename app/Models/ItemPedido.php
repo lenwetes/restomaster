@@ -23,6 +23,7 @@ class ItemPedido extends Model
         'estado_cocina',
         'notas',
         'inventario_descontado',
+        'cantidad_devuelta',
         'iniciado_en',
         'listo_en',
     ];
@@ -31,6 +32,7 @@ class ItemPedido extends Model
     {
         return [
             'cantidad' => 'integer',
+            'cantidad_devuelta' => 'integer',
             'precio_unitario' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'inventario_descontado' => 'boolean',
@@ -47,5 +49,15 @@ class ItemPedido extends Model
     public function producto(): BelongsTo
     {
         return $this->belongsTo(Producto::class);
+    }
+
+    public function devoluciones(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PedidoDevolucion::class, 'item_pedido_id');
+    }
+
+    public function cantidadDisponibleDevolucion(): int
+    {
+        return max(0, (int) $this->cantidad - (int) ($this->cantidad_devuelta ?? 0));
     }
 }

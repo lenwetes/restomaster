@@ -4,6 +4,7 @@ use App\Http\Controllers\Cliente\AuthClienteController;
 use App\Http\Controllers\Cliente\PerfilClienteController;
 use App\Http\Controllers\CrmWebhookController;
 use App\Http\Controllers\EncuestaPublicaController;
+use App\Http\Controllers\ExportacionContableController;
 use App\Http\Controllers\ReporteExportController;
 use App\Http\Controllers\ReservaPublicaController;
 use App\Http\Controllers\ReservaWebhookController;
@@ -62,6 +63,14 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('reportes', 'reportes.index')->middleware('role:gerente')->name('reportes');
     Route::get('reportes/exportar-pdf', [ReporteExportController::class, 'pdf'])->middleware('role:gerente')->name('reportes.pdf');
     Route::get('reportes/exportar-csv', [ReporteExportController::class, 'csv'])->middleware('role:gerente')->name('reportes.csv');
+    // Exportaciones Contables e Interfaz DIAN
+    Route::prefix('reportes/exportar-contable')->middleware('role:gerente')->name('reportes.contable.')->group(function () {
+        Route::get('siigo', [ExportacionContableController::class, 'siigo'])->name('siigo');
+        Route::get('alegra', [ExportacionContableController::class, 'alegra'])->name('alegra');
+        Route::get('world-office', [ExportacionContableController::class, 'worldOffice'])->name('world-office');
+        Route::get('helisa', [ExportacionContableController::class, 'helisa'])->name('helisa');
+        Route::get('libro-fiscal', [ExportacionContableController::class, 'libroFiscal'])->name('libro-fiscal');
+    });
     Volt::route('cxp', 'cxp.index')->middleware('role:gerente')->name('cxp');
     Volt::route('proveedores', 'proveedores.index')->middleware('role:gerente,admin')->name('proveedores');
     Volt::route('reservas', 'reservas.index')->middleware('role:mesero,cajero,gerente')->name('reservas');

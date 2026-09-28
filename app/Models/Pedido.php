@@ -119,6 +119,11 @@ class Pedido extends Model
         return $this->hasMany(MovimientoPuntos::class, 'pedido_id');
     }
 
+    public function devoluciones(): HasMany
+    {
+        return $this->hasMany(PedidoDevolucion::class, 'pedido_id');
+    }
+
     public function scopeActivos(Builder $query): Builder
     {
         return $query->whereNotIn('estado', [PedidoEstado::PAGADO->value, PedidoEstado::CANCELADO->value]);

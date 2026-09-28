@@ -81,6 +81,9 @@ new class extends Component
             'movimientos' => $this->pestana === 'estado'
                 ? $service->movimientosRecientes(50)
                 : collect(),
+            'libroFiscal' => $this->pestana === 'contabilidad'
+                ? app(\App\Services\ExportadorContableService::class)->generarLibroFiscalDian($this->desde, $this->hasta)
+                : null,
         ];
     }
 }; ?>
@@ -140,7 +143,7 @@ new class extends Component
 
     <!-- Tabs -->
     <div class="flex flex-wrap gap-2">
-        @foreach (['graficas' => 'Gráficas Comparativas', 'estado' => 'Estado de resultados', 'ventas' => 'Ventas', 'meseros' => 'Rendimiento Meseros', 'clientes' => 'Clientes & Delivery', 'reservas' => 'Reservas'] as $k => $label)
+        @foreach (['graficas' => 'Gráficas Comparativas', 'estado' => 'Estado de resultados', 'contabilidad' => 'Contabilidad & DIAN', 'ventas' => 'Ventas', 'meseros' => 'Rendimiento Meseros', 'clientes' => 'Clientes & Delivery', 'reservas' => 'Reservas'] as $k => $label)
             <button wire:click="$set('pestana', '{{ $k }}')" class="rounded-full px-4 py-2 text-xs font-bold transition-colors
                 {{ $pestana === $k ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-low text-on-surface-variant border border-outline-variant/20 hover:text-on-surface' }}">
                 {{ $label }}
@@ -788,5 +791,246 @@ new class extends Component
         </div>
     </div>
 
+    @endif
+
+    @if ($pestana === 'contabilidad' && $libroFiscal)
+        <!-- Tab Contabilidad & DIAN (Art. 616-1 E.T. / Siigo / Alegra / World Office / Helisa) -->
+        <div class="space-y-6 animate-fade-in">
+            <!-- Header Informativo y Resumen Rápido -->
+            <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-6 border-b border-outline-variant/15">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[26px] text-primary">account_balance</span>
+                            <h2 class="text-lg font-extrabold text-on-surface">Módulo Contable & Cumplimiento Tributario DIAN</h2>
+                            <span class="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                                Partida Doble Balanceada
+                            </span>
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-1">
+                            Exportaciones automáticas para software contable de tu contador (Siigo, Alegra, World Office, Helisa) y generación legal del <strong>Libro Fiscal de Operaciones Diarias (Art. 616-1 del E.T.)</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Botones de Acción Directa del Libro Fiscal -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="{{ route('reportes.contable.libro-fiscal', ['desde' => $desde, 'hasta' => $hasta, 'formato' => 'pdf']) }}"
+                           class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-primary text-on-primary text-xs font-black shadow-md hover:bg-primary-container transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
+                            <span>Libro Fiscal DIAN (PDF)</span>
+                        </a>
+                        <a href="{{ route('reportes.contable.libro-fiscal', ['desde' => $desde, 'hasta' => $hasta, 'formato' => 'csv']) }}"
+                           class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-surface-container text-on-surface text-xs font-bold border border-outline-variant/30 hover:bg-surface-container-high transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">table_chart</span>
+                            <span>Libro Fiscal (CSV)</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Tarjetas KPI del Período Fiscal -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-6">
+                    <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/15">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">Operaciones</span>
+                        <div class="text-base font-black text-on-surface mt-1">{{ number_format($libroFiscal['totales']['total_operaciones']) }}</div>
+                        <span class="text-[10px] text-on-surface-variant">{{ $libroFiscal['totales']['dias_con_movimiento'] }} días activos</span>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/15">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">Ingresos Brutos</span>
+                        <div class="text-base font-black text-on-surface mt-1">${{ number_format($libroFiscal['totales']['ingresos_brutos'], 0, ',', '.') }}</div>
+                        <span class="text-[10px] text-on-surface-variant">Total ventas</span>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/15">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">Base Gravable</span>
+                        <div class="text-base font-black text-primary mt-1">${{ number_format($libroFiscal['totales']['base_gravable'], 0, ',', '.') }}</div>
+                        <span class="text-[10px] text-on-surface-variant">Cuenta PUC 4135</span>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/15">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">INC (8%)</span>
+                        <div class="text-base font-black text-secondary mt-1">${{ number_format($libroFiscal['totales']['impuesto_consumo_inc'], 0, ',', '.') }}</div>
+                        <span class="text-[10px] text-on-surface-variant">Cuenta PUC 2495</span>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/15">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">Devoluciones</span>
+                        <div class="text-base font-black text-error mt-1">-${{ number_format($libroFiscal['totales']['total_devoluciones'], 0, ',', '.') }}</div>
+                        <span class="text-[10px] text-error font-medium">Reversión 4175</span>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/15">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant">Ingresos Netos</span>
+                        <div class="text-base font-black text-emerald-600 dark:text-emerald-400 mt-1">${{ number_format($libroFiscal['totales']['ingresos_netos'], 0, ',', '.') }}</div>
+                        <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Ventas netas</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grid de Exportación para Softwares Contables Colombianos -->
+            <div>
+                <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2 mb-3">
+                    <span class="material-symbols-outlined text-[18px] text-secondary">cloud_download</span>
+                    Exportar para el Contador / Software Contable
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Siigo Nube -->
+                    <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="font-black text-base tracking-tight text-[#00a887]">Siigo Nube</span>
+                                <span class="rounded-full bg-[#00a887]/15 px-2 py-0.5 text-[9px] font-black text-[#00a887]">CC-1 / Ventas</span>
+                            </div>
+                            <p class="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                                Comprobante Contable de Ventas con partida doble perfecta. Cuentas PUC estándar: <strong>4135</strong> (Ingresos), <strong>2495</strong> (INC 8%), <strong>1105/1110</strong> (Caja/Bancos) y <strong>4175</strong> (Devoluciones).
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-outline-variant/15">
+                            <a href="{{ route('reportes.contable.siigo', ['desde' => $desde, 'hasta' => $hasta]) }}"
+                               class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-container hover:bg-[#00a887] hover:text-white text-xs font-bold text-on-surface transition-all">
+                                <span class="material-symbols-outlined text-[16px]">download</span>
+                                <span>Descargar Plantilla Siigo</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Alegra -->
+                    <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="font-black text-base tracking-tight text-[#00b4d8]">Alegra</span>
+                                <span class="rounded-full bg-[#00b4d8]/15 px-2 py-0.5 text-[9px] font-black text-[#00b4d8]">Facturas Masivas</span>
+                            </div>
+                            <p class="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                                Formato de importación de facturas de venta e ingresos con desglose por ítem, precio unitario, cantidad neta vendida, impuesto INC y método de pago.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-outline-variant/15">
+                            <a href="{{ route('reportes.contable.alegra', ['desde' => $desde, 'hasta' => $hasta]) }}"
+                               class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-container hover:bg-[#00b4d8] hover:text-white text-xs font-bold text-on-surface transition-all">
+                                <span class="material-symbols-outlined text-[16px]">download</span>
+                                <span>Descargar Plantilla Alegra</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- World Office -->
+                    <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="font-black text-base tracking-tight text-[#1d3557]">World Office</span>
+                                <span class="rounded-full bg-[#1d3557]/15 px-2 py-0.5 text-[9px] font-black text-[#1d3557] dark:text-blue-300">Archivo Plano (;)</span>
+                            </div>
+                            <p class="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                                Archivo plano estructurado con delimitador punto y coma (;) compatible con el módulo de integración y migración de comprobantes de World Office.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-outline-variant/15">
+                            <a href="{{ route('reportes.contable.world-office', ['desde' => $desde, 'hasta' => $hasta]) }}"
+                               class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-container hover:bg-[#1d3557] hover:text-white text-xs font-bold text-on-surface transition-all">
+                                <span class="material-symbols-outlined text-[16px]">text_snippet</span>
+                                <span>Descargar Plano World Office</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Helisa -->
+                    <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-5 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <span class="font-black text-base tracking-tight text-[#7209b7]">Helisa</span>
+                                <span class="rounded-full bg-[#7209b7]/15 px-2 py-0.5 text-[9px] font-black text-[#7209b7] dark:text-purple-300">Comprobantes (|)</span>
+                            </div>
+                            <p class="text-xs text-on-surface-variant mt-2 leading-relaxed">
+                                Archivo plano delimitado por tubería (|) y fechas en formato AAAAMMDD para importación de comprobantes de diario en Helisa Norma Local y NIIF.
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-outline-variant/15">
+                            <a href="{{ route('reportes.contable.helisa', ['desde' => $desde, 'hasta' => $hasta]) }}"
+                               class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-container hover:bg-[#7209b7] hover:text-white text-xs font-bold text-on-surface transition-all">
+                                <span class="material-symbols-outlined text-[16px]">text_snippet</span>
+                                <span>Descargar Plano Helisa</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla Detallada del Libro Fiscal DIAN (Art. 616-1 E.T.) -->
+            <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px] text-primary">menu_book</span>
+                            Libro Fiscal de Operaciones Diarias · Detalle Jornada a Jornada
+                        </h3>
+                        <p class="text-[11px] text-on-surface-variant mt-0.5">
+                            Registro cronológico con numeración consecutiva inicial y final de cada día, exigido legalmente por la DIAN.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-2xl border border-outline-variant/15">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="border-b border-outline-variant/15 text-on-surface-variant uppercase text-[10px] tracking-wider bg-surface-container-low font-extrabold">
+                                <th class="py-3 px-3 text-center">Fecha</th>
+                                <th class="py-3 px-3">Comp. Inicial</th>
+                                <th class="py-3 px-3">Comp. Final</th>
+                                <th class="py-3 px-3 text-center">Operaciones</th>
+                                <th class="py-3 px-3 text-right">Ingresos Brutos</th>
+                                <th class="py-3 px-3 text-right">Base Gravable</th>
+                                <th class="py-3 px-3 text-right">INC (8%)</th>
+                                <th class="py-3 px-3 text-right">Devoluciones</th>
+                                <th class="py-3 px-3 text-right">Ingresos Netos</th>
+                                <th class="py-3 px-3 text-right">Gastos Caja</th>
+                                <th class="py-3 px-3 text-right">Saldo Diario</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant/10 font-medium">
+                            @forelse($libroFiscal['dias'] as $dia)
+                                <tr class="hover:bg-surface-container-low/50 transition-colors {{ $dia['total_operaciones'] > 0 ? '' : 'opacity-60' }}">
+                                    <td class="py-2.5 px-3 text-center font-mono text-on-surface font-bold">{{ $dia['fecha_formateada'] }}</td>
+                                    <td class="py-2.5 px-3 font-mono text-on-surface-variant text-[11px]">{{ $dia['comprobante_inicial'] }}</td>
+                                    <td class="py-2.5 px-3 font-mono text-on-surface-variant text-[11px]">{{ $dia['comprobante_final'] }}</td>
+                                    <td class="py-2.5 px-3 text-center font-black">{{ $dia['total_operaciones'] }}</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">${{ number_format($dia['ingresos_brutos'], 0, ',', '.') }}</td>
+                                    <td class="py-2.5 px-3 text-right font-mono">${{ number_format($dia['base_gravable'], 0, ',', '.') }}</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-secondary">${{ number_format($dia['impuesto_consumo_inc'], 0, ',', '.') }}</td>
+                                    <td class="py-2.5 px-3 text-right font-mono {{ $dia['total_devoluciones'] > 0 ? 'text-error font-black' : 'text-on-surface-variant' }}">
+                                        {{ $dia['total_devoluciones'] > 0 ? '-$'.number_format($dia['total_devoluciones'], 0, ',', '.') : '$0' }}
+                                    </td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-black text-on-surface">${{ number_format($dia['ingresos_netos'], 0, ',', '.') }}</td>
+                                    <td class="py-2.5 px-3 text-right font-mono text-on-surface-variant">${{ number_format($dia['gastos_diarios_caja'], 0, ',', '.') }}</td>
+                                    <td class="py-2.5 px-3 text-right font-mono font-black {{ $dia['saldo_neto_fiscal'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-error' }}">
+                                        ${{ number_format($dia['saldo_neto_fiscal'], 0, ',', '.') }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="11" class="py-8 text-center text-on-surface-variant">Sin datos en el período seleccionado.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                        <tfoot class="border-t-2 border-outline-variant/30 bg-surface-container font-black text-xs">
+                            <tr>
+                                <td colspan="3" class="py-3 px-3 uppercase text-on-surface">TOTALES DEL PERÍODO</td>
+                                <td class="py-3 px-3 text-center text-primary">{{ number_format($libroFiscal['totales']['total_operaciones']) }}</td>
+                                <td class="py-3 px-3 text-right font-mono">${{ number_format($libroFiscal['totales']['ingresos_brutos'], 0, ',', '.') }}</td>
+                                <td class="py-3 px-3 text-right font-mono">${{ number_format($libroFiscal['totales']['base_gravable'], 0, ',', '.') }}</td>
+                                <td class="py-3 px-3 text-right font-mono text-secondary">${{ number_format($libroFiscal['totales']['impuesto_consumo_inc'], 0, ',', '.') }}</td>
+                                <td class="py-3 px-3 text-right font-mono text-error">-${{ number_format($libroFiscal['totales']['total_devoluciones'], 0, ',', '.') }}</td>
+                                <td class="py-3 px-3 text-right font-mono text-on-surface">${{ number_format($libroFiscal['totales']['ingresos_netos'], 0, ',', '.') }}</td>
+                                <td class="py-3 px-3 text-right font-mono text-on-surface-variant">${{ number_format($libroFiscal['totales']['gastos_diarios_caja'], 0, ',', '.') }}</td>
+                                <td class="py-3 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400">${{ number_format($libroFiscal['totales']['saldo_neto_fiscal'], 0, ',', '.') }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/15 text-[11px] text-on-surface-variant flex items-start gap-2.5">
+                    <span class="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">verified_user</span>
+                    <div>
+                        <strong class="text-on-surface">Cumplimiento DIAN Garantizado:</strong>
+                        Este reporte calcula automáticamente la base gravable y el Impuesto Nacional al Consumo (INC 8%) bajo el Art. 512-1 del Estatuto Tributario, e integra las devoluciones de ítems y comprobantes de reversión contable para evitar cualquier tipo de descuadre fiscal.
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 </div>
