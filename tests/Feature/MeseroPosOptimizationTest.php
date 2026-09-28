@@ -178,10 +178,31 @@ class MeseroPosOptimizationTest extends TestCase
             'apertura_en' => now(),
         ]);
 
+        // Pre-seed pedido ya enviado a cocina y despachado (regla comanda-before-cobro)
+        $pedidoPreparado = Pedido::create([
+            'codigo' => 'ORD-OPT-001',
+            'tipo' => 'mesa',
+            'estado' => 'entregado',
+            'mesa_id' => $this->mesa->id,
+            'usuario_id' => $this->mesero->id,
+            'subtotal' => 28000,
+            'total' => 28000,
+        ]);
+        $pedidoPreparado->items()->create([
+            'producto_id' => $this->producto->id,
+            'nombre_producto' => $this->producto->nombre,
+            'cantidad' => 1,
+            'precio_unitario' => 28000,
+            'subtotal' => 28000,
+            'area_cocina' => 'sushi',
+            'estado_cocina' => 'entregado',
+        ]);
+
         $component = Volt::actingAs($this->mesero)
             ->test('pos.terminal')
-            ->set('mesaId', $this->mesa->id)
-            ->call('agregarProducto', $this->producto->id)
+            ->set('mesaId', $this->mesa->id);
+
+        $component
             ->call('abrirModalCobro')
             ->set('metodoPago', 'tarjeta')
             ->set('montoPagado', 28000)

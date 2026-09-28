@@ -294,18 +294,38 @@ class RemediacionDineroTurnosTest extends TestCase
             'activo' => true,
         ]);
 
+        // Crear pedido ya despachado por cocina para satisfacer la regla comanda-before-cobro
+        $pedidoPreparado = Pedido::create([
+            'codigo' => 'ORD-MIX-001',
+            'tipo' => 'mesa',
+            'estado' => 'entregado',
+            'mesa_id' => $mesa->id,
+            'usuario_id' => $user->id,
+            'sucursal_id' => $s->id,
+            'subtotal' => 100000.00,
+            'total' => 100000.00,
+        ]);
+        $pedidoPreparado->items()->create([
+            'producto_id' => $producto->id,
+            'nombre_producto' => $producto->nombre,
+            'cantidad' => 1,
+            'precio_unitario' => 100000.00,
+            'subtotal' => 100000.00,
+            'area_cocina' => 'cocina',
+            'estado_cocina' => 'entregado',
+        ]);
+
         Volt::actingAs($user)
             ->test('pos.terminal')
             ->set('tipo', 'mesa')
             ->set('mesaId', $mesa->id)
-            ->call('agregarProducto', $producto->id)
             ->set('metodoPago', 'mixto')
             ->set('montoPagado', 100000.00)
             ->set('montoEfectivoMixto', 20000.00)
             ->call('procesarCobro')
             ->assertOk();
 
-        $pedido = Pedido::where('mesa_id', $mesa->id)->latest()->first();
+        $pedido = Pedido::find($pedidoPreparado->id);
         $this->assertNotNull($pedido);
         $this->assertEquals(20000.00, (float) $pedido->monto_pago_efectivo);
         $this->assertEquals(80000.00, (float) $pedido->monto_pago_tarjeta);

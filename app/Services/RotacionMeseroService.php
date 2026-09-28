@@ -498,6 +498,24 @@ class RotacionMeseroService
             ->first();
 
         if (! $siguienteRotacion) {
+            // Fallback a TurnoMeseroZona por zona o sucursal
+            $turnoZona = TurnoMeseroZona::with('mesero')
+                ->where('activo', true)
+                ->where(function ($q) use ($zonaSlug, $sucursalId) {
+                    $q->whereHas('zona', fn ($zq) => $zq->where('slug', $zonaSlug)->where('sucursal_id', $sucursalId))
+                        ->orWhereHas('zona', fn ($zq) => $zq->where('slug', $zonaSlug))
+                        ->orWhere('sucursal_id', $sucursalId);
+                })
+                ->orderByRaw('ultimo_asignado_en ASC NULLS FIRST')
+                ->orderBy('orden', 'asc')
+                ->first();
+
+            if ($turnoZona && $turnoZona->mesero) {
+                $turnoZona->increment('mesas_activas', 1, ['ultimo_asignado_en' => now()]);
+
+                return $turnoZona->mesero;
+            }
+
             $fallback = RotacionMesero::with('mesero')
                 ->where('sucursal_id', $sucursalId)
                 ->activos()

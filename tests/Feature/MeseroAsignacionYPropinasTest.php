@@ -497,10 +497,29 @@ class MeseroAsignacionYPropinasTest extends TestCase
         $precioUnitario = (float) $this->producto->precio;
         $propinaEsperada10 = round($precioUnitario * 0.10);
 
+        // Pre-seed pedido en estado entregado para que abrirModalCobro no quede bloqueado
+        $pedidoPreparado = \App\Models\Pedido::create([
+            'codigo' => 'ORD-PROP-001',
+            'tipo' => 'mesa',
+            'estado' => 'entregado',
+            'mesa_id' => $this->mesa->id,
+            'usuario_id' => $this->cajero->id,
+            'subtotal' => $precioUnitario,
+            'total' => $precioUnitario,
+        ]);
+        $pedidoPreparado->items()->create([
+            'producto_id' => $this->producto->id,
+            'nombre_producto' => $this->producto->nombre,
+            'cantidad' => 1,
+            'precio_unitario' => $precioUnitario,
+            'subtotal' => $precioUnitario,
+            'area_cocina' => $this->producto->area_cocina,
+            'estado_cocina' => 'entregado',
+        ]);
+
         Volt::actingAs($this->cajero)
             ->test('pos.terminal')
             ->set('mesaId', $this->mesa->id)
-            ->call('agregarProducto', $this->producto->id)
             ->call('abrirModalCobro')
             ->assertSet('tipoPropina', 'cero')
             ->assertSet('montoPropina', 0.0)

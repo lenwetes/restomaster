@@ -17,45 +17,61 @@ touch /var/www/html/storage/logs/laravel.log
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# 1. Guarantee valid and stable APP_KEY is present
-if [ -z "$APP_KEY" ] || [ "$APP_KEY" = '""' ] || [ "$APP_KEY" = "''" ]; then
-    if [ -f /var/www/html/storage/app/app.key ]; then
-        export APP_KEY=$(cat /var/www/html/storage/app/app.key)
-    else
-        echo "==> APP_KEY not provided. Generating new application encryption key..."
-        export APP_KEY=$(php /var/www/html/artisan key:generate --show)
-        echo "$APP_KEY" > /var/www/html/storage/app/app.key
-        echo "==> Application encryption key generated and persisted."
-    fi
-fi
+# 1. Guarantee valid and stable defaults for all critical variables
+export APP_NAME="${APP_NAME:-RestoMaster}"
+export APP_ENV="${APP_ENV:-production}"
+export APP_DEBUG="${APP_DEBUG:-false}"
+export APP_URL="${APP_URL:-http://localhost:8004}"
+export APP_KEY="${APP_KEY:-base64:oLXrwloTI0QaICwHbIcV6HuJkMz9uqsOvThnVMkLBcw=}"
+
+export DB_CONNECTION="${DB_CONNECTION:-pgsql}"
+export DB_HOST="${DB_HOST:-postgres}"
+export DB_PORT="${DB_PORT:-5432}"
+export DB_DATABASE="${DB_DATABASE:-restomaster}"
+export DB_USERNAME="${DB_USERNAME:-adminresto}"
+export DB_PASSWORD="${DB_PASSWORD:-RestoDemo2026DB}"
+
+export SESSION_DRIVER="${SESSION_DRIVER:-file}"
+export SESSION_LIFETIME="${SESSION_LIFETIME:-120}"
+export SESSION_SECURE_COOKIE="${SESSION_SECURE_COOKIE:-false}"
+export QUEUE_CONNECTION="${QUEUE_CONNECTION:-database}"
+export CACHE_STORE="${CACHE_STORE:-file}"
+export REDIS_HOST="${REDIS_HOST:-redis}"
+export REDIS_PORT="${REDIS_PORT:-6379}"
+
+export AUTO_MIGRATE="${AUTO_MIGRATE:-true}"
+export AUTO_SEED="${AUTO_SEED:-true}"
+export AUTO_SEED_DEMO="${AUTO_SEED_DEMO:-true}"
+export DEMO_USERS_PASSWORD="${DEMO_USERS_PASSWORD:-RestoDemo2026}"
+export OPTIMIZE_CACHE="${OPTIMIZE_CACHE:-true}"
 
 # 2. Write runtime environment variables to /var/www/html/.env so PHP-FPM workers and Dotenv always have them
 echo "==> Writing runtime configuration to /var/www/html/.env..."
 cat <<EOF > /var/www/html/.env
-APP_NAME="${APP_NAME:-RestoMaster}"
-APP_ENV="${APP_ENV:-production}"
+APP_NAME="${APP_NAME}"
+APP_ENV="${APP_ENV}"
 APP_KEY="${APP_KEY}"
-APP_DEBUG="${APP_DEBUG:-false}"
-APP_URL="${APP_URL:-http://localhost:8004}"
+APP_DEBUG="${APP_DEBUG}"
+APP_URL="${APP_URL}"
 LOG_CHANNEL="${LOG_CHANNEL:-stderr}"
 LOG_LEVEL="${LOG_LEVEL:-debug}"
 
-DB_CONNECTION="${DB_CONNECTION:-pgsql}"
-DB_HOST="${DB_HOST:-postgres}"
-DB_PORT="${DB_PORT:-5432}"
-DB_DATABASE="${DB_DATABASE:-restomaster}"
-DB_USERNAME="${DB_USERNAME:-adminresto}"
+DB_CONNECTION="${DB_CONNECTION}"
+DB_HOST="${DB_HOST}"
+DB_PORT="${DB_PORT}"
+DB_DATABASE="${DB_DATABASE}"
+DB_USERNAME="${DB_USERNAME}"
 DB_PASSWORD="${DB_PASSWORD}"
 
-SESSION_DRIVER="${SESSION_DRIVER:-database}"
-SESSION_LIFETIME="${SESSION_LIFETIME:-120}"
-SESSION_SECURE_COOKIE="${SESSION_SECURE_COOKIE:-false}"
+SESSION_DRIVER="${SESSION_DRIVER}"
+SESSION_LIFETIME="${SESSION_LIFETIME}"
+SESSION_SECURE_COOKIE="${SESSION_SECURE_COOKIE}"
 SESSION_DOMAIN="${SESSION_DOMAIN:-}"
-QUEUE_CONNECTION="${QUEUE_CONNECTION:-database}"
-CACHE_STORE="${CACHE_STORE:-file}"
-REDIS_HOST="${REDIS_HOST:-redis}"
+QUEUE_CONNECTION="${QUEUE_CONNECTION}"
+CACHE_STORE="${CACHE_STORE}"
+REDIS_HOST="${REDIS_HOST}"
 REDIS_PASSWORD="${REDIS_PASSWORD:-}"
-REDIS_PORT="${REDIS_PORT:-6379}"
+REDIS_PORT="${REDIS_PORT}"
 
 BROADCAST_CONNECTION="${BROADCAST_CONNECTION:-reverb}"
 REVERB_APP_ID="${REVERB_APP_ID:-100001}"
@@ -111,7 +127,7 @@ if [ ! -L /var/www/html/public/storage ]; then
 fi
 
 # 5. Run database migrations if AUTO_MIGRATE is enabled
-if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
+if [ "${AUTO_MIGRATE:-true}" = "true" ]; then
     echo "==> Checking database connection and running migrations..."
     max_retries=30
     counter=0
@@ -120,7 +136,7 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
         \$port = getenv('DB_PORT') ?: 5432;
         \$db   = getenv('DB_DATABASE') ?: 'restomaster';
         \$user = getenv('DB_USERNAME') ?: 'adminresto';
-        \$pass = getenv('DB_PASSWORD') ?: '';
+        \$pass = getenv('DB_PASSWORD') ?: 'RestoDemo2026DB';
         try {
             \$pdo = new PDO(\"pgsql:host={\$host};port={\$port};dbname={\$db}\", \$user, \$pass, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

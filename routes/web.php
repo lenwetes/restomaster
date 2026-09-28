@@ -53,6 +53,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('pos', 'pos.terminal')->middleware('role:mesero,cajero,gerente')->name('pos');
     Volt::route('cocina', 'cocina.kds')->middleware('role:admin,gerente,cocina,barra,cajero')->name('cocina');
     Volt::route('caja', 'caja.control')->middleware('role:cajero,gerente')->name('caja');
+    Route::get('caja-alias', fn () => redirect()->route('caja'))->name('caja.control');
     Volt::route('inventario', 'inventario.index')->middleware('role:gerente,cajero')->name('inventario');
     Volt::route('clientes', 'clientes.index')->middleware('role:cajero,gerente')->name('clientes');
     Volt::route('crm', 'crm.index')->middleware('role:cajero,gerente,admin')->name('crm');

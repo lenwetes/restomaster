@@ -1,5 +1,6 @@
 # ==============================================================================
 # RestoMaster — Docker Compose para DEMOS (cero-fricción)
+# ESPEJO de docker-compose.yml — alias .yaml requerido por Coolify (commit 876792c)
 # ==============================================================================
 # Despliegue de demostración: todo trae valor por defecto y arranca solo.
 # Las credenciales están EXPUESTAS a propósito: entorno demo desechable.
@@ -40,7 +41,7 @@ services:
       DB_PASSWORD: "${DB_PASSWORD:-RestoDemo2026DB}"
 
       # Sesión / cola / caché
-      SESSION_DRIVER: "${SESSION_DRIVER:-database}"
+      SESSION_DRIVER: "${SESSION_DRIVER:-file}"
       SESSION_LIFETIME: "${SESSION_LIFETIME:-120}"
       SESSION_SECURE_COOKIE: "${SESSION_SECURE_COOKIE:-false}"
       QUEUE_CONNECTION: "${QUEUE_CONNECTION:-database}"

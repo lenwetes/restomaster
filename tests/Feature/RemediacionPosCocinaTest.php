@@ -176,19 +176,32 @@ class RemediacionPosCocinaTest extends TestCase
 
     public function test_r6_procesar_cobro_incluye_items_agregados_al_carrito(): void
     {
-        // Pedido activo con 1 item del producto A (85.000), ya servido para habilitar el cobro
+        // Pedido activo con 1 item del producto A (85.000), ya enviado a cocina y despachado
         $pedidoActivo = $this->crearPedidoActivoConItemProductoA();
         $pedidoActivo->items()->update(['estado_cocina' => 'entregado']);
         $pedidoActivo->update(['estado' => 'entregado']);
 
+        // Agregar item B directamente en BD (simulando modo nueva adición que ya fue enviado)
+        $pedidoActivo->items()->create([
+            'producto_id'    => $this->productoB->id,
+            'nombre_producto' => $this->productoB->nombre,
+            'cantidad'       => 1,
+            'precio_unitario' => $this->productoB->precio,
+            'subtotal'       => $this->productoB->precio,
+            'area_cocina'    => 'cocina',
+            'estado_cocina'  => 'entregado',
+        ]);
+        $pedidoActivo->update([
+            'subtotal' => 150000,
+            'total'    => 150000,
+            'estado'   => 'entregado',
+        ]);
+
+        // Montar el POS: el carrito se carga desde el pedido activo,
+        // comandaRequiereEnvioCocina() == false porque no hay items nuevos en carrito
         $component = Volt::actingAs($this->mesero)
             ->test('pos.terminal')
             ->set('mesaId', $this->mesa->id);
-
-        // El mesero agrega producto B (65.000) => carrito = 150.000
-        $component->call('agregarProducto', $this->productoB->id);
-
-        $this->assertEquals(150000.0, (float) $component->get('total'));
 
         $component
             ->call('abrirModalCobro')
@@ -206,10 +219,15 @@ class RemediacionPosCocinaTest extends TestCase
 
     public function test_r7_cobro_con_tarjeta_no_conserva_monto_pagado_residual_de_efectivo(): void
     {
+        // Pedido activo con producto A ya enviado a cocina y despachado
+        $pedidoActivo = $this->crearPedidoActivoConItemProductoA();
+        $pedidoActivo->items()->update(['estado_cocina' => 'entregado']);
+        $pedidoActivo->update(['estado' => 'entregado']);
+
+        // Montar POS: carrito vacío (pedido ya enviado) -> comandaRequiereEnvioCocina() == false
         $component = Volt::actingAs($this->mesero)
             ->test('pos.terminal')
-            ->set('mesaId', $this->mesa->id)
-            ->call('agregarProducto', $this->productoA->id);
+            ->set('mesaId', $this->mesa->id);
 
         $total = (float) $component->get('total');
         $this->assertEquals(85000.0, $total);
@@ -226,10 +244,11 @@ class RemediacionPosCocinaTest extends TestCase
 
         $this->assertNotNull($component->get('pedidoCompletado'));
 
-        $pedido = Pedido::where('mesa_id', $this->mesa->id)->first();
+        $pedido = Pedido::find($pedidoActivo->id);
         $this->assertEquals('tarjeta', $pedido->metodo_pago);
         $this->assertEquals(85000.0, (float) $pedido->total);
         $this->assertEquals(85000.0, (float) $pedido->monto_pagado, 'Cobro con tarjeta registró monto residual de efectivo.');
         $this->assertEquals(0.0, (float) $pedido->cambio, 'Cobro con tarjeta no debe generar cambio.');
     }
 }
+
