@@ -82,7 +82,7 @@ Route::middleware(['auth'])->group(function () {
             ->get();
 
         return response()->json($notificaciones);
-    })->name('notificaciones.pendientes');
+    })->middleware('throttle:60,1')->name('notificaciones.pendientes');
 
     Route::post('notificaciones/{id}/marcar-leida', function (int $id) {
         $user = auth()->user();

@@ -321,4 +321,48 @@ class RotacionMeserosLivewireTest extends TestCase
             50000
         );
     }
+
+    public function test_mesero_no_se_duplica_al_asignar_a_otra_zona_y_autodistribuir_es_unico(): void
+    {
+        $this->actingAs($this->admin);
+
+        $zonaTerraza = Zona::create([
+            'sucursal_id' => $this->sucursal->id,
+            'nombre' => 'Terraza',
+            'slug' => 'terraza',
+            'color' => 'salvia',
+            'icono' => 'terraza',
+            'activa' => true,
+            'orden' => 2,
+        ]);
+
+        $service = app(\App\Services\RotacionMeseroService::class);
+
+        // 1. Asignar a Salón
+        $service->asignarMeseroAZona($this->sucursal->id, 'salon', $this->mesero->id, $this->zonaSalon->id);
+        $this->assertEquals(1, RotacionMesero::where('user_id', $this->mesero->id)->count());
+        $this->assertEquals('salon', RotacionMesero::where('user_id', $this->mesero->id)->value('zona_slug'));
+
+        // 2. Mover o asignar a Terraza -> Debe removerse de Salón automáticamente
+        $service->asignarMeseroAZona($this->sucursal->id, 'terraza', $this->mesero->id, $zonaTerraza->id);
+        $this->assertEquals(1, RotacionMesero::where('user_id', $this->mesero->id)->count());
+        $this->assertEquals('terraza', RotacionMesero::where('user_id', $this->mesero->id)->value('zona_slug'));
+
+        // 3. Auto-distribuir varios meseros
+        $otroMesero = User::create([
+            'name' => 'Segundo Mesero',
+            'email' => 'segundo@sushixpress.com',
+            'password' => bcrypt('password'),
+            'role_id' => $this->mesero->role_id,
+            'sucursal_id' => $this->sucursal->id,
+            'activo' => true,
+        ]);
+
+        $service->autodistribuirMeserosActivos($this->sucursal->id);
+
+        // Cada mesero activo debe tener exactamente 1 registro en rotaciones_meseros
+        $this->assertEquals(1, RotacionMesero::where('user_id', $this->mesero->id)->count());
+        $this->assertEquals(1, RotacionMesero::where('user_id', $otroMesero->id)->count());
+        $this->assertEquals(2, RotacionMesero::where('sucursal_id', $this->sucursal->id)->count());
+    }
 }

@@ -6,7 +6,25 @@
 ---
 
 ## Última Actualización
-2026-09-28 | Antigravity | 🚀 **WEBSOCKETS (REVERB) AUTOMÁTICO EN COOLIFY & RELEVO DE MESEROS EN COBRO** (`docker/supervisord.conf`, `docker/nginx.conf`, `docker/entrypoint.sh`, `docker-compose.coolify.yml`, `resources/js/echo.js`, `app/Services/RotacionMeseroService.php`, `coordination.md`):
+2026-09-28 | Antigravity | 🛡️ **DEDUPLICACIÓN DE MESEROS POR ZONA, SUPRESIÓN DE POLLING HTTP Y FIX DOCKER-COMPOSE** (`app/Services/RotacionMeseroService.php`, `resources/views/components/alerta-cocina-mesero.blade.php`, `routes/web.php`, `docker-compose.coolify.yml`, `docker-compose.yaml`, `docker-compose.yml`, `tests/Feature/RotacionMeserosLivewireTest.php`):
+- **Eliminación de Meseros Duplicados entre Zonas:**
+  - Causa: Al asignar manualmente o auto-distribuir, `updateOrCreate` solo verificaba `[sucursal_id, zona_slug, user_id]`, acumulando un mismo mesero en múltiples zonas (Salón, Barra, Terraza y VIP a la vez).
+  - Solución: Regla estricta de negocio: 1 mesero solo puede estar en 1 zona por turno. En `asignarMeseroAZona()` se limpian automáticamente asignaciones en zonas previas. En `autodistribuirMeserosActivos()` se limpia el turno previo y se reparte limpiamente de forma balanceada. Incorporado método `deduplicarRotaciones()` con auto-curación en lectura.
+- **Supresión de Sobrecarga de Servidor en Notificaciones (`/notificaciones/pendientes`):**
+  - Causa: Sondeo incondicional cada 3 segundos en segundo plano en todas las pestañas autenticadas (`setInterval(..., 3000)`).
+  - Solución: 
+    1. Si WebSockets (Laravel Reverb / Echo) está conectado (`isEchoConnected()`), el sondeo HTTP se **suprime al 100%**. Los eventos llegan en tiempo real (<5ms).
+    2. Si WebSockets está caído o desconectado, sondeo pasivo cada 20s como fallback exclusivo.
+    3. Si la pestaña está minimizada o en background (`document.hidden`), se suspende.
+    4. Añadido `throttle:60,1` y guardia `isChecking` para evitar colisiones de peticiones.
+- **Fix Clave Duplicada en Docker Compose (`@[current_problems]`):**
+  - Eliminada clave redundante `BROADCAST_CONNECTION: "${BROADCAST_CONNECTION:-log}"` en `docker-compose.coolify.yml`, `docker-compose.yaml` y `docker-compose.yml`.
+- **Pruebas y Verificación:**
+  - 10/10 tests pasando en `RotacionMeserosLivewireTest` (27 aserciones).
+
+---
+
+## Actualización previa
 - **WebSockets (Laravel Reverb) Auto-Configurado en Coolify (Zero-Config):**
   - Supervisord (`docker/supervisord.conf`): Integrado proceso persistente `[program:reverb]` (`artisan reverb:start --host=0.0.0.0 --port=8080`) con auto-restart y prioridad 35.
   - Proxy Reverso en Nginx (`docker/nginx.conf`): Ruteo interno de `/app` directo a `127.0.0.1:8080` con cabeceras `Upgrade` y `Connection "Upgrade"`. No requiere abrir puertos adicionales en Coolify ni configurar Traefik externo: el tráfico WebSocket entra por el puerto estándar HTTPS (443).

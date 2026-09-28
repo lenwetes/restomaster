@@ -234,6 +234,30 @@ class RotacionMeseroService
                 ->value('id');
         }
 
+        // Regla de Negocio: Un mesero solo puede estar asignado a UNA SOLA ZONA activa por turno.
+        // Si ya está asignado a otra zona en esta sucursal, removerlo de la zona previa.
+        $rotacionesPrevias = RotacionMesero::where('sucursal_id', $sucursalId)
+            ->where('user_id', $meseroId)
+            ->where('turno', $turno)
+            ->where('zona_slug', '!=', $zonaSlug)
+            ->get();
+
+        foreach ($rotacionesPrevias as $rotPrev) {
+            if ($rotPrev->zona_id) {
+                TurnoMeseroZona::where('zona_id', $rotPrev->zona_id)
+                    ->where('mesero_id', $meseroId)
+                    ->delete();
+            }
+            $rotPrev->delete();
+        }
+
+        if ($zonaId) {
+            TurnoMeseroZona::where('sucursal_id', $sucursalId)
+                ->where('mesero_id', $meseroId)
+                ->where('zona_id', '!=', $zonaId)
+                ->delete();
+        }
+
         $maxOrden = RotacionMesero::where('sucursal_id', $sucursalId)
             ->where('zona_slug', $zonaSlug)
             ->where('turno', $turno)
@@ -267,7 +291,8 @@ class RotacionMeseroService
     }
 
     /**
-     * Distribuir equitativamente todos los meseros activos entre las zonas de la sucursal.
+     * Distribuir equitativamente todos los meseros activos entre las zonas de la sucursal
+     * garantizando que cada mesero quede en exactamente una zona sin duplicados.
      */
     public function autodistribuirMeserosActivos(?int $sucursalId = null): int
     {
@@ -291,16 +316,52 @@ class RotacionMeseroService
             return 0;
         }
 
+        // Limpiar asignaciones previas en la sucursal para evitar meseros duplicados entre zonas
+        RotacionMesero::where('sucursal_id', $sucursalId)->where('turno', 'general')->delete();
+        TurnoMeseroZona::where('sucursal_id', $sucursalId)->delete();
+
         $numZonas = $zonas->count();
         $distribuidos = 0;
 
         foreach ($meseros as $index => $mesero) {
             $zona = $zonas[$index % $numZonas];
-            $this->asignarMeseroAZona($sucursalId, $zona->slug, $mesero->id);
+            $this->asignarMeseroAZona($sucursalId, $zona->slug, $mesero->id, $zona->id);
             $distribuidos++;
         }
 
         return $distribuidos;
+    }
+
+    /**
+     * Eliminar asignaciones duplicadas de meseros entre diferentes zonas (regla: 1 mesero = 1 zona).
+     */
+    public function deduplicarRotaciones(?int $sucursalId = null, string $turno = 'general'): int
+    {
+        $sucursalId = $sucursalId ?? 1;
+        $rotaciones = RotacionMesero::where('sucursal_id', $sucursalId)
+            ->where('turno', $turno)
+            ->orderBy('updated_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $vistos = [];
+        $eliminados = 0;
+
+        foreach ($rotaciones as $rot) {
+            if (isset($vistos[$rot->user_id])) {
+                if ($rot->zona_id) {
+                    TurnoMeseroZona::where('zona_id', $rot->zona_id)
+                        ->where('mesero_id', $rot->user_id)
+                        ->delete();
+                }
+                $rot->delete();
+                $eliminados++;
+            } else {
+                $vistos[$rot->user_id] = $rot->zona_slug;
+            }
+        }
+
+        return $eliminados;
     }
 
     /**
@@ -359,6 +420,9 @@ class RotacionMeseroService
     public function obtenerRotacionesPorSucursal(?int $sucursalId = null, string $turno = 'general'): Collection
     {
         $sucursalId = $sucursalId ?? 1;
+
+        // Auto-reparación: Garantizar que no existan duplicados residuales antes de listar
+        $this->deduplicarRotaciones($sucursalId, $turno);
 
         return RotacionMesero::with(['mesero.role', 'zona'])
             ->where('sucursal_id', $sucursalId)

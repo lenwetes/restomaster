@@ -120,21 +120,51 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
             return this.alertas[this.indiceActual];
         },
 
+        isChecking: false,
+
         init() {
             this.conectarCanales();
             this.iniciarTemporizador();
             this.iniciarSondeoHttp();
         },
 
+        isEchoConnected() {
+            try {
+                return !!(window.Echo &&
+                    window.Echo.connector &&
+                    window.Echo.connector.pusher &&
+                    window.Echo.connector.pusher.connection &&
+                    window.Echo.connector.pusher.connection.state === 'connected');
+            } catch (e) {
+                return false;
+            }
+        },
+
         iniciarSondeoHttp() {
-            // Sondeo periódico (cada 3s) como respaldo infalible con o sin WebSockets/Reverb activo
+            // Consulta inicial única al cargar la página para recuperar pendientes
             this.consultarNotificacionesPendientes();
+
+            // Sondeo pasivo de respaldo: SOLO se ejecuta si WebSockets está caído/desconectado
+            // y la pestaña está visible. Si WebSockets está activo, el sondeo HTTP se suprime al 100%.
             setInterval(() => {
+                // 1. Si WebSockets está conectado, no sobrecargar el servidor con peticiones HTTP
+                if (this.isEchoConnected()) {
+                    return;
+                }
+
+                // 2. Si la pestaña está en segundo plano o minimizada, suspender sondeo
+                if (document.hidden) {
+                    return;
+                }
+
                 this.consultarNotificacionesPendientes();
-            }, 3000);
+            }, 20000); // 20 segundos de intervalo pasivo (en vez de 3s) únicamente como fallback
         },
 
         async consultarNotificacionesPendientes() {
+            if (this.isChecking) return;
+            this.isChecking = true;
+
             try {
                 const res = await fetch('/notificaciones/pendientes', {
                     headers: { 'Accept': 'application/json' }
@@ -159,7 +189,10 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
                         }
                     });
                 }
-            } catch (err) {}
+            } catch (err) {
+            } finally {
+                this.isChecking = false;
+            }
         },
 
         conectarCanales() {
