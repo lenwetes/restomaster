@@ -6,6 +6,28 @@
 ---
 
 ## Última Actualización
+2026-09-28 | Antigravity | 🔒 **RESTAURACIÓN DE BLOQUEO DE COBRO SIN ENVIAR COMANDA A COCINA + SETUP LOCAL WEBSOCKETS/REDIS + PLAN PROGRAMACIÓN SEMANAL** (`resources/views/livewire/pos/terminal.blade.php`, `resources/js/echo.js`, `composer.json`, `tests/Feature/FlujoComandaCocinaPosTest.php`, `iniciar-local.bat`):
+- **Bloqueo Estricto de Cobrar sin Enviar a Cocina Restaurado:**
+  - Causa reportada: En la terminal POS de mesas, el botón permitía "Cobrar Listo" aún teniendo ítems en carrito pendientes por enviar a cocina, o sin comanda activa enviada.
+  - Solución implementada:
+    1. Creada propiedad calculada `comandaRequiereEnvioCocina(): bool` que detecta si la comanda no tiene pedido activo o si el carrito tiene productos pendientes por comandar a cocina.
+    2. Bloqueo en `comandaListaParaCobrar()`: Si `comandaRequiereEnvioCocina()` es verdadero, retorna `false`.
+    3. Bloqueo en `abrirModalCobro()`: Emite notificación visual de advertencia y no abre el modal de cobro.
+    4. Bloqueo en `procesarCobro()` en backend: aborta con HTTP 422 si se intenta forzar el cobro sin enviar la comanda a cocina.
+    5. UI reactiva (móvil y escritorio): Botón de cobro deshabilitado con etiqueta `"Enviar a Cocina Primero"` y badge de advertencia `"⚠️ Comanda sin enviar: envía primero a cocina antes de cobrar"`.
+    6. Verificado con tests automatizados: 6/6 tests pasando en `tests/Feature/FlujoComandaCocinaPosTest.php` (64 aserciones).
+- **WebSockets y Redis en Local (Entorno de Desarrollo):**
+  - Servicio nativo de Redis configurado y corriendo en `127.0.0.1:6379`.
+  - Instalado `predis/predis` para comunicación directa con Redis en Windows.
+  - Laravel Reverb corriendo en `localhost:8080` y probado con broadcast exitoso de eventos (`MesaActualizada`).
+  - `echo.js` ajustado para conectar a puerto 8080 en local (`localhost`/`127.0.0.1`) y 443 en producción/HTTPS.
+  - Script `iniciar-local.bat` creado para arrancar Redis, Reverb y Serve con un solo clic.
+- **Plan de Programación Semanal de Meseros y Zonas:**
+  - Creado documento completo en `brain/plan_programacion_semanal_turnos.md` con modelo de datos relacional, reglas de negocio, ciclo de vida JIT (Just-in-Time) y pantallas Livewire.
+
+---
+
+## Actualización previa
 2026-09-28 | Antigravity | 🛡️ **DEDUPLICACIÓN DE MESEROS POR ZONA, SUPRESIÓN DE POLLING HTTP Y FIX DOCKER-COMPOSE** (`app/Services/RotacionMeseroService.php`, `resources/views/components/alerta-cocina-mesero.blade.php`, `routes/web.php`, `docker-compose.coolify.yml`, `docker-compose.yaml`, `docker-compose.yml`, `tests/Feature/RotacionMeserosLivewireTest.php`):
 - **Eliminación de Meseros Duplicados entre Zonas:**
   - Causa: Al asignar manualmente o auto-distribuir, `updateOrCreate` solo verificaba `[sucursal_id, zona_slug, user_id]`, acumulando un mismo mesero en múltiples zonas (Salón, Barra, Terraza y VIP a la vez).

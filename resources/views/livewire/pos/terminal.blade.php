@@ -681,6 +681,15 @@ new class extends Component
 
     public function abrirModalCobro(): void
     {
+        if ($this->tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'Bloqueo de Cobro: Debes enviar la comanda a cocina antes de cobrar la mesa.',
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
+
         if ($this->esMesaDeOtroMesero()) {
             $mesa = Mesa::find($this->mesaId);
             $pedido = $this->obtenerPedidoActivoMesa();
@@ -961,6 +970,32 @@ new class extends Component
         return $nuevos;
     }
 
+    public function comandaRequiereEnvioCocina(): bool
+    {
+        if ($this->tipo !== 'mesa') {
+            return false;
+        }
+
+        if (! $this->mesaId || empty($this->carrito)) {
+            return false;
+        }
+
+        $pedido = $this->obtenerPedidoActivoMesa();
+
+        // 1. Si no existe pedido activo en BD, los platos del carrito aún no se han enviado a cocina
+        if (! $pedido) {
+            return true;
+        }
+
+        // 2. Si hay productos agregados en el carrito que no han sido enviados a cocina
+        if ($this->cantidadNuevosItemsParaCocina() > 0) {
+            return true;
+        }
+
+        // 3. Si la comanda en BD aún no ha sido despachada hacia cocina
+        return ! $this->comandaYaEnviadaACocina();
+    }
+
     public function comandaActivaBloqueaCobro(): bool
     {
         if ($this->tipo !== 'mesa' || ! $this->mesaId) {
@@ -978,20 +1013,29 @@ new class extends Component
 
     public function comandaListaParaCobrar(): bool
     {
-        if ($this->tipo !== 'mesa' || ! $this->mesaId) {
+        if ($this->tipo !== 'mesa') {
             return ! empty($this->carrito);
+        }
+
+        if (! $this->mesaId || empty($this->carrito)) {
+            return false;
+        }
+
+        // Si la comanda tiene platos pendientes por enviar a cocina, NO está lista para cobrar
+        if ($this->comandaRequiereEnvioCocina()) {
+            return false;
         }
 
         $pedido = $this->obtenerPedidoActivoMesa();
         if (! $pedido) {
-            return ! empty($this->carrito);
+            return false;
         }
 
         $tieneItems = $pedido->items()->exists();
         $enCocina = in_array($pedido->estado, ['en_cocina', 'en_preparacion', 'en_proceso'])
             && $pedido->items()->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->exists();
 
-        return $tieneItems && ! $enCocina;
+        return $tieneItems && ! $enCocina && $this->cantidadNuevosItemsParaCocina() === 0;
     }
 
     public function esMesaDeOtroMesero(): bool
@@ -1015,6 +1059,10 @@ new class extends Component
     public function procesarCobro(): void
     {
         $this->authorize('cobrar', Pedido::class);
+
+        if ($this->tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) {
+            abort(422, 'Debes enviar la comanda a cocina antes de procesar el cobro de la mesa.');
+        }
 
         if ($this->modoNuevaAdicion && $this->tipo === 'mesa' && $this->mesaId) {
             $pedidoActivo = $this->obtenerPedidoActivoMesa();
@@ -2078,15 +2126,20 @@ new class extends Component
                                     <button 
                                         wire:click="abrirModalCobro"
                                         type="button"
-                                        @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
-                                        class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 {{ $this->comandaActivaBloqueaCobro() ? 'bg-amber-500/20 text-amber-900 border border-amber-500/40 cursor-not-allowed' : ($this->esMesaDeOtroMesero() ? 'bg-slate-700/50 text-slate-300 border border-slate-600 cursor-not-allowed' : ($this->comandaListaParaCobrar() ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-primary text-on-primary hover:bg-primary-container')) }}"
-                                        title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina. Solo se puede cobrar cuando cocina termine.' : ($this->esMesaDeOtroMesero() ? 'Mesa asignada a otro mesero.' : 'Cobrar Pedido') }}"
+                                        @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
+                                        class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 {{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40 cursor-not-allowed' : ($this->comandaActivaBloqueaCobro() ? 'bg-amber-500/20 text-amber-900 border border-amber-500/40 cursor-not-allowed' : ($this->esMesaDeOtroMesero() ? 'bg-slate-700/50 text-slate-300 border border-slate-600 cursor-not-allowed' : ($this->comandaListaParaCobrar() ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-primary text-on-primary hover:bg-primary-container'))) }}"
+                                        title="{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'Debes enviar la comanda a cocina antes de cobrar.' : ($this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina. Solo se puede cobrar cuando cocina termine.' : ($this->esMesaDeOtroMesero() ? 'Mesa asignada a otro mesero.' : 'Cobrar Pedido')) }}"
                                     >
-                                        <span class="material-symbols-outlined text-[18px]">{{ $this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments')) }}</span>
-                                        <span>{{ $this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa de Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar Pedido')) }}</span>
+                                        <span class="material-symbols-outlined text-[18px]">{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'skillet' : ($this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments'))) }}</span>
+                                        <span>{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'Enviar a Cocina Primero' : ($this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa de Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar Pedido'))) }}</span>
                                     </button>
                                 </div>
-                                @if($this->comandaActivaBloqueaCobro())
+                                @if($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
+                                    <p class="text-[10px] text-center font-bold text-amber-500 bg-amber-500/15 py-1 px-2 rounded-lg border border-amber-500/30 flex items-center justify-center gap-1">
+                                        <span class="material-symbols-outlined text-xs">skillet</span>
+                                        ⚠️ Comanda sin enviar: envía primero a cocina antes de cobrar
+                                    </p>
+                                @elseif($this->comandaActivaBloqueaCobro())
                                     <p class="text-[10px] text-center font-bold text-amber-800 bg-amber-500/15 py-1 px-2 rounded-lg border border-amber-500/30">
                                         ⏳ En preparación en cocina · Cobro bloqueado
                                     </p>
@@ -3099,16 +3152,21 @@ new class extends Component
                             <button 
                                 wire:click="abrirModalCobro"
                                 type="button"
-                                @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
+                                @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
                                 class="h-11 rounded-xl bg-gradient-to-r from-[#e0442e] to-[#c73420] hover:from-[#c73420] hover:to-[#a82a18] text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-[#e0442e]/25 active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina.' : ($this->esMesaDeOtroMesero() ? 'Mesa asignada a otro mesero.' : 'Cobrar Pedido') }}"
+                                title="{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'Debes enviar la comanda a cocina antes de cobrar la mesa.' : ($this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina.' : ($this->esMesaDeOtroMesero() ? 'Mesa asignada a otro mesero.' : 'Cobrar Pedido')) }}"
                             >
-                                <span class="material-symbols-outlined text-[18px]">{{ $this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments')) }}</span>
-                                <span>{{ $this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar $' . number_format($this->total, 0, ',', '.'))) }}</span>
+                                <span class="material-symbols-outlined text-[18px]">{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'skillet' : ($this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments'))) }}</span>
+                                <span>{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'Enviar a Cocina Primero' : ($this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar $' . number_format($this->total, 0, ',', '.')))) }}</span>
                             </button>
                         </div>
 
-                        @if($this->comandaActivaBloqueaCobro())
+                        @if($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
+                            <div class="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-[10px] font-bold text-amber-500">
+                                <span class="material-symbols-outlined text-[14px]">skillet</span>
+                                <span>⚠️ Comanda sin enviar: envía primero a cocina antes de cobrar</span>
+                            </div>
+                        @elseif($this->comandaActivaBloqueaCobro())
                             <div class="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-[10px] font-bold text-amber-500 animate-pulse">
                                 <span class="material-symbols-outlined text-[14px] text-amber-500">hourglass_top</span>
                                 <span>En preparación en cocina · Bloqueado hasta despacho</span>

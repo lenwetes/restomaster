@@ -14,7 +14,8 @@
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.4",
-        "livewire/volt": "^1.11"
+        "livewire/volt": "^1.11",
+        "predis/predis": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

@@ -416,4 +416,32 @@ class FlujoComandaCocinaPosTest extends TestCase
         $this->mesa->refresh();
         $this->assertEquals('por_limpiar', $this->mesa->estado);
     }
+
+    public function test_bloqueo_estricto_cobrar_mesa_sin_enviar_a_cocina(): void
+    {
+        // 1. Mesero entra al POS y selecciona mesa sin pedido previo
+        $pos = Volt::actingAs($this->mesero)
+            ->test('pos.terminal')
+            ->set('tipo', 'mesa')
+            ->set('mesaId', $this->mesa->id);
+
+        // 2. Agrega platos al carrito
+        $pos->call('agregarProducto', $this->platoParrilla->id)
+            ->call('agregarProducto', $this->bebidaBarra->id);
+
+        $this->assertNotEmpty($pos->get('carrito'));
+
+        // 3. Verifica que el sistema detecta que la comanda requiere envío previo a cocina
+        $this->assertTrue($pos->instance()->comandaRequiereEnvioCocina());
+        $this->assertFalse($pos->instance()->comandaListaParaCobrar());
+
+        // 4. Si intenta abrir modal de cobro, debe ser bloqueado con notificación
+        $pos->call('abrirModalCobro')
+            ->assertDispatched('notificacion');
+        $this->assertFalse($pos->get('mostrarModalCobro'));
+
+        // 5. Si intenta forzar cobro directo, debe retornar status 422
+        $pos->call('procesarCobro')
+            ->assertStatus(422);
+    }
 }
