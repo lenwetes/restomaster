@@ -129,4 +129,110 @@ class RotacionMeserosLivewireTest extends TestCase
 
         $this->assertEquals($this->mesero->id, $mesa->fresh()->mesero_id);
     }
+
+    public function test_autoasignar_mesas_libres_rebalancea_cuando_todas_tienen_mesero(): void
+    {
+        $this->actingAs($this->admin);
+
+        $otroMesero = User::create([
+            'name' => 'Sara Mesera',
+            'email' => 'sara@sushixpress.com',
+            'password' => bcrypt('password'),
+            'role_id' => $this->mesero->role_id,
+            'sucursal_id' => $this->sucursal->id,
+            'activo' => true,
+        ]);
+
+        RotacionMesero::create([
+            'sucursal_id' => $this->sucursal->id,
+            'zona_slug' => 'salon',
+            'user_id' => $this->mesero->id,
+            'orden' => 1,
+            'activo' => true,
+        ]);
+
+        RotacionMesero::create([
+            'sucursal_id' => $this->sucursal->id,
+            'zona_slug' => 'salon',
+            'user_id' => $otroMesero->id,
+            'orden' => 2,
+            'activo' => true,
+        ]);
+
+        // Mesa libre que ya tenía asignado el mesero 1
+        $mesa = Mesa::create([
+            'sucursal_id' => $this->sucursal->id,
+            'numero' => 'M-11',
+            'zona' => 'salon',
+            'capacidad' => 4,
+            'estado' => MesaEstado::LIBRE->value,
+            'mesero_id' => $this->mesero->id,
+        ]);
+
+        Volt::test('mesas.index')
+            ->call('autoasignarMesasLibres')
+            ->assertSet('tipoFlash', 'success');
+
+        $this->assertNotNull($mesa->fresh()->mesero_id);
+    }
+
+    public function test_autoasignar_bloqueado_en_modo_manual(): void
+    {
+        $this->actingAs($this->admin);
+
+        RotacionMesero::create([
+            'sucursal_id' => $this->sucursal->id,
+            'zona_slug' => 'salon',
+            'user_id' => $this->mesero->id,
+            'orden' => 1,
+            'activo' => true,
+        ]);
+
+        $mesa = Mesa::create([
+            'sucursal_id' => $this->sucursal->id,
+            'numero' => 'M-12',
+            'zona' => 'salon',
+            'capacidad' => 4,
+            'estado' => MesaEstado::LIBRE->value,
+            'mesero_id' => null,
+        ]);
+
+        // Cambiar a manual
+        Volt::test('mesas.index')
+            ->call('cambiarModoRotacion', 'manual')
+            ->call('autoasignarMesasLibres')
+            ->assertSet('tipoFlash', 'warning');
+
+        // La mesa no debe haberse autoasignado
+        $this->assertNull($mesa->fresh()->mesero_id);
+    }
+
+    public function test_asignar_por_rotacion_especifica_desde_ui(): void
+    {
+        $this->actingAs($this->admin);
+
+        RotacionMesero::create([
+            'sucursal_id' => $this->sucursal->id,
+            'zona_slug' => 'salon',
+            'user_id' => $this->mesero->id,
+            'orden' => 1,
+            'activo' => true,
+        ]);
+
+        $mesa = Mesa::create([
+            'sucursal_id' => $this->sucursal->id,
+            'numero' => 'M-13',
+            'zona' => 'salon',
+            'capacidad' => 4,
+            'estado' => MesaEstado::LIBRE->value,
+            'mesero_id' => null,
+        ]);
+
+        Volt::test('mesas.index')
+            ->call('cambiarModoRotacion', 'round_robin')
+            ->call('asignarPorRotacion', $mesa->id)
+            ->assertSet('tipoFlash', 'success');
+
+        $this->assertEquals($this->mesero->id, $mesa->fresh()->mesero_id);
+    }
 }

@@ -197,6 +197,11 @@ new class extends Component
             $mesa->mesero_id = null;
         }
 
+        // Si la mesa pasa a ocupada y no tiene mesero, autoasignar si la rotación no es manual
+        if ($nuevoEstado === MesaEstado::OCUPADA->value && ! $mesa->mesero_id) {
+            app(\App\Services\RotacionMeseroService::class)->autoasignarMesa($mesa);
+        }
+
         $mesa->estado = $nuevoEstado;
         $mesa->save();
 
@@ -492,7 +497,17 @@ new class extends Component
         $this->authorize('update', Mesa::class);
         $this->modoRotacion = $nuevoModo;
         app(\App\Services\RotacionMeseroService::class)->guardarModoRotacion($this->sucursalEnContexto(), $nuevoModo);
-        $this->dispatch('notificacion', ['mensaje' => "Modo de rotación configurado: {$nuevoModo}.", 'tipo' => 'success']);
+
+        $nombreModo = match ($nuevoModo) {
+            'round_robin' => 'Round-Robin Equitativo',
+            'menor_carga' => 'Menor Carga de Trabajo',
+            'manual' => 'Asignación Manual',
+            default => $nuevoModo,
+        };
+
+        $this->mensajeFlash = "Algoritmo de rotación configurado: {$nombreModo}.";
+        $this->tipoFlash = 'success';
+        $this->dispatch('notificacion', ['mensaje' => $this->mensajeFlash, 'tipo' => 'success']);
     }
 
     public function agregarMeseroARotacion(): void
@@ -532,19 +547,85 @@ new class extends Component
     public function autoasignarMesasLibres(): void
     {
         $this->authorize('update', Mesa::class);
-        $mesas = Mesa::where('sucursal_id', $this->sucursalEnContexto())
+        $sucursalId = $this->sucursalEnContexto();
+        $service = app(\App\Services\RotacionMeseroService::class);
+        $modo = $service->obtenerModoRotacion($sucursalId);
+
+        if ($modo === 'manual') {
+            $this->mensajeFlash = "La rotación está en 'Asignación Manual'. Para auto-asignar mesas por rotación, activa 'Round-Robin' o 'Menor Carga'.";
+            $this->tipoFlash = 'warning';
+            $this->dispatch('notificacion', ['mensaje' => $this->mensajeFlash, 'tipo' => 'warning']);
+
+            return;
+        }
+
+        // 1. Asignar mesas sin mesero asignado
+        $mesasSinMesero = Mesa::where('sucursal_id', $sucursalId)
             ->whereNull('mesero_id')
             ->get();
 
-        $service = app(\App\Services\RotacionMeseroService::class);
         $asignadas = 0;
-        foreach ($mesas as $m) {
-            if ($service->autoasignarMesa($m)) {
-                $asignadas++;
+        if ($mesasSinMesero->isNotEmpty()) {
+            foreach ($mesasSinMesero as $m) {
+                if ($service->autoasignarMesa($m)) {
+                    $asignadas++;
+                }
+            }
+        } else {
+            // 2. Si no hay mesas con mesero_id nulo, balancear/autoasignar las mesas libres sin comanda activa
+            $mesasLibres = Mesa::where('sucursal_id', $sucursalId)
+                ->where('estado', 'libre')
+                ->whereDoesntHave('pedidos', fn ($q) => $q->activos())
+                ->get();
+
+            foreach ($mesasLibres as $m) {
+                if ($service->autoasignarMesa($m, 'general', true)) {
+                    $asignadas++;
+                }
             }
         }
 
-        $this->dispatch('notificacion', ['mensaje' => "Se auto-asignaron {$asignadas} mesas según rotación.", 'tipo' => 'success']);
+        $nombreAlgoritmo = match ($modo) {
+            'round_robin' => 'Round-Robin Equitativo',
+            'menor_carga' => 'Menor Carga de Trabajo',
+            default => $modo,
+        };
+
+        $this->mensajeFlash = "Se auto-asignaron {$asignadas} mesas según el algoritmo {$nombreAlgoritmo}.";
+        $this->tipoFlash = 'success';
+        $this->dispatch('notificacion', ['mensaje' => $this->mensajeFlash, 'tipo' => 'success']);
+    }
+
+    public function asignarPorRotacion(int $mesaId): void
+    {
+        $this->authorize('update', Mesa::class);
+        $mesa = Mesa::findOrFail($mesaId);
+        $service = app(\App\Services\RotacionMeseroService::class);
+        $modo = $service->obtenerModoRotacion($this->sucursalEnContexto());
+
+        if ($modo === 'manual') {
+            $this->mensajeFlash = "La rotación está en modo 'Manual'. Selecciona 'Round-Robin' o 'Menor Carga' en la configuración de rotación.";
+            $this->tipoFlash = 'warning';
+            $this->dispatch('notificacion', ['mensaje' => $this->mensajeFlash, 'tipo' => 'warning']);
+
+            return;
+        }
+
+        $mesero = $service->autoasignarMesa($mesa, 'general', true);
+        if ($mesero) {
+            $nombreModo = match ($modo) {
+                'round_robin' => 'Round-Robin',
+                'menor_carga' => 'Menor Carga',
+                default => $modo,
+            };
+            $this->mensajeFlash = "Mesa #{$mesa->numero} asignada a {$mesero->name} por rotación ({$nombreModo}).";
+            $this->tipoFlash = 'success';
+        } else {
+            $this->mensajeFlash = "No hay meseros activos disponibles para la zona {$mesa->zona}.";
+            $this->tipoFlash = 'error';
+        }
+
+        $this->dispatch('notificacion', ['mensaje' => $this->mensajeFlash, 'tipo' => $this->tipoFlash]);
     }
 
     public function with(): array
@@ -1004,15 +1085,28 @@ new class extends Component
                                 </button>
                             {{-- rol intencional, no permiso: espejo UI del guard de transferencia (sin ability en el catálogo) --}}
                             @elseif(in_array(Auth::user()?->role?->slug, ['admin', 'gerente', 'cajero'], true))
-                                <button 
-                                    type="button"
-                                    wire:click="abrirModalTransferir({{ $mesa->id }})"
-                                    class="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest transition cursor-pointer border border-surface-container-highest"
-                                    title="Asignar mesero a esta mesa"
-                                >
-                                    <span class="material-symbols-outlined text-[12px]">person_add</span>
-                                    <span>Asignar Mesero</span>
-                                </button>
+                                <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                    <button 
+                                        type="button"
+                                        wire:click="abrirModalTransferir({{ $mesa->id }})"
+                                        class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest transition cursor-pointer border border-surface-container-highest"
+                                        title="Asignar mesero manualmente"
+                                    >
+                                        <span class="material-symbols-outlined text-[12px]">person_add</span>
+                                        <span>Manual</span>
+                                    </button>
+                                    @if($modoRotacion !== 'manual')
+                                        <button 
+                                            type="button"
+                                            wire:click="asignarPorRotacion({{ $mesa->id }})"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-secondary/15 text-secondary hover:bg-secondary/25 transition cursor-pointer border border-secondary/30"
+                                            title="Asignar según rotación activa ({{ $modoRotacion }})"
+                                        >
+                                            <span class="material-symbols-outlined text-[12px]">sync_alt</span>
+                                            <span>Rotación</span>
+                                        </button>
+                                    @endif
+                                </div>
                             @endif
                         </div>
                         <div class="flex flex-col items-end gap-1">
@@ -1737,7 +1831,23 @@ new class extends Component
                             <span class="material-symbols-outlined text-[18px]">{{ $mesaSel->mesero ? 'swap_horiz' : 'assignment_ind' }}</span>
                             <span>{{ $mesaSel->mesero ? 'Transferir' : 'Asignar Mesero' }}</span>
                         </button>
+                        @if($modoRotacion !== 'manual')
+                            <button wire:click="asignarPorRotacion({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                                class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-secondary/15 border border-secondary/30 text-secondary text-[11px] font-extrabold active:scale-95 transition cursor-pointer"
+                                title="Auto-asignar mesa según la rotación de turnos ({{ $modoRotacion }})">
+                                <span class="material-symbols-outlined text-[18px]">sync_alt</span>
+                                <span>Auto-Rotar</span>
+                            </button>
+                        @endif
                     @elseif (! $mesaSel->mesero_id)
+                        @if($modoRotacion !== 'manual')
+                            <button wire:click="asignarPorRotacion({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
+                                class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-secondary/15 border border-secondary/30 text-secondary text-[11px] font-extrabold active:scale-95 transition cursor-pointer"
+                                title="Auto-asignar mesa según la rotación de turnos ({{ $modoRotacion }})">
+                                <span class="material-symbols-outlined text-[18px]">sync_alt</span>
+                                <span>Auto-Rotar</span>
+                            </button>
+                        @endif
                         <button wire:click="autoasignarMesa({{ $mesaSel->id }}); $set('mesaSeleccionadaId', null)"
                             class="flex h-14 items-center justify-center gap-1.5 rounded-2xl bg-primary/10 border border-primary/30 text-primary text-[11px] font-extrabold active:scale-95 transition cursor-pointer">
                             <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
@@ -2562,10 +2672,14 @@ new class extends Component
                     <button
                         type="button"
                         wire:click="autoasignarMesasLibres"
-                        class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-secondary/40 bg-secondary/10 hover:bg-secondary/20 text-secondary font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        wire:loading.attr="disabled"
+                        wire:target="autoasignarMesasLibres"
+                        class="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-secondary/40 bg-secondary/10 hover:bg-secondary/20 text-secondary font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                     >
-                        <span class="material-symbols-outlined text-base">auto_mode</span>
-                        <span>Auto-asignar mesas sin mesero ahora</span>
+                        <span wire:loading.remove wire:target="autoasignarMesasLibres" class="material-symbols-outlined text-base">auto_mode</span>
+                        <span wire:loading wire:target="autoasignarMesasLibres" class="material-symbols-outlined text-base animate-spin">progress_activity</span>
+                        <span wire:loading.remove wire:target="autoasignarMesasLibres">Auto-asignar mesas sin mesero ahora</span>
+                        <span wire:loading wire:target="autoasignarMesasLibres">Asignando según rotación...</span>
                     </button>
 
                     <button

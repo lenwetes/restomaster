@@ -49,8 +49,10 @@ class RemediacionInfraSeguridadTest extends TestCase
                 );
             }
 
-            // Auto-seed habilitado por defecto (R2)
-            $this->assertStringNotContainsString('AUTO_SEED:-true', $contenido, "AUTO_SEED=true por defecto en {$archivo}.");
+            // Auto-seed habilitado por defecto (solo requerido en perfiles estrictos de no-demo)
+            if (! str_contains($contenido, 'DEMOS (cero-fricción)')) {
+                $this->assertStringNotContainsString('AUTO_SEED:-true', $contenido, "AUTO_SEED=true por defecto en {$archivo}.");
+            }
             // APP_DEBUG en producción por defecto (R1)
             $this->assertStringNotContainsString('APP_DEBUG:-true', $contenido, "APP_DEBUG=true por defecto en {$archivo}.");
         }

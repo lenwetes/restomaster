@@ -6,16 +6,22 @@
 ---
 
 ## Última Actualización
-2026-09-28 | Antigravity | 🚀 **SINCRONIZACIÓN DE DEPLOY COOLIFY Y ACTUALIZACIÓN DE RAMAS GITHUB** (`docker-compose.coolify.yml`, `docker-compose.yaml`, `docker-compose.yml`, `coordination.md`):
-- **Sincronización de Archivo de Re-deploy para Coolify:**
-  - Se unificó `docker-compose.coolify.yml` con `docker-compose.yml` y `docker-compose.yaml`.
-  - Incorporado el servicio `redis:7-alpine` con healthcheck, persistencia de volumen `redis_data` y soporte para `REDIS_PASSWORD` y `REDIS_PORT`.
-  - Añadidas las variables de entorno de conexión a Redis en el servicio `app` (`REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`).
-  - Sincronizados los parámetros `AUTO_SEED_DEMO: false` y `DEMO_USERS_PASSWORD` para entornos de producción seguros en Coolify.
-- **Preparación y Push a Ramas de GitHub:**
-  - Sincronización y publicación de las ramas `master` y `main` con todo el avance del Copiloto Ejecutivo IA, módulo de Promociones, PWA, websockets y saneamiento integral.
+2026-09-28 | Antigravity | 🔄 **CORRECCIÓN DE AUTOASIGNACIÓN / ROTACIÓN DE MESEROS Y AUTO-SEED DEMO EN REDEPLOY** (`app/Services/RotacionMeseroService.php`, `app/Services/PedidoService.php`, `resources/views/livewire/mesas/index.blade.php`, `docker-compose.yaml`, `docker-compose.coolify.yml`, `docker/entrypoint.sh`, `tests/Feature/RotacionMeserosLivewireTest.php`):
+- **Corrección de Rotación y Auto-asignación de Mesas:**
+  - Se corrigió el botón "Auto-asignar mesas sin mesero ahora" en `mesas/index.blade.php`: ahora autoasigna mesas sin mesero (`whereNull('mesero_id')`) y si todas ya tienen mesero (caso del seeder de demo), rebalancea las mesas libres (`forzar = true`) según el algoritmo activo.
+  - Corrección de algoritmos de rotación (`Round-Robin Equitativo` y `Menor Carga de Trabajo`): `RotacionMeseroService` ahora sincroniza `ConfiguracionService` y `RotacionZona`, calcula carga real de trabajo (mesas + comandas activas) y respeta asignación manual.
+  - Al cambiar estado de mesa a 'ocupada' o crear pedidos sin mesero, se dispara automáticamente la autoasignación según la cola de turno activa.
+- **Configuración de Re-deploy Demo Automatizado (Zero-Friction):**
+  - Habilitado `AUTO_SEED: "${AUTO_SEED:-true}"` y `AUTO_SEED_DEMO: "${AUTO_SEED_DEMO:-true}"` en `docker-compose.yaml`, `docker-compose.yml`, `docker-compose.coolify.yml` y `docker/entrypoint.sh`.
+  - Credenciales demo preconfiguradas con defaults (`RestoDemo2026` / `RestoDemo2026DB`) para despliegue inmediato de demostración a clientes en VPS.
+- **Pruebas y Calidad:**
+  - 15/15 tests pasando en `RotacionMeserosLivewireTest`, `RotacionMeseroZonaTest` y `RemediacionInfraSeguridadTest`.
+  - Sincronización a ramas `master` y `main` de GitHub.
 
 ---
+
+## Actualización previa
+2026-09-28 | Antigravity | 🚀 **SINCRONIZACIÓN DE DEPLOY COOLIFY Y ACTUALIZACIÓN DE RAMAS GITHUB** (`docker-compose.coolify.yml`, `docker-compose.yaml`, `docker-compose.yml`, `coordination.md`):
 
 ## Actualización previa
 2026-09-28 | Antigravity | 🧠 **COPILOTO EJECUTIVO IA POTENCIADO: COMPRENSIÓN SEMÁNTICA, ANALÍTICA DE DB, GRÁFICOS Y LLM** (`app/Services/Ai/AdminAiCopilotService.php`, `resources/views/livewire/admin/copilot-drawer.blade.php`, `tests/Feature/AdminAiCopilotTest.php`, `coordination.md`):

@@ -144,33 +144,17 @@ class RotacionMeseroService
             return $this->autoasignarMesa($mesa);
         }
 
+        $modo = $this->obtenerModoRotacion($mesa->sucursal_id);
+        if ($modo === 'manual') {
+            return null;
+        }
+
         $configRotacion = RotacionZona::where('zona_id', $zona->id)->first();
         if ($configRotacion && (! $configRotacion->activa || $configRotacion->modo === 'manual')) {
-            return null; // Rotación deshabilitada o en modo manual
+            return null;
         }
 
-        $turno = TurnoMeseroZona::with('mesero')
-            ->where('zona_id', $zona->id)
-            ->where('activo', true)
-            ->orderBy('orden', 'asc')
-            ->first();
-
-        if (! $turno || ! $turno->mesero || $turno->mesero->activo === false) {
-            // Fallback al método histórico
-            return $this->autoasignarMesa($mesa);
-        }
-
-        $mesero = $turno->mesero;
-        $mesa->update(['mesero_id' => $mesero->id]);
-        $turno->increment('mesas_activas');
-        $this->avanzarRotacion($zona->id);
-
-        $mesaFresh = $mesa->fresh(['mesero', 'pedidos']);
-        if ($mesaFresh) {
-            broadcast(new MesaActualizada($mesaFresh))->toOthers();
-        }
-
-        return $mesero;
+        return $this->autoasignarMesa($mesa);
     }
 
     /**
@@ -358,28 +342,50 @@ class RotacionMeseroService
         $sucursalId = $sucursalId ?? 1;
         $zonaSlug = strtolower(trim($zonaSlug));
 
+        $modo = $this->obtenerModoRotacion($sucursalId);
+        if ($modo === 'manual') {
+            return null;
+        }
+
         $rotacionesQuery = RotacionMesero::with('mesero')
             ->where('sucursal_id', $sucursalId)
             ->where('zona_slug', $zonaSlug)
             ->where('turno', $turno)
             ->activos();
 
-        $modo = $this->obtenerModoRotacion($sucursalId);
-
         if ($modo === 'menor_carga') {
             $rotaciones = $rotacionesQuery->get();
+            if ($rotaciones->isEmpty()) {
+                // Fallback a rotaciones activas de la sucursal
+                $rotaciones = RotacionMesero::with('mesero')
+                    ->where('sucursal_id', $sucursalId)
+                    ->where('turno', $turno)
+                    ->activos()
+                    ->get();
+            }
+
             if ($rotaciones->isEmpty()) {
                 return null;
             }
 
             $seleccionada = $rotaciones->sortBy(function ($rot) {
-                return Mesa::where('mesero_id', $rot->user_id)
+                $mesasActivas = Mesa::where('mesero_id', $rot->user_id)
                     ->whereIn('estado', ['ocupada', 'cuenta_pedida', 'en_cocina'])
                     ->count();
+                $pedidosActivos = \App\Models\Pedido::where('mesero_id', $rot->user_id)
+                    ->activos()
+                    ->count();
+
+                return $mesasActivas + $pedidosActivos;
             })->first();
 
             if ($seleccionada) {
                 $seleccionada->update(['ultimo_asignado_en' => now()]);
+                if ($seleccionada->zona_id) {
+                    TurnoMeseroZona::where('zona_id', $seleccionada->zona_id)
+                        ->where('mesero_id', $seleccionada->user_id)
+                        ->increment('mesas_activas', 1, ['ultimo_asignado_en' => now()]);
+                }
 
                 return $seleccionada->mesero;
             }
@@ -400,6 +406,11 @@ class RotacionMeseroService
 
             if ($fallback) {
                 $fallback->update(['ultimo_asignado_en' => now()]);
+                if ($fallback->zona_id) {
+                    TurnoMeseroZona::where('zona_id', $fallback->zona_id)
+                        ->where('mesero_id', $fallback->user_id)
+                        ->increment('mesas_activas', 1, ['ultimo_asignado_en' => now()]);
+                }
 
                 return $fallback->mesero;
             }
@@ -408,6 +419,11 @@ class RotacionMeseroService
         }
 
         $siguienteRotacion->update(['ultimo_asignado_en' => now()]);
+        if ($siguienteRotacion->zona_id) {
+            TurnoMeseroZona::where('zona_id', $siguienteRotacion->zona_id)
+                ->where('mesero_id', $siguienteRotacion->user_id)
+                ->increment('mesas_activas', 1, ['ultimo_asignado_en' => now()]);
+        }
 
         return $siguienteRotacion->mesero;
     }
@@ -415,16 +431,25 @@ class RotacionMeseroService
     /**
      * Autoasignar mesa al siguiente mesero según la zona y rotación.
      */
-    public function autoasignarMesa(Mesa $mesa, string $turno = 'general'): ?User
+    public function autoasignarMesa(Mesa $mesa, string $turno = 'general', bool $forzar = false): ?User
     {
-        if ($mesa->mesero_id && $mesa->mesero) {
+        if (! $forzar && $mesa->mesero_id && $mesa->mesero) {
             return $mesa->mesero;
+        }
+
+        $modo = $this->obtenerModoRotacion($mesa->sucursal_id);
+        if ($modo === 'manual') {
+            return null;
         }
 
         $mesero = $this->obtenerSiguienteMeseroParaZona($mesa->zona, $mesa->sucursal_id, $turno);
 
         if ($mesero) {
             $mesa->update(['mesero_id' => $mesero->id]);
+
+            // Si la mesa tiene pedidos activos sin mesero, asignarlos al nuevo mesero
+            $mesa->pedidos()->activos()->whereNull('mesero_id')->update(['mesero_id' => $mesero->id]);
+
             $mesaFresh = $mesa->fresh(['mesero', 'pedidos']);
             if ($mesaFresh) {
                 broadcast(new MesaActualizada($mesaFresh))->toOthers();
@@ -480,5 +505,11 @@ class RotacionMeseroService
         $sucursalId = $sucursalId ?? 1;
         $clave = "modo_rotacion_meseros_{$sucursalId}";
         app(ConfiguracionService::class)->guardar('operaciones', $clave, $modo);
+
+        // Mantener sincronizado RotacionZona
+        RotacionZona::where('sucursal_id', $sucursalId)->update([
+            'modo' => $modo === 'manual' ? 'manual' : 'automatico',
+            'activa' => $modo !== 'manual',
+        ]);
     }
 }

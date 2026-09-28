@@ -61,6 +61,13 @@ class PedidoService
             if (! $meseroId && ($usuario?->isMesero() || auth()->user()?->isMesero())) {
                 $meseroId = $usuario?->id ?? auth()->id();
             }
+            if (! $meseroId && $mesa) {
+                $rotService = app(\App\Services\RotacionMeseroService::class);
+                $meseroRotacion = $rotService->autoasignarMesa($mesa);
+                if ($meseroRotacion) {
+                    $meseroId = $meseroRotacion->id;
+                }
+            }
 
             $pedido = (new Pedido)->forceFill([
                 'codigo' => $codigo,

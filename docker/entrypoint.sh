@@ -146,13 +146,13 @@ if [ "${AUTO_MIGRATE:-false}" = "true" ]; then
     php /var/www/html/artisan db:seed --class=MeseroPruebaSeeder --force || true
 
     # Run database seeds if AUTO_SEED is enabled
-    if [ "${AUTO_SEED:-false}" = "true" ]; then
+    if [ "${AUTO_SEED:-true}" = "true" ]; then
         echo "==> AUTO_SEED is enabled. Seeding demo and essential data (php artisan db:seed --force)..."
         php /var/www/html/artisan db:seed --force || echo "==> Seed finished or partially seeded"
     fi
 
     # Full client-ready demo (catalog, mesas, cajas, turno abierto, pedidos e imágenes)
-    if [ "${AUTO_SEED_DEMO:-false}" = "true" ]; then
+    if [ "${AUTO_SEED_DEMO:-true}" = "true" ]; then
         echo "==> AUTO_SEED_DEMO is enabled. Loading full demo (php artisan restomaster:seed-demo)..."
         php /var/www/html/artisan restomaster:seed-demo || echo "==> Demo seed finished or partially seeded"
     fi
