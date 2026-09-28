@@ -301,6 +301,15 @@ class PedidoService
                 && $pedido->items()->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->exists();
             abort_if($comandaEnCocina, 422, 'La comanda sigue en preparación en cocina: solo se puede cobrar cuando cocina termine la preparación.');
 
+            // Restricción de cobro: Un mesero no puede cobrar pedidos asignados a otro mesero
+            $user = auth()->user();
+            if ($user && $user->isMesero() && ! $user->isAdmin() && ! $user->isGerente() && ! $user->isCajero()) {
+                $meseroAsignadoId = $pedido->mesero_id ?? $pedido->mesa?->mesero_id;
+                if ($meseroAsignadoId && (int) $meseroAsignadoId !== (int) $user->id) {
+                    abort(403, 'Restricción de cobro: Solo el mesero asignado a esta mesa o un cajero/administrador puede procesar el cobro.');
+                }
+            }
+
             $propina = max(0.0, round($propina, 2));
             $porcentajePropina = $porcentajePropina !== null ? max(0.0, (float) $porcentajePropina) : null;
             $totalConPropina = (float) $pedido->total + $propina;

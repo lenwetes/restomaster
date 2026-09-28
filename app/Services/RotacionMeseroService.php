@@ -267,6 +267,43 @@ class RotacionMeseroService
     }
 
     /**
+     * Distribuir equitativamente todos los meseros activos entre las zonas de la sucursal.
+     */
+    public function autodistribuirMeserosActivos(?int $sucursalId = null): int
+    {
+        $sucursalId = $sucursalId ?? 1;
+        $zonas = Zona::where('sucursal_id', $sucursalId)->where('activa', true)->orderBy('orden')->get();
+        if ($zonas->isEmpty()) {
+            $zonas = Zona::where('activa', true)->orderBy('orden')->get();
+        }
+
+        if ($zonas->isEmpty()) {
+            return 0;
+        }
+
+        $meseros = User::whereHas('role', fn ($q) => $q->where('slug', 'mesero'))
+            ->where('activo', true)
+            ->when($sucursalId, fn ($q) => $q->where(fn ($sq) => $sq->where('sucursal_id', $sucursalId)->orWhereNull('sucursal_id')))
+            ->orderBy('id')
+            ->get();
+
+        if ($meseros->isEmpty()) {
+            return 0;
+        }
+
+        $numZonas = $zonas->count();
+        $distribuidos = 0;
+
+        foreach ($meseros as $index => $mesero) {
+            $zona = $zonas[$index % $numZonas];
+            $this->asignarMeseroAZona($sucursalId, $zona->slug, $mesero->id);
+            $distribuidos++;
+        }
+
+        return $distribuidos;
+    }
+
+    /**
      * Remover un mesero de una rotación.
      */
     public function removerMeseroDeZona(int $rotacionId): bool

@@ -235,4 +235,90 @@ class RotacionMeserosLivewireTest extends TestCase
 
         $this->assertEquals($this->mesero->id, $mesa->fresh()->mesero_id);
     }
+
+    public function test_autoasignar_mesas_libres_autodistribuye_cuando_rotaciones_estan_vacias(): void
+    {
+        $this->actingAs($this->admin);
+
+        // Aseguramos que no hay rotaciones creadas
+        RotacionMesero::truncate();
+
+        $mesa = Mesa::create([
+            'sucursal_id' => $this->sucursal->id,
+            'numero' => 'M-20',
+            'zona' => 'salon',
+            'capacidad' => 4,
+            'estado' => MesaEstado::LIBRE->value,
+            'mesero_id' => null,
+        ]);
+
+        Volt::test('mesas.index')
+            ->call('autoasignarMesasLibres')
+            ->assertSet('tipoFlash', 'success');
+
+        // Al autoasignar, debió autodistribuir los meseros activos y asignar la mesa
+        $this->assertGreaterThan(0, RotacionMesero::count());
+        $this->assertNotNull($mesa->fresh()->mesero_id);
+    }
+
+    public function test_autodistribuir_meseros_en_zonas_desde_ui(): void
+    {
+        $this->actingAs($this->admin);
+
+        RotacionMesero::truncate();
+
+        Volt::test('mesas.index')
+            ->call('autodistribuirMeserosEnZonas')
+            ->assertDispatched('notificacion');
+
+        $this->assertGreaterThan(0, RotacionMesero::count());
+    }
+
+    public function test_mesero_no_puede_cobrar_mesa_asignada_a_otro_mesero(): void
+    {
+        $otroMesero = User::create([
+            'name' => 'Otro Mesero',
+            'email' => 'otro@sushixpress.com',
+            'password' => bcrypt('password'),
+            'role_id' => $this->mesero->role_id,
+            'sucursal_id' => $this->sucursal->id,
+            'activo' => true,
+        ]);
+
+        $mesa = Mesa::create([
+            'sucursal_id' => $this->sucursal->id,
+            'numero' => 'M-30',
+            'zona' => 'salon',
+            'capacidad' => 4,
+            'estado' => MesaEstado::OCUPADA->value,
+            'mesero_id' => $otroMesero->id,
+        ]);
+
+        $pedido = \App\Models\Pedido::create([
+            'codigo' => 'PED-TEST-RESTR',
+            'tipo' => 'mesa',
+            'estado' => 'listo',
+            'mesa_id' => $mesa->id,
+            'mesero_id' => $otroMesero->id,
+            'sucursal_id' => $this->sucursal->id,
+            'total' => 50000,
+            'subtotal' => 50000,
+        ]);
+
+        // Actuando como el mesero (no el asignado a la mesa)
+        $this->actingAs($this->mesero);
+
+        // En terminal POS, debe detectar que es mesa de otro mesero
+        Volt::test('pos.terminal', ['mesaId' => $mesa->id, 'tipo' => 'mesa'])
+            ->call('abrirModalCobro')
+            ->assertDispatched('notificacion');
+
+        // En PedidoService directo, debe arrojar 403
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        app(\App\Services\PedidoService::class)->cobrarPedido(
+            $pedido,
+            'efectivo',
+            50000
+        );
+    }
 }

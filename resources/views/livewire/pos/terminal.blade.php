@@ -172,7 +172,7 @@ new class extends Component
             $this->vistaMesero = request()->query('vista');
         }
 
-        $mesaIdParam = request()->query('mesa_id');
+        $mesaIdParam = request()->query('mesa_id') ?? $this->mesaId;
         if ($mesaIdParam) {
             $this->mesaId = (int) $mesaIdParam;
             $this->tipo = 'mesa';
@@ -681,6 +681,18 @@ new class extends Component
 
     public function abrirModalCobro(): void
     {
+        if ($this->esMesaDeOtroMesero()) {
+            $mesa = Mesa::find($this->mesaId);
+            $pedido = $this->obtenerPedidoActivoMesa();
+            $nombre = $mesa?->mesero?->name ?? $pedido?->mesero?->name ?? 'otro mesero';
+            $this->dispatch('notificacion', [
+                'mensaje' => "Restricción de Cobro: Esta mesa está asignada a {$nombre}. Solo el mesero responsable o el personal de caja pueden cobrarla.",
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
+
         if ($this->modoNuevaAdicion && $this->tipo === 'mesa' && $this->mesaId) {
             $pedidoActivo = $this->obtenerPedidoActivoMesa();
             if ($pedidoActivo) {
@@ -982,6 +994,24 @@ new class extends Component
         return $tieneItems && ! $enCocina;
     }
 
+    public function esMesaDeOtroMesero(): bool
+    {
+        if (! $this->mesaId) {
+            return false;
+        }
+
+        $user = Auth::user();
+        if (! $user || ! $user->isMesero() || $user->isAdmin() || $user->isGerente() || $user->isCajero()) {
+            return false;
+        }
+
+        $mesa = Mesa::find($this->mesaId);
+        $pedido = $this->obtenerPedidoActivoMesa();
+        $meseroId = $pedido?->mesero_id ?? $mesa?->mesero_id;
+
+        return $meseroId !== null && (int) $meseroId !== (int) $user->id;
+    }
+
     public function procesarCobro(): void
     {
         $this->authorize('cobrar', Pedido::class);
@@ -1011,6 +1041,10 @@ new class extends Component
 
         if ($this->comandaActivaBloqueaCobro()) {
             abort(422, 'La comanda sigue en preparación en cocina: solo se puede cobrar cuando cocina termine la preparación.');
+        }
+
+        if ($this->esMesaDeOtroMesero()) {
+            abort(403, 'Restricción de cobro: Solo el mesero asignado a esta mesa o un cajero/administrador puede procesar el cobro.');
         }
 
         if ($this->descuento > 0) {
@@ -1340,6 +1374,7 @@ new class extends Component
 }; ?>
 
 <div class="space-y-4"
+     wire:poll.5s
      x-data="{ online: navigator.onLine }"
      @online.window="online = true"
      @offline.window="online = false">
@@ -2043,17 +2078,22 @@ new class extends Component
                                     <button 
                                         wire:click="abrirModalCobro"
                                         type="button"
-                                        @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro())
-                                        class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 {{ $this->comandaActivaBloqueaCobro() ? 'bg-amber-500/20 text-amber-900 border border-amber-500/40 cursor-not-allowed' : ($this->comandaListaParaCobrar() ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-primary text-on-primary hover:bg-primary-container') }}"
-                                        title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina. Solo se puede cobrar cuando cocina termine.' : 'Cobrar Pedido' }}"
+                                        @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
+                                        class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 {{ $this->comandaActivaBloqueaCobro() ? 'bg-amber-500/20 text-amber-900 border border-amber-500/40 cursor-not-allowed' : ($this->esMesaDeOtroMesero() ? 'bg-slate-700/50 text-slate-300 border border-slate-600 cursor-not-allowed' : ($this->comandaListaParaCobrar() ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-primary text-on-primary hover:bg-primary-container')) }}"
+                                        title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina. Solo se puede cobrar cuando cocina termine.' : ($this->esMesaDeOtroMesero() ? 'Mesa asignada a otro mesero.' : 'Cobrar Pedido') }}"
                                     >
-                                        <span class="material-symbols-outlined text-[18px]">{{ $this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments') }}</span>
-                                        <span>{{ $this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar Pedido') }}</span>
+                                        <span class="material-symbols-outlined text-[18px]">{{ $this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments')) }}</span>
+                                        <span>{{ $this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa de Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar Pedido')) }}</span>
                                     </button>
                                 </div>
                                 @if($this->comandaActivaBloqueaCobro())
                                     <p class="text-[10px] text-center font-bold text-amber-800 bg-amber-500/15 py-1 px-2 rounded-lg border border-amber-500/30">
                                         ⏳ En preparación en cocina · Cobro bloqueado
+                                    </p>
+                                @elseif($this->esMesaDeOtroMesero())
+                                    <p class="text-[10px] text-center font-bold text-amber-500 bg-amber-500/15 py-1 px-2 rounded-lg border border-amber-500/30 flex items-center justify-center gap-1">
+                                        <span class="material-symbols-outlined text-xs">shield_person</span>
+                                        Mesa asignada a otro mesero · Cobro restringido
                                     </p>
                                 @elseif($this->comandaListaParaCobrar())
                                     <p class="text-[10px] text-center font-bold text-emerald-800 bg-emerald-500/15 py-1 px-2 rounded-lg border border-emerald-500/30">
@@ -3059,12 +3099,12 @@ new class extends Component
                             <button 
                                 wire:click="abrirModalCobro"
                                 type="button"
-                                @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro())
+                                @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
                                 class="h-11 rounded-xl bg-gradient-to-r from-[#e0442e] to-[#c73420] hover:from-[#c73420] hover:to-[#a82a18] text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-[#e0442e]/25 active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina.' : 'Cobrar Pedido' }}"
+                                title="{{ $this->comandaActivaBloqueaCobro() ? 'Comanda en preparación en cocina.' : ($this->esMesaDeOtroMesero() ? 'Mesa asignada a otro mesero.' : 'Cobrar Pedido') }}"
                             >
-                                <span class="material-symbols-outlined text-[18px]">{{ $this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments') }}</span>
-                                <span>{{ $this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar $' . number_format($this->total, 0, ',', '.')) }}</span>
+                                <span class="material-symbols-outlined text-[18px]">{{ $this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments')) }}</span>
+                                <span>{{ $this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar $' . number_format($this->total, 0, ',', '.'))) }}</span>
                             </button>
                         </div>
 
@@ -3072,6 +3112,11 @@ new class extends Component
                             <div class="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-[10px] font-bold text-amber-500 animate-pulse">
                                 <span class="material-symbols-outlined text-[14px] text-amber-500">hourglass_top</span>
                                 <span>En preparación en cocina · Bloqueado hasta despacho</span>
+                            </div>
+                        @elseif($this->esMesaDeOtroMesero())
+                            <div class="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-[10px] font-bold text-amber-500">
+                                <span class="material-symbols-outlined text-[14px]">shield_person</span>
+                                <span>Mesa asignada a otro mesero · Cobro restringido</span>
                             </div>
                         @elseif($this->comandaListaParaCobrar())
                             <div class="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#10b981]/15 border border-[#10b981]/30 px-2.5 py-1 text-[10px] font-bold text-[#10b981]">

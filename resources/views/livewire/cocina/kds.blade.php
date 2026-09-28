@@ -301,7 +301,7 @@ new class extends Component
     }
 }; ?>
 
-<div wire:poll.visible.15s
+<div wire:poll.3s
      x-data
      x-init="if (window.Echo) {
          window.Echo.private('cocina.{{ Auth::user()?->sucursal_id ?? 1 }}')

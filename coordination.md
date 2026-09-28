@@ -6,6 +6,28 @@
 ---
 
 ## Última Actualización
+2026-09-28 | Antigravity | 🛡️ **AUDITORÍA DE BASE DE DATOS, FIX DE CEROS EN COBRO, RESTRICCIÓN DE COBRO POR MESERO, NOTIFICACIONES HTTP Y AUTO-DISTRIBUCIÓN EN ZONAS** (`resources/js/app.js`, `app/Services/PedidoService.php`, `app/Services/RotacionMeseroService.php`, `resources/views/livewire/pos/terminal.blade.php`, `resources/views/components/alerta-cocina-mesero.blade.php`, `resources/views/livewire/cocina/kds.blade.php`, `resources/views/livewire/mesas/index.blade.php`, `routes/web.php`):
+- **Auditoría de Tipos y Flujo de Datos en PostgreSQL:**
+  - Valores monetarios (COP): Almacenados en `NUMERIC(10,2)` / `NUMERIC(12,2)`. Entran como floats/strings numéricos a PDO, no texto. En UI sin decimales.
+  - Fechas/horas: Almacenados en tipo nativo `TIMESTAMPTZ` (UTC) en todas las tablas transaccionales, casteados a `Carbon` datetime, no cadenas `VARCHAR`.
+  - Enteros vs Decimales: IDs, cantidades de platos e ítems de comanda son `BIGINT / INTEGER`. Unidades fraccionadas (insumos kg/litros) son `NUMERIC(12,3)`.
+- **Corrección de Eliminación de Ceros en Cobro (`70000` -> `70`):**
+  - Causa raíz: En `resources/js/app.js`, `crudoMiles` dividía en `[.,]` y extraía los últimos dígitos como decimales (`slice(0, 0)`), descartando los 3 ceros de miles (`70.000` -> `70`).
+  - Solución: Regla estricta para COP (`data-decimales="0"`): puntos y comas son separadores de miles y se preservan todos los dígitos numéricos. Bundle de Vite recompilado.
+- **Restricción de Cobro entre Meseros (Prevención de Doble Cobro):**
+  - Implementada verificación en `PedidoService::cobrarPedido()`, `abrirModalCobro()` y `procesarCobro()` en POS. Si un mesero intenta cobrar una mesa asignada a otro mesero, se bloquea la acción con alerta explicativa en UI y excepción 403 en servidor.
+- **Comunicación en Tiempo Real Cocina <-> Mesero:**
+  - Creadas rutas HTTP `/notificaciones/pendientes` y `/notificaciones/{id}/marcar-leida`.
+  - En `alerta-cocina-mesero.blade.php`, sondeo de respaldo cada 3 segundos que consulta las alertas en BD si WebSockets no está disponible.
+  - En `cocina/kds.blade.php`, sondeo de refresco ajustado a 3 segundos (`wire:poll.3s`) y en POS terminal a 5 segundos (`wire:poll.5s`).
+- **Auto-distribución de Meseros en Zonas:**
+  - Creado `autodistribuirMeserosActivos()` en `RotacionMeseroService`.
+  - En `mesas/index.blade.php`: Si el usuario borra todas las rotaciones de las zonas y ejecuta auto-asignar, el sistema auto-distribuye los meseros activos entre las zonas y asigna las mesas.
+  - Añadido botón táctil `⚡ Auto-Distribuir Todos` en el modal de rotación de mesas.
+
+---
+
+## Actualización previa
 2026-09-28 | Antigravity | 🔄 **CORRECCIÓN DE AUTOASIGNACIÓN / ROTACIÓN DE MESEROS Y AUTO-SEED DEMO EN REDEPLOY** (`app/Services/RotacionMeseroService.php`, `app/Services/PedidoService.php`, `resources/views/livewire/mesas/index.blade.php`, `docker-compose.yaml`, `docker-compose.coolify.yml`, `docker/entrypoint.sh`, `tests/Feature/RotacionMeserosLivewireTest.php`):
 - **Corrección de Rotación y Auto-asignación de Mesas:**
   - Se corrigió el botón "Auto-asignar mesas sin mesero ahora" en `mesas/index.blade.php`: ahora autoasigna mesas sin mesero (`whereNull('mesero_id')`) y si todas ya tienen mesero (caso del seeder de demo), rebalancea las mesas libres (`forzar = true`) según el algoritmo activo.

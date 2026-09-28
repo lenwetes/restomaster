@@ -559,6 +559,19 @@ new class extends Component
             return;
         }
 
+        // Si no hay meseros en rotación en las zonas, auto-distribuir los meseros activos del sistema
+        $rotacionesActivas = $service->obtenerRotacionesPorSucursal($sucursalId)->where('activo', true);
+        if ($rotacionesActivas->isEmpty()) {
+            $distribuidos = $service->autodistribuirMeserosActivos($sucursalId);
+            if ($distribuidos === 0) {
+                $this->mensajeFlash = 'No hay meseros activos asignados a las zonas ni registrados en el sistema. Registra personal con rol "Mesero" primero.';
+                $this->tipoFlash = 'warning';
+                $this->dispatch('notificacion', ['mensaje' => $this->mensajeFlash, 'tipo' => 'warning']);
+
+                return;
+            }
+        }
+
         // 1. Asignar mesas sin mesero asignado
         $mesasSinMesero = Mesa::where('sucursal_id', $sucursalId)
             ->whereNull('mesero_id')
@@ -594,6 +607,26 @@ new class extends Component
         $this->mensajeFlash = "Se auto-asignaron {$asignadas} mesas según el algoritmo {$nombreAlgoritmo}.";
         $this->tipoFlash = 'success';
         $this->dispatch('notificacion', ['mensaje' => $this->mensajeFlash, 'tipo' => 'success']);
+    }
+
+    public function autodistribuirMeserosEnZonas(): void
+    {
+        $this->authorize('update', Mesa::class);
+        $sucursalId = $this->sucursalEnContexto();
+        $service = app(\App\Services\RotacionMeseroService::class);
+        $total = $service->autodistribuirMeserosActivos($sucursalId);
+
+        if ($total > 0) {
+            $this->dispatch('notificacion', [
+                'mensaje' => "Se distribuyeron automáticamente {$total} mesero(s) entre las zonas de servicio.",
+                'tipo' => 'success',
+            ]);
+        } else {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'No se encontraron meseros activos para distribuir en las zonas.',
+                'tipo' => 'warning',
+            ]);
+        }
     }
 
     public function asignarPorRotacion(int $mesaId): void
@@ -2592,6 +2625,16 @@ new class extends Component
                         >
                             <span class="material-symbols-outlined text-base">person_add</span>
                             <span>Asignar</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            wire:click="autodistribuirMeserosEnZonas"
+                            class="w-full sm:w-auto h-11 px-4 rounded-xl border border-secondary/40 bg-secondary/10 hover:bg-secondary/20 text-secondary font-bold text-xs flex items-center justify-center gap-1.5 shrink-0 transition-all cursor-pointer"
+                            title="Distribuir automáticamente todos los meseros activos en las zonas"
+                        >
+                            <span class="material-symbols-outlined text-base">bolt</span>
+                            <span>Auto-Distribuir Todos</span>
                         </button>
                     </div>
                 </div>

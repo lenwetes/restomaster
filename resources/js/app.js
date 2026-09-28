@@ -145,19 +145,43 @@ const decDe = (el) => {
 };
 
 // Convierte lo visible (crudo o formateado) a crudo interno "1234.56".
-// Convención es-CO: el último separador es decimal, los demás son miles.
+// Convención es-CO: en moneda sin decimales (COP) puntos y comas son miles.
+// Si tiene decimales, la coma es el separador decimal preferido.
 const crudoMiles = (valor, decimales = 2) => {
-    const partes = String(valor ?? '').split(/[.,]/);
-    let frac = '';
-    let entero = '';
-    if (partes.length === 1) {
-        entero = partes[0];
-    } else {
-        frac = partes.pop() ?? '';
-        entero = partes.join('');
+    if (valor === '' || valor === null || valor === undefined) {
+        return '';
     }
-    entero = entero.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
-    frac = frac.replace(/\D/g, '').slice(0, decimales);
+    const str = String(valor).trim();
+    if (str === '') {
+        return '';
+    }
+
+    if (decimales === 0) {
+        // En pesos colombianos (COP sin decimales), puntos y comas son separadores de miles
+        const soloDigitos = str.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+        return soloDigitos;
+    }
+
+    // Para inputs con decimales (ej. inventario kg/litros):
+    let entero = '';
+    let frac = '';
+    if (str.includes(',')) {
+        const partes = str.split(',');
+        entero = partes[0].replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+        frac = (partes[1] || '').replace(/\D/g, '').slice(0, decimales);
+    } else {
+        const partes = str.split('.');
+        if (partes.length === 2 && partes[1].length < 3) {
+            // Notación tipo 12.5 (1 o 2 decimales)
+            entero = partes[0].replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+            frac = partes[1].replace(/\D/g, '').slice(0, decimales);
+        } else {
+            // Separador de miles estándar (ej: 70.000 o 1.250.000)
+            entero = partes.join('').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+            frac = '';
+        }
+    }
+
     if (entero === '' && frac === '') {
         return '';
     }

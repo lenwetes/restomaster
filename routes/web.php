@@ -67,6 +67,35 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('reservas', 'reservas.index')->middleware('role:mesero,cajero,gerente')->name('reservas');
     Volt::route('configuracion', 'configuracion.index')->middleware('role:admin')->name('configuracion');
     Volt::route('impresion', 'impresion.index')->middleware('role:gerente,admin')->name('impresion');
+
+    // Notificaciones en tiempo real para meseros / cocina (respaldo sin WebSockets)
+    Route::get('notificaciones/pendientes', function () {
+        $user = auth()->user();
+        if (! $user) {
+            return response()->json([]);
+        }
+
+        $notificaciones = \App\Models\NotificacionUsuario::where('user_id', $user->id)
+            ->where('leida', false)
+            ->orderBy('id', 'desc')
+            ->limit(10)
+            ->get();
+
+        return response()->json($notificaciones);
+    })->name('notificaciones.pendientes');
+
+    Route::post('notificaciones/{id}/marcar-leida', function (int $id) {
+        $user = auth()->user();
+        $notif = \App\Models\NotificacionUsuario::where('id', $id)
+            ->where('user_id', $user?->id)
+            ->first();
+
+        if ($notif) {
+            $notif->marcarComoLeida();
+        }
+
+        return response()->json(['success' => true]);
+    })->name('notificaciones.marcar_leida');
 });
 
 // Detalle público de promoción por slug

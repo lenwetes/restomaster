@@ -123,12 +123,47 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
         init() {
             this.conectarCanales();
             this.iniciarTemporizador();
+            this.iniciarSondeoHttp();
+        },
+
+        iniciarSondeoHttp() {
+            // Sondeo periódico (cada 3s) como respaldo infalible con o sin WebSockets/Reverb activo
+            this.consultarNotificacionesPendientes();
+            setInterval(() => {
+                this.consultarNotificacionesPendientes();
+            }, 3000);
+        },
+
+        async consultarNotificacionesPendientes() {
+            try {
+                const res = await fetch('/notificaciones/pendientes', {
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    data.forEach(n => {
+                        const datos = n.datos || {};
+                        if (!this.alertas.some(a => a.notif_db_id === n.id || (a.item_id && a.item_id === datos.item_id))) {
+                            this.recibirAlerta({
+                                notif_db_id: n.id,
+                                item_id: datos.item_id,
+                                pedido_id: datos.pedido_id,
+                                pedido_codigo: datos.pedido_codigo,
+                                nombre_producto: n.cuerpo || n.titulo,
+                                cantidad: datos.cantidad || 1,
+                                mesa_numero: datos.mesa_numero,
+                                mesa_zona: datos.mesa_zona,
+                                notas: datos.notas
+                            });
+                        }
+                    });
+                }
+            } catch (err) {}
         },
 
         conectarCanales() {
             if (!window.Echo) {
-                // Reintentar en 1s si Echo se carga asíncrono
-                setTimeout(() => this.conectarCanales(), 1000);
                 return;
             }
 
@@ -155,6 +190,7 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
         recibirAlerta(data) {
             const nuevaAlerta = {
                 id: 'alerta_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                notif_db_id: data.notif_db_id || null,
                 item_id: data.item_id,
                 pedido_id: data.pedido_id,
                 pedido_codigo: data.pedido_codigo,
@@ -181,15 +217,40 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
             }
         },
 
-        confirmarActual() {
+        async confirmarActual() {
             if (this.alertas.length === 0) return;
+            const alerta = this.alertas[this.indiceActual];
+            if (alerta && alerta.notif_db_id) {
+                try {
+                    await fetch(`/notificaciones/${alerta.notif_db_id}/marcar-leida`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                        }
+                    });
+                } catch (e) {}
+            }
             this.alertas.splice(this.indiceActual, 1);
             if (this.indiceActual >= this.alertas.length) {
                 this.indiceActual = Math.max(0, this.alertas.length - 1);
             }
         },
 
-        confirmarTodas() {
+        async confirmarTodas() {
+            for (const alerta of this.alertas) {
+                if (alerta && alerta.notif_db_id) {
+                    try {
+                        fetch(`/notificaciones/${alerta.notif_db_id}/marcar-leida`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                            }
+                        });
+                    } catch (e) {}
+                }
+            }
             this.alertas = [];
             this.indiceActual = 0;
         },
