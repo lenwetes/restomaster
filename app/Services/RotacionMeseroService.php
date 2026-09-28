@@ -484,8 +484,12 @@ class RotacionMeseroService
         if ($mesero) {
             $mesa->update(['mesero_id' => $mesero->id]);
 
-            // Si la mesa tiene pedidos activos sin mesero, asignarlos al nuevo mesero
-            $mesa->pedidos()->activos()->whereNull('mesero_id')->update(['mesero_id' => $mesero->id]);
+            // Si la mesa se fuerza/releva o tiene pedidos sin mesero, transferirlos al nuevo mesero
+            if ($forzar) {
+                $mesa->pedidos()->activos()->update(['mesero_id' => $mesero->id]);
+            } else {
+                $mesa->pedidos()->activos()->whereNull('mesero_id')->update(['mesero_id' => $mesero->id]);
+            }
 
             $mesaFresh = $mesa->fresh(['mesero', 'pedidos']);
             if ($mesaFresh) {

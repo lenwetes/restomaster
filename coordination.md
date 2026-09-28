@@ -6,7 +6,22 @@
 ---
 
 ## Última Actualización
-2026-09-28 | Antigravity | 🛡️ **AUDITORÍA DE BASE DE DATOS, FIX DE CEROS EN COBRO, RESTRICCIÓN DE COBRO POR MESERO, NOTIFICACIONES HTTP Y AUTO-DISTRIBUCIÓN EN ZONAS** (`resources/js/app.js`, `app/Services/PedidoService.php`, `app/Services/RotacionMeseroService.php`, `resources/views/livewire/pos/terminal.blade.php`, `resources/views/components/alerta-cocina-mesero.blade.php`, `resources/views/livewire/cocina/kds.blade.php`, `resources/views/livewire/mesas/index.blade.php`, `routes/web.php`):
+2026-09-28 | Antigravity | 🚀 **WEBSOCKETS (REVERB) AUTOMÁTICO EN COOLIFY & RELEVO DE MESEROS EN COBRO** (`docker/supervisord.conf`, `docker/nginx.conf`, `docker/entrypoint.sh`, `docker-compose.coolify.yml`, `resources/js/echo.js`, `app/Services/RotacionMeseroService.php`, `coordination.md`):
+- **WebSockets (Laravel Reverb) Auto-Configurado en Coolify (Zero-Config):**
+  - Supervisord (`docker/supervisord.conf`): Integrado proceso persistente `[program:reverb]` (`artisan reverb:start --host=0.0.0.0 --port=8080`) con auto-restart y prioridad 35.
+  - Proxy Reverso en Nginx (`docker/nginx.conf`): Ruteo interno de `/app` directo a `127.0.0.1:8080` con cabeceras `Upgrade` y `Connection "Upgrade"`. No requiere abrir puertos adicionales en Coolify ni configurar Traefik externo: el tráfico WebSocket entra por el puerto estándar HTTPS (443).
+  - Inicialización automática en `entrypoint.sh`: Auto-genera las variables por defecto de Reverb (`REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST=0.0.0.0`, `REVERB_PORT=443`, `REVERB_SCHEME=https`) en el `.env` del contenedor si no existen.
+  - Front-end reactivo (`resources/js/echo.js`): Detección dinámica de `window.location.hostname`, puerto (443 si HTTPS) y `forceTLS` automático en el cliente.
+- **Relevo y Transferencia de Meseros (Doble Cobro Resuelto):**
+  - Al transferir una mesa (`MesaService::transferirMesa` o `MesaService::asignarMesero`) o forzar rotación/relevo (`RotacionMeseroService::autoasignarMesa(..., forzar: true)`), se actualizan atómicamente tanto `mesas.mesero_id` como los pedidos activos `pedidos.mesero_id`.
+  - El **nuevo mesero asignado puede cobrar inmediatamente** la mesa en el POS. El mesero anterior/relevado queda automáticamente bloqueado por la regla de servidor y cliente. Gerentes, administradores y cajeros mantienen cobro irrestricto.
+- **Pruebas y Build:**
+  - `RotacionMeserosLivewireTest`: 9/9 tests pasando (20 aserciones).
+  - `npm run build`: Assets de Vite recompilados y optimizados.
+
+---
+
+## Actualización previa
 - **Auditoría de Tipos y Flujo de Datos en PostgreSQL:**
   - Valores monetarios (COP): Almacenados en `NUMERIC(10,2)` / `NUMERIC(12,2)`. Entran como floats/strings numéricos a PDO, no texto. En UI sin decimales.
   - Fechas/horas: Almacenados en tipo nativo `TIMESTAMPTZ` (UTC) en todas las tablas transaccionales, casteados a `Carbon` datetime, no cadenas `VARCHAR`.
