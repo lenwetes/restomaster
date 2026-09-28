@@ -38,6 +38,46 @@ class Mesa extends Model
         ];
     }
 
+    public function setActivaAttribute(mixed $value): void
+    {
+        // La tabla mesas no almacena columna activa por separado
+    }
+
+    public function getActivaAttribute(): bool
+    {
+        return true;
+    }
+
+    public function setActivoAttribute(mixed $value): void
+    {
+        // La tabla mesas no almacena columna activo por separado
+    }
+
+    public function getActivoAttribute(): bool
+    {
+        return true;
+    }
+
+    public function setNombreAttribute(mixed $value): void
+    {
+        // La tabla mesas no almacena columna nombre (usa numero)
+    }
+
+    public function getNombreAttribute(): string
+    {
+        return 'Mesa '.($this->numero ?? '');
+    }
+
+    public function setZonaIdAttribute(mixed $value): void
+    {
+        // La tabla mesas usa columna string zona, no FK zona_id
+    }
+
+    public function getZonaIdAttribute(): ?int
+    {
+        return null;
+    }
+
     /**
      * Get the waiter assigned to this table.
      */

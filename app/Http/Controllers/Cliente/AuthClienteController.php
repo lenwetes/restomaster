@@ -145,9 +145,15 @@ class AuthClienteController extends Controller
             ['email' => $email]
         );
 
-        Log::info("Magic Link generado para {$email}: {$magicUrl}");
+        Log::info("Magic Link generado para {$email}");
 
-        return back()->with('magic_sent', true)->with('magic_email', $email)->with('magic_link_debug', $magicUrl);
+        $response = back()->with('magic_sent', true)->with('magic_email', $email);
+
+        if (app()->environment('testing', 'local')) {
+            $response->with('magic_link_debug', $magicUrl);
+        }
+
+        return $response;
     }
 
     /**

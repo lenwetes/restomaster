@@ -195,16 +195,34 @@ class CrmConfiguracion extends Model
      */
     public function iaActiva(): bool
     {
-        return (bool) $this->ia_activo;
+        if ($this->ia_activo) {
+            return true;
+        }
+
+        if ($this->sucursal_id !== null) {
+            $global = static::whereNull('sucursal_id')->first();
+            if ($global && $global->ia_activo) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
-     * Obtiene la API Key desencriptada de la IA con fallback a variables de entorno.
+     * Obtiene la API Key desencriptada de la IA con fallback a configuración global y variables de entorno.
      */
     public function obtenerApiKeyIa(): ?string
     {
         if (! empty($this->ia_api_key)) {
             return $this->ia_api_key;
+        }
+
+        if ($this->sucursal_id !== null) {
+            $global = static::whereNull('sucursal_id')->first();
+            if ($global && ! empty($global->ia_api_key)) {
+                return $global->ia_api_key;
+            }
         }
 
         return match ($this->ia_proveedor) {

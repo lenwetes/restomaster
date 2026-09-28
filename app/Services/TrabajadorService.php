@@ -35,7 +35,7 @@ class TrabajadorService
         $name = $datos['name'] ?? $datos['nombre'] ?? '';
         $rawPassword = ! empty($datos['password']) ? $datos['password'] : Str::password(12);
 
-        $user = User::create([
+        $user = (new User)->forceFill([
             'name' => $name,
             'email' => $email,
             'telefono' => $datos['telefono'] ?? null,
@@ -44,6 +44,7 @@ class TrabajadorService
             'activo' => $datos['activo'] ?? true,
             'password' => Hash::make($rawPassword),
         ]);
+        $user->save();
 
         app(AuditoriaService::class)->registrar(
             accion: 'trabajador.creado',
@@ -114,7 +115,7 @@ class TrabajadorService
             throw new InvalidArgumentException('Un administrador no puede desactivarse a sí mismo.');
         }
 
-        $trabajador->update(['activo' => false]);
+        $trabajador->forceFill(['activo' => false])->save();
 
         app(AuditoriaService::class)->registrar(
             accion: 'trabajador.desactivado',
@@ -131,7 +132,7 @@ class TrabajadorService
      */
     public function reactivar(User $trabajador): User
     {
-        $trabajador->update(['activo' => true]);
+        $trabajador->forceFill(['activo' => true])->save();
 
         app(AuditoriaService::class)->registrar(
             accion: 'trabajador.reactivado',

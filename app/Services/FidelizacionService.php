@@ -84,7 +84,7 @@ class FidelizacionService
                 'tier' => $nuevoTier,
             ]);
 
-            $pedido->update(['puntos_ganados' => $puntosAGanar]);
+            $pedido->forceFill(['puntos_ganados' => $puntosAGanar])->save();
 
             return $movimiento;
         });

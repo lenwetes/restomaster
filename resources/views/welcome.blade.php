@@ -397,6 +397,134 @@
         </section>
 
         <!-- ============================================================= -->
+        <!-- SECCIÓN PROMOCIONES & EXPERIENCIAS EXCLUSIVAS                -->
+        <!-- ============================================================= -->
+        @php
+            $promocionesDestacadas = \App\Models\Promocion::enPortada()->take(3)->get();
+            if ($promocionesDestacadas->isEmpty()) {
+                $promocionesDestacadas = \App\Models\Promocion::vigentes()->take(3)->get();
+            }
+        @endphp
+
+        @if($promocionesDestacadas->isNotEmpty())
+            <section id="promociones" class="max-w-7xl mx-auto px-4 sm:px-6">
+                <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+                    <div class="space-y-2">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/15 to-[#e0442e]/15 border border-amber-500/30 text-amber-300 text-xs font-mono font-bold tracking-wider uppercase">
+                            <span class="material-symbols-outlined text-[16px] text-amber-400 animate-pulse">local_fire_department</span>
+                            <span>Beneficios Exclusivos & Temporada</span>
+                        </div>
+                        <h3 class="text-2xl sm:text-4xl font-black text-white tracking-tight">
+                            Promociones Especiales en Provenza
+                        </h3>
+                        <p class="text-xs sm:text-sm text-[#c4a89e] max-w-xl">
+                            Disfruta de nuestras noches 2x1 en mixología botánica, menús maridaje con Sommelier y beneficios de autor en cortes al fuego.
+                        </p>
+                    </div>
+
+                    <a href="{{ route('promociones.publico') }}" 
+                       class="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[#26150b] hover:bg-[#381e0f] text-amber-300 border border-amber-600/40 text-xs font-bold transition-all shadow-md group shrink-0">
+                        <span>Ver todas las promociones</span>
+                        <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    @foreach($promocionesDestacadas as $promo)
+                        <article class="group bg-[#160d08] rounded-3xl border border-[#3e2920]/80 overflow-hidden shadow-2xl hover:border-amber-500/50 transition-all duration-300 flex flex-col justify-between hover:-translate-y-1">
+                            <div class="relative h-48 overflow-hidden bg-[#22130c]">
+                                @if($promo->imagen_url)
+                                    <img src="{{ $promo->imagen_url }}" 
+                                         alt="{{ $promo->titulo }}" 
+                                         class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100">
+                                @else
+                                    <div class="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#26150b] to-[#120803] text-amber-500/40 p-4 text-center">
+                                        <span class="material-symbols-outlined text-4xl mb-1">restaurant</span>
+                                        <span class="text-[10px] font-mono uppercase tracking-wider font-bold">RestoMaster</span>
+                                    </div>
+                                @endif
+                                <div class="absolute inset-0 bg-gradient-to-t from-[#160d08] via-transparent to-black/40"></div>
+
+                                <!-- Badge Flotante -->
+                                <div class="absolute top-3 left-3 z-10">
+                                    @if($promo->tipo_beneficio === 'dos_por_uno')
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-gradient-to-r from-amber-500 to-amber-600 text-black shadow-md">
+                                            2x1 ESPECIAL
+                                        </span>
+                                    @elseif($promo->descuento_porcentaje)
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-gradient-to-r from-rose-600 to-[#e0442e] text-white shadow-md">
+                                            {{ number_format($promo->descuento_porcentaje, 0) }}% OFF
+                                        </span>
+                                    @elseif($promo->precio_promocional)
+                                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black font-mono bg-emerald-600 text-white shadow-md">
+                                            ${{ number_format($promo->precio_promocional, 0, ',', '.') }}
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <div class="absolute top-3 right-3 flex items-center gap-1 z-10">
+                                    @if($promo->aplica_salon)
+                                        <span class="w-7 h-7 rounded-full bg-[#100804]/90 border border-white/10 text-amber-400 flex items-center justify-center text-xs" title="Salón">
+                                            <span class="material-symbols-outlined text-[14px]">table_restaurant</span>
+                                        </span>
+                                    @endif
+                                    @if($promo->aplica_delivery)
+                                        <span class="w-7 h-7 rounded-full bg-[#100804]/90 border border-white/10 text-[#e0442e] flex items-center justify-center text-xs" title="Delivery">
+                                            <span class="material-symbols-outlined text-[14px]">two_wheeler</span>
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="p-5 flex-1 flex flex-col justify-between space-y-3">
+                                <div class="space-y-1.5">
+                                    @if($promo->dias_semana)
+                                        <div class="text-[9.5px] font-mono font-bold uppercase tracking-wider text-amber-400/90 flex items-center gap-1">
+                                            <span class="material-symbols-outlined text-[13px]">calendar_today</span>
+                                            <span>{{ implode(', ', array_map('ucfirst', $promo->dias_semana)) }}</span>
+                                        </div>
+                                    @endif
+
+                                    <h4 class="text-base font-black text-white leading-snug group-hover:text-amber-300 transition-colors line-clamp-2">
+                                        <a href="{{ route('promociones.detalle', $promo->slug) }}">
+                                            {{ $promo->titulo }}
+                                        </a>
+                                    </h4>
+
+                                    <p class="text-xs text-[#c4a89e] line-clamp-2">
+                                        {{ $promo->subtitulo ?: $promo->descripcion }}
+                                    </p>
+                                </div>
+
+                                <div class="pt-3 border-t border-[#3e2920]/80 flex items-center justify-between gap-2">
+                                    @if($promo->aplica_salon)
+                                        <a href="{{ route('reservas.publico') }}" 
+                                           class="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 hover:brightness-110 text-black font-black text-xs text-center flex items-center justify-center gap-1 shadow-sm">
+                                            <span class="material-symbols-outlined text-[14px]">calendar_month</span>
+                                            <span>Reservar</span>
+                                        </a>
+                                    @elseif($promo->aplica_delivery)
+                                        <a href="{{ route('delivery.publico') }}" 
+                                           class="flex-1 py-2 rounded-xl bg-[#e0442e] hover:bg-[#c93a26] text-white font-bold text-xs text-center flex items-center justify-center gap-1 shadow-sm">
+                                            <span class="material-symbols-outlined text-[14px]">shopping_bag</span>
+                                            <span>Pedir</span>
+                                        </a>
+                                    @endif
+
+                                    <a href="{{ route('promociones.detalle', $promo->slug) }}" 
+                                       class="py-2 px-3 rounded-xl bg-[#26150b] hover:bg-[#341b0e] text-[#f5e8e2] border border-amber-600/30 text-xs font-bold flex items-center justify-center" 
+                                       title="Ver detalles">
+                                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                                    </a>
+                                </div>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+        @endif
+
+        <!-- ============================================================= -->
         <!-- 2. SERVICIOS EN LÍNEA: EXPERIENCIAS GASTRO-LOUNGE ARMONIOSAS -->
         <!-- ============================================================= -->
         <section class="max-w-7xl mx-auto px-4 sm:px-6">

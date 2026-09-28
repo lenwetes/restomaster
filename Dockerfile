@@ -76,6 +76,8 @@ RUN apk add --no-cache --virtual .build-deps \
         intl \
         sockets \
         pcntl && \
+    pecl install redis && \
+    docker-php-ext-enable redis && \
     (docker-php-ext-enable opcache || true) && \
     apk del --no-network .build-deps
 

@@ -1,0 +1,24 @@
+{
+  "name": "RestoMaster Enterprise POS",
+  "short_name": "RestoMaster",
+  "description": "Sistema de gestión integral para restaurante y terminal punto de venta táctil",
+  "start_url": "/pos",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#120a07",
+  "theme_color": "#e0442e",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

@@ -194,7 +194,7 @@ class CajaService
                         throw new InvalidArgumentException("La caja {$caja->nombre} ya tiene un turno abierto (#{$turnoExistente->id}).");
                     }
 
-                    $turno = TurnoCaja::create([
+                    $turno = (new TurnoCaja)->forceFill([
                         'caja_id' => $caja->id,
                         'user_id' => $cajero->id,
                         'apertura_en' => now(),
@@ -203,6 +203,7 @@ class CajaService
                         'estado' => 'abierto',
                         'notas_apertura' => $notas,
                     ]);
+                    $turno->save();
 
                     // Asiento contable de fondo inicial
                     if ($fondoInicial > 0) {
@@ -342,7 +343,7 @@ class CajaService
                 return;
             }
 
-            $pedido->update(['turno_caja_id' => $turno->id]);
+            $pedido->forceFill(['turno_caja_id' => $turno->id])->save();
 
             $metodo = strtolower($pedido->metodo_pago ?? 'efectivo');
             $montoEfectivo = 0.0;
@@ -412,14 +413,14 @@ class CajaService
             // Diferencia: Sobrante (+) o Faltante (-)
             $diferencia = $montoRealEfectivo - (float) $turno->monto_esperado_efectivo;
 
-            $turno->update([
+            $turno->forceFill([
                 'cierre_en' => now(),
                 'monto_real_efectivo' => $montoRealEfectivo,
                 'diferencia' => $diferencia,
                 'estado' => 'cerrado',
                 'cerrado_por_user_id' => $cerradoPor->id,
                 'notas_cierre' => $notasCierre,
-            ]);
+            ])->save();
 
             // Si hay descuadre contable, registrar ajuste
             if (abs($diferencia) > 0.01) {

@@ -123,6 +123,20 @@ new class extends Component
                 <span class="text-on-surface-variant text-[10px]">COT</span>
             </div>
 
+            @if(Auth::check() && (Auth::user()->isAdmin() || Auth::user()->isGerente()))
+                <!-- Acceso rápido Copiloto Ejecutivo IA -->
+                <button 
+                    @click="$dispatch('abrir-copiloto-admin')" 
+                    type="button"
+                    title="Abrir Copiloto Ejecutivo IA (Ctrl+K)"
+                    class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500/15 via-rose-500/15 to-amber-500/10 hover:from-amber-500/25 hover:to-rose-500/20 text-on-surface border border-amber-500/30 transition-all cursor-pointer shadow-xs group"
+                >
+                    <span class="material-symbols-outlined text-[18px] text-amber-500 group-hover:rotate-12 transition-transform">smart_toy</span>
+                    <span class="text-xs font-bold">Copiloto IA</span>
+                    <kbd class="text-[9px] font-mono px-1 py-0.2 rounded bg-surface-container-highest text-on-surface-variant border border-surface-container-high">Ctrl+K</kbd>
+                </button>
+            @endif
+
             <!-- Notification Bell & Interactive Dropdown (Aura Gastro Expressive OS) -->
             <div class="relative" x-data="{ openNotif: false }" wire:poll.30s.visible>
                 <button 
@@ -600,6 +614,22 @@ new class extends Component
                     </a>
                 @endif
 
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Promociones & Difusión (PRO-01) -->
+                    <a 
+                        href="{{ route('promociones.index') }}" 
+                        wire:navigate
+                        title="Promociones & Campañas"
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('promociones.index') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0 text-amber-500">local_fire_department</span>
+                            <span class="sidebar-text truncate">Promociones</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">PRO</span>
+                    </a>
+                @endif
+
                 <!-- Clientes VIP (CLI-01) -->
                 <a 
                     href="{{ route('clientes') }}" 
@@ -977,6 +1007,19 @@ new class extends Component
                             <span>Carta & Menú</span>
                         </div>
                         <span class="text-[10px] font-bold">MEN</span>
+                    </a>
+
+                    <a 
+                        href="{{ route('promociones.index') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('promociones.index') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px] text-amber-500">local_fire_department</span>
+                            <span>Promociones</span>
+                        </div>
+                        <span class="text-[10px] font-bold">PRO</span>
                     </a>
                 @endif
 

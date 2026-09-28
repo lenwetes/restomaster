@@ -12,12 +12,45 @@ class AiToolGatekeeper
      * Palabras clave o patrones estrictamente bloqueados en canales de comensales/públicos.
      */
     protected const PATRONES_BLOQUEADOS = [
-        'venta', 'ventas', 'vendieron', 'vendio', 'vendió', 'facturacion', 'facturación', 'facturado',
-        'ganancia', 'ganancias', 'ingreso', 'ingresos', 'arqueo', 'cierre de caja', 'reporte z',
-        'food cost', 'costo de insumo', 'costo insumo', 'costo de', 'costos de', 'margen de ganancia', 'margen bruto',
-        'cuenta por pagar', 'proveedor', 'asiento contable', 'balance general',
-        'password', 'contraseña', 'contrasena', 'secret', 'token', 'drop table', 'select from',
-        'cuanto ganan', 'cuánto ganan', 'cuanto vendieron', 'cuánto vendieron', 'ventas de hoy', 'ventas del día',
+        'venta',
+        'ventas',
+        'vendieron',
+        'vendio',
+        'vendió',
+        'facturacion',
+        'facturación',
+        'facturado',
+        'ganancia',
+        'ganancias',
+        'ingreso',
+        'ingresos',
+        'arqueo',
+        'cierre de caja',
+        'reporte z',
+        'food cost',
+        'costo de insumo',
+        'costo insumo',
+        'costo de',
+        'costos de',
+        'margen de ganancia',
+        'margen bruto',
+        'cuenta por pagar',
+        'proveedor',
+        'asiento contable',
+        'balance general',
+        'password',
+        'contraseña',
+        'contrasena',
+        'secret',
+        'token',
+        'drop table',
+        'select from',
+        'cuanto ganan',
+        'cuánto ganan',
+        'cuanto vendieron',
+        'cuánto vendieron',
+        'ventas de hoy',
+        'ventas del día',
     ];
 
     /**
@@ -127,6 +160,10 @@ class AiToolGatekeeper
         if (! $plantilla->permitir_precios) {
             $prompt .= "4. No informes precios exactos de los platos. Describe únicamente ingredientes y preparaciones.\n";
         }
+
+        $linkDelivery = route('delivery.publico');
+        $prompt .= "5. PEDIDOS A DOMICILIO Y ASISTENTE DE DELIVERY: Si el usuario pregunta si puede hacer un pedido, ordenar o pedir delivery, facilítale de inmediato el enlace oficial a nuestro asistente y portal de delivery en línea: {$linkDelivery}. Explícale que allí puede seleccionar sus platos y pedir a domicilio, y ofrécele adicionalmente que si prefiere visitarnos en el restaurante puedes agendarle una mesa en segundos.\n";
+        $prompt .= "6. REGLA ANTI-BUCLE Y PERSUASIÓN ACTIVA: Si la conversación ya ha iniciado, NUNCA repitas saludos genéricos de bienvenida como '¡Hola! Soy la anfitriona virtual...'. Cuando el usuario pregunte por algo fuera de tu alcance o no reconocido, reconoce su inquietud con empatía y conduce la conversación persuasivamente hacia lo que SÍ puedes hacer: reservar mesa o recomendar platos de la carta, cerrando con una pregunta de llamado a la acción clara.\n";
 
         // Tono y Personalidad
         $tonos = [

@@ -49,7 +49,7 @@ class Fase5PublicoReservasTest extends TestCase
             'nombre' => 'Casimiro García',
             'telefono' => '3001112222',
             'personas' => 2,
-            'fecha' => '2026-09-25',
+            'fecha' => now()->addDays(2)->format('Y-m-d'),
             'hora' => '13:00',
             'notas' => 'Preferencia cerca al jardín',
         ]);
@@ -91,7 +91,7 @@ class Fase5PublicoReservasTest extends TestCase
             'nombre' => 'Familia Restrepo',
             'telefono' => '3109998877',
             'personas' => 6,
-            'fecha' => '2026-09-26',
+            'fecha' => now()->addDays(3)->format('Y-m-d'),
             'hora' => '20:00',
         ]);
         $response->assertSessionHasNoErrors();
@@ -124,7 +124,7 @@ class Fase5PublicoReservasTest extends TestCase
             'nombre' => 'Casimiro García',
             'telefono' => '3001112222',
             'personas' => 2,
-            'fecha' => '2026-09-25',
+            'fecha' => now()->addDays(2)->format('Y-m-d'),
             'hora' => '13:00',
             'notas' => '',
             'empresa' => '',
@@ -142,7 +142,7 @@ class Fase5PublicoReservasTest extends TestCase
     {
         $this->post(route('reservas.publico'), [
             'nombre' => 'Bot', 'telefono' => '300', 'personas' => 2,
-            'fecha' => '2026-09-25', 'hora' => '13:00', 'empresa' => 'spam',
+            'fecha' => now()->addDays(2)->format('Y-m-d'), 'hora' => '13:00', 'empresa' => 'spam',
         ])->assertRedirect();
 
         $this->assertDatabaseCount('reservas', 0);
@@ -153,7 +153,7 @@ class Fase5PublicoReservasTest extends TestCase
         $response = $this->postJson(route('reservas.webhook'), [
             'nombre' => 'Cliente WhatsApp',
             'telefono' => '3200000001',
-            'fecha' => '2026-09-26',
+            'fecha' => now()->addDays(3)->format('Y-m-d'),
             'hora' => '19:00',
             'personas' => 3,
         ], ['X-Webhook-Token' => 'token-secreto-test']);

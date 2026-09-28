@@ -62,7 +62,7 @@ class PedidoService
                 $meseroId = $usuario?->id ?? auth()->id();
             }
 
-            $pedido = Pedido::create([
+            $pedido = (new Pedido)->forceFill([
                 'codigo' => $codigo,
                 'tipo' => $datos['tipo'] ?? 'mesa',
                 'estado' => $datos['estado'] ?? 'creado',
@@ -79,6 +79,7 @@ class PedidoService
                 'canal_origen' => $datos['canal_origen'] ?? 'pos',
                 'idempotencia_uuid' => $idempotenciaUuid,
             ]);
+            $pedido->save();
 
             if ($mesa && $meseroId && ! $mesa->mesero_id) {
                 $mesa->update(['mesero_id' => $meseroId]);
@@ -144,13 +145,13 @@ class PedidoService
             $descuentoPuntosAplicado = min($remanente, $descuentoPuntos);
             $total = max(0, $subtotal + $costoEnvio - $descuentoAplicado - $descuentoPuntosAplicado);
 
-            $pedido->update([
+            $pedido->forceFill([
                 'subtotal' => $subtotal,
                 'descuento' => $descuentoAplicado,
                 'costo_envio' => $costoEnvio,
                 'descuento_puntos' => $descuentoPuntosAplicado,
                 'total' => $total,
-            ]);
+            ])->save();
 
             // Si es pedido de mesa, actualizar la mesa a 'ocupada'
             if (! empty($pedido->mesa_id)) {
@@ -177,7 +178,7 @@ class PedidoService
                 'El pedido ya fue cerrado y no admite envío a cocina.'
             );
 
-            $pedido->update(['estado' => 'en_cocina']);
+            $pedido->forceFill(['estado' => 'en_cocina'])->save();
 
             $pedido->items()->where('estado_cocina', 'pendiente')->update([
                 'estado_cocina' => 'en_preparacion',
@@ -214,7 +215,7 @@ class PedidoService
                 ->count();
 
             if ($itemsPendientes === 0 && in_array($pedido->estado, ['creado', 'en_cocina', 'en_preparacion'])) {
-                $pedido->update(['estado' => 'listo']);
+                $pedido->forceFill(['estado' => 'listo'])->save();
             }
         }
 
@@ -262,7 +263,7 @@ class PedidoService
                 ->count();
 
             if ($itemsNoEntregados === 0 && $pedido->estado !== 'pagado') {
-                $pedido->update(['estado' => 'entregado']);
+                $pedido->forceFill(['estado' => 'entregado'])->save();
             }
         }
 
@@ -314,7 +315,7 @@ class PedidoService
 
             $cambio = max(0, $montoPagado - $totalConPropina);
 
-            $pedido->update([
+            $pedido->forceFill([
                 'estado' => 'pagado',
                 'metodo_pago' => $metodoPago,
                 'propina' => $propina,
@@ -324,7 +325,7 @@ class PedidoService
                 'monto_pago_tarjeta' => $montoTarjeta,
                 'cambio' => $cambio,
                 'pagado_en' => now(),
-            ]);
+            ])->save();
 
             $pedido->items()->whereIn('estado_cocina', ['pendiente', 'listo'])->update([
                 'estado_cocina' => 'entregado',

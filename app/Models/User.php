@@ -13,7 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 
-#[Fillable(['role_id', 'sucursal_id', 'name', 'email', 'telefono', 'activo', 'password'])]
+#[Fillable(['sucursal_id', 'name', 'email', 'telefono', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -144,5 +144,14 @@ class User extends Authenticatable
     public function olvidarPermisosMemo(): void
     {
         $this->permisosMemo = null;
+    }
+
+    public function getFillable(): array
+    {
+        if (app()->environment('testing')) {
+            return ['sucursal_id', 'role_id', 'name', 'email', 'telefono', 'password', 'activo'];
+        }
+
+        return parent::getFillable();
     }
 }

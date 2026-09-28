@@ -128,7 +128,8 @@ class CrmAiAgentService
         }
 
         // Respuesta inteligente según intención con datos reales del sistema y perfil del cliente
-        $respuestaGenerada = $this->generarRespuestaSemantica($mensaje, $plantilla, $cliente);
+        $conversacionIniciada = ! empty($historial) || ($conversacion && $conversacion->mensajes()->count() > 1);
+        $respuestaGenerada = $this->generarRespuestaSemantica($mensaje, $plantilla, $cliente, $conversacionIniciada);
 
         return [
             'respuesta' => $respuestaGenerada['texto'],
@@ -440,6 +441,7 @@ class CrmAiAgentService
             'menu', 'menú', 'carta', 'horario', 'horarios', 'precio', 'precios',
             'hola', 'buenas', 'buenos dias', 'buenas tardes', 'gracias', 'adios',
             'cancelar', 'humano', 'asesor', 'ayuda', 'reserva', 'mesa', 'si', 'no',
+            'pedido', 'pedir', 'domicilio', 'delivery', 'para llevar',
         ];
 
         return in_array(mb_strtolower(trim($texto), 'UTF-8'), $palabras, true);
@@ -784,8 +786,12 @@ class CrmAiAgentService
     /**
      * Genera respuesta semántica usando los datos reales de RestoMaster y el perfil del huésped.
      */
-    protected function generarRespuestaSemantica(string $mensaje, CrmIaPlantillaPrivilegio $plantilla, ?Cliente $cliente = null): array
-    {
+    protected function generarRespuestaSemantica(
+        string $mensaje,
+        CrmIaPlantillaPrivilegio $plantilla,
+        ?Cliente $cliente = null,
+        bool $conversacionIniciada = false
+    ): array {
         $mensajeLower = mb_strtolower($mensaje, 'UTF-8');
         $toolsInvocadas = [];
 
@@ -854,16 +860,143 @@ class CrmAiAgentService
             }
         }
 
-        // 5. Saludo o consulta general
-        $nombreHuesped = $cliente ? ", {$cliente->nombre}" : '';
+        // 5. Consulta sobre Pedidos / Domicilios / Delivery / Comida para llevar (Enlace directo al asistente de delivery)
+        if ($this->esConsultaPedidos($mensajeLower)) {
+            $nombrePersonal = $cliente ? " {$cliente->nombre}" : '';
+            $linkDelivery = route('delivery.publico');
+
+            $texto = "¡Hola{$nombrePersonal}! ¡Con gusto! Para realizar tu pedido a domicilio puedes ingresar a nuestro **asistente de pedidos y delivery en línea** en el siguiente enlace:\n\n".
+                "🛵 **Pedir a Domicilio:**\n{$linkDelivery}\n\n".
+                "Desde allí podrás explorar el catálogo completo, seleccionar tus platos favoritos con fotos y precios, armar tu pedido y hacer seguimiento en tiempo real.\n\n".
+                ($plantilla->permitir_crear_reservas
+                    ? 'Y si en lugar de delivery prefieres visitarnos en el restaurante para vivir la experiencia en sala, ¡también puedo **agendar tu mesa en segundos**! ¿Deseas hacer tu pedido por el enlace o te gustaría reservar una mesa?'
+                    : '¿Te gustaría que te recomiende alguna especialidad de la carta?');
+
+            return ['texto' => $texto, 'tools' => []];
+        }
+
+        // 6. Consulta sobre Horarios de Atención
+        if (str_contains($mensajeLower, 'horario') || str_contains($mensajeLower, 'abren') || str_contains($mensajeLower, 'cierran') || str_contains($mensajeLower, 'a que hora') || str_contains($mensajeLower, 'a qué hora') || str_contains($mensajeLower, 'abierto')) {
+            $cierreHorario = $plantilla->permitir_crear_reservas
+                ? '¿Te gustaría que verifiquemos disponibilidad y agendemos tu mesa para hoy o prefieres consultar los platos recomendados?'
+                : '¿Deseas consultar nuestras opciones y recomendaciones de la carta?';
+
+            $texto = "En RestoMaster abrimos nuestras puertas de martes a domingo de 12:00 PM a 11:00 PM (lunes cerrado por descanso del equipo). ✨\n\n{$cierreHorario}";
+
+            return ['texto' => $texto, 'tools' => []];
+        }
+
+        // 7. Saludo puro (solo si el mensaje es exclusivamente un saludo)
+        if ($this->esSaludoPuro($mensaje)) {
+            $nombreHuesped = $cliente ? ", {$cliente->nombre}" : '';
+
+            return [
+                'texto' => "¡Hola{$nombreHuesped}! Soy la anfitriona virtual de RestoMaster. ".
+                    ($plantilla->permitir_menu ? 'Puedo orientarte con los platos de nuestra carta, ' : '').
+                    ($plantilla->permitir_crear_reservas ? 'verificar disponibilidad y agendar tu mesa. ' : '').
+                    '¿En qué puedo colaborarte hoy?',
+                'tools' => [],
+            ];
+        }
+
+        // 8. Consulta no reconocida o fuera de alcance: Persuadir al usuario hacia las opciones disponibles (Anti-bucle)
+        $nombreHuesped = $cliente ? " {$cliente->nombre}" : '';
+        $opciones = [];
+        if ($plantilla->permitir_crear_reservas) {
+            $opciones[] = '• 📅 **Agendar tu reserva:** Apartamos tu mesa en segundos para que disfrutes una experiencia memorable.';
+        }
+        if ($plantilla->permitir_menu) {
+            $opciones[] = '• 🍽️ **Consultar nuestra carta:** Te recomiendo nuestros platos más destacados y cortes de autor.';
+        }
+        if ($plantilla->permitir_alergenos) {
+            $opciones[] = '• 🌾 **Alérgenos e ingredientes:** Revisamos detalles nutricionales o requerimientos alimentarios.';
+        }
+        $opciones[] = '• 👤 **Hablar con un asesor:** Te comunico con el equipo del restaurante.';
+
+        $listaOpciones = implode("\n", $opciones);
+        $cierreOpciones = $plantilla->permitir_crear_reservas
+            ? '¿Te gustaría que te reserve una mesa para hoy o prefieres consultar las recomendaciones de la carta?'
+            : '¿Te gustaría consultar las opciones de nuestra carta gastronómica?';
+
+        $texto = "Por el momento no dispongo de esa opción directamente por este canal{$nombreHuesped}, pero estoy aquí para ayudarte a planear la mejor velada en RestoMaster ✨.\n\n".
+            "Puedo ayudarte con cualquiera de estas alternativas:\n".
+            $listaOpciones.
+            "\n\n{$cierreOpciones}";
 
         return [
-            'texto' => "¡Hola{$nombreHuesped}! Soy la anfitriona virtual de RestoMaster. ".
-                ($plantilla->permitir_menu ? 'Puedo orientarte con los platos de nuestra carta, ' : '').
-                ($plantilla->permitir_crear_reservas ? 'verificar disponibilidad y agendar tu mesa. ' : '').
-                '¿En qué puedo colaborarte hoy?',
+            'texto' => $texto,
             'tools' => [],
         ];
+    }
+
+    /**
+     * Evalúa si un mensaje corresponde a una consulta sobre pedidos, domicilios, delivery o comida para llevar.
+     */
+    public function esConsultaPedidos(string $mensaje): bool
+    {
+        $m = mb_strtolower($mensaje, 'UTF-8');
+        $terminos = [
+            'pedido', 'pedidos', 'pedir', 'ordenar', 'orden', 'órden', 'ordenes', 'órdenes',
+            'domicilio', 'domicilios', 'delivery', 'para llevar', 'takeout', 'take out',
+            'recoger', 'a domicilio', 'hacer un pedido', 'comprar comida', 'pedir comida',
+            'enviar a casa', 'mandar a casa', 'traer a casa', 'puedo pedir',
+        ];
+
+        foreach ($terminos as $termino) {
+            if (str_contains($m, $termino)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determina si el mensaje del comensal es exclusivamente una fórmula de saludo.
+     */
+    public function esSaludoPuro(string $mensaje): bool
+    {
+        $m = mb_strtolower(trim($mensaje), 'UTF-8');
+        $m = preg_replace('/[^\p{L}\s]/u', ' ', $m);
+        $m = preg_replace('/\s+/', ' ', trim($m));
+
+        if (empty($m)) {
+            return false;
+        }
+
+        $saludosDirectos = [
+            'hola', 'holaa', 'holaaa', 'buenas', 'buen dia', 'buen día', 'buenos dias', 'buenos días',
+            'buenas tardes', 'buenas noches', 'saludos', 'hey', 'hello', 'hi', 'que tal', 'qué tal',
+            'hola buenas', 'hola buenas tardes', 'hola buenas noches', 'hola buen dia', 'hola buenos dias',
+            'como estas', 'cómo estás', 'como va', 'cómo va', 'hola como estas', 'hola cómo estás',
+        ];
+
+        if (in_array($m, $saludosDirectos, true)) {
+            return true;
+        }
+
+        // Si la frase es corta (<= 4 palabras) y está compuesta exclusivamente de términos de saludo
+        $palabrasSaludo = [
+            'hola', 'holaa', 'buenas', 'buen', 'bueno', 'buenos', 'dia', 'dias', 'tarde', 'tardes',
+            'noche', 'noches', 'saludo', 'saludos', 'hey', 'hello', 'hi', 'que', 'tal', 'como', 'estas',
+            'va', 'bienvenido', 'bienvenidos',
+        ];
+
+        $tokens = explode(' ', $m);
+        if (count($tokens) <= 4) {
+            $todasSonSaludos = true;
+            foreach ($tokens as $token) {
+                if (! in_array($token, $palabrasSaludo, true)) {
+                    $todasSonSaludos = false;
+                    break;
+                }
+            }
+            if ($todasSonSaludos) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

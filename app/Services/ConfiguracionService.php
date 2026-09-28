@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Console\Commands\BackupDatabaseCommand;
 use App\Models\Configuracion;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -46,13 +47,17 @@ class ConfiguracionService
             ['grupo' => $grupo, 'clave' => $clave],
             ['valor' => $valor],
         );
+
+        Cache::forget("config_grupo_{$grupo}");
     }
 
     public function obtenerGrupo(string $grupo): array
     {
-        return Configuracion::where('grupo', $grupo)
-            ->pluck('valor', 'clave')
-            ->toArray();
+        return Cache::remember("config_grupo_{$grupo}", 300, function () use ($grupo) {
+            return Configuracion::where('grupo', $grupo)
+                ->pluck('valor', 'clave')
+                ->toArray();
+        });
     }
 
     public function regenerarWebhookToken(): string

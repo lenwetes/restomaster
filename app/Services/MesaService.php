@@ -342,7 +342,7 @@ class MesaService
         // Seguro cancelar: anular pedidos en estado inicial
         foreach ($pedidosActivos as $pedido) {
             $pedido->items()->update(['estado_cocina' => 'cancelado']);
-            $pedido->update(['estado' => 'cancelado']);
+            $pedido->forceFill(['estado' => 'cancelado'])->save();
         }
 
         $meseroAnterior = $mesa->mesero?->name ?? 'Sin asignar';

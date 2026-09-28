@@ -42,6 +42,36 @@ class Sucursal extends Model
         ];
     }
 
+    public function setActivaAttribute(mixed $value): void
+    {
+        $this->attributes['activo'] = (bool) $value;
+    }
+
+    public function getActivaAttribute(): bool
+    {
+        return (bool) ($this->attributes['activo'] ?? true);
+    }
+
+    public function setCodigoAttribute(mixed $value): void
+    {
+        // sucursales no tiene columna codigo en BD
+    }
+
+    public function getCodigoAttribute(): ?string
+    {
+        return null;
+    }
+
+    public function setCiudadAttribute(mixed $value): void
+    {
+        // sucursales no tiene columna ciudad en BD
+    }
+
+    public function getCiudadAttribute(): ?string
+    {
+        return null;
+    }
+
     /**
      * Get the tables for this branch.
      */

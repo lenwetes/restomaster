@@ -36,6 +36,18 @@ class Producto extends Model
         ];
     }
 
+    public function setCategoriaAttribute(mixed $value): void
+    {
+        if (is_numeric($value)) {
+            $this->attributes['categoria_id'] = (int) $value;
+        } elseif (is_string($value)) {
+            $cat = Categoria::where('slug', $value)->orWhere('nombre', $value)->first();
+            if ($cat) {
+                $this->attributes['categoria_id'] = $cat->id;
+            }
+        }
+    }
+
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);

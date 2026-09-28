@@ -2,13 +2,21 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'RestoMaster') }} — Sistema de Gestión Gastronómica & POS</title>
 
         <!-- Favicon -->
         <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+
+        <!-- PWA Web App Manifest & Mobile Meta -->
+        <link rel="manifest" href="/manifest.json">
+        <meta name="theme-color" content="#e0442e">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="RestoMaster">
 
         <!-- Stitch Design System Typography & Icons (Aura Gastro Expressive OS) -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -110,6 +118,13 @@
                     });
                 }
             });
+
+            // Registro de Service Worker para PWA y soporte offline en tablets/POS
+            if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+            }
         </script>
     </head>
     <body class="h-full font-sans antialiased bg-background text-on-surface selection:bg-primary-container selection:text-on-primary">
@@ -143,6 +158,11 @@
 
         <!-- Alerta flotante de alta visibilidad: Cocina a Mesero (Tiempo Real) -->
         <x-alerta-cocina-mesero />
+
+        @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isGerente()))
+            <!-- Copiloto Ejecutivo IA (Asistente Interno Administrativo) -->
+            <livewire:admin.copilot-drawer />
+        @endif
 
         @stack('scripts')
     </body>

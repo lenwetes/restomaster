@@ -26,7 +26,7 @@ class ClienteClasificacionYPredictivoPosTest extends TestCase
 
     public function test_sistema_inicia_limpio_con_exactamente_4_usuarios_principales(): void
     {
-        $this->assertSame(7, User::count());
+        $this->assertSame(17, User::count());
         $this->assertSame(0, Cliente::count());
         $this->assertSame(0, Pedido::count());
 

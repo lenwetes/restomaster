@@ -109,10 +109,10 @@ class DeliveryService
             throw new InvalidArgumentException('Debe asignar un repartidor antes de marcar la salida.');
         }
 
-        $pedido->update([
+        $pedido->forceFill([
             'estado_delivery' => 'en_ruta',
             'hora_despacho' => now(),
-        ]);
+        ])->save();
 
         return $pedido->fresh();
     }
@@ -132,7 +132,7 @@ class DeliveryService
             if (! $yaPagado && ! $metodoPago) {
                 $actualizacion['estado'] = 'entregado';
             }
-            $pedido->update($actualizacion);
+            $pedido->forceFill($actualizacion)->save();
 
             // Si se cobró contra entrega y el pedido aún no estaba pagado
             if ($metodoPago && ! $yaPagado) {
@@ -142,13 +142,13 @@ class DeliveryService
 
                 $montoFinal = $montoRecibido ?? (float) $pedido->total;
 
-                $pedido->update([
+                $pedido->forceFill([
                     'estado' => 'pagado',
                     'metodo_pago' => $metodoPago,
                     'monto_pagado' => $montoFinal,
                     'cambio' => max(0, $montoFinal - (float) $pedido->total),
                     'pagado_en' => now(),
-                ]);
+                ])->save();
 
                 // Vincular el cobro al turno abierto de la sucursal
                 $turnoActivo = TurnoCaja::where('estado', 'abierto')

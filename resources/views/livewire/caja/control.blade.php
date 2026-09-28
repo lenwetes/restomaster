@@ -88,7 +88,7 @@ new class extends Component
 
     public function abrirPrevisualizarTicket(int $pedidoId): void
     {
-        $this->pedidoTicketSeleccionado = Pedido::with([
+        $pedido = Pedido::with([
             'mesa',
             'mesero',
             'usuario',
@@ -98,6 +98,12 @@ new class extends Component
             'turnoCaja.cajero',
         ])->findOrFail($pedidoId);
 
+        $usuario = Auth::user();
+        if ($usuario && ! $usuario->isAdmin() && $usuario->sucursal_id && $pedido->sucursal_id != $usuario->sucursal_id) {
+            abort(403, 'No autorizado para acceder a tickets de otra sucursal.');
+        }
+
+        $this->pedidoTicketSeleccionado = $pedido;
         $this->ticketPrevisualizadoId = $pedidoId;
         $this->ticketTextoEscPos = app(\App\Services\ImpresionService::class)->formatearTicketVentaTexto($this->pedidoTicketSeleccionado);
         $this->modalPrevisualizarTicket = true;
@@ -134,7 +140,11 @@ new class extends Component
     public function reenviarImpresionTicket(int $pedidoId): void
     {
         $pedido = Pedido::findOrFail($pedidoId);
-        app(\App\Services\ImpresionService::class)->despacharTicketVenta($pedido, Auth::user());
+        $usuario = Auth::user();
+        if ($usuario && ! $usuario->isAdmin() && $usuario->sucursal_id && $pedido->sucursal_id != $usuario->sucursal_id) {
+            abort(403, 'No autorizado para imprimir tickets de otra sucursal.');
+        }
+        app(\App\Services\ImpresionService::class)->despacharTicketVenta($pedido, $usuario);
 
         $this->dispatch('notificacion', [
             'mensaje' => "Ticket #{$pedido->codigo} re-enviado exitosamente a la cola de impresión.",
@@ -151,6 +161,10 @@ new class extends Component
     public function iniciarEdicionCaja(int $id): void
     {
         $caja = Caja::findOrFail($id);
+        $usuario = Auth::user();
+        if ($usuario && ! $usuario->isAdmin() && $usuario->sucursal_id && $caja->sucursal_id != $usuario->sucursal_id) {
+            abort(403, 'No autorizado para editar cajas de otra sucursal.');
+        }
         $this->cajaEditandoId = $caja->id;
         $this->formEditarCaja = [
             'nombre' => $caja->nombre,
@@ -531,10 +545,7 @@ new class extends Component
 
         $ticketSvc = app(\App\Services\ConfiguracionService::class);
         $ticketDefaults = $ticketSvc->valoresPorDefectoTicket80mm();
-        $ticketConfig = [];
-        foreach ($ticketDefaults as $clave => $defecto) {
-            $ticketConfig[$clave] = $ticketSvc->obtener('ticket_80mm', $clave, $defecto);
-        }
+        $ticketConfig = array_merge($ticketDefaults, $ticketSvc->obtenerGrupo('ticket_80mm'));
 
         return [
             'turno' => $turnoActivo,

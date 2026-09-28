@@ -2,7 +2,7 @@
 <html lang="es" class="h-full bg-surface">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? 'RestoMaster · Carta & Auto-pedido' }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">

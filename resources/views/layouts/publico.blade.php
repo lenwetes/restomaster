@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-background">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $title ?? 'RestoMaster' }} — Restaurante, Parrilla & Coctelería de Autor · Provenza</title>
@@ -109,6 +109,14 @@
                 >
                     <span class="material-symbols-outlined text-[18px]">restaurant_menu</span>
                     <span>Carta Digital</span>
+                </a>
+                <a 
+                    href="{{ route('promociones.publico') }}" 
+                    class="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 {{ request()->routeIs('promociones.*') ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black font-black shadow-lg shadow-amber-500/25 ring-1 ring-amber-400/50' : 'text-[#c4a89e] hover:text-white hover:bg-[#261a15]' }}"
+                >
+                    <span class="material-symbols-outlined text-[18px] text-amber-400">local_fire_department</span>
+                    <span>Promociones</span>
+                    <span class="px-1.5 py-0.5 rounded-full text-[9px] font-mono font-black bg-rose-600 text-white animate-pulse">PROMO</span>
                 </a>
                 <a 
                     href="{{ route('reservas.publico') }}" 
@@ -247,6 +255,12 @@
                             <a href="{{ route('carta.publico') }}" class="hover:text-white transition-colors flex items-center gap-2">
                                 <span class="material-symbols-outlined text-[15px] text-[#e8a020]">restaurant_menu</span>
                                 <span>Carta Digital de Platos</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ route('promociones.publico') }}" class="hover:text-white transition-colors flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[15px] text-amber-400">local_fire_department</span>
+                                <span>Promociones & Eventos VIP</span>
                             </a>
                         </li>
                         <li>

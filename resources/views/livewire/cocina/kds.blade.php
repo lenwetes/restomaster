@@ -170,6 +170,7 @@ new class extends Component
         }
 
         $query->with(['mesa', 'usuario', 'mesero', 'items' => function ($q) {
+            $q->with('producto.categoria');
             if ($this->areaSeleccionada !== 'todas') {
                 $areas = $this->obtenerAreasFiltradas($this->areaSeleccionada);
                 $q->whereIn('area_cocina', $areas);
@@ -300,7 +301,7 @@ new class extends Component
     }
 }; ?>
 
-<div wire:poll.15s
+<div wire:poll.visible.15s
      x-data
      x-init="if (window.Echo) {
          window.Echo.private('cocina.{{ Auth::user()?->sucursal_id ?? 1 }}')

@@ -152,11 +152,35 @@ new class extends Component
 
     public string $tipoAlerta = 'success';
 
+    // Gestión del Diseñador Visual de Encuestas
+    public ?int $encuestaSeleccionadaId = null;
+
+    public string $encuestaNombre = '';
+
+    public string $encuestaDisparador = 'post_pago';
+
+    public int $encuestaDelayHoras = 1;
+
+    public bool $encuestaActiva = true;
+
+    public array $encuestaPreguntas = [];
+
+    public string $encuestaNuevaPreguntaTexto = '';
+
+    public string $encuestaNuevaPreguntaTipo = 'estrellas';
+
     public function mount(): void
     {
         $this->desde = now()->subDays(30)->toDateString();
         $this->hasta = now()->toDateString();
         $this->cargarConfiguracion();
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('encuestas')) {
+            $primeraEncuesta = \App\Models\Encuesta::first();
+            if ($primeraEncuesta) {
+                $this->seleccionarEncuesta($primeraEncuesta->id);
+            }
+        }
 
         if (\Illuminate\Support\Facades\Schema::hasTable('crm_plantillas')) {
             $primeraPlantilla = CrmPlantilla::first();
@@ -525,6 +549,114 @@ new class extends Component
         $this->tipoAlerta = 'success';
     }
 
+    public function seleccionarEncuesta(int $id): void
+    {
+        $encuesta = \App\Models\Encuesta::find($id);
+        if ($encuesta) {
+            $this->encuestaSeleccionadaId = $encuesta->id;
+            $this->encuestaNombre = $encuesta->nombre;
+            $this->encuestaDisparador = $encuesta->disparador;
+            $this->encuestaDelayHoras = (int) $encuesta->delay_horas;
+            $this->encuestaActiva = (bool) $encuesta->activa;
+            $this->encuestaPreguntas = $encuesta->preguntas ?? [];
+        }
+    }
+
+    public function crearNuevaEncuesta(): void
+    {
+        $this->encuestaSeleccionadaId = null;
+        $this->encuestaNombre = 'Nueva Encuesta de Satisfacción';
+        $this->encuestaDisparador = 'post_pago';
+        $this->encuestaDelayHoras = 1;
+        $this->encuestaActiva = true;
+        $this->encuestaPreguntas = [
+            ['tipo' => 'estrellas', 'pregunta' => '¿Cómo calificarías tu experiencia general en RestoMaster?'],
+            ['tipo' => 'estrellas', 'pregunta' => '¿Qué tal te pareció el sabor y frescura de los platos?'],
+            ['tipo' => 'si_no', 'pregunta' => '¿Recomendarías nuestro restaurante a tus amigos o familiares?'],
+            ['tipo' => 'texto', 'pregunta' => '¿Tienes algún comentario o sugerencia para nuestro equipo?'],
+        ];
+        $this->encuestaNuevaPreguntaTexto = '';
+        $this->encuestaNuevaPreguntaTipo = 'estrellas';
+    }
+
+    public function agregarPregunta(): void
+    {
+        $texto = trim($this->encuestaNuevaPreguntaTexto);
+        if (empty($texto)) {
+            $this->mensajeAlerta = 'Debes escribir el texto de la pregunta.';
+            $this->tipoAlerta = 'error';
+
+            return;
+        }
+
+        $this->encuestaPreguntas[] = [
+            'tipo' => $this->encuestaNuevaPreguntaTipo,
+            'pregunta' => $texto,
+        ];
+
+        $this->encuestaNuevaPreguntaTexto = '';
+        $this->mensajeAlerta = 'Pregunta agregada a la encuesta.';
+        $this->tipoAlerta = 'success';
+    }
+
+    public function eliminarPregunta(int $index): void
+    {
+        if (isset($this->encuestaPreguntas[$index])) {
+            unset($this->encuestaPreguntas[$index]);
+            $this->encuestaPreguntas = array_values($this->encuestaPreguntas);
+        }
+    }
+
+    public function moverPregunta(int $index, string $direccion): void
+    {
+        if ($direccion === 'arriba' && $index > 0) {
+            $temp = $this->encuestaPreguntas[$index - 1];
+            $this->encuestaPreguntas[$index - 1] = $this->encuestaPreguntas[$index];
+            $this->encuestaPreguntas[$index] = $temp;
+        } elseif ($direccion === 'abajo' && $index < count($this->encuestaPreguntas) - 1) {
+            $temp = $this->encuestaPreguntas[$index + 1];
+            $this->encuestaPreguntas[$index + 1] = $this->encuestaPreguntas[$index];
+            $this->encuestaPreguntas[$index] = $temp;
+        }
+    }
+
+    public function guardarEncuesta(): void
+    {
+        if (empty($this->encuestaNombre)) {
+            $this->mensajeAlerta = 'El nombre de la encuesta es obligatorio.';
+            $this->tipoAlerta = 'error';
+
+            return;
+        }
+
+        if (empty($this->encuestaPreguntas)) {
+            $this->mensajeAlerta = 'La encuesta debe tener al menos una pregunta.';
+            $this->tipoAlerta = 'error';
+
+            return;
+        }
+
+        $datos = [
+            'nombre' => $this->encuestaNombre,
+            'disparador' => $this->encuestaDisparador,
+            'delay_horas' => $this->encuestaDelayHoras,
+            'activa' => $this->encuestaActiva,
+            'preguntas' => $this->encuestaPreguntas,
+        ];
+
+        if ($this->encuestaSeleccionadaId) {
+            $encuesta = \App\Models\Encuesta::findOrFail($this->encuestaSeleccionadaId);
+            $encuesta->update($datos);
+            $this->mensajeAlerta = "¡Encuesta '{$encuesta->nombre}' actualizada exitosamente!";
+        } else {
+            $encuesta = \App\Models\Encuesta::create($datos);
+            $this->encuestaSeleccionadaId = $encuesta->id;
+            $this->mensajeAlerta = "¡Encuesta '{$encuesta->nombre}' creada y lista para despachar!";
+        }
+
+        $this->tipoAlerta = 'success';
+    }
+
     public function verDetalleLog(int $id): void
     {
         $this->logDetalle = CrmMensajeLog::with(['cliente', 'pedido', 'reserva', 'automatizacion'])->find($id);
@@ -726,6 +858,10 @@ new class extends Component
             ? CrmIaPlantillaPrivilegio::orderBy('id')->get()
             : collect();
 
+        $encuestas = \Illuminate\Support\Facades\Schema::hasTable('encuestas')
+            ? \App\Models\Encuesta::withCount('envios')->orderByDesc('id')->get()
+            : collect();
+
         return [
             'kpis' => $kpis,
             'rankingMeseros' => $rankingMeseros,
@@ -734,6 +870,7 @@ new class extends Component
             'plantillas' => $plantillas,
             'logs' => $logs,
             'plantillasIa' => $plantillasIa,
+            'encuestas' => $encuestas,
             'conversaciones' => $conversaciones,
             'conversacionActiva' => $conversacionActiva,
             'totalChatsEsperandoHumano' => $totalChatsEsperandoHumano,
@@ -742,7 +879,6 @@ new class extends Component
 };
 ?>
 
-<div class="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 <div class="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
     <!-- Header Principal: Haute Hospitality & Executive Concierge Suite -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5 bg-gradient-to-r from-[#180e08] via-[#120804] to-[#0c0502] p-6 rounded-3xl border border-amber-500/25 shadow-2xl relative overflow-hidden">
@@ -840,6 +976,12 @@ new class extends Component
                 class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all {{ $tab === 'satisfaccion' ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/20 font-black ring-1 ring-amber-400/50' : 'text-[#c4a89e] hover:text-white hover:bg-white/5' }}">
             <span class="material-symbols-outlined text-[18px] shrink-0">analytics</span>
             <span>Tablero de Satisfacción & CSAT</span>
+        </button>
+
+        <button wire:click="$set('tab', 'disenador_encuestas')" 
+                class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all {{ $tab === 'disenador_encuestas' ? 'bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 text-black shadow-lg shadow-amber-500/20 font-black ring-1 ring-amber-400/50' : 'text-[#c4a89e] hover:text-white hover:bg-white/5' }}">
+            <span class="material-symbols-outlined text-[18px] shrink-0">quiz</span>
+            <span>Diseñador de Encuestas</span>
         </button>
 
         <button wire:click="$set('tab', 'automatizaciones')" 
@@ -1087,6 +1229,216 @@ new class extends Component
                             No se han recibido comentarios de texto en las encuestas recientes.
                         </div>
                     @endforelse
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- PESTAÑA: DISEÑADOR VISUAL DE ENCUESTAS -->
+    @if($tab === 'disenador_encuestas')
+        <div class="space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Columna 1: Encuestas Registradas (4 cols) -->
+                <div class="lg:col-span-4 bg-[#140c08] p-5 rounded-3xl border border-amber-900/35 shadow-2xl space-y-4">
+                    <div class="flex items-center justify-between border-b border-[#3e2920]/80 pb-3">
+                        <div>
+                            <h3 class="font-black text-xs text-amber-200/80 uppercase tracking-wider font-mono">Encuestas Activas</h3>
+                            <p class="text-[11px] text-[#7a5a52]">Modelos configurados en el sistema</p>
+                        </div>
+                        <button wire:click="crearNuevaEncuesta" 
+                                class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-black font-black text-xs flex items-center gap-1 shadow-sm">
+                            <span class="material-symbols-outlined text-[15px]">add</span>
+                            <span>Nueva</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        @forelse($encuestas as $enc)
+                            <button wire:click="seleccionarEncuesta({{ $enc->id }})" 
+                                    class="w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between {{ $encuestaSeleccionadaId === $enc->id ? 'bg-gradient-to-r from-[#29150b] to-[#1c0e07] border-amber-500/60 text-white font-bold shadow-md ring-1 ring-amber-500/30' : 'bg-[#180e08] border-[#3e2920]/80 hover:bg-[#20120b] text-[#c4a89e]' }}">
+                                <div class="min-w-0 pr-2 space-y-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[9px] font-mono font-black uppercase px-2 py-0.5 rounded-full {{ $enc->activa ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/40' : 'bg-stone-800 text-stone-400' }}">
+                                            {{ $enc->activa ? 'Activa' : 'Pausada' }}
+                                        </span>
+                                        <span class="text-[10px] font-mono text-amber-400/90 font-bold">
+                                            {{ $enc->disparador === 'post_pago' ? 'Post-Pago' : ($enc->disparador === 'post_reserva' ? 'Post-Reserva' : 'Manual') }}
+                                        </span>
+                                    </div>
+                                    <div class="text-xs font-black truncate text-stone-100">{{ $enc->nombre }}</div>
+                                    <div class="text-[10px] font-mono text-[#7a5a52]">
+                                        {{ count($enc->preguntas ?? []) }} preguntas · {{ $enc->envios_count }} envíos
+                                    </div>
+                                </div>
+                                <span class="material-symbols-outlined text-[18px] text-amber-500/70">chevron_right</span>
+                            </button>
+                        @empty
+                            <div class="p-6 text-center text-xs text-[#7a5a52]">
+                                No hay encuestas creadas. Haz clic en "Nueva".
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <!-- Columna 2: Editor Visual de Preguntas (5 cols) -->
+                <div class="lg:col-span-5 bg-[#140c08] p-6 rounded-3xl border border-amber-900/35 shadow-2xl space-y-5">
+                    <div class="flex items-center justify-between border-b border-[#3e2920]/80 pb-3">
+                        <h3 class="font-black text-sm text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-amber-400">tune</span>
+                            <span>Editor de Encuesta & Preguntas</span>
+                        </h3>
+                        <span class="text-xs font-mono text-amber-400/80">{{ count($encuestaPreguntas) }} preguntas</span>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-mono font-bold text-[#c4a89e] uppercase tracking-wider mb-1">Nombre de la Encuesta</label>
+                            <input type="text" wire:model="encuestaNombre" placeholder="ej: Encuesta Salón Provenza" class="w-full px-3 py-2 text-xs font-bold rounded-xl border border-[#3e2920] bg-[#1a0f0a] text-stone-100 focus:ring-1 focus:ring-amber-500 focus:outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-mono font-bold text-[#c4a89e] uppercase tracking-wider mb-1">Evento Disparador</label>
+                                <select wire:model="encuestaDisparador" class="w-full px-3 py-2 text-xs rounded-xl border border-[#3e2920] bg-[#1a0f0a] text-stone-100 focus:outline-none focus:border-amber-500">
+                                    <option value="post_pago">Post-Pago (Cuenta Salón)</option>
+                                    <option value="post_reserva">Post-Reserva Cumplida</option>
+                                    <option value="post_delivery">Post-Entrega Delivery</option>
+                                    <option value="manual">Despacho Manual</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-mono font-bold text-[#c4a89e] uppercase tracking-wider mb-1">Delay de Envío (Horas)</label>
+                                <input type="number" min="0" max="72" wire:model="encuestaDelayHoras" class="w-full px-3 py-2 text-xs font-mono rounded-xl border border-[#3e2920] bg-[#1a0f0a] text-stone-100 focus:outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-1">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="encuestaActiva" class="rounded bg-[#1a0f0a] border-amber-600 text-amber-500 focus:ring-0">
+                                <span class="text-xs font-bold text-white">Encuesta Activa para Automatizaciones</span>
+                            </label>
+                        </div>
+
+                        <!-- Lista de Preguntas Interactivas -->
+                        <div class="space-y-3 pt-3 border-t border-[#3e2920]/80">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-mono font-bold text-amber-200/80 uppercase tracking-wider">Preguntas del Formulario</span>
+                            </div>
+
+                            <div class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                                @forelse($encuestaPreguntas as $idx => $preg)
+                                    <div class="p-3 rounded-2xl bg-[#1b100a] border border-[#3e2920] space-y-2">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-5 h-5 rounded-lg bg-amber-500/20 text-amber-400 font-mono font-bold text-[11px] flex items-center justify-center">
+                                                    {{ $idx + 1 }}
+                                                </span>
+                                                <span class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-full {{ ($preg['tipo'] ?? '') === 'estrellas' ? 'bg-amber-950 text-amber-300' : (($preg['tipo'] ?? '') === 'si_no' ? 'bg-emerald-950 text-emerald-300' : 'bg-sky-950 text-sky-300') }}">
+                                                    {{ ($preg['tipo'] ?? '') === 'estrellas' ? '1-5 Estrellas ⭐' : (($preg['tipo'] ?? '') === 'si_no' ? 'Sí / No' : 'Texto Libre') }}
+                                                </span>
+                                            </div>
+
+                                            <div class="flex items-center gap-1">
+                                                <button type="button" wire:click="moverPregunta({{ $idx }}, 'arriba')" class="p-1 text-stone-400 hover:text-white" title="Subir">
+                                                    <span class="material-symbols-outlined text-[15px]">arrow_upward</span>
+                                                </button>
+                                                <button type="button" wire:click="moverPregunta({{ $idx }}, 'abajo')" class="p-1 text-stone-400 hover:text-white" title="Bajar">
+                                                    <span class="material-symbols-outlined text-[15px]">arrow_downward</span>
+                                                </button>
+                                                <button type="button" wire:click="eliminarPregunta({{ $idx }})" class="p-1 text-rose-400 hover:text-rose-300" title="Eliminar">
+                                                    <span class="material-symbols-outlined text-[15px]">delete</span>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <input type="text" wire:model="encuestaPreguntas.{{ $idx }}.pregunta" class="w-full px-2.5 py-1.5 text-xs rounded-xl bg-[#120803] border border-[#3e2920] text-stone-100 focus:outline-none focus:border-amber-500">
+                                    </div>
+                                @empty
+                                    <div class="p-4 text-center text-xs text-[#7a5a52]">
+                                        Esta encuesta aún no tiene preguntas. Añade una abajo.
+                                    </div>
+                                @endforelse
+                            </div>
+
+                            <!-- Formulario para Añadir Pregunta -->
+                            <div class="p-3.5 rounded-2xl bg-[#120803] border border-amber-600/30 space-y-2.5">
+                                <span class="text-[11px] font-mono font-bold text-amber-300 uppercase block">+ Agregar Nueva Pregunta</span>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                    <div class="sm:col-span-1">
+                                        <select wire:model="encuestaNuevaPreguntaTipo" class="w-full px-2.5 py-1.5 text-xs rounded-xl border border-[#3e2920] bg-[#1a0f0a] text-stone-100 focus:outline-none">
+                                            <option value="estrellas">⭐ Calificación (1-5)</option>
+                                            <option value="si_no">👍 / 👎 Sí o No</option>
+                                            <option value="texto">✍️ Comentario Abierto</option>
+                                        </select>
+                                    </div>
+                                    <div class="sm:col-span-2">
+                                        <input type="text" wire:model="encuestaNuevaPreguntaTexto" placeholder="Escribe el texto de la pregunta..." class="w-full px-2.5 py-1.5 text-xs rounded-xl border border-[#3e2920] bg-[#1a0f0a] text-stone-100 focus:outline-none focus:border-amber-500">
+                                    </div>
+                                </div>
+                                <button type="button" wire:click="agregarPregunta" class="w-full py-1.5 rounded-xl bg-[#2a170f] hover:bg-[#381e13] text-amber-300 font-bold text-xs border border-amber-600/40 transition-all flex items-center justify-center gap-1">
+                                    <span class="material-symbols-outlined text-[15px]">add</span>
+                                    <span>Insertar Pregunta</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="button" wire:click="guardarEncuesta" class="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-400 text-black font-black text-xs shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-[17px]">save</span>
+                            <span>Guardar Encuesta de Satisfacción</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Columna 3: Previsualizador Móvil en Tiempo Real (3 cols) -->
+                <div class="lg:col-span-3 bg-[#140c08] p-6 rounded-3xl border border-amber-900/35 shadow-2xl space-y-4">
+                    <h3 class="font-black text-xs text-amber-200/80 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-emerald-400">smartphone</span>
+                        <span>Vista Previa del Comensal</span>
+                    </h3>
+
+                    <!-- Mockup Celular Lounge -->
+                    <div class="mx-auto w-full max-w-[280px] rounded-[32px] bg-[#0c0604] border-4 border-[#2b170e] p-4 shadow-2xl space-y-3 relative overflow-hidden text-xs">
+                        <div class="w-16 h-1 rounded-full bg-white/20 mx-auto mb-2"></div>
+
+                        <div class="text-center space-y-1 pb-2 border-b border-white/5">
+                            <span class="text-[9px] font-mono text-amber-400 uppercase tracking-wider font-bold">RestoMaster Provenza</span>
+                            <div class="text-xs font-black text-white leading-tight">
+                                {{ $encuestaNombre ?: 'Encuesta de Satisfacción' }}
+                            </div>
+                            <div class="text-[9px] text-[#a88d82]">
+                                Tu opinión nos ayuda a perfeccionar la experiencia
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 py-1">
+                            @foreach($encuestaPreguntas as $pIdx => $p)
+                                <div class="p-2.5 rounded-xl bg-white/5 border border-white/5 space-y-1.5">
+                                    <div class="text-[10px] font-bold text-white leading-snug">
+                                        {{ $pIdx + 1 }}. {{ $p['pregunta'] ?? 'Pregunta' }}
+                                    </div>
+
+                                    @if(($p['tipo'] ?? '') === 'estrellas')
+                                        <div class="flex items-center justify-center gap-1 text-amber-400 text-sm">
+                                            <span>⭐</span><span>⭐</span><span>⭐</span><span>⭐</span><span>⭐</span>
+                                        </div>
+                                    @elseif(($p['tipo'] ?? '') === 'si_no')
+                                        <div class="flex items-center justify-center gap-2 text-[10px]">
+                                            <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40">Sí, totalmente</span>
+                                            <span class="px-2 py-0.5 rounded bg-stone-900 text-stone-400 border border-white/5">Oportunidad</span>
+                                        </div>
+                                    @else
+                                        <div class="p-2 rounded bg-black/40 border border-white/5 text-[9px] text-stone-500 italic">
+                                            Escribe tus sugerencias aquí...
+                                        </div>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="p-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-black text-center font-black text-[10px] shadow-sm">
+                            Enviar y Ganar +50 Puntos Club
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1928,7 +2280,7 @@ new class extends Component
 
     <!-- PESTAÑA 7: GESTOR DE CHATS EN VIVO (BESPOKE GASTRO-LOUNGE & WARM AMBER PRESTIGE - 1:1 MOCKUP B) -->
     @if($tab === 'chats')
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start" wire:poll.3s>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start" wire:poll.visible.15s>
             <!-- COLUMNA 1: BANDEJA DE TICKETS (INBOX CARD) -->
             <div class="lg:col-span-4 xl:col-span-3 bg-[#120a07] border border-[#261711] rounded-3xl p-4 flex flex-col h-[780px] shadow-2xl">
                 <!-- Encabezado con título para accesibilidad y conteo -->
@@ -1942,23 +2294,23 @@ new class extends Component
                     </span>
                 </div>
 
-                <!-- Buscador "Refined search" con iconos -->
+                <!-- Buscador en español con iconos -->
                 <div class="relative mb-3">
                     <span class="material-symbols-outlined absolute left-3 top-2.5 text-[#7d655a] text-[18px]">search</span>
                     <input 
                         type="text" 
                         wire:model.live.debounce.300ms="chatBusqueda" 
-                        placeholder="Refined search..." 
+                        placeholder="Buscar por nombre, teléfono o ticket..." 
                         class="w-full pl-9 pr-9 py-2 rounded-xl bg-[#180e0a] border border-[#281812] text-[#f0e6df] placeholder-[#7d655a] text-xs focus:outline-none focus:border-[#d49a3d] transition-colors"
                     >
                     <span class="material-symbols-outlined absolute right-3 top-2.5 text-[#7d655a] text-[18px]">tune</span>
                 </div>
 
-                <!-- Filtros rápidos estilo Mockup B: Activos, Unresolved, VIP, Cerrados, Todos -->
-                <div class="flex items-center gap-1.5 mb-3 overflow-x-auto no-scrollbar pb-1 text-xs">
+                <!-- Filtros rápidos de estado: Navegación responsiva con wrap para visibilidad total en PC -->
+                <div class="flex flex-wrap items-center gap-1.5 mb-3 text-xs">
                     <button 
                         wire:click="$set('chatFiltroEstado', '')"
-                        class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ ($chatFiltroEstado === '' || $chatFiltroEstado === 'activos') ? 'border border-[#3d251a] text-[#f0e6df] bg-[#22140e]' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
+                        class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ ($chatFiltroEstado === '' || $chatFiltroEstado === 'activos') ? 'border border-[#3d251a] text-[#f0e6df] bg-[#22140e] shadow-xs ring-1 ring-amber-500/20' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
                     >
                         <span>Activos</span>
                     </button>
@@ -1966,13 +2318,14 @@ new class extends Component
                         wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'esperando_humano' ? '' : 'esperando_humano')"
                         class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'esperando_humano' ? 'border border-rose-500/60 text-rose-300 bg-rose-950/40 shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
                     >
-                        <span>Unresolved</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+                        <span>Pendientes</span>
                     </button>
                     <button 
                         wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'vip' ? '' : 'vip')"
                         class="px-2.5 py-1 rounded-xl transition-all flex items-center gap-1 text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'vip' ? 'border border-[#d49a3d] text-[#e8a348] bg-[#2a1a0f]/80 shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#9b8377] hover:text-[#f0e6df]' }}"
                     >
-                        <span>☆ VIP</span>
+                        <span>★ VIP</span>
                     </button>
                     <button 
                         wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'cerradas' ? '' : 'cerradas')"
@@ -1983,7 +2336,7 @@ new class extends Component
                     </button>
                     <button 
                         wire:click="$set('chatFiltroEstado', chatFiltroEstado === 'todos' ? '' : 'todos')"
-                        class="px-2 py-1 rounded-xl transition-all text-[11px] font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'todos' ? 'border border-[#3d251a] text-[#f0e6df] bg-[#22140e]' : 'border border-[#281812] bg-[#180e0a] text-[#7d655a] hover:text-[#f0e6df]' }}"
+                        class="px-2.5 py-1 rounded-xl transition-all text-xs font-semibold whitespace-nowrap {{ $chatFiltroEstado === 'todos' ? 'border border-[#3d251a] text-[#f0e6df] bg-[#22140e] shadow-xs' : 'border border-[#281812] bg-[#180e0a] text-[#7d655a] hover:text-[#f0e6df]' }}"
                     >
                         <span>Todos</span>
                     </button>
@@ -2021,18 +2374,18 @@ new class extends Component
                                     @endif
                                 </div>
                                 <span class="text-[10px] font-medium text-[#9b8377] bg-[#22130c] border border-[#331d14] px-2.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
-                                    {{ $tieneReserva ? 'Reservation Today' : ($c->ultimo_mensaje_at?->diffForHumans(null, true, true) ?? 'Nuevo') }}
+                                    {{ $tieneReserva ? 'Reserva hoy' : ($c->ultimo_mensaje_at?->diffForHumans(null, true, true) ?? 'Nuevo') }}
                                 </span>
                             </div>
 
                             <!-- Línea 2: Nombre del Huésped -->
                             <div class="text-xs font-semibold text-[#c5b2a8] truncate">
-                                {{ $c->nombre_contacto ?: ($c->cliente?->nombre ?: 'Guest ' . substr($c->identificador_remoto, 0, 8)) }}
+                                {{ $c->nombre_contacto ?: ($c->cliente?->nombre ?: 'Huésped ' . substr($c->identificador_remoto, 0, 8)) }}
                             </div>
 
                             <!-- Línea 3: Preview de último mensaje -->
                             <div class="text-[11px] text-[#7d655a] truncate">
-                                Latest message: {{ $c->ultimo_mensaje_texto ?: 'No messages yet' }}
+                                Último mensaje: {{ $c->ultimo_mensaje_texto ?: 'Sin mensajes aún' }}
                             </div>
                         </div>
                     @empty
@@ -2050,10 +2403,10 @@ new class extends Component
                     $activoCodigo = $conversacionActiva->ticket_codigo ?? $conversacionActiva->codigo_ticket;
                     $activoVip = $conversacionActiva->cliente?->isVip() || ($conversacionActiva->cliente && ($conversacionActiva->cliente->puntos_fidelidad > 50 || $conversacionActiva->cliente->total_gastado > 200000));
                     $reservaActiva = $conversacionActiva->cliente?->reservas()->whereDate('fecha', '>=', now())->first();
-                    $mesaNombre = $reservaActiva?->mesa?->nombre ?? 'Table 4';
+                    $mesaNombre = $reservaActiva?->mesa?->nombre ?? ($reservaActiva ? 'Mesa reservada' : 'Mesa 4');
                 @endphp
                 <div class="lg:col-span-8 xl:col-span-6 bg-[#120a07] border border-[#261711] rounded-3xl p-5 flex flex-col h-[780px] shadow-2xl">
-                    <!-- Encabezado del Ticket Activo (Exacto a Mockup B con Acciones de Cierre y Eliminación) -->
+                    <!-- Encabezado del Ticket Activo (Totalmente en español) -->
                     <div class="pb-3 border-b border-[#23150f] flex items-center justify-between">
                         <div>
                             <div class="flex items-center gap-2" x-data="{ copied: false }">
@@ -2088,9 +2441,9 @@ new class extends Component
                                 @endif
                             </div>
                             <div class="text-xs text-[#8f7568] flex items-center gap-1.5 mt-0.5">
-                                <span>Guest: <strong class="text-[#c5b2a8] font-semibold">{{ $conversacionActiva->nombre_contacto ?: ($conversacionActiva->cliente?->nombre ?: 'Guest ' . substr($conversacionActiva->identificador_remoto, 0, 8)) }}</strong></span>
+                                <span>Huésped: <strong class="text-[#c5b2a8] font-semibold">{{ $conversacionActiva->nombre_contacto ?: ($conversacionActiva->cliente?->nombre ?: 'Huésped ' . substr($conversacionActiva->identificador_remoto, 0, 8)) }}</strong></span>
                                 <span>•</span>
-                                <span class="{{ $activoVip ? 'text-[#e8a348] font-bold' : '' }}">{{ $activoVip ? 'VIP' : 'Standard' }}</span>
+                                <span class="{{ $activoVip ? 'text-[#e8a348] font-bold' : '' }}">{{ $activoVip ? 'VIP' : 'Estándar' }}</span>
                                 <span>•</span>
                                 <span>{{ $mesaNombre }}</span>
                             </div>
@@ -2168,21 +2521,23 @@ new class extends Component
                         </div>
                     </div>
 
-                    <!-- Interruptor de Modo (Píldora Centrada: AI Sommelier Concierge vs Maitre D' Staff Control) -->
+                    <!-- Interruptor de Modo en Español (Asistente IA Concierge vs Control del Staff) -->
                     <div class="flex justify-center my-3">
                         <div class="inline-flex p-1 rounded-full bg-[#180e0a] border border-[#2d1b14] shadow-inner">
                             <button 
                                 wire:click="conmutarModoChat('ia')" 
                                 class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 {{ $conversacionActiva->modo_atencion === 'ia' ? 'bg-gradient-to-r from-[#ba7b30] via-[#d4923e] to-[#ba7b30] text-[#140a04] font-bold shadow-md' : 'text-[#8f7568] hover:text-[#e5d5cc]' }}"
                             >
-                                <span>AI Sommelier Concierge</span>
+                                <span class="material-symbols-outlined text-[15px]">smart_toy</span>
+                                <span>Asistente IA Concierge</span>
                                 <span class="sr-only">Devolver a la IA</span>
                             </button>
                             <button 
                                 wire:click="conmutarModoChat('humano')" 
                                 class="px-4 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 {{ $conversacionActiva->modo_atencion === 'humano' ? 'bg-gradient-to-r from-[#ba7b30] via-[#d4923e] to-[#ba7b30] text-[#140a04] font-bold shadow-md' : 'text-[#8f7568] hover:text-[#e5d5cc]' }}"
                             >
-                                <span>Maitre D' Staff Control</span>
+                                <span class="material-symbols-outlined text-[15px]">person</span>
+                                <span>Control del Staff (Maitre)</span>
                                 <span class="sr-only">Tomar Control (Responder Yo)</span>
                             </button>
                         </div>
@@ -2272,34 +2627,35 @@ new class extends Component
                     </form>
                 </div>
 
-                <!-- COLUMNA 3: EXPEDIENTE 360° (GUEST 360 DOSSIER CARD MOCKUP B) -->
+                <!-- COLUMNA 3: EXPEDIENTE 360° DEL HUÉSPED (TOTALMENTE EN ESPAÑOL) -->
                 <div class="hidden xl:flex xl:col-span-3 bg-[#120a07] border border-[#261711] rounded-3xl p-6 flex-col h-[780px] shadow-2xl">
-                    <h3 class="font-sans font-bold text-base text-[#f0e6df] mb-6">
-                        Guest 360 Dossier
+                    <h3 class="font-sans font-bold text-base text-[#f0e6df] mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[#e8a348] text-[20px]">badge</span>
+                        <span>Expediente 360° del Huésped</span>
                     </h3>
 
                     <div class="space-y-5 text-xs flex-1">
-                        <!-- Dining Preferences -->
+                        <!-- Preferencias Gastronómicas -->
                         <div>
-                            <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Dining / Cortis</div>
+                            <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Preferencias Gastronómicas</div>
                             <div class="text-sm font-semibold text-[#f0e6df] mt-1">
-                                {{ $conversacionActiva->cliente?->preferencias ?: 'Shellfish, Wagyu A5' }}
+                                {{ $conversacionActiva->cliente?->preferencias ?: 'Sin registrar' }}
                             </div>
                         </div>
 
-                        <!-- Allergies -->
+                        <!-- Alergias y Restricciones -->
                         <div>
-                            <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Allergies</div>
+                            <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Alergias y Restricciones</div>
                             <div class="text-sm font-semibold text-[#f0e6df] mt-1">
-                                {{ $conversacionActiva->cliente?->alergias ?: 'Shellfish' }}
+                                {{ $conversacionActiva->cliente?->alergias ?: 'Sin alergias reportadas' }}
                             </div>
                         </div>
 
-                        <!-- Favorite Wine -->
+                        <!-- Bebida o Vino Favorito -->
                         <div>
-                            <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Favorite Wine</div>
+                            <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Bebida o Vino Favorito</div>
                             <div class="text-sm font-semibold text-[#f0e6df] mt-1">
-                                Pinot Noir
+                                {{ $conversacionActiva->cliente?->bebida_favorita ?: 'Sin registrar' }}
                             </div>
                         </div>
 
@@ -2307,15 +2663,15 @@ new class extends Component
                         <div class="border-t border-[#23150f] pt-5 mt-6 space-y-4">
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Lifetime Spend</div>
+                                    <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Consumo Total Histórico</div>
                                     <div class="text-base font-bold text-[#f0e6df] mt-1">
-                                        ${{ number_format($conversacionActiva->cliente?->total_gastado ?: 4200, 0, ',', '.') }}
+                                        ${{ number_format($conversacionActiva->cliente?->total_gastado ?? 0, 0, ',', '.') }}
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Total Visits</div>
+                                    <div class="text-[11px] font-mono text-[#7d655a] uppercase tracking-wider">Total Visitas</div>
                                     <div class="text-base font-bold text-[#f0e6df] mt-1">
-                                        {{ $conversacionActiva->cliente?->visitas_count ?: 18 }}
+                                        {{ $conversacionActiva->cliente?->visitas_count ?? 0 }}
                                     </div>
                                 </div>
                             </div>
@@ -2329,13 +2685,14 @@ new class extends Component
                         </div>
                     </div>
 
-                    <!-- Botón Dorado de Acción Directa (Create Direct Reservation) -->
+                    <!-- Botón Dorado de Acción Directa (Crear Reserva Directa) -->
                     <a 
                         href="{{ route('reservas.publico') }}" 
                         target="_blank" 
-                        class="w-full mt-auto py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#ba7b30] via-[#d4923e] to-[#ba7b30] hover:brightness-110 text-[#140a04] font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all tracking-wide"
+                        class="w-full mt-auto py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#ba7b30] via-[#d4923e] to-[#ba7b30] hover:brightness-110 text-[#140a04] font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all tracking-wide cursor-pointer"
                     >
-                        <span>Create Direct Reservation</span>
+                        <span class="material-symbols-outlined text-[18px]">calendar_add_on</span>
+                        <span>Crear Reserva Directa</span>
                     </a>
                 </div>
             @else

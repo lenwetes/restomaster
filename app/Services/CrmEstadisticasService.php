@@ -102,18 +102,24 @@ class CrmEstadisticasService
             $meseros = User::take(10)->get();
         }
 
+        $meseroIds = $meseros->pluck('id')->all();
+
+        $statsPorMesero = DB::table('encuesta_respuestas')
+            ->join('encuesta_envios', 'encuesta_respuestas.envio_id', '=', 'encuesta_envios.id')
+            ->join('pedidos', 'encuesta_envios.pedido_id', '=', 'pedidos.id')
+            ->whereIn('pedidos.mesero_id', $meseroIds)
+            ->where('encuesta_respuestas.tipo_respuesta', 'estrellas')
+            ->whereNotNull('encuesta_respuestas.valor_estrellas')
+            ->whereBetween('encuesta_respuestas.created_at', [$inicio, $fin])
+            ->selectRaw('pedidos.mesero_id, COUNT(*) as total_evaluaciones, AVG(valor_estrellas) as promedio, SUM(CASE WHEN valor_estrellas >= 4 THEN 1 ELSE 0 END) as votos_positivos')
+            ->groupBy('pedidos.mesero_id')
+            ->get()
+            ->keyBy('mesero_id');
+
         $ranking = [];
 
         foreach ($meseros as $mesero) {
-            $stats = DB::table('encuesta_respuestas')
-                ->join('encuesta_envios', 'encuesta_respuestas.envio_id', '=', 'encuesta_envios.id')
-                ->join('pedidos', 'encuesta_envios.pedido_id', '=', 'pedidos.id')
-                ->where('pedidos.mesero_id', $mesero->id)
-                ->where('encuesta_respuestas.tipo_respuesta', 'estrellas')
-                ->whereNotNull('encuesta_respuestas.valor_estrellas')
-                ->whereBetween('encuesta_respuestas.created_at', [$inicio, $fin])
-                ->selectRaw('COUNT(*) as total_evaluaciones, AVG(valor_estrellas) as promedio, SUM(CASE WHEN valor_estrellas >= 4 THEN 1 ELSE 0 END) as votos_positivos')
-                ->first();
+            $stats = $statsPorMesero->get($mesero->id);
 
             $total = $stats->total_evaluaciones ?? 0;
             $promedio = $total > 0 ? round((float) $stats->promedio, 2) : 5.0;

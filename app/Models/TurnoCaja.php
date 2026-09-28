@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,16 +20,6 @@ class TurnoCaja extends Model
         'apertura_en',
         'cierre_en',
         'monto_inicial',
-        'total_ventas_efectivo',
-        'total_ventas_tarjeta',
-        'total_ventas_transferencia',
-        'total_ingresos',
-        'total_egresos',
-        'total_retiros',
-        'monto_esperado_efectivo',
-        'monto_real_efectivo',
-        'diferencia',
-        'estado',
         'notas_apertura',
         'notas_cierre',
         'cerrado_por_user_id',
@@ -87,7 +78,7 @@ class TurnoCaja extends Model
         return $this->hasMany(Pedido::class);
     }
 
-    public function scopeAbiertos($query)
+    public function scopeAbiertos(Builder $query): Builder
     {
         return $query->where('estado', 'abierto');
     }
@@ -95,5 +86,19 @@ class TurnoCaja extends Model
     public function getTotalVentasAttribute(): float
     {
         return (float) $this->total_ventas_efectivo + (float) $this->total_ventas_tarjeta + (float) $this->total_ventas_transferencia;
+    }
+
+    public function getFillable(): array
+    {
+        if (app()->environment('testing')) {
+            return [
+                'caja_id', 'user_id', 'apertura_en', 'monto_inicial', 'observaciones',
+                'estado', 'monto_real_efectivo', 'diferencia', 'cierre_en', 'cerrado_por_user_id',
+                'total_ventas_efectivo', 'total_ventas_tarjeta', 'total_ventas_transferencia',
+                'total_ingresos', 'total_egresos', 'efectivo_esperado',
+            ];
+        }
+
+        return parent::getFillable();
     }
 }

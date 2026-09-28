@@ -42,9 +42,10 @@ Route::get('m/{numero}', function ($numero) {
 })->name('mesa.qr.short');
 Volt::route('mesa/{numero}/menu', 'mesa.menu-publico')->middleware('throttle:30,1')->name('mesa.menu');
 
-// Servicios públicos: Delivery en línea y Carta general
+// Servicios públicos: Delivery en línea, Carta general y Promociones
 Volt::route('delivery/pedir', 'delivery.pedido-publico')->middleware('throttle:30,1')->name('delivery.publico');
 Volt::route('carta', 'menu.carta-publica')->middleware('throttle:60,1')->name('carta.publico');
+Volt::route('promociones', 'promociones.publico')->middleware('throttle:60,1')->name('promociones.publico');
 
 Route::middleware(['auth'])->group(function () {
     Volt::route('mesas', 'mesas.index')->middleware('role:mesero,cajero,gerente')->name('mesas');
@@ -57,6 +58,7 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('delivery', 'delivery.index')->middleware('role:cajero,delivery,repartidor,gerente')->name('delivery');
     Volt::route('trabajadores', 'trabajadores.index')->middleware('role:admin')->name('trabajadores');
     Volt::route('menu', 'menu.index')->middleware('role:gerente,admin')->name('menu');
+    Volt::route('promociones/gestion', 'promociones.index')->middleware('role:gerente,admin')->name('promociones.index');
     Volt::route('reportes', 'reportes.index')->middleware('role:gerente')->name('reportes');
     Route::get('reportes/exportar-pdf', [ReporteExportController::class, 'pdf'])->middleware('role:gerente')->name('reportes.pdf');
     Route::get('reportes/exportar-csv', [ReporteExportController::class, 'csv'])->middleware('role:gerente')->name('reportes.csv');
@@ -66,6 +68,9 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('configuracion', 'configuracion.index')->middleware('role:admin')->name('configuracion');
     Volt::route('impresion', 'impresion.index')->middleware('role:gerente,admin')->name('impresion');
 });
+
+// Detalle público de promoción por slug
+Volt::route('promociones/{slug}', 'promociones.detalle')->middleware('throttle:60,1')->name('promociones.detalle');
 
 // Webhook Meta WhatsApp Cloud API (CRM Automatizaciones con Rate Limiting)
 Route::get('api/webhooks/whatsapp', [CrmWebhookController::class, 'verificar'])->middleware('throttle:60,1')->name('crm.webhook.verificar');
@@ -77,7 +82,7 @@ Route::prefix('cliente')->name('cliente.')->group(function () {
     Route::get('auth/{provider}', [AuthClienteController::class, 'redirectToGoogle'])->name('auth.provider');
     Route::get('auth/{provider}/callback', [AuthClienteController::class, 'handleGoogleCallback'])->name('auth.callback');
     Route::post('magic-send', [AuthClienteController::class, 'sendMagicLink'])->middleware('throttle:5,1')->name('magic_send');
-    Route::get('magic-verify', [AuthClienteController::class, 'verifyMagicLink'])->name('magic_verify');
+    Route::get('magic-verify', [AuthClienteController::class, 'verifyMagicLink'])->middleware('throttle:10,1')->name('magic_verify');
     Route::post('logout', [AuthClienteController::class, 'logout'])->name('logout');
 
     Route::get('perfil', [PerfilClienteController::class, 'showPerfil'])

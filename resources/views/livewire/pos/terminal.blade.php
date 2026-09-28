@@ -594,9 +594,12 @@ new class extends Component
                 ]);
             }
 
+            $productoIds = array_keys($this->carrito);
+            $productos = Producto::whereIn('id', $productoIds)->get()->keyBy('id');
+
             if ($this->modoNuevaAdicion) {
                 foreach ($this->carrito as $productoId => $itemCarrito) {
-                    $producto = Producto::find($productoId);
+                    $producto = $productos->get($productoId);
                     if ($producto) {
                         $pedidoService->agregarItem($pedidoExistente, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
                     }
@@ -611,13 +614,13 @@ new class extends Component
                         $itemDb = $itemsExistentes->get($productoId);
                         $diferencia = $cantidadCarrito - (int) $itemDb->cantidad;
                         if ($diferencia > 0) {
-                            $producto = Producto::find($productoId);
+                            $producto = $productos->get($productoId);
                             if ($producto) {
                                 $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
                             }
                         }
                     } else {
-                        $producto = Producto::find($productoId);
+                        $producto = $productos->get($productoId);
                         if ($producto) {
                             $pedidoService->agregarItem($pedidoExistente, $producto, $cantidadCarrito, $itemCarrito['notas'] ?? null);
                         }
@@ -683,8 +686,9 @@ new class extends Component
             if ($pedidoActivo) {
                 if (! empty($this->carrito)) {
                     $pedidoService = app(PedidoService::class);
+                    $productos = Producto::whereIn('id', array_keys($this->carrito))->get()->keyBy('id');
                     foreach ($this->carrito as $productoId => $itemCarrito) {
-                        $producto = Producto::find($productoId);
+                        $producto = $productos->get($productoId);
                         if ($producto) {
                             $itemAgregado = $pedidoService->agregarItem($pedidoActivo, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
                             $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
@@ -986,8 +990,9 @@ new class extends Component
             $pedidoActivo = $this->obtenerPedidoActivoMesa();
             if ($pedidoActivo && ! empty($this->carrito)) {
                 $pedidoService = app(PedidoService::class);
+                $productosCobro = Producto::whereIn('id', array_keys($this->carrito))->get()->keyBy('id');
                 foreach ($this->carrito as $productoId => $itemCarrito) {
-                    $producto = Producto::find($productoId);
+                    $producto = $productosCobro->get($productoId);
                     if ($producto) {
                         $itemAgregado = $pedidoService->agregarItem($pedidoActivo, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
                         $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
@@ -1039,9 +1044,11 @@ new class extends Component
                 ]);
             }
 
+            $productosExistentes = Producto::whereIn('id', array_keys($this->carrito))->get()->keyBy('id');
+
             if ($this->modoNuevaAdicion) {
                 foreach ($this->carrito as $productoId => $itemCarrito) {
-                    $producto = Producto::find($productoId);
+                    $producto = $productosExistentes->get($productoId);
                     if ($producto) {
                         $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, (int) $itemCarrito['cantidad'], $itemCarrito['notas'] ?? null);
                         $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
@@ -1056,7 +1063,7 @@ new class extends Component
                     $cantidadExistente = (int) $cantidadesDb->get($productoId, 0);
                     $diferencia = $cantidadCarrito - $cantidadExistente;
                     if ($diferencia > 0) {
-                        $producto = Producto::find($productoId);
+                        $producto = $productosExistentes->get($productoId);
                         if ($producto) {
                             $itemAgregado = $pedidoService->agregarItem($pedidoExistente, $producto, $diferencia, $itemCarrito['notas'] ?? null);
                             $itemAgregado->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
@@ -1317,10 +1324,7 @@ new class extends Component
 
         $ticketSvc = app(ConfiguracionService::class);
         $ticketDefaults = $ticketSvc->valoresPorDefectoTicket80mm();
-        $ticketConfig = [];
-        foreach ($ticketDefaults as $clave => $defecto) {
-            $ticketConfig[$clave] = $ticketSvc->obtener('ticket_80mm', $clave, $defecto);
-        }
+        $ticketConfig = array_merge($ticketDefaults, $ticketSvc->obtenerGrupo('ticket_80mm'));
 
         return [
             'categorias' => $categorias,
@@ -1335,7 +1339,20 @@ new class extends Component
     }
 }; ?>
 
-<div class="space-y-4">
+<div class="space-y-4"
+     x-data="{ online: navigator.onLine }"
+     @online.window="online = true"
+     @offline.window="online = false">
+
+    <!-- Banner de Estado de Conexión Offline / PWA Store-and-Forward -->
+    <div x-show="!online" x-cloak class="rounded-2xl bg-amber-500/15 border border-amber-500/40 p-3 flex items-center justify-between text-amber-500 animate-pulse shadow-sm">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">wifi_off</span>
+            <span class="text-xs font-bold">Modo Offline Activo · Sin conexión de red. Los pedidos locales se conservan y sincronizan automáticamente.</span>
+        </div>
+        <span class="text-[10px] font-mono font-black uppercase bg-amber-500/20 px-2 py-0.5 rounded">PWA Offline</span>
+    </div>
+
     @if($vistaMesero === 'movil')
         <!-- ========================================================================= -->
         <!-- EXPERIENCIA MÓVIL DEDICADA: AURA GASTRO POCKET POS (UX/UI MÓVIL)           -->
@@ -3069,579 +3086,14 @@ new class extends Component
     @endif
 
     <!-- Modal de Apertura Rápida de Turno de Caja desde POS -->
-    @if($mostrarModalAperturaPos)
-        <div x-data @keydown.escape.window="$wire.set('mostrarModalAperturaPos', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
-            <div role="dialog" aria-modal="true" aria-labelledby="modal-apertura-pos-title" class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
-                            <span class="material-symbols-outlined text-[20px]">lock_open</span>
-                        </div>
-                        <div>
-                            <h3 id="modal-apertura-pos-title" class="text-base font-extrabold text-on-surface">Apertura Rápida de Caja</h3>
-                            <p class="text-[11px] text-on-surface-variant">Ingresa la base inicial de efectivo para habilitar el cobro</p>
-                        </div>
-                    </div>
-                    <button wire:click="$set('mostrarModalAperturaPos', false)" aria-label="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface">
-                        <span class="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                </div>
-
-                <div class="mt-4 space-y-4">
-                    <div>
-                        <label class="text-xs font-bold text-on-surface-variant">Terminal de Caja:</label>
-                        <select 
-                            wire:model="cajaAperturaId" 
-                            class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0"
-                        >
-                            @foreach($cajasDisponibles as $c)
-                                <option value="{{ $c->id }}">{{ $c->nombre }} ({{ $c->codigo }})</option>
-                            @endforeach
-                        </select>
-                        @error('cajaAperturaId') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
-                    </div>
-
-                    <div>
-                        <label class="text-xs font-bold text-on-surface-variant">Fondo Inicial / Base de Efectivo en Gaveta:</label>
-                        <div class="relative mt-1">
-                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-on-surface-variant">$</span>
-                            <input 
-                                type="text" 
-                                inputmode="decimal" 
-                                data-miles data-decimales="0"
-                                wire:model="baseAperturaPos" 
-                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low pl-7 pr-3 py-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
-                                placeholder="150000"
-                            />
-                        </div>
-                        @error('baseAperturaPos') <span class="text-xs text-error font-bold mt-1 block">{{ $message }}</span> @enderror
-                        <div class="flex gap-1.5 mt-2">
-                            <button type="button" wire:click="$set('baseAperturaPos', 100000)" class="px-2 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-on-surface-variant hover:text-on-surface border border-surface-container-high cursor-pointer">$100k</button>
-                            <button type="button" wire:click="$set('baseAperturaPos', 150000)" class="px-2 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-on-surface-variant hover:text-on-surface border border-surface-container-high cursor-pointer">$150k</button>
-                            <button type="button" wire:click="$set('baseAperturaPos', 200000)" class="px-2 py-1 rounded-lg bg-surface-container text-[11px] font-bold text-on-surface-variant hover:text-on-surface border border-surface-container-high cursor-pointer">$200k</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="text-xs font-bold text-on-surface-variant">Notas de Apertura (Opcional):</label>
-                        <input 
-                            type="text" 
-                            wire:model="notasAperturaPos" 
-                            placeholder="Ej: Base de cambio entregada para apertura de turno"
-                            class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-2.5 text-xs text-on-surface focus:border-primary focus:ring-0"
-                        />
-                    </div>
-                </div>
-
-                <div class="mt-6 grid grid-cols-2 gap-2">
-                    <button 
-                        wire:click="$set('mostrarModalAperturaPos', false)" 
-                        class="rounded-xl border border-surface-container-high bg-surface-container py-3 text-xs font-extrabold text-on-surface-variant hover:text-on-surface cursor-pointer"
-                    >
-                        Cancelar
-                    </button>
-                    <button 
-                        wire:click="abrirTurnoDesdePos" 
-                        class="rounded-xl bg-primary py-3 text-xs font-black text-on-primary shadow-md hover:bg-primary-container active:scale-95 transition-all cursor-pointer"
-                    >
-                        ✓ Abrir Turno y Cobrar
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
+    @include('livewire.pos.partials.modal-apertura-caja')
 
     <!-- Modal de Cobro Táctil (Stitch POS-02 Billing Console) -->
-    @if($mostrarModalCobro)
-        <div x-data @keydown.escape.window="$wire.set('mostrarModalCobro', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
-            <div role="dialog" aria-modal="true" aria-labelledby="modal-cobro-pos-title" class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
-                            <span class="material-symbols-outlined text-[20px]">point_of_sale</span>
-                        </div>
-                        <h3 id="modal-cobro-pos-title" class="text-base font-extrabold text-on-surface">Terminal de Cobro</h3>
-                    </div>
-                    <button wire:click="$set('mostrarModalCobro', false)" aria-label="Cerrar modal de cobro" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface">
-                        <span class="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                </div>
-
-                <div class="mt-4 space-y-4">
-                    <!-- Propina del Servicio (Ley 1935 de 2018 - Voluntaria) -->
-                    <div class="rounded-2xl border border-surface-container-high bg-surface-container-low p-3 space-y-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold text-on-surface flex items-center gap-1">
-                                <span class="material-symbols-outlined text-primary text-[16px]">volunteer_activism</span>
-                                Propina del Servicio (Voluntaria)
-                            </span>
-                            <span class="text-xs font-black text-primary font-mono">+ ${{ number_format($montoPropina, 0, ',', '.') }}</span>
-                        </div>
-                        <div class="grid grid-cols-3 gap-1.5">
-                            <button 
-                                type="button"
-                                wire:click="seleccionarPropina('cero')" 
-                                class="py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer {{ $tipoPropina === 'cero' ? 'border-primary bg-primary text-on-primary shadow-xs' : 'border-surface-container-high bg-surface-container text-on-surface-variant hover:text-on-surface' }}"
-                            >
-                                Sin Propina ($0)
-                            </button>
-                            <button 
-                                type="button"
-                                wire:click="seleccionarPropina('diez_porciento')" 
-                                class="py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer {{ $tipoPropina === 'diez_porciento' ? 'border-primary bg-primary text-on-primary shadow-xs' : 'border-surface-container-high bg-surface-container text-on-surface-variant hover:text-on-surface' }}"
-                            >
-                                10% (${{ number_format(round($this->total * 0.10), 0, ',', '.') }})
-                            </button>
-                            <button 
-                                type="button"
-                                wire:click="seleccionarPropina('personalizada')" 
-                                class="py-2 px-1 text-center rounded-xl text-xs font-bold border transition cursor-pointer {{ $tipoPropina === 'personalizada' ? 'border-primary bg-primary text-on-primary shadow-xs' : 'border-surface-container-high bg-surface-container text-on-surface-variant hover:text-on-surface' }}"
-                            >
-                                Valor Libre
-                            </button>
-                        </div>
-                        @if($tipoPropina === 'personalizada')
-                            <div class="pt-1 flex items-center gap-2">
-                                <span class="text-xs text-on-surface-variant font-bold">$</span>
-                                <input 
-                                    type="text" 
-                                    inputmode="decimal" 
-                                    data-miles data-decimales="0"
-                                    min="0"
-                                    wire:model.live.debounce.300ms="montoPropina" 
-                                    placeholder="Monto voluntario comensal..."
-                                    class="w-full rounded-xl border border-surface-container-high bg-surface-container px-3 py-1.5 text-xs font-bold font-mono text-on-surface focus:border-primary focus:ring-0"
-                                />
-                            </div>
-                        @endif
-                    </div>
-
-                    <!-- Total to pay banner -->
-                    <div class="rounded-2xl bg-surface-container-low border border-surface-container-high p-3.5 text-center">
-                        <div class="flex items-center justify-between text-[11px] text-on-surface-variant font-semibold px-1">
-                            <span>Consumo: ${{ number_format($this->total, 0, ',', '.') }}</span>
-                            <span>Propina: ${{ number_format($montoPropina, 0, ',', '.') }}</span>
-                        </div>
-                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant block mt-1">Total a Cancelar</span>
-                        <p class="font-mono text-3xl font-black text-primary mt-0.5">${{ number_format($this->totalConPropina, 0, ',', '.') }}</p>
-                    </div>
-
-                    <!-- Payment Method Picker -->
-                    <div>
-                        <span class="text-xs font-bold text-on-surface-variant">Método de Pago:</span>
-                        <div class="mt-2 grid grid-cols-3 gap-2">
-                            <button 
-                                wire:click="$set('metodoPago', 'efectivo')"
-                                class="flex items-center justify-center gap-1 rounded-xl p-2.5 text-xs font-extrabold transition border {{ $metodoPago === 'efectivo' ? 'border-primary bg-primary text-on-primary shadow-sm' : 'border-surface-container-high bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
-                            >
-                                <span class="material-symbols-outlined text-[16px]">payments</span>
-                                <span>Efectivo</span>
-                            </button>
-                            <button 
-                                wire:click="$set('metodoPago', 'tarjeta')"
-                                class="flex items-center justify-center gap-1 rounded-xl p-2.5 text-xs font-extrabold transition border {{ $metodoPago === 'tarjeta' ? 'border-primary bg-primary text-on-primary shadow-sm' : 'border-surface-container-high bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
-                            >
-                                <span class="material-symbols-outlined text-[16px]">credit_card</span>
-                                <span>Tarjeta</span>
-                            </button>
-                            <button 
-                                wire:click="$set('metodoPago', 'mixto')"
-                                class="flex items-center justify-center gap-1 rounded-xl p-2.5 text-xs font-extrabold transition border {{ $metodoPago === 'mixto' ? 'border-primary bg-primary text-on-primary shadow-sm' : 'border-surface-container-high bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface' }}"
-                            >
-                                <span class="material-symbols-outlined text-[16px]">balance</span>
-                                <span>Mixto</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Mixed Payment Input -->
-                    @if($metodoPago === 'mixto')
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant">Efectivo (pago mixto):</label>
-                            <input
-                                type="text"
-                                inputmode="decimal"
-                                data-miles data-decimales="0"
-                                min="0"
-                                max="{{ (int) $this->total }}"
-                                wire:model.live.debounce.500ms="montoEfectivoMixto"
-                                class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
-                            />
-                            <p class="mt-1 text-[10px] font-semibold text-on-surface-variant">
-                                El resto (${{ number_format(max(0, (float) $this->total - (float) $this->montoEfectivoMixto), 0, ',', '.') }}) se registra como tarjeta.
-                            </p>
-                        </div>
-                    @endif
-
-                    <!-- Cash Input & Quick Bills -->
-                    @if($metodoPago === 'efectivo')
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant">Monto Entregado:</label>
-                            <input 
-                                type="text" 
-                                inputmode="decimal" 
-                                data-miles data-decimales="0"
-                                data-monto-entregado
-                                wire:model.live.debounce.500ms="montoPagado" 
-                                class="mt-1 w-full rounded-xl border border-surface-container-high bg-surface-container-low p-3 font-mono text-xl font-bold text-on-surface focus:border-primary focus:ring-0"
-                            />
-
-                            <!-- Quick denomination buttons -->
-                            <div class="mt-2.5 grid grid-cols-4 gap-1.5">
-                                <button wire:click="setMontoExacto" class="rounded-lg bg-surface-container p-2 text-xs font-bold text-on-surface hover:bg-surface-container-high">
-                                    Exacto
-                                </button>
-                                <button wire:click="sumarMonto(20000.0)" class="rounded-lg bg-surface-container p-2 text-xs font-bold text-on-surface hover:bg-surface-container-high">
-                                    $20.000
-                                </button>
-                                <button wire:click="sumarMonto(50000.0)" class="rounded-lg bg-surface-container p-2 text-xs font-bold text-on-surface hover:bg-surface-container-high">
-                                    $50.000
-                                </button>
-                                <button wire:click="sumarMonto(100000.0)" class="rounded-lg bg-surface-container p-2 text-xs font-bold text-on-surface hover:bg-surface-container-high">
-                                    $100.000
-                                </button>
-                            </div>
-
-                            <!-- Change calculation -->
-                            <div class="mt-3 flex items-center justify-between rounded-xl bg-secondary-container/40 border border-secondary/30 p-3 text-xs font-bold text-on-secondary-container">
-                                <span>Cambio a Devolver:</span>
-                                <span class="font-mono text-xl font-black text-secondary">${{ number_format($this->cambio, 0, ',', '.') }}</span>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-
-                <!-- Error Feedback in Billing Modal -->
-                @error('montoPagado')
-                    <div class="mt-4 rounded-2xl bg-error/15 border border-error/30 p-3 text-xs font-bold text-error flex items-center gap-2 animate-fade-in shadow-xs">
-                        <span class="material-symbols-outlined text-[20px] text-error shrink-0">error</span>
-                        <span class="flex-1">{{ $message }}</span>
-                    </div>
-                @enderror
-
-                @if($errors->any() && !$errors->has('montoPagado'))
-                    <div class="mt-4 rounded-2xl bg-error/15 border border-error/30 p-3 text-xs font-bold text-error space-y-1 animate-fade-in shadow-xs">
-                        @foreach($errors->all() as $error)
-                            <div class="flex items-center gap-1.5">
-                                <span class="material-symbols-outlined text-[18px] text-error shrink-0">warning</span>
-                                <span>{{ $error }}</span>
-                            </div>
-                        @endforeach
-                    </div>
-                @endif
-
-                <!-- Modal Action Buttons -->
-                <div class="mt-6 grid grid-cols-2 gap-2">
-                    <button 
-                        type="button"
-                        wire:click="$set('mostrarModalCobro', false)" 
-                        class="rounded-xl border border-surface-container-high bg-surface-container py-3 text-xs font-extrabold text-on-surface-variant hover:text-on-surface cursor-pointer"
-                    >
-                        Cancelar
-                    </button>
-                    <button 
-                        type="button"
-                        wire:click="procesarCobro" 
-                        wire:loading.attr="disabled"
-                        @disabled($this->comandaActivaBloqueaCobro())
-                        title="{{ $this->comandaActivaBloqueaCobro() ? 'La comanda sigue activa en cocina: solo se puede cobrar cuando todo fue servido o cancelado.' : 'Confirmar cobro' }}"
-                        class="rounded-xl bg-secondary py-3 text-xs font-extrabold text-on-secondary shadow-md hover:bg-secondary-fixed-dim disabled:opacity-40 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed transition-all"
-                    >
-                        <span wire:loading.remove wire:target="procesarCobro">✓ Confirmar y Emitir</span>
-                        <span wire:loading wire:target="procesarCobro" class="inline-flex items-center gap-1.5">
-                            <svg class="animate-spin h-4 w-4 text-on-secondary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span>Procesando...</span>
-                        </span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
+    @include('livewire.pos.partials.modal-cobro')
 
     <!-- Thermal Ticket 80mm Simulation Modal (Optimizado para Impresoras Locales USB / Driver Navegador) -->
-    @if($mostrarTicket && $pedidoCompletado)
-        <div x-data @keydown.escape.window="$wire.cerrarTicket()" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
-            <div role="dialog" aria-modal="true" aria-labelledby="modal-ticket-title" class="print-ticket-termico w-full max-w-sm rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-surface-container-highest font-mono text-xs max-h-[90vh] overflow-y-auto">
-                <!-- Badge de Confirmación de Persistencia Real en BD -->
-                <div class="no-print mb-3 p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-between text-emerald-600">
-                    <div class="flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[18px]">verified</span>
-                        <span class="font-extrabold text-[11px]">Ticket Guardado en BD</span>
-                    </div>
-                    <span class="font-mono text-[10px] font-black">ID #{{ $pedidoCompletado->id }}</span>
-                </div>
-
-                <!-- Thermal Receipt Header (configurable ticket_80mm) -->
-                <div class="text-center border-b border-dashed border-surface-container-high pb-4">
-                    <p id="modal-ticket-title" class="text-base font-black tracking-tight text-primary">{{ $ticketConfig['nombre_comercial'] ?? 'RESTOMASTER' }}</p>
-                    @if(!empty($ticketConfig['lema']))
-                        <p class="text-[11px] text-on-surface-variant">{{ $ticketConfig['lema'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['razon_social']))
-                        <p class="text-[10px] text-on-surface-variant/70">{{ $ticketConfig['razon_social'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['nit']) || !empty($ticketConfig['regimen']))
-                        <p class="text-[10px] text-on-surface-variant/70">NIT: {{ $ticketConfig['nit'] ?? '' }}{{ !empty($ticketConfig['regimen']) ? ' · '.$ticketConfig['regimen'] : '' }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['direccion']))
-                        <p class="text-[10px] text-on-surface-variant/70">{{ $ticketConfig['direccion'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['telefono']))
-                        <p class="text-[10px] text-on-surface-variant/70">{{ $ticketConfig['telefono'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['mensaje_bienvenida']))
-                        <p class="text-[10px] italic text-on-surface-variant/70">"{{ $ticketConfig['mensaje_bienvenida'] }}"</p>
-                    @endif
-                    @if(!empty($ticketConfig['resolucion_dian']))
-                        <p class="text-[9px] text-on-surface-variant/70">{{ $ticketConfig['resolucion_dian'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['rango_autorizado']))
-                        <p class="text-[9px] text-on-surface-variant/70">{{ $ticketConfig['rango_autorizado'] }}</p>
-                    @endif
-                </div>
-
-                <!-- Ticket Details -->
-                <div class="py-3 border-b border-dashed border-surface-container-high space-y-1 text-[11px]">
-                    <div class="flex justify-between">
-                        <span>ORDEN:</span>
-                        <span class="font-bold text-primary">{{ $pedidoCompletado->codigo }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>FECHA:</span>
-                        <span>{{ now()->format('d/m/Y H:i') }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>TIPO:</span>
-                        <span class="font-bold uppercase text-secondary">{{ $pedidoCompletado->tipo }} {{ $pedidoCompletado->mesa ? "- Mesa {$pedidoCompletado->mesa->numero}" : '' }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>CAJERO:</span>
-                        <span>{{ Auth::user()->name }}</span>
-                    </div>
-                    @if(!empty($ticketConfig['mostrar_datos_mesero']) && $pedidoCompletado->mesero)
-                        <div class="flex justify-between font-bold text-primary">
-                            <span>MESERO:</span>
-                            <span>{{ $pedidoCompletado->mesero->name }}</span>
-                        </div>
-                    @endif
-                </div>
-
-                <!-- Ticket Line Items -->
-                <div class="py-3 border-b border-dashed border-surface-container-high space-y-1.5">
-                    @foreach($pedidoCompletado->items as $it)
-                        <div class="flex justify-between text-[11px]">
-                            <span>{{ $it->cantidad }}x {{ $it->nombre_producto }}</span>
-                            <span class="font-bold">${{ number_format($it->subtotal, 0, ',', '.') }}</span>
-                        </div>
-                    @endforeach
-                </div>
-
-                <!-- Ticket Totals -->
-                <div class="py-3 border-b border-dashed border-surface-container-high space-y-1 text-[11px]">
-                    <div class="flex justify-between">
-                        <span>SUBTOTAL:</span>
-                        <span>${{ number_format($pedidoCompletado->subtotal, 0, ',', '.') }}</span>
-                    </div>
-                    @if($pedidoCompletado->descuento > 0)
-                        <div class="flex justify-between text-secondary">
-                            <span>DESCUENTO:</span>
-                            <span>-${{ number_format($pedidoCompletado->descuento, 0, ',', '.') }}</span>
-                        </div>
-                    @endif
-                    @if((float) ($pedidoCompletado->propina ?? 0) > 0)
-                        <div class="flex justify-between font-bold text-primary">
-                            <span>PROPINA VOLUNTARIA:</span>
-                            <span>+${{ number_format($pedidoCompletado->propina, 0, ',', '.') }}</span>
-                        </div>
-                    @endif
-                    <div class="flex justify-between text-sm font-black pt-1 text-on-surface">
-                        <span>TOTAL A PAGAR:</span>
-                        <span class="text-primary">${{ number_format((float) $pedidoCompletado->total + (float) ($pedidoCompletado->propina ?? 0), 0, ',', '.') }}</span>
-                    </div>
-                    <div class="flex justify-between text-on-surface-variant pt-1">
-                        <span>PAGADO ({{ strtoupper($pedidoCompletado->metodo_pago) }}):</span>
-                        <span>${{ number_format($pedidoCompletado->monto_pagado, 0, ',', '.') }}</span>
-                    </div>
-                    <div class="flex justify-between font-bold text-secondary">
-                        <span>CAMBIO:</span>
-                        <span>${{ number_format($pedidoCompletado->cambio, 0, ',', '.') }}</span>
-                    </div>
-                </div>
-
-                <!-- Ticket Footer Message (configurable ticket_80mm) -->
-                <div class="pt-4 text-center text-[10px] text-on-surface-variant space-y-1">
-                    @if(!empty($ticketConfig['pie_pagina']))
-                        <p class="font-bold text-on-surface">{{ $ticketConfig['pie_pagina'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['sugerir_propina']) && !empty($ticketConfig['mensaje_propina']))
-                        <p class="text-[9px]">{{ $ticketConfig['mensaje_propina'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['redes_sociales']))
-                        <p class="text-[9px] font-semibold">{{ $ticketConfig['redes_sociales'] }}</p>
-                    @endif
-                    @if(!empty($ticketConfig['politica_cambios']))
-                        <p class="text-[9px]">{{ $ticketConfig['politica_cambios'] }}</p>
-                    @endif
-                </div>
-
-                <!-- Close / Print buttons (Ocultos al imprimir en papel) -->
-                <div class="no-print mt-5 grid grid-cols-2 gap-2">
-                    <button 
-                        onclick="window.print()" 
-                        class="rounded-xl border border-surface-container-high bg-surface-container py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                        <span class="material-symbols-outlined text-[16px]">print</span>
-                        <span>Imprimir</span>
-                    </button>
-                    <button 
-                        wire:click="cerrarTicket" 
-                        class="rounded-xl bg-primary py-2.5 text-xs font-extrabold text-on-primary shadow-md hover:bg-primary-container cursor-pointer"
-                    >
-                        ✓ Finalizar
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
+    @include('livewire.pos.partials.modal-ticket-preview')
 
     <!-- Modal Ley 1581 Habeas Data y Consentimiento -->
-    @if($mostrarModalHabeasData)
-        <div x-data @keydown.escape.window="$wire.set('mostrarModalHabeasData', false)" class="fixed inset-0 z-50 flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm p-4 animate-fade-in">
-            <div role="dialog" aria-modal="true" aria-labelledby="modal-habeas-title" class="w-full max-w-lg rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-surface-container-highest max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between border-b border-surface-container-high pb-3">
-                    <div class="flex items-center gap-2">
-                        <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
-                            <span class="material-symbols-outlined text-[20px]">verified_user</span>
-                        </div>
-                        <div>
-                            <h3 id="modal-habeas-title" class="text-base font-extrabold text-on-surface">Habeas Data & Datos de Contacto</h3>
-                            <p class="text-[11px] text-on-surface-variant">Ley 1581 de 2012 · Fidelización y Facturación</p>
-                        </div>
-                    </div>
-                    <button wire:click="$set('mostrarModalHabeasData', false)" aria-label="Cerrar modal" class="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface cursor-pointer">
-                        <span class="material-symbols-outlined text-[20px]">close</span>
-                    </button>
-                </div>
-
-                <div class="mt-4 space-y-4">
-                    <!-- Resumen Legal Informativo -->
-                    <div class="rounded-2xl bg-surface-container-low border border-surface-container-high p-3.5 text-[11px] text-on-surface-variant space-y-1.5">
-                        <p class="font-bold text-on-surface flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[16px] text-primary">policy</span>
-                            Autorización para Tratamiento de Datos Personales
-                        </p>
-                        <p class="leading-relaxed">
-                            En cumplimiento de la Ley Estatutaria 1581 de 2012, el comensal autoriza el tratamiento de sus datos de contacto para la prestación del servicio gastronómico, emisión de facturas electrónicas, acumulación de puntos de fidelidad y notificaciones vía WhatsApp o correo electrónico.
-                        </p>
-                    </div>
-
-                    <!-- Campos de Contacto -->
-                    <div class="space-y-3">
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Nombre Completo del Comensal *:</label>
-                            <input 
-                                type="text" 
-                                wire:model="habeasNombre" 
-                                placeholder="Ej: Valentina Gómez" 
-                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
-                            />
-                            @error('habeasNombre') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Teléfono Móvil (WhatsApp / Pedidos):</label>
-                            <input 
-                                type="tel" 
-                                wire:model="habeasTelefono" 
-                                placeholder="Ej: 3001234567" 
-                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
-                            />
-                            @error('habeasTelefono') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Correo Electrónico (Facturación & Promos):</label>
-                            <input 
-                                type="email" 
-                                wire:model="habeasEmail" 
-                                placeholder="comensal@ejemplo.com" 
-                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
-                            />
-                            @error('habeasEmail') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant block mb-1">Dirección para Domicilios (Opcional):</label>
-                            <input 
-                                type="text" 
-                                wire:model="habeasDireccion" 
-                                placeholder="Calle 123 #45-67, Apto 101" 
-                                class="w-full rounded-xl border border-surface-container-high bg-surface-container-low px-3.5 py-2 text-xs font-medium text-on-surface focus:border-primary focus:ring-0"
-                            />
-                            @error('habeasDireccion') <span class="text-error text-[11px]">{{ $message }}</span> @enderror
-                        </div>
-                    </div>
-
-                    <!-- Checkboxes de Consentimiento -->
-                    <div class="space-y-2.5 pt-2 border-t border-surface-container-high">
-                        <label class="flex items-start gap-2.5 cursor-pointer">
-                            <input 
-                                type="checkbox" 
-                                wire:model="habeasAcepta" 
-                                class="mt-0.5 rounded border-outline-variant text-primary focus:ring-primary h-4 w-4"
-                            />
-                            <span class="text-xs font-bold text-on-surface leading-tight">
-                                Acepto expresamente los términos y autorizo el tratamiento de mis datos personales (Habeas Data).
-                            </span>
-                        </label>
-                        @error('habeasAcepta') <span class="text-error text-[11px] block">{{ $message }}</span> @enderror
-
-                        <label class="flex items-center gap-2.5 cursor-pointer pl-6">
-                            <input 
-                                type="checkbox" 
-                                wire:model="habeasWhatsapp" 
-                                class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4"
-                            />
-                            <span class="text-xs text-on-surface-variant">
-                                Autorizo envío de promociones, estado de pedidos y cupones por WhatsApp.
-                            </span>
-                        </label>
-
-                        <label class="flex items-center gap-2.5 cursor-pointer pl-6">
-                            <input 
-                                type="checkbox" 
-                                wire:model="habeasEmailPromos" 
-                                class="rounded border-outline-variant text-primary focus:ring-primary h-4 w-4"
-                            />
-                            <span class="text-xs text-on-surface-variant">
-                                Autorizo envío de boletines de ofertas y facturación por correo electrónico.
-                            </span>
-                        </label>
-                    </div>
-
-                    <!-- Botones de Acción -->
-                    <div class="pt-3 grid grid-cols-2 gap-2 border-t border-surface-container-high">
-                        <button 
-                            type="button" 
-                            wire:click="$set('mostrarModalHabeasData', false)" 
-                            class="rounded-xl border border-surface-container-high bg-surface-container py-2.5 text-xs font-bold text-on-surface hover:bg-surface-container-high cursor-pointer"
-                        >
-                            Cancelar
-                        </button>
-                        <button 
-                            type="button" 
-                            wire:click="guardarHabeasData" 
-                            class="rounded-xl bg-primary py-2.5 text-xs font-black text-on-primary shadow-md hover:bg-primary-container cursor-pointer flex items-center justify-center gap-1.5"
-                        >
-                            <span class="material-symbols-outlined text-[16px]">save</span>
-                            <span>Guardar Consentimiento</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
+    @include('livewire.pos.partials.modal-habeas-data')
 </div>

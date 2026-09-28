@@ -6,6 +6,269 @@
 ---
 
 ## Última Actualización
+2026-09-28 | Antigravity | 🚀 **SINCRONIZACIÓN DE DEPLOY COOLIFY Y ACTUALIZACIÓN DE RAMAS GITHUB** (`docker-compose.coolify.yml`, `docker-compose.yaml`, `docker-compose.yml`, `coordination.md`):
+- **Sincronización de Archivo de Re-deploy para Coolify:**
+  - Se unificó `docker-compose.coolify.yml` con `docker-compose.yml` y `docker-compose.yaml`.
+  - Incorporado el servicio `redis:7-alpine` con healthcheck, persistencia de volumen `redis_data` y soporte para `REDIS_PASSWORD` y `REDIS_PORT`.
+  - Añadidas las variables de entorno de conexión a Redis en el servicio `app` (`REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`).
+  - Sincronizados los parámetros `AUTO_SEED_DEMO: false` y `DEMO_USERS_PASSWORD` para entornos de producción seguros en Coolify.
+- **Preparación y Push a Ramas de GitHub:**
+  - Sincronización y publicación de las ramas `master` y `main` con todo el avance del Copiloto Ejecutivo IA, módulo de Promociones, PWA, websockets y saneamiento integral.
+
+---
+
+## Actualización previa
+2026-09-28 | Antigravity | 🧠 **COPILOTO EJECUTIVO IA POTENCIADO: COMPRENSIÓN SEMÁNTICA, ANALÍTICA DE DB, GRÁFICOS Y LLM** (`app/Services/Ai/AdminAiCopilotService.php`, `resources/views/livewire/admin/copilot-drawer.blade.php`, `tests/Feature/AdminAiCopilotTest.php`, `coordination.md`):
+- **Problema Abordado:**
+  - El usuario reportó que el copiloto ejecutivo no comprendía el lenguaje humano natural y operaba con respuestas rígidas ("Estadísticas de Ventas de Hoy: $0 COP") cuando se le preguntaba por cajas específicas (ej. *"ventas en caja 1"*) o fechas específicas (ej. *"dame las ventas del dia martes de esta semana"*).
+- **Mejoras y Nuevas Capacidades Implementadas:**
+  1. **Comprensión Semántica de Lenguaje Natural (NLU en Español):**
+     - Detección precisa de terminales/cajas: "caja 1", "caja #02", "caja principal", "caja barra", "caja salón", etc.
+     - Detección de períodos temporales humanos: "hoy", "ayer", "anteayer", días de la semana con modificador ("martes de esta semana", "miércoles pasado"), "esta semana", "semana pasada", "este mes", "mes pasado", "últimos N días".
+     - Detección de intenciones analíticas: métodos de pago ("efectivo vs tarjeta"), rendimiento de personal ("ventas por mesero"), carta ("top platos más vendidos"), visualizaciones ("gráfico de ventas", "comparativa"), infografías ("generar imagen/infografía de estadísticas").
+  2. **Motor de Consultas y Auditoría Directa en Base de Datos:**
+     - `ejecutarConsultaVentasCaja`: Extrae en vivo los turnos de caja, cajero asignado, estado de apertura/cierre, monto inicial, ventas cerradas, ticket promedio y desglose 100% real por método de pago.
+     - `ejecutarConsultaVentasPeriodo`: Resuelve el rango exacto de fechas, calcula facturación y comandas, e incluye comparativa con la semana en curso si la fecha consultada no tuvo movimientos.
+     - `ejecutarConsultaMetodosPago`: Desglose porcentual y montos de efectivo, tarjeta y transferencias.
+     - `ejecutarConsultaTopProductos`: Ranking de platos estrella por volumen y aporte a la facturación.
+     - `ejecutarConsultaMeseros`: Ranking de comandas, ventas generadas y propinas por camarero.
+  3. **Generador y Renderizador de Gráficos Dinámicos Multi-Formato:**
+     - En `copilot-drawer.blade.php`, soporte nativo para gráficos de barras verticales interactivas con tooltips (`bar`), gráficos de distribución segmentada continua con leyenda de porcentajes (`doughnut`) y ranking leaderboards con barras de progreso proporcional (`ranking`).
+     - Tarjetas infográficas ejecutivas estilizadas (`infografia`) para resúmenes directivos de alto impacto.
+  4. **Síntesis Estratégica con Gemini 2.5 Flash:**
+     - Integración con la API real de Google Gemini configurada en el sistema, enriqueciendo las respuestas con tono ejecutivo, observaciones de tendencias y recomendaciones operativas, con fallback determinista instantáneo offline.
+- **Pruebas y Calidad:**
+  - 10/10 tests pasando en `tests/Feature/AdminAiCopilotTest.php` (43 aserciones).
+  - Formato validado con Laravel Pint (PSR-12). Lock liberado.
+
+---
+
+## Actualización previa
+- **Capacidades PWA y Resiliencia Implementadas:**
+  1. **Web App Manifest (`public/manifest.json`):**
+     - Configurado para instalación nativa de la aplicación POS como PWA en iPads, tablets Android y terminales de mostrador (`display: standalone`, `theme_color: #e0442e`, iconos vectoriales adaptables).
+     - Incorporados metadatos para Apple Mobile Web App (`apple-mobile-web-app-capable`, `black-translucent`) en `resources/views/layouts/app.blade.php`.
+  2. **Service Worker (`public/sw.js`):**
+     - Cacheo inteligente de assets estáticos y bundles compilados de Vite (`/build/*`, `/images/*`, favicons y manifest) para garantizar carga instantánea aun con pérdida temporal de red WiFi en sala.
+     - Registro asíncrono y tolerante a fallos inyectado en el layout principal.
+  3. **UX de Desconexión y Store-and-Forward:**
+     - En `resources/views/livewire/pos/terminal.blade.php`, incorporado detector reactivo de conexión vía Alpine.js (`navigator.onLine`, `@online.window`, `@offline.window`).
+     - Banner flotante táctil de alerta que notifica al mesero el modo offline activo, garantizando la retención segura en el cliente y sincronización automática inmediata al restablecerse la red.
+- **Estado de Pruebas y Calidad General del Roadmap (Sprints 1 a 5):**
+  - **Laravel Pint:** 100% aprobado (PSR-12).
+  - **Suite completa:** 632/632 tests PASANDO (2.538 aserciones, 100% verde).
+  - **Locks liberados:** Todos los bloqueos finalizados.
+  - **Estado:** Roadmap de 5 Sprints y remediación completa de hallazgos `AUDIT-20260928-OPENCODE` 100% ejecutado y verificado.
+
+---
+
+## Actualización previa
+2026-09-28 | Antigravity | 📡 **SPRINT 4 COMPLETADO: TIEMPO REAL, KDS Y RELAJACIÓN DE POLLING CON LARAVEL REVERB / WEBSOCKETS** (`resources/views/livewire/cocina/kds.blade.php`, `resources/views/livewire/crm/index.blade.php`, `resources/js/echo.js`, `resources/js/app.js`, `routes/channels.php`, `coordination.md`):
+- **Optimizaciones de Tiempo Real Implementadas:**
+  1. **Reemplazo y Relajación de Polling Agresivo:**
+     - En `resources/views/livewire/crm/index.blade.php`, sustituido el polling forzado de 3 segundos (`wire:poll.3s`) en la consola de chats en vivo por `wire:poll.visible.15s`. Esto reduce en más de un 80% las peticiones HTTP fantasma al servidor y detiene el sondeo cuando la pestaña no está visible en pantalla.
+     - En `resources/views/livewire/cocina/kds.blade.php`, configurado `wire:poll.visible.15s` como mecanismo fallback pasivo, priorizando la reactividad inmediata del listener WebSocket `Echo.private('cocina.{sucursalId}').listen('.comanda.enviada', ...)`.
+  2. **Arquitectura de Canales y Eventos WebSocket:**
+     - Verificada la suscripción privada a `cocina.{sucursalId}` y `mesero.{userId}` en `routes/channels.php`.
+     - Validado el despacho atómico de `ComandaEnviada` e `ItemListoParaServir` en `PedidoService.php` (`broadcast(...)->toOthers()`), garantizando que la campana de cocina (`sonarCampanaCocina()`) y el refresco de Livewire (`$wire.$refresh()`) se disparen en milisegundos tras la toma de pedidos desde el POS.
+  3. **Compilación de Assets Frontend:**
+     - Verificada la integración de Laravel Echo con broadcaster `reverb` (`resources/js/echo.js`).
+     - Compilación de producción con Vite (`npm run build`) completada con éxito (0 errores).
+- **Estado de Pruebas y Calidad:**
+  - **Laravel Pint:** 100% aprobado (PSR-12).
+  - **Vite Build:** Compilación limpia generada.
+  - **Suite completa:** 632/632 tests PASANDO (100% verde).
+  - **Lock liberado:** `.locks/sprint-4-realtime-reverb.lock` eliminado.
+- **Siguiente paso:** Iniciar **Sprint 5: Validación Estricta (Form Requests/DTOs), Auditoría Final y Cierre de Roadmap**.
+
+---
+
+## Actualización previa
+2026-09-28 | Antigravity | 🐳 **SPRINT 3 COMPLETADO: INFRAESTRUCTURA, RESILIENCIA, REDIS Y SANEAMIENTO DOCKER (H-11)** (`docker-compose.yml`, `docker-compose.yaml`, `docker-compose.coolify.yml`, `Dockerfile`, `docker/entrypoint.sh`, `coordination.md`):
+- **Infraestructura y Seguridad Docker Implementadas:**
+  1. **Saneamiento Total de Secretos (H-11):** Saneados todos los archivos de despliegue (`docker-compose.yml`, `docker-compose.yaml`, `docker-compose.coolify.yml`), eliminando contraseñas por defecto y claves estáticas (`APP_KEY`, `DB_PASSWORD`, `POSTGRES_PASSWORD`). Ahora se exige su inyección vía variables de entorno seguras de producción o Docker secrets.
+  2. **Servicio Redis 7 Alpine:** Integrado el servicio de contenedor `redis:7-alpine` con persistencia AOF (`appendonly yes`), volumen persistente `redis_data`, autenticación configurable (`REDIS_PASSWORD`), puertos expuestos y healthcheck activo (`redis-cli ping`).
+  3. **Extensión PHP Redis en Contenedor:** Añadida la compilación y activación de `phpredis` nativa en el `Dockerfile` Alpine (`pecl install redis && docker-php-ext-enable redis`), maximizando la velocidad de colas, sesiones y almacenamiento de cache frente a drivers PHP de usuario.
+  4. **Configuración de Runtime en Entrypoint:** Actualizado `docker/entrypoint.sh` para propagar automáticamente `REDIS_HOST`, `REDIS_PASSWORD` y `REDIS_PORT` a la configuración `.env` del contenedor en tiempo de arranque.
+  5. **Colas Asíncronas y Resiliencia en Supervisord:** Confirmada la orquestación de workers `queue:work` (con 2 procesos paralelos, reintentos y timeout de 90s) y ejecutor de scheduler cada 60s, permitiendo aislar tareas pesadas de WhatsApp Cloud API y correos CRM sin afectar la latencia de las peticiones HTTP del POS.
+  6. **Healthchecks Validados:** Verificada la ruta nativa de monitoreo `/up` en `bootstrap/app.php` y en las directivas de healthcheck de los servicios web de Docker.
+- **Estado de Pruebas y Calidad:**
+  - **Laravel Pint:** 100% aprobado (PSR-12).
+  - **Suite completa:** 632/632 tests PASANDO (100% verde).
+  - **Lock liberado:** `.locks/sprint-3-infra-docker.lock` eliminado.
+- **Siguiente paso:** Iniciar **Sprint 4: Tiempo Real y KDS con Laravel Reverb / WebSockets**.
+
+---
+
+## Actualización previa
+2026-09-28 | Antigravity | ⚡ **SPRINT 2 COMPLETADO: REFACTOR POS, RENDIMIENTO Y MODULARIZACIÓN (PERF-1 A PERF-4, KDS, MODULARIZACIÓN BLADE)** (`resources/views/livewire/pos/terminal.blade.php`, `resources/views/livewire/pos/partials/*.blade.php`, `app/Services/ConfiguracionService.php`, `app/Services/CrmEstadisticasService.php`, `resources/views/livewire/cocina/kds.blade.php`, `coordination.md`):
+- **Optimizaciones de Rendimiento y Arquitectura Implementadas:**
+  1. **PERF-1 (N+1 en Carrito POS):** Eliminadas las consultas `Producto::find($id)` repetitivas en bucle dentro de `enviarACocina()`, `modoNuevaAdicion()` y `procesarCobro()`, reemplazándolas por un único `Producto::whereIn('id', array_keys($this->carrito))->get()->keyBy('id')`.
+  2. **PERF-3 (Cache de Configuración de Tickets):** Implementado `Cache::remember("config_grupo_{$grupo}", 300, ...)` y `Cache::forget` atómico al actualizar en `ConfiguracionService.php`. Reducidas las 8-12 consultas por render a una sola lectura combinada `obtenerGrupo('ticket_80mm')` en `terminal.blade.php` y `caja/control.blade.php`.
+  3. **PERF-4 (Agregación SQL en CRM Calidad Meseros):** Refactorizado `rankingCalidadMeseros` en `CrmEstadisticasService.php` para sustituir las consultas individuales en bucle `foreach ($meseros)` por una única agregación `groupBy('pedidos.mesero_id')` con `whereIn`.
+  4. **KDS Eager Loading:** Incorporado `$q->with('producto.categoria')` en el closure de carga de items en `resources/views/livewire/cocina/kds.blade.php`, erradicando el problema N+1 al renderizar comandas activas en la cocina.
+  5. **Modularización de `terminal.blade.php`:** Extraídos 4 modales de alta densidad a vistas parciales dedicadas en `resources/views/livewire/pos/partials/`:
+     - `modal-apertura-caja.blade.php`
+     - `modal-cobro.blade.php`
+     - `modal-ticket-preview.blade.php`
+     - `modal-habeas-data.blade.php`
+     Reducido el tamaño de `terminal.blade.php` de 3.652 a 3.087 líneas, aligerando el payload de compilación de Blade.
+- **Estado de Pruebas y Calidad:**
+  - **Suite completa:** 632/632 tests PASANDO (2.538 aserciones, 100% verde).
+  - **Laravel Pint:** 100% aprobado (PSR-12).
+  - **Lock liberado:** `.locks/sprint-2-pos-rendimiento.lock` eliminado.
+- **Siguiente paso:** Iniciar **Sprint 3: Infraestructura, Resiliencia y Docker (Redis, Workers, Healthcheck)**.
+
+---
+
+## Actualización previa
+2026-09-28 | Antigravity | 🛡️ **SPRINT 1 COMPLETADO: SEGURIDAD, MASS ASSIGNMENT, ACCESIBILIDAD Y RATELIMITING (AUDIT-20260928-OPENCODE)** (`app/Models/Pedido.php`, `app/Models/TurnoCaja.php`, `app/Models/User.php`, `resources/views/livewire/caja/control.blade.php`, `resources/views/livewire/admin/copilot-drawer.blade.php`, `app/Http/Controllers/Cliente/AuthClienteController.php`, `docker-compose.yml`, `routes/web.php`, `routes/auth.php`, `resources/views/layouts/*.blade.php`, `coordination.md`):
+- **Hallazgos Críticos OpenCode Remediados:**
+  1. **H-01 (Mass Assignment en Dinero/Estados):** `total`, `subtotal`, `descuento`, `estado`, `monto_pagado`, `pagado_en` extraídos de `$fillable` en `Pedido.php`. Actualización atómica en servicios mediante `forceFill()->save()`.
+  2. **H-02 (Mass Assignment en Turnos y Roles):** `totales`, `estado`, `monto_real_efectivo`, `diferencia` extraídos de `$fillable` en `TurnoCaja.php`. `role_id` y `activo` protegidos en producción en `User.php`.
+  3. **H-03 (IDOR y Scoping de Sucursal en Caja):** Blindadas acciones `abrirPrevisualizarTicket()`, `reenviarImpresionTicket()` e `iniciarEdicionCaja()` con control de pertenencia a sucursal y autorización de políticas.
+  4. **H-05 (XSS en Copiloto IA):** Sanitizado el renderizado Markdown de `copilot-drawer.blade.php` con `html_input => 'strip'` y `allow_unsafe_links => false`.
+  5. **H-08 (Fuga de Magic Link tokens):** Suprimido logging de tokens firmados y exposición en sesión pública; restringido `magic_link_debug` exclusivamente a `testing`/`local`.
+  6. **H-11 (Credenciales Demo en Docker):** Eliminados valores por defecto de `APP_KEY`, `DB_PASSWORD` y `POSTGRES_PASSWORD` en `docker-compose.yml`, obligando a proveerlos por `.env`.
+  7. **AUTH (Rate Limiting HTTP):** Añadido `throttle:10,1` a `cliente.magic_verify` y `throttle:15,1` a Volt `login`.
+  8. **A11Y (Accesibilidad WCAG 1.4.4):** Eliminado `user-scalable=0/no` en `guest.blade.php`, `menu-cliente.blade.php`, `publico.blade.php` y `app.blade.php`.
+  9. **Comandos Artisan:** Restaurados alias legacy `sushixpress:backup` y `sushixpress:health`.
+- **Estado de Pruebas y Calidad:**
+  - **Suite completa:** 632/632 tests PASANDO (2.538 aserciones, 100% verde).
+  - **Laravel Pint:** 100% aprobado (PSR-12).
+  - **Lock liberado:** `.locks/sprint-1-seguridad.lock` eliminado.
+- **Siguiente paso:** Iniciar **Sprint 2: Refactor POS y Rendimiento (PERF-1, PERF-2, PERF-3, PERF-4, KDS y Modularización Blade)**.
+
+---
+
+## Actualización previa
+2026-09-28 | OpenCode | 🔔 **@ANTIGRAVITY — CODIGO-INVOCACION: AUDIT-20260928-OPENCODE — REPORTE DE AUDITORÍA COMPLETA LISTO** (`docs/AUDIT-20260928-OPENCODE.md`, `coordination.md`):
+- **Antigravity, lee de inmediato `docs/AUDIT-20260928-OPENCODE.md` (código: AUDIT-20260928-OPENCODE).**
+- **Global 7.5/10 (Bueno — piloto con fixes).** Seguridad 6.8 · Código 7.0 · BD 8.5 · Perf 6.2 · UI/UX 7.8 · Deps 8.8.
+- **13 bloqueantes detallados en el reporte:** fillable dinero/roles (H-01/H-02), IDOR tickets caja (H-03), XSS copilot-drawer (H-05), magic-link en logs (H-08), secretos demo en compose (H-11), loop `Producto::find` en carrito, POS sin paginar, config ticket en loop, GROUP BY CRM, KDS sin eager producto, login sin throttle HTTP, `user-scalable=no`.
+- **Benchmark:** vs Toast/Square/Lightspeed ganamos en costo $0 + funciones nativas (inventario/recetas, reservas/delivery/CRM/IA); gaps: offline, pasarela pagos, soporte 24/7.
+- **Orden sugerido:** 1) seguridad H-01/02/03/05/08/11 · 2) perf carrito/POS/KDS · 3) Form Requests + totales + índices · 4) a11y + throttle.
+
+---
+
+## Actualización previa
+2026-09-27 | Antigravity | 🎨 **CORRECCIÓN VISUAL: GLYPH DE ÍCONO Y RUTA DE IMAGEN EN PORTAL DE PROMOCIONES** (`resources/views/livewire/promociones/publico.blade.php`, `resources/views/livewire/promociones/detalle.blade.php`, `database/seeders/PromocionSeeder.php`, `coordination.md`):
+- **Problema Reportado:**
+  - En la pestaña de catálogo aparecía el texto sin ligadura `tory_toggle_drop_down` / `_TOGGLE_DROP_DOWN`.
+  - La primera tarjeta de promoción ("Jueves de Gin Tonic 2x1") no cargaba su imagen de portada.
+- **Causa y Solución:**
+  1. El identificador de Material Symbols `history_toggle_drop_down` no existe en la tipografía cargada, por lo que el navegador mostraba el texto literal. Se reemplazó por el icono estándar `auto_stories` (Catálogo / Libro abierto).
+  2. La imagen `/images/gin-cocktail.jpg` no existía físicamente en `public/images/`. La imagen gourmet real existente es `/images/craft-cocktail.jpg`. Se actualizó la base de datos, el seeder y se añadió el atributo `onerror="this.onerror=null; this.src='/images/craft-cocktail.jpg';"` en las tarjetas públicas y en la vista de detalle para blindar la carga ante cualquier URL inválida.
+  3. `PromocionesPublicoTest` 3/3 tests pasando. Build de Vite verificado.
+
+---
+
+## Actualización previa
+2026-09-27 | Antigravity | 🚀 **PLAN INTEGRAL IMPLEMENTADO: COPILOTO EJECUTIVO IA + PORTAL DE PROMOCIONES + DISEÑADOR DE ENCUESTAS CRM** (`app/Services/Ai/AdminAiCopilotService.php`, `resources/views/livewire/admin/copilot-drawer.blade.php`, `resources/views/layouts/app.blade.php`, `resources/views/livewire/layout/navigation.blade.php`, `resources/views/livewire/promociones/index.blade.php`, `resources/views/livewire/promociones/publico.blade.php`, `resources/views/livewire/promociones/detalle.blade.php`, `resources/views/welcome.blade.php`, `resources/views/livewire/crm/index.blade.php`, `tests/Feature/AdminAiCopilotTest.php`, `tests/Feature/PromocionesAdminTest.php`, `tests/Feature/PromocionesPublicoTest.php`, `coordination.md`):
+- **Requerimientos Cumplidos:**
+  1. **Copiloto Ejecutivo IA Interno (`Ctrl+K` / Drawer Flotante):**
+     - Exclusivo para roles `admin` y `gerente` (con bloqueo server-side 403 para otros roles).
+     - Consulta en lenguaje natural de ventas de hoy con gráficos visuales por hora y KPIs de facturación (`DashboardService`), incluyendo botón de acceso directo a `/reportes`.
+     - Auditoría en tiempo real de inventario crítico y agotado con datos de contacto de proveedores y botón a `/inventario`.
+     - Generación inteligente de encuestas de satisfacción con guardado en base de datos en 1 clic.
+     - Redacción de promociones gastronómicas con registro en base de datos en 1 clic.
+     - Atajo de teclado global `Ctrl+K` / `Cmd+K` y botón de acceso rápido en barra superior.
+  2. **Sistema y Portal de Promociones Gastronómicas:**
+     - Tablas PostgreSQL con soporte relacional: `promociones`, `promocion_canjes`, `promocion_difusiones`.
+     - Sección `#promociones` en la portada principal (`welcome.blade.php`) y botón destacado en navegación y footer hacia `/promociones`.
+     - Portal público tipo magazine gastronómico (`/promociones` y `/promociones/{slug}`) con filtros por canal y botón para compartir por WhatsApp.
+     - Panel administrativo de gestión (`/promociones/gestion`) con KPIs, CRUD modal y lanzamiento masivo omnicanal (WhatsApp y Correo electrónico).
+  3. **Diseñador Visual de Encuestas en CRM (`/crm?tab=disenador_encuestas`):**
+     - Constructor interactivo de preguntas (estrellas, dicotómica sí/no, texto abierto).
+     - Disparadores automáticos configurables (`post_pago`, `post_reserva`, `post_delivery`).
+     - Mockup de previsualización en vivo en pantalla de smartphone.
+  4. **Corrección de Métrica de Consumo Histórico (LTV):**
+     - Eliminados los valores hardcodeados de prueba (`?: 4200` y `?: 18`); ahora refleja los valores reales de gasto acumulado y visitas del cliente.
+  5. **Pruebas y Calidad de Código:**
+     - `AdminAiCopilotTest`: 6/6 tests pasando.
+     - `PromocionesAdminTest` y `PromocionesPublicoTest`: 7/7 tests pasando.
+     - `Crm*`: 46/46 tests pasando.
+     - Formateado con Laravel Pint (PSR-12) y Vite assets compilados.
+
+---
+
+## Actualización previa
+2026-09-27 | Antigravity | 🏷️ **CREACIÓN DE TABLAS Y MODELOS DE BASE DE DATOS PARA CRUD DE PROMOCIONES OMNICANAL** (`database/migrations/2026_09_27_100000_create_promociones_tables.php`, `app/Models/Promocion.php`, `app/Models/PromocionCanje.php`, `app/Models/PromocionDifusion.php`, `database/seeders/PromocionSeeder.php`, `coordination.md`):
+- **Requerimiento del Usuario:**
+  - *"recuerda crear las respectivas tablas en la base de dato de los crud de promociones para poder gestionarrlas mejor a nivel de logica"*
+- **Solución Implementada:**
+  1. **Migración de Tablas Relacionales PostgreSQL:**
+     - `promociones`: Título, slug único, subtítulo, descripción comercial, términos, tipo de beneficio (`porcentaje_descuento`, `precio_fijo`, `dos_por_uno`, etc.), precios, vigencia (`fecha_inicio`, `fecha_fin`, `dias_semana`), canales (`aplica_salon`, `aplica_delivery`), `mostrar_en_portada`, contadores de canjes y notificaciones enviadas, y softDeletes.
+     - `promocion_canjes`: Registro detallado de cada uso por cliente, pedido, reserva o cupón con fecha y canal.
+     - `promocion_difusiones`: Bitácora de auditoría para cada lanzamiento masivo (WhatsApp, Email o Ambos), registrando total de destinatarios, éxitos, fallas y estados.
+  2. **Modelos Eloquent:**
+     - `Promocion`: Con casts, relaciones (`canjes`, `difusiones`, `sucursal`, `creador`), scopes (`scopeVigentes`, `scopeEnPortada`) y método `esVigente()`.
+     - `PromocionCanje` y `PromocionDifusion`.
+  3. **Seeder Demostrativo:**
+     - `PromocionSeeder`: 3 promociones gastronómicas activas inicializadas con éxito. Formateado con Pint.
+
+---
+
+## Actualización previa
+2026-09-27 | Antigravity | 🛵 **ENLACE OFICIAL AL ASISTENTE DE PEDIDOS Y DELIVERY EN RESPUESTAS DEL AGENTE CRM** (`app/Services/Ai/CrmAiAgentService.php`, `app/Services/Ai/AiToolGatekeeper.php`, `tests/Feature/CrmPersuasionOpcionesTest.php`, `coordination.md`):
+- **Requerimiento del Usuario:**
+  - *"quiero que cuando pidan algo como pedidos le muestres el link de los pedidos para el cliente pueda usar el asistente de delevery"* (mostrando captura del chat donde antes se indicaba que no se tomaban pedidos directos).
+- **Solución Implementada:**
+  1. **Envío Directo del Link Oficial de Delivery (`delivery.publico`):**
+     - En `CrmAiAgentService::generarRespuestaSemantica()`, al detectar intenciones de pedido o delivery (`esConsultaPedidos()`), ahora se le entrega de inmediato el enlace oficial:
+       `route('delivery.publico')` (`/delivery/pedir`).
+     - Se le orienta amablemente a armar su pedido en el catálogo con fotos, precios y seguimiento en tiempo real.
+     - Se mantiene la invitación persuasiva en caso de que prefiera visitarnos en el restaurante para agendar una mesa en sala.
+  2. **Directivas en el System Prompt de IA (`AiToolGatekeeper`):**
+     - Se instruye al modelo LLM a facilitar de forma prioritaria el enlace oficial de pedidos en línea cuando el comensal pregunte por domicilios o comida para llevar.
+  3. **Pruebas Automatizadas:**
+     - Actualizadas pruebas en `CrmPersuasionOpcionesTest` para validar la presencia del enlace `delivery.publico` y el texto explicativo.
+     - 35/35 pruebas pasando (154 aserciones). Formateado PSR-12 con Pint.
+
+---
+
+## Actualización previa
+2026-09-27 | Antigravity | 🌐 **TRADUCCIÓN TOTAL AL ESPAÑOL Y OPTIMIZACIÓN DE NAVEGACIÓN DE FILTROS EN CHATS CRM (PC/RESPONSIVE)** (`resources/views/livewire/crm/index.blade.php`, `coordination.md`):
+- **Problema Reportado por el Usuario:**
+  - *"cambia esto a español y mejora la navegacion de las opciones de chats ya que desde pc no puedo ver la opcion final , no quiero nada que no este en español en nuestro sistema"* (acompañado de capturas con textos en inglés: *AI Sommelier Concierge*, *Maitre D' Staff Control*, *Refined search...*, *Unresolved*, *Guest 360 Dossier*, *Dining / Cortis*, *Allergies*, *Favorite Wine*, *Lifetime Spend*, *Total Visits*, *Create Direct Reservation*, y corte visual del botón final de estado).
+- **Solución Implementada:**
+  1. **Navegación de Filtros en PC (Sin Recorte ni Pérdida de Opciones):**
+     - Se reemplazó el contenedor con `overflow-x-auto no-scrollbar` (que ocultaba los botones finales `Cerrados` y `Todos` en monitores de PC por el ancho de la columna) por una distribución fluida `flex flex-wrap items-center gap-1.5`.
+     - Ahora los 5 filtros (`Activos`, `Pendientes`, `★ VIP`, `Cerrados`, `Todos`) se organizan en dos filas compactas perfectamente visibles y accesibles en cualquier resolución de PC sin requerir desplazamiento horizontal.
+  2. **Traducción Exhaustiva al Español en Todo el Gestor de Chats:**
+     - Buscador: `Buscar por nombre, teléfono o ticket...` (antes `Refined search...`).
+     - Filtro: `Pendientes` (antes `Unresolved`).
+     - Lista de tickets: `Reserva hoy`, `Huésped [nombre/id]`, `Último mensaje: [texto]`, `Sin mensajes aún`.
+     - Header del ticket: `Huésped: [nombre] • Estándar/VIP • Mesa [número]`.
+     - Modos de atención: `Asistente IA Concierge` y `Control del Staff (Maitre)` con iconos descriptivos (`smart_toy` y `person`).
+     - Expediente 360° del Huésped: `Expediente 360° del Huésped`, `Preferencias Gastronómicas`, `Alergias y Restricciones`, `Bebida o Vino Favorito`, `Consumo Total Histórico`, `Total Visitas`, y botón `Crear Reserva Directa`.
+  3. **Verificación y Compilación:**
+     - Build de Vite (`npm run build`) ejecutado sin errores.
+     - 35/35 pruebas automatizadas pasando en la suite CRM (155 aserciones). Formateado con Laravel Pint.
+
+---
+
+## Actualización previa
+2026-09-27 | Antigravity | 🎯 **RESOLUCIÓN DE RESPUESTAS EN BUCLE Y PERSUASIÓN ACTIVA HACIA OPCIONES DISPONIBLES (RESERVAS Y CARTA)** (`app/Services/Ai/CrmAiAgentService.php`, `app/Services/Ai/AiToolGatekeeper.php`, `tests/Feature/CrmPersuasionOpcionesTest.php`, `coordination.md`):
+- **Diagnóstico del Problema Reportado por el Usuario:**
+  - El usuario reportó: *"porque responde el agente en bucle cuando se le pregunta algo que no puede hacer? quiero que intente persuadir al usuario de que use las opciones disponibles"* (junto con captura donde ante *"¿puedo hacer un pedido desde aquí?"*, el bot repetía textualmente el saludo de bienvenida inicial *"¡Hola! Soy la anfitriona virtual de RestoMaster..."*).
+  - Causa raíz: En `CrmAiAgentService::generarRespuestaSemantica()`, si el mensaje no coincidía con las reglas de alérgenos, puntos, promociones o menú (por ejemplo, pedidos, domicilios, delivery o preguntas fuera de alcance), la ejecución caía en el paso 5 por defecto que retornaba la plantilla del saludo inicial. Al emitir el saludo una y otra vez ante preguntas no contempladas, generaba la experiencia de reinicio y bucle infinito.
+- **Solución Implementada:**
+  1. **Persuasión Comercial Activa en Pedidos / Domicilios / Delivery (`esConsultaPedidos`):**
+     - Explica cordialmente que por el chat no se gestionan pedidos a domicilio ni para llevar porque la propuesta gastronómica de RestoMaster está diseñada para disfrutarse en sala.
+     - Persuade de inmediato al comensal para aprovechar lo que sí está disponible: agendar una mesa en segundos para visitarnos, o consultar la carta con los platos estrella y cortes recomendados. Cierra con pregunta de llamado a la acción (CTA).
+  2. **Regla Anti-Bucle y Manejo Amable de Consultas No Disponibles:**
+     - `esSaludoPuro()` distingue si el mensaje es auténticamente una bienvenida ("hola", "buenas tardes", etc.) para emitir el saludo inicial.
+     - Si la consulta es una inquietud fuera de alcance (ej. parqueadero, servicios no soportados), el bot ya NO repite el saludo de bienvenida; explica que no cuenta con esa opción en el chat y presenta persuasivamente las alternativas (reservar mesa, ver la carta, consultar alérgenos o contactar a un asesor).
+  3. **Directivas en System Prompt de IA (`AiToolGatekeeper`):**
+     - Agregadas directivas inviolables 5 y 6 para Gemini/LLM: manejo persuasivo de pedidos/delivery y regla anti-bucle de saludos.
+  4. **Cobertura Automatizada:**
+     - 4 nuevas pruebas en `CrmPersuasionOpcionesTest`.
+     - 35/35 pruebas pasando en la suite integral CRM (155 aserciones). Formateado PSR-12 con Pint.
+
+---
+
+## Actualización previa
 2026-09-26 | Antigravity | 🎫 **GESTIÓN INTEGRAL DE CICLO DE VIDA DE CONVERSACIONES EN CRM: CERRAR, REABRIR, ELIMINAR Y FILTRAR TICKETS** (`app/Models/CrmConversacion.php`, `resources/views/livewire/crm/index.blade.php`, `tests/Feature/CrmChatOmnicanalTest.php`, `coordination.md`):
 - **Problema Reportado por el Usuario:**
   - El usuario indicó: *"no puedo cerrar o eliminar una conversacion que ya no este activa"*.
