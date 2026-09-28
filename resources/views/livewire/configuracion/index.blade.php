@@ -43,7 +43,7 @@ new class extends Component
 
     public string $webhookToken = '';
 
-    public $archivoBackup = null;
+    public mixed $archivoBackup = null;
 
     public string $pinForm_nuevoPin = '';
     public string $pinForm_confirmarPin = '';

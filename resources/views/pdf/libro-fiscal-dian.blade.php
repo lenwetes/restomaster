@@ -27,6 +27,12 @@
         .firmas { margin-top: 28px; width: 100%; }
         .firma-col { width: 45%; float: left; text-align: center; font-size: 8.5px; }
         .linea-firma { border-top: 1px solid #1c1917; margin: 30px auto 4px auto; width: 80%; }
+        .texto-devolucion { color: #dc2626; font-weight: bold; }
+        .saldo-positivo { font-weight: bold; color: #15803d; }
+        .saldo-negativo { font-weight: bold; color: #b91c1c; }
+        .texto-rojo { color: #dc2626; }
+        .texto-verde { color: #15803d; }
+        .font-bold { font-weight: bold; }
     </style>
 </head>
 <body>
@@ -73,12 +79,12 @@
                     <td>$ {{ number_format($dia['ingresos_brutos'], 0, ',', '.') }}</td>
                     <td>$ {{ number_format($dia['base_gravable'], 0, ',', '.') }}</td>
                     <td>$ {{ number_format($dia['impuesto_consumo_inc'], 0, ',', '.') }}</td>
-                    <td style="{{ $dia['total_devoluciones'] > 0 ? 'color: #dc2626; font-weight: bold;' : '' }}">
+                    <td class="{{ $dia['total_devoluciones'] > 0 ? 'texto-devolucion' : '' }}">
                         {{ $dia['total_devoluciones'] > 0 ? '-$ '.number_format($dia['total_devoluciones'], 0, ',', '.') : '$ 0' }}
                     </td>
-                    <td style="font-weight: bold;">$ {{ number_format($dia['ingresos_netos'], 0, ',', '.') }}</td>
+                    <td class="font-bold">$ {{ number_format($dia['ingresos_netos'], 0, ',', '.') }}</td>
                     <td>$ {{ number_format($dia['gastos_diarios_caja'], 0, ',', '.') }}</td>
-                    <td style="font-weight: bold; color: {{ $dia['saldo_neto_fiscal'] >= 0 ? '#15803d' : '#b91c1c' }};">
+                    <td class="{{ $dia['saldo_neto_fiscal'] >= 0 ? 'saldo-positivo' : 'saldo-negativo' }}">
                         $ {{ number_format($dia['saldo_neto_fiscal'], 0, ',', '.') }}
                     </td>
                 </tr>
@@ -89,10 +95,10 @@
                 <td>$ {{ number_format($libro['totales']['ingresos_brutos'], 0, ',', '.') }}</td>
                 <td>$ {{ number_format($libro['totales']['base_gravable'], 0, ',', '.') }}</td>
                 <td>$ {{ number_format($libro['totales']['impuesto_consumo_inc'], 0, ',', '.') }}</td>
-                <td style="color: #dc2626;">-$ {{ number_format($libro['totales']['total_devoluciones'], 0, ',', '.') }}</td>
+                <td class="texto-rojo">-$ {{ number_format($libro['totales']['total_devoluciones'], 0, ',', '.') }}</td>
                 <td>$ {{ number_format($libro['totales']['ingresos_netos'], 0, ',', '.') }}</td>
                 <td>$ {{ number_format($libro['totales']['gastos_diarios_caja'], 0, ',', '.') }}</td>
-                <td style="color: #15803d;">$ {{ number_format($libro['totales']['saldo_neto_fiscal'], 0, ',', '.') }}</td>
+                <td class="texto-verde">$ {{ number_format($libro['totales']['saldo_neto_fiscal'], 0, ',', '.') }}</td>
             </tr>
         </tbody>
     </table>
