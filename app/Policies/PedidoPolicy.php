@@ -34,7 +34,12 @@ class PedidoPolicy
 
     public function cobrar(User $user, ?Pedido $pedido = null): bool
     {
-        return in_array($user->role?->slug, ['mesero', 'cajero', 'gerente', 'admin']);
+        return in_array($user->role?->slug, ['cajero', 'gerente', 'admin'], true);
+    }
+
+    public function solicitarCobro(User $user, ?Pedido $pedido = null): bool
+    {
+        return in_array($user->role?->slug, ['mesero', 'cajero', 'gerente', 'admin'], true);
     }
 
     public function enviarCocina(User $user, ?Pedido $pedido = null): bool

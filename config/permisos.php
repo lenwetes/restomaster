@@ -7,6 +7,7 @@ return [
         'pedidos.actualizar' => ['modulo' => 'Pedidos', 'label' => 'Modificar pedidos'],
         'pedidos.eliminar' => ['modulo' => 'Pedidos', 'label' => 'Eliminar pedidos'],
         'pedidos.cobrar' => ['modulo' => 'Pedidos', 'label' => 'Cobrar (procesar cobro)'],
+        'pedidos.solicitar_cobro' => ['modulo' => 'Pedidos', 'label' => 'Solicitar cobro a caja'],
         'pedidos.enviar_cocina' => ['modulo' => 'Pedidos', 'label' => 'Enviar comanda a cocina'],
         'pedidos.aplicar_descuento' => ['modulo' => 'Pedidos', 'label' => 'Aplicar descuentos'],
         'pedidos.canjear_puntos' => ['modulo' => 'Pedidos', 'label' => 'Canjear puntos'],
@@ -55,6 +56,8 @@ return [
         'compras.ver' => ['modulo' => 'Compras', 'label' => 'Ver compras'],
         'compras.crear' => ['modulo' => 'Compras', 'label' => 'Registrar factura'],
         'compras.anular' => ['modulo' => 'Compras', 'label' => 'Anular factura'],
+        'notas_credito.ver' => ['modulo' => 'Caja', 'label' => 'Ver notas de crédito'],
+        'notas_credito.crear' => ['modulo' => 'Caja', 'label' => 'Emitir notas de crédito'],
     ],
     'mapa' => [
         'Pedido' => 'pedidos', 'Mesa' => 'mesas', 'Caja' => 'caja',
@@ -65,7 +68,7 @@ return [
     'plantillas' => [
         'admin' => '*',
         'gerente' => [
-            'pedidos.ver', 'pedidos.crear', 'pedidos.actualizar', 'pedidos.eliminar', 'pedidos.cobrar', 'pedidos.enviar_cocina', 'pedidos.aplicar_descuento', 'pedidos.canjear_puntos', 'pedidos.gestionar_delivery',
+            'pedidos.ver', 'pedidos.crear', 'pedidos.actualizar', 'pedidos.eliminar', 'pedidos.cobrar', 'pedidos.solicitar_cobro', 'pedidos.enviar_cocina', 'pedidos.aplicar_descuento', 'pedidos.canjear_puntos', 'pedidos.gestionar_delivery',
             'mesas.ver', 'mesas.crear', 'mesas.actualizar', 'mesas.eliminar', 'mesas.cambiar_estado',
             'caja.ver', 'caja.crear', 'caja.actualizar',
             'turnos.ver', 'turnos.abrir', 'turnos.cerrar', 'turnos.arqueo', 'turnos.guardar_movimiento',
@@ -77,7 +80,8 @@ return [
             'compras.ver', 'compras.crear', 'compras.anular',
         ],
         'cajero' => [
-            'pedidos.ver', 'pedidos.crear', 'pedidos.actualizar', 'pedidos.cobrar', 'pedidos.enviar_cocina', 'pedidos.aplicar_descuento', 'pedidos.canjear_puntos', 'pedidos.gestionar_delivery',
+            'pedidos.ver', 'pedidos.crear', 'pedidos.actualizar', 'pedidos.cobrar', 'pedidos.solicitar_cobro', 'pedidos.enviar_cocina', 'pedidos.aplicar_descuento', 'pedidos.canjear_puntos', 'pedidos.gestionar_delivery',
+            'notas_credito.ver', 'notas_credito.crear',
             'mesas.ver', 'mesas.cambiar_estado',
             'caja.ver',
             'turnos.ver', 'turnos.abrir', 'turnos.cerrar', 'turnos.arqueo', 'turnos.guardar_movimiento',
@@ -85,7 +89,7 @@ return [
             'reservas.ver', 'reservas.crear', 'reservas.actualizar', 'reservas.confirmar', 'reservas.cancelar',
         ],
         'mesero' => [
-            'pedidos.ver', 'pedidos.crear', 'pedidos.actualizar', 'pedidos.cobrar', 'pedidos.enviar_cocina', 'pedidos.canjear_puntos',
+            'pedidos.ver', 'pedidos.crear', 'pedidos.actualizar', 'pedidos.solicitar_cobro', 'pedidos.enviar_cocina', 'pedidos.canjear_puntos',
             'mesas.ver', 'mesas.cambiar_estado',
             'reservas.ver', 'reservas.crear', 'reservas.actualizar', 'reservas.confirmar', 'reservas.cancelar',
         ],

@@ -2,11 +2,16 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full bg-background">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ $title ?? 'RestoMaster' }} — Restaurante, Parrilla & Coctelería de Autor · Provenza</title>
     <meta name="description" content="Restaurante de autor en Provenza, Medellín. Cortes a la parrilla, cocina fría, sushi de especialidad y coctelería. Haz tu pedido a domicilio o reserva tu mesa.">
+
+    <!-- Metadatos sociales (Open Graph / Twitter) -->
+    <meta property="og:site_name" content="RestoMaster Provenza">
+    <meta property="og:locale" content="es_CO">
+    @stack('meta')
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
@@ -24,6 +29,8 @@
             font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
             padding: 0;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
             scroll-behavior: smooth;
         }
 

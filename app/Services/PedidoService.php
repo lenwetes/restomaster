@@ -5,13 +5,16 @@ namespace App\Services;
 use App\Enums\MesaEstado;
 use App\Events\ComandaEnviada;
 use App\Events\ItemListoParaServir;
+use App\Events\PagoProcesadoPorCaja;
 use App\Events\PedidoQrSolicitado;
+use App\Events\SolicitudCobroEnviada;
 use App\Jobs\EnviarEncuestaClienteJob;
 use App\Models\AsientoContable;
 use App\Models\Cliente;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\MovimientoCaja;
+use App\Models\NotaCredito;
 use App\Models\NotificacionUsuario;
 use App\Models\Pedido;
 use App\Models\PedidoDevolucion;
@@ -64,7 +67,7 @@ class PedidoService
                 $meseroId = $usuario?->id ?? auth()->id();
             }
             if (! $meseroId && $mesa) {
-                $rotService = app(\App\Services\RotacionMeseroService::class);
+                $rotService = app(RotacionMeseroService::class);
                 $meseroRotacion = $rotService->autoasignarMesa($mesa);
                 if ($meseroRotacion) {
                     $meseroId = $meseroRotacion->id;
@@ -293,18 +296,24 @@ class PedidoService
         float $propina = 0.0,
         ?float $porcentajePropina = 0.0
     ): Pedido {
-        return DB::transaction(function () use ($pedido, $metodoPago, $montoPagado, $montoPagoEfectivo, $propina, $porcentajePropina) {
+        $pedido = DB::transaction(function () use ($pedido, $metodoPago, $montoPagado, $montoPagoEfectivo, $propina, $porcentajePropina) {
             // H5 FIX: Bloqueo pesimista e idempotencia para evitar cobros dobles por race condition
             $pedido = Pedido::where('id', $pedido->id)->lockForUpdate()->firstOrFail();
             abort_if($pedido->estado === 'pagado', 400, 'El pedido ya se encuentra pagado.');
+
+            // Fase 8.1: el cobro directo del mesero queda revocado; solo caja lo procesa.
+            $user = auth()->user();
+            if ($user && $user->isMesero()) {
+                abort(403, 'Cobro restringido: los meseros deben solicitar el cobro a Caja. Usa "Solicitar cobro a Caja".');
+            }
 
             // La comanda sigue en preparación en cocina: solo se cobra cuando cocina termine la preparación
             $comandaEnCocina = in_array($pedido->estado, ['en_cocina', 'en_preparacion'])
                 && $pedido->items()->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->exists();
             abort_if($comandaEnCocina, 422, 'La comanda sigue en preparación en cocina: solo se puede cobrar cuando cocina termine la preparación.');
 
-            // Restricción de cobro: Un mesero no puede cobrar pedidos asignados a otro mesero
-            $user = auth()->user();
+            // Restricción de cobro legacy: Un mesero no puede cobrar pedidos asignados
+            // a otro mesero (los meseros ya fueron bloqueados arriba por Fase 8.1).
             if ($user && $user->isMesero() && ! $user->isAdmin() && ! $user->isGerente() && ! $user->isCajero()) {
                 $meseroAsignadoId = $pedido->mesero_id ?? $pedido->mesa?->mesero_id;
                 if ($meseroAsignadoId && (int) $meseroAsignadoId !== (int) $user->id) {
@@ -416,6 +425,114 @@ class PedidoService
 
             return $pedido->fresh(['items', 'mesa', 'cliente', 'mesero']);
         });
+
+        $this->notificarPagoProcesado($pedido);
+
+        return $pedido;
+    }
+
+    /**
+     * Fase 8.1 — El mesero solicita el cobro a caja (no cobra directamente).
+     *
+     * Marca el pedido como pendiente_cobro, avisa a los cajeros activos y
+     * emite el evento en tiempo real al canal de caja de la sucursal.
+     */
+    public function solicitarCobroCaja(Pedido $pedido, User $mesero): Pedido
+    {
+        if (! in_array($mesero->role?->slug, ['mesero', 'cajero', 'gerente', 'admin'], true)) {
+            throw new AuthorizationException('Tu rol no puede solicitar cobros a caja.');
+        }
+
+        return DB::transaction(function () use ($pedido, $mesero) {
+            $pedido = Pedido::where('id', $pedido->id)->lockForUpdate()->firstOrFail();
+
+            if (in_array($pedido->estado, ['pagado', 'cancelado'], true)) {
+                throw new \DomainException('El pedido ya fue cerrado y no admite solicitud de cobro.');
+            }
+
+            if ($pedido->estado === 'pendiente_cobro') {
+                throw new \DomainException('Este pedido ya tiene una solicitud de cobro pendiente en caja.');
+            }
+
+            if ($pedido->sucursal_id && $mesero->sucursal_id && (int) $pedido->sucursal_id !== (int) $mesero->sucursal_id) {
+                throw new AuthorizationException('No puedes solicitar cobros de otra sucursal.');
+            }
+
+            $pedido->forceFill(['estado' => 'pendiente_cobro'])->save();
+            $pedido->load(['mesa', 'mesero', 'usuario']);
+
+            $cajeros = User::query()
+                ->whereHas('role', fn ($q) => $q->where('slug', 'cajero'))
+                ->where('sucursal_id', $pedido->sucursal_id)
+                ->where('activo', true)
+                ->get();
+
+            foreach ($cajeros as $cajero) {
+                NotificacionUsuario::create([
+                    'user_id' => $cajero->id,
+                    'tipo' => 'solicitud_cobro',
+                    'titulo' => 'Solicitud de cobro desde salón',
+                    'cuerpo' => ($pedido->mesa ? 'Mesa '.$pedido->mesa->numero.' · ' : '')."{$mesero->name} solicita cobrar {$pedido->codigo} ($".number_format((float) $pedido->total, 0, ',', '.').').',
+                    'datos' => ['pedido_id' => $pedido->id, 'mesero_id' => $mesero->id],
+                    'leida' => false,
+                    'created_at' => now(),
+                ]);
+            }
+
+            broadcast(new SolicitudCobroEnviada($pedido))->toOthers();
+
+            return $pedido->fresh(['items', 'mesa', 'mesero']);
+        });
+    }
+
+    /**
+     * Fase 8.2 — Avisa al mesero que caja procesó el pago y limpia la
+     * solicitud pendiente de la campana.
+     */
+    public function notificarPagoProcesado(Pedido $pedido): void
+    {
+        $meseroId = $pedido->mesero_id ?? $pedido->usuario_id;
+
+        NotificacionUsuario::where('tipo', 'solicitud_cobro')
+            ->where('leida', false)
+            ->where('datos->pedido_id', $pedido->id)
+            ->update(['leida' => true, 'leida_en' => now()]);
+
+        if (! $meseroId) {
+            return;
+        }
+
+        $mesa = $pedido->mesa ? 'Mesa '.$pedido->mesa->numero : 'Mostrador';
+        $totalFmt = number_format((float) $pedido->total, 0, ',', '.');
+        $mensaje = "💳 Caja procesó el pago de {$mesa} por \${$totalFmt}. Entrega la factura al cliente.";
+
+        // Respaldo en campana para el polling de 20s si WebSockets está caído.
+        NotificacionUsuario::create([
+            'user_id' => (int) $meseroId,
+            'tipo' => 'pago_procesado',
+            'titulo' => 'Pago procesado por caja',
+            'cuerpo' => $mensaje,
+            'datos' => [
+                'pedido_id' => $pedido->id,
+                'mesa_numero' => $pedido->mesa?->numero,
+                'mesa' => $mesa,
+                'total' => (float) $pedido->total,
+                'metodo_pago' => (string) ($pedido->metodo_pago ?? 'efectivo'),
+                'ticket_url' => route('caja'),
+            ],
+            'leida' => false,
+            'created_at' => now(),
+        ]);
+
+        broadcast(new PagoProcesadoPorCaja(
+            pedidoId: $pedido->id,
+            meseroId: (int) $meseroId,
+            mesa: $mesa,
+            total: (float) $pedido->total,
+            metodoPago: (string) ($pedido->metodo_pago ?? 'efectivo'),
+            ticketUrl: route('caja'),
+            mensaje: $mensaje
+        ));
     }
 
     /**
@@ -538,12 +655,32 @@ class PedidoService
         string $motivo,
         string $autorizadoPor,
         User $usuario,
-        string $metodoReembolso = 'efectivo'
+        string $metodoReembolso = 'efectivo',
+        ?int $notaCreditoId = null
     ): PedidoDevolucion {
         $pedido = $item->relationLoaded('pedido') ? $item->pedido : $item->pedido()->firstOrFail();
 
         if ($pedido->estado !== 'pagado') {
             throw new \DomainException('Solo se pueden procesar devoluciones sobre tickets o pedidos ya cobrados.');
+        }
+
+        // Fase 8.3: toda devolución exige una Nota de Crédito vigente y sin usar.
+        if ($notaCreditoId === null) {
+            throw new \DomainException('La devolución requiere una Nota de Crédito autorizada. Complétala antes de anular.');
+        }
+
+        $notaCredito = NotaCredito::find($notaCreditoId);
+
+        if (! $notaCredito || (int) $notaCredito->pedido_id !== (int) $pedido->id) {
+            throw new \DomainException('La Nota de Crédito no corresponde a este pedido.');
+        }
+
+        if ($notaCredito->estaUtilizada()) {
+            throw new \DomainException("La Nota de Crédito {$notaCredito->numero_nc} ya fue utilizada.");
+        }
+
+        if (! in_array($notaCredito->motivo, NotaCredito::MOTIVOS, true)) {
+            throw new \DomainException('El motivo de la Nota de Crédito no es válido.');
         }
 
         $disponible = $item->cantidadDisponibleDevolucion();
@@ -559,7 +696,7 @@ class PedidoService
             throw new \InvalidArgumentException('La devolución requiere el nombre o PIN del supervisor autorizador.');
         }
 
-        return DB::transaction(function () use ($item, $pedido, $cantidad, $motivo, $autorizadoPor, $usuario, $metodoReembolso) {
+        return DB::transaction(function () use ($item, $pedido, $cantidad, $motivo, $autorizadoPor, $usuario, $metodoReembolso, $notaCredito) {
             $montoDevuelto = round((float) $item->precio_unitario * $cantidad, 2);
 
             // 1. Obtener turno de caja activo o el turno del pedido
@@ -632,13 +769,16 @@ class PedidoService
                 'user_id' => $usuario->id,
             ]);
 
+            // 5b. Vincular la Nota de Crédito (queda consumida, single-use).
+            $notaCredito->update(['pedido_devolucion_id' => $devolucion->id]);
+
             // 6. Auditoría inmutable
             app(AuditoriaService::class)->registrar(
                 usuario: $usuario,
                 accion: 'pedidos.item_devuelto',
                 entidad: 'pedido',
                 entidadId: $pedido->id,
-                descripcion: "Devolución de {$cantidad}x {$item->nombre_producto} ($" . number_format($montoDevuelto, 0) . ") por motivo: {$motivo}. Autorizado por: {$autorizadoPor}",
+                descripcion: "Devolución de {$cantidad}x {$item->nombre_producto} ($".number_format($montoDevuelto, 0).") por motivo: {$motivo}. Autorizado por: {$autorizadoPor}",
                 datos: [
                     'pedido_id' => $pedido->id,
                     'item_id' => $item->id,
@@ -646,6 +786,8 @@ class PedidoService
                     'monto_devuelto' => $montoDevuelto,
                     'motivo' => $motivo,
                     'autorizado_por' => $autorizadoPor,
+                    'nota_credito_id' => $notaCredito->id,
+                    'numero_nc' => $notaCredito->numero_nc,
                 ]
             );
 

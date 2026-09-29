@@ -1,18 +1,89 @@
 <?php
 
+use App\Services\Ai\AdminAiCopilotService;
 use App\Services\ReporteService;
+use App\Services\ReportesComparativosService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
 new class extends Component
 {
     public string $desde = '';
+
     public string $hasta = '';
+
     public string $pestana = 'graficas';
+
+    public string $presetActivo = '';
+
+    public bool $modoComparativo = false;
+
+    public string $desdeB = '';
+
+    public string $hastaB = '';
+
+    public bool $compararAuto = true;
+
+    public ?array $analisisIa = null;
+
+    public string $errorIa = '';
 
     public function mount(): void
     {
         $this->desde = now()->startOfMonth()->toDateString();
         $this->hasta = now()->toDateString();
+    }
+
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['desde', 'hasta'], true)) {
+            $this->presetActivo = '';
+        }
+
+        if (in_array($property, ['modoComparativo', 'desde', 'hasta', 'compararAuto', 'desdeB', 'hastaB'], true)) {
+            $this->analisisIa = null;
+            $this->errorIa = '';
+        }
+
+        if ($property === 'modoComparativo' && $this->modoComparativo && $this->compararAuto) {
+            $this->fijarPeriodoBAutomatico();
+        }
+    }
+
+    public function usarPeriodoBAutomatico(): void
+    {
+        $this->compararAuto = true;
+        $this->fijarPeriodoBAutomatico();
+    }
+
+    public function usarPeriodoBPersonalizado(): void
+    {
+        $this->compararAuto = false;
+    }
+
+    public function analizarConIa(): void
+    {
+        $user = Auth::user();
+        abort_unless($user && ($user->isAdmin() || $user->isGerente()), 403);
+
+        try {
+            $this->analisisIa = app(AdminAiCopilotService::class)->analizarReporte([
+                'desde' => $this->desde,
+                'hasta' => $this->hasta,
+                'comparar' => $this->modoComparativo,
+                'desde_b' => $this->compararAuto ? null : ($this->desdeB ?: null),
+                'hasta_b' => $this->compararAuto ? null : ($this->hastaB ?: null),
+            ], $user);
+            $this->errorIa = '';
+        } catch (\Throwable $e) {
+            $this->analisisIa = null;
+            $this->errorIa = $e->getMessage();
+        }
+
+        $this->dispatch('notificacion', [
+            'mensaje' => $this->analisisIa ? 'Análisis con IA generado.' : 'No se pudo generar el análisis.',
+            'tipo' => $this->analisisIa ? 'success' : 'error',
+        ]);
     }
 
     public function setPeriodo(string $preset): void
@@ -26,24 +97,38 @@ new class extends Component
                 $this->desde = now()->subDay()->toDateString();
                 $this->hasta = now()->subDay()->toDateString();
                 break;
-            case 'esta_semana':
-                $this->desde = now()->startOfWeek()->toDateString();
+            case 'semana_anterior':
+                $this->desde = now()->subWeek()->startOfWeek()->toDateString();
+                $this->hasta = now()->subWeek()->endOfWeek()->toDateString();
+                break;
+            case 'ultimos_15_dias':
+                $this->desde = now()->subDays(14)->toDateString();
                 $this->hasta = now()->toDateString();
                 break;
-            case 'este_mes':
-                $this->desde = now()->startOfMonth()->toDateString();
+            case 'trimestre':
+                $this->desde = now()->startOfQuarter()->toDateString();
                 $this->hasta = now()->toDateString();
                 break;
-            case 'mes_anterior':
-                $this->desde = now()->subMonth()->startOfMonth()->toDateString();
-                $this->hasta = now()->subMonth()->endOfMonth()->toDateString();
+            case 'semestre':
+                $this->desde = (now()->month <= 6
+                    ? now()->startOfYear()
+                    : now()->setMonth(7)->startOfMonth())->toDateString();
+                $this->hasta = now()->toDateString();
+                break;
+            case 'anio':
+                $this->desde = now()->startOfYear()->toDateString();
+                $this->hasta = now()->toDateString();
                 break;
         }
+
+        $this->presetActivo = $preset;
     }
 
     public function with(): array
     {
         $service = app(ReporteService::class);
+        $comparativos = app(ReportesComparativosService::class);
+        $sucursalId = Auth::user()?->sucursal_id;
 
         return [
             'graficaVentas' => in_array($this->pestana, ['graficas', 'ventas', 'estado'], true)
@@ -84,7 +169,56 @@ new class extends Component
             'libroFiscal' => $this->pestana === 'contabilidad'
                 ? app(\App\Services\ExportadorContableService::class)->generarLibroFiscalDian($this->desde, $this->hasta)
                 : null,
+            'serieAvanzada' => $this->pestana === 'graficas'
+                ? $comparativos->seriePorPeriodo($this->desde, $this->hasta, $sucursalId)
+                : null,
+            'heatmapApex' => $this->pestana === 'graficas'
+                ? $this->heatmapApex($comparativos->heatmapVentas($this->desde, $this->hasta, $sucursalId))
+                : null,
+            'top5' => $this->pestana === 'graficas'
+                ? $comparativos->topPeriodo($this->desde, $this->hasta, 5, $sucursalId)
+                : null,
+            'comparativaAvanzada' => ($this->pestana === 'graficas' && $this->modoComparativo)
+                ? $comparativos->comparar(
+                    $this->desde,
+                    $this->hasta,
+                    ...$this->rangoComparacion($comparativos)
+                ) + ['sucursal_id' => $sucursalId]
+                : null,
         ];
+    }
+
+    protected function fijarPeriodoBAutomatico(): void
+    {
+        [$desdeB, $hastaB] = app(ReportesComparativosService::class)
+            ->periodoAnteriorAutomatico($this->desde, $this->hasta);
+        $this->desdeB = $desdeB;
+        $this->hastaB = $hastaB;
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: ?int}
+     */
+    protected function rangoComparacion(ReportesComparativosService $comparativos): array
+    {
+        if (! $this->compararAuto && $this->desdeB !== '' && $this->hastaB !== '') {
+            return [$this->desdeB, $this->hastaB, Auth::user()?->sucursal_id];
+        }
+
+        [$desdeB, $hastaB] = $comparativos->periodoAnteriorAutomatico($this->desde, $this->hasta);
+
+        return [$desdeB, $hastaB, Auth::user()?->sucursal_id];
+    }
+
+    protected function heatmapApex(array $heatmap): array
+    {
+        $horas = array_map(fn ($h) => $h.'h', range(0, 23));
+        $series = [];
+        foreach ($heatmap['dias'] as $i => $dia) {
+            $series[] = ['name' => $dia, 'data' => array_map(fn ($v) => round((float) $v, 2), $heatmap['matriz'][$i] ?? array_fill(0, 24, 0.0))];
+        }
+
+        return ['series' => $series, 'horas' => $horas, 'maximo' => $heatmap['maximo']];
     }
 }; ?>
 
@@ -133,11 +267,24 @@ new class extends Component
         <!-- Presets de Período Rápido -->
         <div class="flex flex-wrap items-center gap-1.5 pt-3 border-t border-outline-variant/15">
             <span class="text-[11px] font-bold text-on-surface-variant mr-1">Rango rápido:</span>
-            <button type="button" wire:click="setPeriodo('hoy')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Hoy</button>
-            <button type="button" wire:click="setPeriodo('ayer')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Ayer</button>
-            <button type="button" wire:click="setPeriodo('esta_semana')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Esta Semana</button>
-            <button type="button" wire:click="setPeriodo('este_mes')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Este Mes</button>
-            <button type="button" wire:click="setPeriodo('mes_anterior')" class="px-2.5 py-1 rounded-lg bg-surface-container-low text-[11px] font-bold text-on-surface hover:bg-primary/20 hover:text-primary transition-colors">Mes Anterior</button>
+            @foreach ([
+                'hoy' => 'Hoy',
+                'ayer' => 'Ayer',
+                'semana_anterior' => 'Semana Anterior',
+                'ultimos_15_dias' => 'Últimos 15 Días',
+                'trimestre' => 'Trimestre',
+                'semestre' => 'Semestre',
+                'anio' => 'Año',
+            ] as $key => $label)
+                <button type="button" wire:click="setPeriodo('{{ $key }}')"
+                    aria-pressed="{{ $presetActivo === $key ? 'true' : 'false' }}"
+                    class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors
+                        {{ $presetActivo === $key
+                            ? 'bg-primary text-on-primary shadow-sm'
+                            : 'bg-surface-container-low text-on-surface hover:bg-primary/20 hover:text-primary' }}">
+                    {{ $label }}
+                </button>
+            @endforeach
         </div>
     </div>
 
@@ -215,7 +362,42 @@ new class extends Component
                         this.charts.canales.render();
                     }
 
-                    // 4. Gráfica Donut de Métodos
+                    // 4b. Línea acumulativa de ventas (Fase 9.1)
+                    const elAcum = document.getElementById('chart-ventas-acumuladas');
+                    if (elAcum) {
+                        if (this.charts.acum) this.charts.acum.destroy();
+                        this.charts.acum = new ApexCharts(elAcum, {
+                            chart: { type: 'line', height: 300, toolbar: { show: false }, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: [{ name: 'Acumulado ($)', data: {{ json_encode($serieAvanzada['acumulada'] ?? []) }} }],
+                            xaxis: { categories: {{ json_encode($serieAvanzada['etiquetas'] ?? []) }}, labels: { style: { colors: '#94a3b8', fontSize: '11px' } } },
+                            yaxis: { labels: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO'), style: { colors: '#94a3b8', fontSize: '11px' } } },
+                            colors: ['#2eb8b4'],
+                            stroke: { curve: 'smooth', width: 3 },
+                            dataLabels: { enabled: false },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.acum.render();
+                    }
+
+                    // 4c. Heatmap día × hora (Fase 9.1)
+                    const elHeat = document.getElementById('chart-heatmap-ventas');
+                    if (elHeat) {
+                        if (this.charts.heat) this.charts.heat.destroy();
+                        this.charts.heat = new ApexCharts(elHeat, {
+                            chart: { type: 'heatmap', height: 300, toolbar: { show: false }, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: {{ json_encode($heatmapApex['series'] ?? []) }},
+                            xaxis: { categories: {{ json_encode($heatmapApex['horas'] ?? []) }}, labels: { style: { colors: '#94a3b8', fontSize: '10px' } } },
+                            colors: ['#e0442e'],
+                            plotOptions: { heatmap: { shadeIntensity: 0.6, radius: 4, colorScale: { ranges: [{ from: 0, to: 0, color: '#2e2018', name: 'Sin ventas' }, { from: 1, to: 1000000000, color: '#e0442e', name: 'Ventas' }] } } },
+                            dataLabels: { enabled: false },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.heat.render();
+                    }
+
+                    // 4d. Gráfica Donut de Métodos
                     const elMetodos = document.getElementById('chart-metodos-pago');
                     if (elMetodos) {
                         if (this.charts.metodos) this.charts.metodos.destroy();
@@ -300,6 +482,139 @@ new class extends Component
                         </div>
                     </div>
                     <div id="chart-comparativa-periodos" class="min-h-[320px]"></div>
+                </div>
+            </div>
+
+            <!-- Comparativa avanzada + Análisis IA (Fase 9) -->
+            <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px] text-secondary">compare_arrows</span>
+                            Modo Comparativo Avanzado
+                        </h3>
+                        <p class="text-[11px] text-on-surface-variant mt-0.5">Período A (azul) vs Período B (gris) · Agrupación: {{ $serieAvanzada['agrupacion'] ?? '—' }}</p>
+                    </div>
+                    <label class="inline-flex items-center gap-2 rounded-xl bg-surface-container-low border border-outline-variant/20 px-3.5 py-2 text-xs font-bold text-on-surface cursor-pointer min-h-[44px]">
+                        <input type="checkbox" wire:model.live="modoComparativo" class="rounded text-primary focus:ring-0 w-5 h-5" />
+                        <span>Comparar periodos</span>
+                    </label>
+                </div>
+
+                @if ($modoComparativo)
+                    <div class="flex flex-wrap items-end gap-3 rounded-2xl bg-surface-container-low border border-outline-variant/20 p-4">
+                        <div class="flex items-center gap-2">
+                            <button type="button" wire:click="usarPeriodoBAutomatico" class="rounded-xl px-3.5 py-2 text-xs font-bold min-h-[44px] {{ $compararAuto ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant' }}">
+                                Mismo período anterior
+                            </button>
+                            <button type="button" wire:click="usarPeriodoBPersonalizado" class="rounded-xl px-3.5 py-2 text-xs font-bold min-h-[44px] {{ ! $compararAuto ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant' }}">
+                                Período personalizado
+                            </button>
+                        </div>
+                        @if (! $compararAuto)
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Desde B:</label>
+                                <input type="date" wire:model.live="desdeB" class="mt-1 rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0 min-h-[44px]" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Hasta B:</label>
+                                <input type="date" wire:model.live="hastaB" class="mt-1 rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0 min-h-[44px]" />
+                            </div>
+                        @endif
+                        <span class="flex-1"></span>
+                        <a href="{{ route('reportes.comparativa-csv', array_filter(['desde' => $desde, 'hasta' => $hasta, 'comparar' => 1, 'desde_b' => $compararAuto ? null : $desdeB, 'hasta_b' => $compararAuto ? null : $hastaB])) }}" class="rounded-xl bg-surface-container-high px-3.5 py-2 text-xs font-bold text-on-surface min-h-[44px] inline-flex items-center">CSV</a>
+                        <a href="{{ route('reportes.informe-ejecutivo', array_filter(['desde' => $desde, 'hasta' => $hasta, 'comparar' => 1, 'desde_b' => $compararAuto ? null : $desdeB, 'hasta_b' => $compararAuto ? null : $hastaB])) }}" class="rounded-xl bg-secondary px-3.5 py-2 text-xs font-bold text-white min-h-[44px] inline-flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+                            PDF Ejecutivo
+                        </a>
+                    </div>
+
+                    @if ($comparativaAvanzada)
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                            @foreach ([
+                                ['Δ% ventas brutas', $comparativaAvanzada['delta_ventas_pct'].'%', $comparativaAvanzada['delta_ventas_pct'] >= 0],
+                                ['Δ% comandas', $comparativaAvanzada['delta_comandas_pct'].'%', $comparativaAvanzada['delta_comandas_pct'] >= 0],
+                                ['Δ ticket promedio', '$ '.number_format($comparativaAvanzada['delta_ticket'], 0, ',', '.'), $comparativaAvanzada['delta_ticket'] >= 0],
+                                ['Δ% devoluciones', $comparativaAvanzada['delta_devoluciones_pct'].'%', $comparativaAvanzada['delta_devoluciones_pct'] <= 0],
+                            ] as [$label, $valor, $positivo])
+                                <div class="rounded-2xl bg-surface-container-low border border-outline-variant/20 p-4">
+                                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-on-surface-variant block">{{ $label }}</span>
+                                    <span class="text-xl font-black {{ $positivo ? 'text-emerald-400' : 'text-rose-400' }} block mt-1">{{ $valor }}</span>
+                                    <span class="text-[10px] text-on-surface-variant font-bold block mt-0.5">A: ${{ number_format($comparativaAvanzada['a']['ventas'], 0, ',', '.') }} · B: ${{ number_format($comparativaAvanzada['b']['ventas'], 0, ',', '.') }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                @endif
+
+                <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-outline-variant/15">
+                    <button type="button" wire:click="analizarConIa" class="rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-on-primary shadow-md hover:bg-primary/90 active:scale-95 transition cursor-pointer min-h-[44px] min-w-[44px] inline-flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[18px]">psychology</span>
+                        <span>🧠 Analizar con IA</span>
+                    </button>
+                    <span class="text-[11px] text-on-surface-variant">Resumen ejecutivo, tendencia y 3 recomendaciones.</span>
+                </div>
+
+                @if ($errorIa !== '')
+                    <div class="rounded-2xl border border-error/40 bg-error/10 p-4 text-xs font-bold text-error">{{ $errorIa }}</div>
+                @endif
+
+                @if ($analisisIa)
+                    <div class="rounded-2xl border border-secondary/30 bg-secondary/10 p-5 space-y-3">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-secondary text-[20px]">smart_toy</span>
+                            <h4 class="text-sm font-extrabold text-on-surface">Análisis IA — {{ $analisisIa['datos']['tendencia'] ?? '' }}</h4>
+                            <span class="rounded-full bg-secondary/20 px-2.5 py-0.5 text-[11px] font-black text-secondary">Δ {{ $analisisIa['datos']['delta_ventas_pct'] ?? 0 }}%</span>
+                        </div>
+                        <p class="text-xs text-on-surface leading-relaxed">{{ $analisisIa['mensaje'] }}</p>
+                        <ul class="space-y-1.5">
+                            @foreach ($analisisIa['datos']['recomendaciones'] ?? [] as $i => $rec)
+                                <li class="text-xs text-on-surface flex items-start gap-2">
+                                    <span class="font-black text-secondary">{{ $i + 1 }}.</span>
+                                    <span>{{ $rec }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+
+            <!-- Acumulada + Heatmap + Top 5 (Fase 9.1) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                    <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-secondary">trending_up</span>
+                        Línea Acumulativa de Ventas
+                    </h3>
+                    <p class="text-[11px] text-on-surface-variant mt-0.5 mb-4">Acumulado día a día ({{ $serieAvanzada['agrupacion'] ?? '' }})</p>
+                    <div id="chart-ventas-acumuladas" class="min-h-[300px]"></div>
+                </div>
+                <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                    <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-amber-500">grid_on</span>
+                        Heatmap Día × Hora
+                    </h3>
+                    <p class="text-[11px] text-on-surface-variant mt-0.5 mb-4">Intensidad de ventas por franja horaria</p>
+                    <div id="chart-heatmap-ventas" class="min-h-[300px]"></div>
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-2 mb-3">
+                    <span class="material-symbols-outlined text-[18px] text-primary">emoji_events</span>
+                    Top 5 del Periodo
+                </h3>
+                <div class="space-y-2">
+                    @forelse ($top5 ?? [] as $i => $plato)
+                        <div class="flex items-center gap-3 rounded-2xl bg-surface-container-low border border-outline-variant/20 px-4 py-2.5">
+                            <span class="text-sm font-black text-primary w-6">{{ $i + 1 }}</span>
+                            <span class="flex-1 text-xs font-bold text-on-surface break-words">{{ $plato['producto'] }}</span>
+                            <span class="text-xs font-mono text-on-surface-variant">{{ $plato['cantidad'] }} uds</span>
+                            <span class="text-xs font-black text-on-surface">${{ number_format($plato['total_ventas'], 0, ',', '.') }}</span>
+                        </div>
+                    @empty
+                        <p class="text-xs text-on-surface-variant">Sin ventas en el periodo seleccionado.</p>
+                    @endforelse
                 </div>
             </div>
 

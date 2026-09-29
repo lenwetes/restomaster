@@ -179,6 +179,54 @@ class ReportesGraficasTest extends TestCase
             ->assertSet('hasta', now()->subDay()->toDateString());
     }
 
+    public function test_set_periodo_aplica_los_siete_nuevos_presets(): void
+    {
+        $inicioSemestre = now()->month <= 6
+            ? now()->startOfYear()->toDateString()
+            : now()->setMonth(7)->startOfMonth()->toDateString();
+
+        $casos = [
+            'hoy' => [now()->toDateString(), now()->toDateString()],
+            'ayer' => [now()->subDay()->toDateString(), now()->subDay()->toDateString()],
+            'semana_anterior' => [now()->subWeek()->startOfWeek()->toDateString(), now()->subWeek()->endOfWeek()->toDateString()],
+            'ultimos_15_dias' => [now()->subDays(14)->toDateString(), now()->toDateString()],
+            'trimestre' => [now()->startOfQuarter()->toDateString(), now()->toDateString()],
+            'semestre' => [$inicioSemestre, now()->toDateString()],
+            'anio' => [now()->startOfYear()->toDateString(), now()->toDateString()],
+        ];
+
+        foreach ($casos as $preset => [$desde, $hasta]) {
+            Volt::actingAs($this->gerente)
+                ->test('reportes.index')
+                ->call('setPeriodo', $preset)
+                ->assertSet('desde', $desde)
+                ->assertSet('hasta', $hasta);
+        }
+    }
+
+    public function test_botonera_muestra_los_siete_rangos_y_registra_preset_activo(): void
+    {
+        Volt::actingAs($this->gerente)
+            ->test('reportes.index')
+            ->assertSee('Semana Anterior')
+            ->assertSee('Últimos 15 Días')
+            ->assertSee('Trimestre')
+            ->assertSee('Semestre')
+            ->assertSee('Año')
+            ->call('setPeriodo', 'trimestre')
+            ->assertSet('presetActivo', 'trimestre');
+    }
+
+    public function test_editar_fechas_manualmente_limpia_preset_activo(): void
+    {
+        Volt::actingAs($this->gerente)
+            ->test('reportes.index')
+            ->call('setPeriodo', 'semestre')
+            ->assertSet('presetActivo', 'semestre')
+            ->set('desde', now()->subDays(3)->toDateString())
+            ->assertSet('presetActivo', '');
+    }
+
     public function test_mesero_no_puede_acceder_a_reportes_gerenciales(): void
     {
         $this->actingAs($this->mesero);

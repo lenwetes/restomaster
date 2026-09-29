@@ -47,7 +47,10 @@ class PromocionesPublicoTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee($promo->titulo);
         $response->assertSee('Términos');
-        $response->assertSee('Compartir por WhatsApp');
+        $response->assertSee('Compartir');
+        $response->assertSee('WhatsApp');
+        $response->assertSee('Facebook');
+        $response->assertSee('Instagram');
         $response->assertSee('Reservar Mesa con esta Promo');
     }
 }

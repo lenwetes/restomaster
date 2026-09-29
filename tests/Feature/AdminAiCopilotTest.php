@@ -178,6 +178,36 @@ class AdminAiCopilotTest extends TestCase
             ->assertSee('Facturación');
     }
 
+    public function test_drawer_sincroniza_estado_en_vivo_y_boton_no_bloquea_contenido(): void
+    {
+        $blade = file_get_contents(resource_path('views/livewire/admin/copilot-drawer.blade.php'));
+
+        // Estado Alpine<->Livewire en vivo: abrir/cerrar nunca se desincroniza
+        $this->assertStringContainsString("@entangle('abierto').live", $blade);
+        // Botón flotante se oculta al bajar scroll y con el panel abierto (no tapa tarjetas)
+        $this->assertStringContainsString('fabVisible', $blade);
+        $this->assertStringContainsString('pointer-events-none', $blade);
+
+        Livewire::actingAs($this->admin)
+            ->test('admin.copilot-drawer')
+            ->assertSet('abierto', false)
+            ->call('abrir')
+            ->assertSet('abierto', true)
+            ->call('cerrar')
+            ->assertSet('abierto', false)
+            ->call('alternar')
+            ->assertSet('abierto', true);
+    }
+
+    public function test_drawer_dibuja_grafico_con_boton_descarga_png(): void
+    {
+        Livewire::actingAs($this->admin)
+            ->test('admin.copilot-drawer')
+            ->call('enviarConsulta', 'ventas de los ultimos 15 dias')
+            ->assertSeeHtml('Descargar gráfico como imagen PNG')
+            ->assertSeeHtml('__copilotoDescargarGrafico');
+    }
+
     public function test_administrador_puede_consultar_ventas_en_caja_especifica(): void
     {
         $caja = Caja::create([

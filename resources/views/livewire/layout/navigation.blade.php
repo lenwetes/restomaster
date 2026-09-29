@@ -199,6 +199,34 @@ new class extends Component
                     @endif
 
                     <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 text-xs overscroll-contain">
+                        <!-- 0. Horario semanal por confirmar (Fase 4) -->
+                        @if(!empty($notificaciones['turno_semanal']))
+                            <div class="space-y-1.5">
+                                <span class="text-[10px] font-black uppercase tracking-wider text-primary flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[14px]">calendar_month</span>
+                                    Tu Horario Semanal
+                                </span>
+                                @foreach($notificaciones['turno_semanal'] as $hts)
+                                    <div class="p-2.5 rounded-2xl bg-primary-container/15 border border-primary/25 flex items-center justify-between gap-2 shadow-sm">
+                                        <div class="min-w-0">
+                                            <span class="font-extrabold text-on-surface text-xs">📅 Tienes un horario por confirmar</span>
+                                            <p class="text-[10px] text-on-surface-variant mt-0.5 truncate">
+                                                Semana {{ $hts['semana_iso'] ?? '' }}/{{ $hts['anio'] ?? '' }} · Confírmalo en el POS
+                                            </p>
+                                        </div>
+                                        <a
+                                            href="{{ route('pos') }}"
+                                            wire:navigate
+                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary text-on-primary text-[11px] font-black shadow-sm hover:bg-primary/90 active:scale-95 transition cursor-pointer shrink-0 min-h-[44px]"
+                                        >
+                                            <span class="material-symbols-outlined text-[14px]">visibility</span>
+                                            <span>Ver horario</span>
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
                         <!-- 1. Pedidos QR por Asignar -->
                         @if(!empty($notificaciones['pedidos_qr']))
                             <div class="space-y-1.5">
@@ -630,6 +658,22 @@ new class extends Component
                     </a>
                 @endif
 
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Turnos Semanales (TUR-01) -->
+                    <a
+                        href="{{ route('turnos') }}"
+                        wire:navigate
+                        title="Turnos Semanales"
+                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('turnos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">calendar_month</span>
+                            <span class="sidebar-text truncate">Turnos Semanales</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">TUR</span>
+                    </a>
+                @endif
+
                 <!-- Clientes VIP (CLI-01) -->
                 <a 
                     href="{{ route('clientes') }}" 
@@ -1020,6 +1064,19 @@ new class extends Component
                             <span>Promociones</span>
                         </div>
                         <span class="text-[10px] font-bold">PRO</span>
+                    </a>
+
+                    <a
+                        href="{{ route('turnos') }}"
+                        @click="mobileMenuOpen = false"
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('turnos') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+                            <span>Turnos Semanales</span>
+                        </div>
+                        <span class="text-[10px] font-bold">TUR</span>
                     </a>
                 @endif
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Insumo;
 use App\Models\ItemPedido;
+use App\Models\NotificacionUsuario;
 use App\Models\Pedido;
 use App\Models\Reserva;
 use App\Models\User;
@@ -31,6 +32,7 @@ class NotificacionService
             'platos_listos' => new Collection($data['platos_listos'] ?? []),
             'stock_critico' => new Collection($data['stock_critico'] ?? []),
             'reservas_hoy' => new Collection($data['reservas_hoy'] ?? []),
+            'turno_semanal' => new Collection($data['turno_semanal'] ?? []),
             'rol_consultado' => $data['rol_consultado'] ?? null,
         ];
     }
@@ -43,6 +45,7 @@ class NotificacionService
         $puedeVerPlatosListos = in_array($rol, ['mesero', 'cajero', 'gerente', 'admin'], true);
         $puedeVerStockCritico = in_array($rol, ['cocina', 'barra', 'gerente', 'admin'], true);
         $puedeVerReservas = in_array($rol, ['cajero', 'gerente', 'admin'], true);
+        $puedeVerTurnoSemanal = in_array($rol, ['mesero', 'gerente', 'admin'], true);
 
         // 1. Pedidos QR pendientes de ser tomados/atendidos por un mesero
         $pedidosQr = $puedeVerPedidosQr ? Pedido::query()
@@ -82,6 +85,18 @@ class NotificacionService
 
         $total = $pedidosQr->count() + $platosListos->count() + $stockCritico->count() + $reservasHoy->count();
 
+        // 5. Horario semanal publicado pendiente de confirmación (respaldo Fase 4).
+        //    Visible hasta que el mesero confirme en el POS.
+        $turnoSemanal = ($puedeVerTurnoSemanal && $usuario) ? NotificacionUsuario::query()
+            ->where('user_id', $usuario->id)
+            ->where('tipo', 'turno_semanal')
+            ->where('leida', false)
+            ->latest()
+            ->limit(1)
+            ->get() : collect();
+
+        $total += $turnoSemanal->count();
+
         return [
             'total' => $total,
             'pedidos_qr' => $pedidosQr->map(fn ($p) => [
@@ -117,6 +132,13 @@ class NotificacionService
                 'hora_llegada' => $r->hora_llegada,
                 'personas' => $r->personas,
                 'estado' => $r->estado,
+            ])->values()->all(),
+            'turno_semanal' => $turnoSemanal->map(fn ($n) => [
+                'id' => $n->id,
+                'titulo' => $n->titulo,
+                'cuerpo' => $n->cuerpo,
+                'semana_iso' => $n->datos['semana_iso'] ?? null,
+                'anio' => $n->datos['anio'] ?? null,
             ])->values()->all(),
             'rol_consultado' => $rol,
         ];

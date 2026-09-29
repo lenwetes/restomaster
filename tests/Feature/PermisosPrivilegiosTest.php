@@ -111,7 +111,8 @@ class PermisosPrivilegiosTest extends TestCase
         $this->assertNotContains('pedidos.aplicar_descuento', $plantillas['mesero']);
         $this->assertNotContains('caja.eliminar', $plantillas['gerente']);
         $this->assertNotContains('caja.eliminar', $plantillas['cajero']);
-        $this->assertContains('pedidos.cobrar', $plantillas['mesero']);
+        $this->assertContains('pedidos.solicitar_cobro', $plantillas['mesero']);
+        $this->assertNotContains('pedidos.cobrar', $plantillas['mesero']);
         $this->assertContains('turnos.abrir', $plantillas['cajero']);
         $this->assertContains('proveedores.crear', $plantillas['gerente']);
         $this->assertContains('compras.anular', $plantillas['gerente']);
@@ -135,16 +136,16 @@ class PermisosPrivilegiosTest extends TestCase
         $mesero = $this->crearUsuarioMesero();
 
         $svc->aplicarPlantilla($mesero, 'mesero');
-        $this->assertTrue((bool) $mesero->fresh()->permisoExplicito('pedidos.cobrar'));
+        $this->assertTrue((bool) $mesero->fresh()->permisoExplicito('pedidos.solicitar_cobro'));
         $this->assertNull($mesero->fresh()->permisoExplicito('caja.eliminar'));
 
         $diff = $svc->guardarChecks($mesero, [
-            'pedidos.cobrar' => 'quitar',
+            'pedidos.solicitar_cobro' => 'quitar',
             'caja.ver' => 'otorgar',
         ]);
-        $this->assertSame(['pedidos.cobrar'], $diff['quitados']);
+        $this->assertSame(['pedidos.solicitar_cobro'], $diff['quitados']);
         $this->assertSame(['caja.ver'], $diff['otorgados']);
-        $this->assertFalse((bool) $mesero->fresh()->permisoExplicito('pedidos.cobrar'));
+        $this->assertFalse((bool) $mesero->fresh()->permisoExplicito('pedidos.solicitar_cobro'));
         $this->assertTrue((bool) $mesero->fresh()->permisoExplicito('caja.ver'));
     }
 
@@ -239,7 +240,7 @@ class PermisosPrivilegiosTest extends TestCase
             ->assertDispatched('notificacion');
 
         $creado = User::where('email', 'nuevo@x.com')->first();
-        $this->assertTrue((bool) $creado->permisoExplicito('pedidos.cobrar'));
+        $this->assertTrue((bool) $creado->permisoExplicito('pedidos.solicitar_cobro'));
         $this->assertNull($creado->permisoExplicito('caja.eliminar'));
     }
 

@@ -27,6 +27,8 @@ class RemediacionPosCocinaTest extends TestCase
 
     private User $mesero;
 
+    private User $cajero;
+
     private Mesa $mesa;
 
     private Producto $productoA;
@@ -56,7 +58,8 @@ class RemediacionPosCocinaTest extends TestCase
         ]);
 
         // Se usa un cajero (rol autorizado) para abrir el turno de caja
-        $cajero = User::factory()->create([
+        // Fase 8.1: el cajero también procesa los cobros (mesero revocado).
+        $this->cajero = User::factory()->create([
             'name' => 'Cajero Apertura',
             'email' => 'cajero@restomaster.com',
             'role_id' => $roleCajero->id,
@@ -107,7 +110,7 @@ class RemediacionPosCocinaTest extends TestCase
         ]);
 
         // El cajero (no el mesero) es quien abre el turno de caja
-        app(CajaService::class)->abrirTurno($caja, $cajero, 100000.00, 'Apertura');
+        app(CajaService::class)->abrirTurno($caja, $this->cajero, 100000.00, 'Apertura');
     }
 
     private function crearPedidoActivoConItemProductoA(): Pedido
@@ -197,9 +200,9 @@ class RemediacionPosCocinaTest extends TestCase
             'estado'   => 'entregado',
         ]);
 
-        // Montar el POS: el carrito se carga desde el pedido activo,
+        // Montar el POS como cajero (Fase 8.1): el carrito se carga desde el pedido activo,
         // comandaRequiereEnvioCocina() == false porque no hay items nuevos en carrito
-        $component = Volt::actingAs($this->mesero)
+        $component = Volt::actingAs($this->cajero)
             ->test('pos.terminal')
             ->set('mesaId', $this->mesa->id);
 
@@ -224,8 +227,8 @@ class RemediacionPosCocinaTest extends TestCase
         $pedidoActivo->items()->update(['estado_cocina' => 'entregado']);
         $pedidoActivo->update(['estado' => 'entregado']);
 
-        // Montar POS: carrito vacío (pedido ya enviado) -> comandaRequiereEnvioCocina() == false
-        $component = Volt::actingAs($this->mesero)
+        // Montar POS como cajero (Fase 8.1): carrito vacío (pedido ya enviado) -> comandaRequiereEnvioCocina() == false
+        $component = Volt::actingAs($this->cajero)
             ->test('pos.terminal')
             ->set('mesaId', $this->mesa->id);
 

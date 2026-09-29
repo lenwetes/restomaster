@@ -56,6 +56,25 @@ new class extends Component
     public string $modoRescatePin = 'password';
     public bool $otpEnviado = false;
 
+    public array $iaForm = [
+        'activo' => false,
+        'proveedor' => 'gemini',
+        'modelo' => 'gemini-2.5-flash',
+        'api_key' => '',
+    ];
+
+    public string $iaEstado = 'no_configurado';
+
+    public ?int $iaLatencia = null;
+
+    public string $iaModeloActivo = '';
+
+    public string $iaUltimoError = '';
+
+    public bool $iaTieneClave = false;
+
+    public string $iaClaveEnmascarada = '';
+
     public function mount(): void
     {
         $svc = app(ConfiguracionService::class);
@@ -107,6 +126,8 @@ new class extends Component
             'sslmode' => $svc->obtener('database_external', 'sslmode', 'prefer'),
             'activo' => (bool) $svc->obtener('database_external', 'activo', false),
         ];
+
+        $this->cargarEstadoIa();
     }
 
     public function guardarDian(): void
@@ -588,6 +609,80 @@ new class extends Component
         }
     }
 
+    public function cargarEstadoIa(): void
+    {
+        $config = \App\Models\CrmConfiguracion::activa(null);
+        $clave = $config->obtenerApiKeyIa();
+
+        $this->iaForm['activo'] = (bool) $config->ia_activo;
+        $this->iaForm['proveedor'] = $config->ia_proveedor ?: 'gemini';
+        $this->iaForm['modelo'] = $config->ia_modelo ?: 'gemini-2.5-flash';
+        $this->iaForm['api_key'] = '';
+        $this->iaTieneClave = ! empty($clave);
+        $this->iaClaveEnmascarada = $this->iaTieneClave ? '••••••••'.substr((string) $clave, -4) : '';
+        $this->iaEstado = $this->iaTieneClave && $this->iaForm['activo'] ? $this->iaEstado : 'no_configurado';
+        if (! $this->iaTieneClave) {
+            $this->iaLatencia = null;
+            $this->iaModeloActivo = '';
+        }
+    }
+
+    public function guardarIa(): void
+    {
+        $this->authorize('administrar-configuracion');
+
+        $this->validate([
+            'iaForm.activo' => ['required', 'boolean'],
+            'iaForm.proveedor' => ['required', 'in:gemini,openai'],
+            'iaForm.modelo' => ['required', 'string', 'max:60'],
+            'iaForm.api_key' => ['nullable', 'string', 'min:10', 'max:200'],
+        ], [
+            'iaForm.modelo.required' => 'Debes indicar el modelo activo.',
+            'iaForm.api_key.min' => 'La API Key parece demasiado corta.',
+        ]);
+
+        $config = \App\Models\CrmConfiguracion::activa(null);
+        $config->ia_activo = (bool) $this->iaForm['activo'];
+        $config->ia_proveedor = $this->iaForm['proveedor'];
+        $config->ia_modelo = $this->iaForm['modelo'];
+        if (! empty($this->iaForm['api_key'])) {
+            $config->ia_api_key = trim($this->iaForm['api_key']);
+        }
+        $config->save();
+
+        $this->iaForm['api_key'] = '';
+        $this->iaEstado = 'no_configurado';
+        $this->iaLatencia = null;
+        $this->iaModeloActivo = '';
+        $this->iaUltimoError = '';
+        $this->cargarEstadoIa();
+
+        session()->flash('status', 'Configuración de IA guardada. Usa "Probar conexión" para verificar el semáforo.');
+        $this->dispatch('notificacion', ['mensaje' => 'Configuración de IA guardada', 'tipo' => 'success']);
+    }
+
+    public function probarConexionIa(): void
+    {
+        $this->authorize('administrar-configuracion');
+
+        $resultado = app(\App\Services\Ai\AdminAiCopilotService::class)->probarConexionIa(null);
+
+        if ($resultado['ok']) {
+            $this->iaEstado = 'conectado';
+            $this->iaLatencia = $resultado['latencia_ms'];
+            $this->iaModeloActivo = $resultado['modelo'];
+            $this->iaUltimoError = '';
+            session()->flash('status', 'Conexión con IA verificada ('.$resultado['latencia_ms'].' ms · '.$resultado['modelo'].').');
+            $this->dispatch('notificacion', ['mensaje' => 'IA conectada correctamente', 'tipo' => 'success']);
+        } else {
+            $this->iaEstado = ($this->iaTieneClave || ! empty($this->iaForm['api_key'])) ? 'error' : 'no_configurado';
+            $this->iaLatencia = $resultado['latencia_ms'];
+            $this->iaModeloActivo = $resultado['modelo'];
+            $this->iaUltimoError = (string) ($resultado['error'] ?? 'Error de conexión.');
+            $this->dispatch('notificacion', ['mensaje' => 'No se pudo conectar con la IA', 'tipo' => 'error']);
+        }
+    }
+
     public function with(): array
     {
         $svc = app(ConfiguracionService::class);
@@ -643,6 +738,7 @@ new class extends Component
                 'dian' => ['label' => 'DIAN / Facturación', 'icon' => 'verified_user'],
                 'empresa' => ['label' => 'Establecimiento & Moneda', 'icon' => 'storefront'],
                 'reservas' => ['label' => 'Reservas & Webhook', 'icon' => 'webhook'],
+                'ia' => ['label' => 'IA & Copiloto', 'icon' => 'smart_toy'],
                 'seguridad' => ['label' => 'Seguridad & PIN', 'icon' => 'shield_lock'],
                 'reset' => ['label' => 'Restablecimiento', 'icon' => 'restart_alt'],
             ];
@@ -1600,6 +1696,103 @@ new class extends Component
                     </div>
                 @endif
             </div>
+        </div>
+    @endif
+
+    <!-- ===================================================================== -->
+    <!-- TAB IA: IA & COPILOTO (Gemini Function Calling)                         -->
+    <!-- ===================================================================== -->
+    @if ($tabActiva === 'ia')
+        <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 space-y-5 animate-fade-in shadow-sm">
+            <div class="border-b border-outline-variant/15 pb-3 flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">smart_toy</span>
+                        IA & Copiloto Ejecutivo
+                    </h2>
+                    <p class="text-sm text-on-surface mt-0.5">Conecta Gemini para respuestas con herramientas reales (ventas, caja, inventario, meseros, platos).</p>
+                </div>
+                @if ($iaEstado === 'conectado')
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-secondary/15 px-3 py-1.5 text-sm font-bold text-secondary border border-secondary/30">
+                        <span>🟢</span><span>Conectado</span>
+                    </span>
+                @elseif ($iaEstado === 'error')
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-error/10 px-3 py-1.5 text-sm font-bold text-error border border-error/30">
+                        <span>🔴</span><span>Error</span>
+                    </span>
+                @else
+                    <span class="inline-flex items-center gap-1.5 rounded-full bg-surface-container-high px-3 py-1.5 text-sm font-bold text-on-surface-variant border border-outline-variant/30">
+                        <span>⚫</span><span>No configurado</span>
+                    </span>
+                @endif
+            </div>
+
+            <form wire:submit="guardarIa" class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label class="flex items-center gap-2 p-3 rounded-2xl bg-surface-container-low border border-outline-variant/20 cursor-pointer min-h-[44px]">
+                        <input type="checkbox" wire:model.live="iaForm.activo" class="rounded text-primary focus:ring-0 w-5 h-5" />
+                        <span class="text-sm font-bold text-on-surface">Copiloto IA activo</span>
+                    </label>
+                    <div>
+                        <label class="text-sm font-bold text-on-surface">Proveedor</label>
+                        <select wire:model="iaForm.proveedor" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-0 min-h-[44px]">
+                            <option value="gemini">Gemini (Google)</option>
+                            <option value="openai">OpenAI</option>
+                        </select>
+                        @error('iaForm.proveedor')
+                            <p class="text-sm text-error font-medium mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-bold text-on-surface">Modelo activo</label>
+                        <input type="text" wire:model="iaForm.modelo" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-0 min-h-[44px]" placeholder="gemini-2.5-flash" />
+                        @error('iaForm.modelo')
+                            <p class="text-sm text-error font-medium mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                    <div>
+                        <label class="text-sm font-bold text-on-surface flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-[16px]">key</span>
+                            Gemini API Key
+                            @if ($iaTieneClave)
+                                <span class="text-xs font-mono text-on-surface">({{ $iaClaveEnmascarada }})</span>
+                            @endif
+                        </label>
+                        <input type="password" wire:model="iaForm.api_key" autocomplete="new-password" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2.5 text-sm text-on-surface focus:border-primary focus:ring-0 min-h-[44px]" placeholder="{{ $iaTieneClave ? 'Dejar vacío para conservar la clave actual' : 'Pega la API Key de Gemini' }}" />
+                        @error('iaForm.api_key')
+                            <p class="text-sm text-error font-medium mt-1">{{ $message }}</p>
+                        @enderror
+                        <p class="text-xs text-on-surface mt-1">Se guarda cifrada. Nunca se muestra completa ni se registra en logs.</p>
+                    </div>
+                </div>
+
+                @if ($iaLatencia !== null || $iaModeloActivo !== '' || $iaUltimoError !== '')
+                    <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-4 text-sm text-on-surface space-y-1">
+                        @if ($iaLatencia !== null)
+                            <p class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">speed</span> Latencia: <strong>{{ $iaLatencia }} ms</strong></p>
+                        @endif
+                        @if ($iaModeloActivo !== '')
+                            <p class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[16px]">memory</span> Modelo: <strong>{{ $iaModeloActivo }}</strong></p>
+                        @endif
+                        @if ($iaUltimoError !== '')
+                            <p class="text-sm font-medium">{{ $iaUltimoError }}</p>
+                        @endif
+                    </div>
+                @endif
+
+                <div class="flex flex-wrap items-center gap-2 pt-1">
+                    <button type="submit" class="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-on-primary shadow-xs cursor-pointer min-h-[44px] min-w-[44px]">
+                        Guardar configuración IA
+                    </button>
+                    <button type="button" wire:click="probarConexionIa" class="rounded-xl bg-secondary px-5 py-2.5 text-sm font-bold text-white shadow-xs cursor-pointer min-h-[44px] min-w-[44px] flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-[16px]">wifi_tethering</span>
+                        Probar conexión
+                    </button>
+                </div>
+            </form>
         </div>
     @endif
 

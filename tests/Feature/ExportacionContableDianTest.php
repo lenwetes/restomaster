@@ -7,6 +7,7 @@ use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\ItemPedido;
 use App\Models\MovimientoCaja;
+use App\Models\NotaCredito;
 use App\Models\Pedido;
 use App\Models\PedidoDevolucion;
 use App\Models\Producto;
@@ -119,15 +120,17 @@ class ExportacionContableDianTest extends TestCase
             'cantidad_devuelta' => 0,
         ]);
 
-        // Registrar una devolución parcial
+        // Registrar una devolución parcial (Fase 8.3: con Nota de Crédito obligatoria)
         $pedidoService = app(PedidoService::class);
+        $ncSiigo = NotaCredito::emitir($pedido, 'error_cargo', $this->gerente, 32400.0);
         $pedidoService->devolverItemPedido(
             item: $item,
             cantidad: 1,
             motivo: 'Bebida extra registrada por error',
             autorizadoPor: 'Gerente Contable',
             usuario: $this->gerente,
-            metodoReembolso: 'efectivo'
+            metodoReembolso: 'efectivo',
+            notaCreditoId: $ncSiigo->id
         );
 
         $service = app(ExportadorContableService::class);
@@ -289,14 +292,16 @@ class ExportacionContableDianTest extends TestCase
             'autorizado_por' => 'Gerente',
         ]);
 
-        // Devolución
+        // Devolución (Fase 8.3: con Nota de Crédito obligatoria)
+        $ncLibro = NotaCredito::emitir($p2, 'error_cargo', $this->gerente, 21600.0);
         app(PedidoService::class)->devolverItemPedido(
             item: $it2,
             cantidad: 1,
             motivo: 'Error de cobro',
             autorizadoPor: 'Gerente',
             usuario: $this->gerente,
-            metodoReembolso: 'efectivo'
+            metodoReembolso: 'efectivo',
+            notaCreditoId: $ncLibro->id
         );
 
         $service = app(ExportadorContableService::class);

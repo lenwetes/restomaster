@@ -98,6 +98,8 @@ new class extends Component
         $this->procesando = true;
 
         try {
+            @set_time_limit(120);
+            @ini_set('max_execution_time', '120');
             $copilotService = app('App\Services\Ai\AdminAiCopilotService');
             $resultado = $copilotService->procesarConsulta($mensaje, $usuario);
 
@@ -183,12 +185,19 @@ new class extends Component
 
 <div 
     x-data="{
-        abierto: @entangle('abierto'),
+        abierto: @entangle('abierto').live,
+        fabVisible: true,
+        ultimoScrollY: 0,
         scrollToBottom() {
             $nextTick(() => {
                 const el = this.$refs.chatContainer;
                 if (el) el.scrollTop = el.scrollHeight;
             });
+        },
+        alHacerScroll() {
+            const y = window.scrollY || 0;
+            this.fabVisible = this.abierto || y < this.ultimoScrollY || y < 120;
+            this.ultimoScrollY = y;
         }
     }"
     x-init="
@@ -202,15 +211,18 @@ new class extends Component
                 abierto = false;
             }
         });
+        window.addEventListener('scroll', () => alHacerScroll(), { passive: true });
         $watch('abierto', (val) => { if (val) scrollToBottom(); });
     "
     class="relative z-[90]"
 >
     <!-- Floating Launcher Trigger Button (Desktop & Mobile, bottom-right) -->
+    <!-- Se oculta al bajar scroll o con el panel abierto para no tapar el contenido -->
     <button 
         @click="abierto = true; scrollToBottom();"
         type="button"
         title="Copiloto Ejecutivo IA (Ctrl+K)"
+        :class="{ 'translate-y-24 opacity-0 pointer-events-none': !fabVisible || abierto }"
         class="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-rose-600 text-white font-bold text-sm shadow-[0_8px_30px_rgba(217,119,6,0.4)] hover:shadow-[0_12px_40px_rgba(217,119,6,0.6)] hover:scale-105 active:scale-95 transition-all duration-200 border border-amber-300/30 group"
     >
         <span class="material-symbols-outlined text-[22px] group-hover:rotate-12 transition-transform duration-300">smart_toy</span>
@@ -340,7 +352,7 @@ new class extends Component
                                         $maxValor = !empty($graf['valores']) ? max(1, ...$graf['valores']) : 1;
                                     @endphp
 
-                                    <div class="mt-3 bg-surface-container-lowest p-3.5 rounded-xl border border-surface-container-high space-y-3">
+                                    <div class="mt-3 bg-surface-container-lowest p-3.5 rounded-xl border border-surface-container-high space-y-3" x-data='{ grafExport: {{ Js::from($graf) }} }'>
                                         <div class="flex items-center justify-between">
                                             <div>
                                                 <span class="text-xs font-bold text-on-surface flex items-center gap-1.5">
@@ -353,9 +365,19 @@ new class extends Component
                                                     <span class="text-[10px] text-on-surface-variant block">{{ $graf['subtitulo'] }}</span>
                                                 @endif
                                             </div>
-                                            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
-                                                {{ strtoupper($graf['unidad'] ?? 'DATOS') }}
-                                            </span>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                                                    {{ strtoupper($graf['unidad'] ?? 'DATOS') }}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    @click="window.__copilotoDescargarGrafico(grafExport)"
+                                                    title="Descargar gráfico como imagen PNG"
+                                                    class="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-surface-container-high transition-colors"
+                                                >
+                                                    <span class="material-symbols-outlined text-[16px]">download</span>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <!-- Tipo 1: Barras Verticales Interactivas -->
@@ -444,6 +466,53 @@ new class extends Component
                                             </div>
                                         @endif
                                     </div>
+                                @endif
+
+                                {{-- WIDGET: Tabla de resultados SQL Analytics --}}
+                                @if(($msg['datos']['tool'] ?? '') === 'ejecutar_sql_analytics' && !empty($msg['datos']['resultado_tool']['filas']))
+                                    @php
+                                        $sqlResult = $msg['datos']['resultado_tool'];
+                                        $sqlFilas = $sqlResult['filas'] ?? [];
+                                        $sqlCols  = $sqlResult['columnas'] ?? (!empty($sqlFilas) ? array_keys($sqlFilas[0]) : []);
+                                        $sqlTotal = $sqlResult['total_filas'] ?? count($sqlFilas);
+                                    @endphp
+                                    @if(!empty($sqlCols) && !empty($sqlFilas))
+                                        <div class="mt-3 rounded-xl border border-surface-container-high overflow-hidden">
+                                            <div class="overflow-x-auto max-h-56">
+                                                <table class="w-full text-[11px] text-on-surface border-collapse min-w-max">
+                                                    <thead>
+                                                        <tr class="bg-surface-container-high sticky top-0">
+                                                            @foreach($sqlCols as $col)
+                                                                <th class="px-2.5 py-1.5 text-left font-bold text-on-surface-variant uppercase tracking-wider whitespace-nowrap border-b border-surface-container-highest">
+                                                                    {{ ucwords(str_replace('_', ' ', $col)) }}
+                                                                </th>
+                                                            @endforeach
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach(array_slice($sqlFilas, 0, 15) as $fila)
+                                                            <tr class="border-b border-surface-container hover:bg-surface-container-low transition-colors">
+                                                                @foreach($sqlCols as $col)
+                                                                    @php
+                                                                        $cell = $fila[$col] ?? '';
+                                                                        $isNum = is_numeric($cell) && abs($cell) > 999;
+                                                                    @endphp
+                                                                    <td class="px-2.5 py-1.5 whitespace-nowrap {{ $isNum ? 'font-mono font-bold text-primary text-right' : 'text-on-surface' }}">
+                                                                        {{ $isNum ? '$'.number_format((float)$cell, 0, ',', '.') : $cell }}
+                                                                    </td>
+                                                                @endforeach
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            @if($sqlTotal > 15)
+                                                <div class="px-3 py-1.5 bg-surface-container text-[10px] text-on-surface-variant text-center border-t border-surface-container-high">
+                                                    Mostrando 15 de {{ $sqlTotal }} registros totales
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
                                 @endif
 
                                 <!-- WIDGET: Tarjeta Infográfica Ejecutiva -->
@@ -603,13 +672,10 @@ new class extends Component
                     <input 
                         wire:model="input"
                         type="text" 
-                        placeholder="Pregúntale al Copiloto (ej. 'ventas en caja 1', 'ventas del martes')..."
-                        class="w-full px-4 py-3 rounded-2xl bg-surface-container-lowest border border-surface-container-highest focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm text-on-surface placeholder:text-on-surface-variant transition-all outline-none pr-10"
+                        placeholder="Pregunta cualquier cosa: ventas, caja, insumos, reservas..."
+                        class="w-full px-4 py-3 rounded-2xl bg-surface-container-lowest border border-surface-container-highest focus:border-primary focus:ring-2 focus:ring-primary/20 text-sm text-on-surface placeholder:text-on-surface-variant transition-all outline-none"
                         autofocus
                     />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
-                        <kbd class="px-1.5 py-0.5 text-[10px] font-mono bg-surface-container rounded border border-surface-container-highest">Enter</kbd>
-                    </span>
                 </div>
 
                 <button 
@@ -626,3 +692,230 @@ new class extends Component
         </div>
     </div>
 </div>
+
+<script>
+/* Exporta el payload de gráfico del copiloto (bar/doughnut/ranking) a PNG en alta resolución. */
+if (!window.__copilotoDescargarGrafico) (function () {
+  function fmtCorto(v) {
+    v = Number(v) || 0;
+    if (Math.abs(v) >= 1000000) {
+      var m = v / 1000000;
+      return '$' + (Math.round(m * 10) / 10).toString().replace('.', ',') + ' M';
+    }
+    return '$' + Math.round(v).toLocaleString('es-CO');
+  }
+
+  function slug(s) {
+    return String(s || 'grafico')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, 0);
+    ctx.arcTo(x, y + h, x, y, 0);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function text(ctx, s, x, y, size, color, align, bold) {
+    ctx.fillStyle = color;
+    ctx.font = (bold ? '700 ' : '400 ') + size + 'px "Plus Jakarta Sans", Arial, sans-serif';
+    ctx.textAlign = align || 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(s), x, y);
+  }
+
+  function descargar(blob, nombre) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 500);
+  }
+
+  function dibujarBarras(ctx, g, W, H, padL, padR, padT, padB, FG, MUT, GRID) {
+    var etiquetas = g.etiquetas || [];
+    var valores = (g.valores || []).map(Number);
+    var fmts = g.valores_formateados || [];
+    var colores = g.colores && g.colores.length ? g.colores : ['#e0442e'];
+    var n = valores.length;
+    var maxV = Math.max.apply(null, valores.concat([1]));
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+    var i, gy;
+    ctx.strokeStyle = GRID;
+    ctx.lineWidth = 2;
+    for (i = 0; i <= 4; i++) {
+      gy = padT + plotH - (plotH * i) / 4;
+      ctx.beginPath();
+      ctx.moveTo(padL, gy);
+      ctx.lineTo(W - padR, gy);
+      ctx.stroke();
+      text(ctx, fmtCorto((maxV * i) / 4), padL - 18, gy, 24, MUT, 'right', false);
+    }
+    var slot = plotW / n;
+    var bw = Math.min(slot * 0.62, 90);
+    var step = Math.ceil(n / 24);
+    for (i = 0; i < n; i++) {
+      var v = valores[i];
+      var bh = Math.max(6, (plotH * v) / maxV);
+      var x = padL + slot * i + (slot - bw) / 2;
+      var y = padT + plotH - bh;
+      ctx.fillStyle = colores[i % colores.length];
+      roundRect(ctx, x, y, bw, bh, 10);
+      ctx.fill();
+      if (n <= 31) {
+        text(ctx, fmts[i] || fmtCorto(v), x + bw / 2, y - 28, 24, FG, 'center', true);
+      }
+      if (i % step === 0) {
+        text(ctx, etiquetas[i] || '', x + bw / 2, padT + plotH + 38, 24, MUT, 'center', false);
+      }
+    }
+  }
+
+  function dibujarDona(ctx, g, W, H, padL, padR, padT, padB, FG, MUT) {
+    var etiquetas = g.etiquetas || [];
+    var valores = (g.valores || []).map(Number);
+    var fmts = g.valores_formateados || [];
+    var pcts = g.porcentajes || [];
+    var colores = g.colores && g.colores.length ? g.colores : ['#6b7280'];
+    var total = valores.reduce(function (a, b) { return a + b; }, 0) || 1;
+    var cx = padL + 330;
+    var cy = padT + (H - padT - padB) / 2;
+    var R = 250;
+    var r = 155;
+    var ang = -Math.PI / 2;
+    var i;
+    for (i = 0; i < valores.length; i++) {
+      var frac = valores[i] / total;
+      if (frac <= 0) continue;
+      ctx.fillStyle = colores[i % colores.length];
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, ang, ang + frac * Math.PI * 2);
+      ctx.arc(cx, cy, r, ang + frac * Math.PI * 2, ang, true);
+      ctx.closePath();
+      ctx.fill();
+      ang += frac * Math.PI * 2;
+    }
+    text(ctx, fmtCorto(total), cx, cy - 18, 52, FG, 'center', true);
+    text(ctx, 'TOTAL', cx, cy + 30, 26, MUT, 'center', false);
+    var lx = cx + R + 110;
+    var ly = padT + 10;
+    for (i = 0; i < etiquetas.length; i++) {
+      var lyRow = ly + i * 84;
+      if (lyRow > H - padB) break;
+      ctx.fillStyle = colores[i % colores.length];
+      ctx.beginPath();
+      ctx.arc(lx, lyRow, 16, 0, Math.PI * 2);
+      ctx.fill();
+      text(ctx, etiquetas[i], lx + 36, lyRow - 14, 30, FG, 'left', true);
+      text(ctx, (fmts[i] || fmtCorto(valores[i])) + '  (' + (pcts[i] || 0) + '%)', lx + 36, lyRow + 26, 28, MUT, 'left', false);
+    }
+  }
+
+  function dibujarRanking(ctx, g, W, H, padL, padR, padT, padB, FG, MUT, GRID) {
+    var etiquetas = g.etiquetas || [];
+    var valores = (g.valores || []).map(Number);
+    var fmts = g.valores_formateados || [];
+    var colores = g.colores && g.colores.length ? g.colores : ['#e0442e'];
+    var n = etiquetas.length;
+    var maxV = Math.max.apply(null, valores.concat([1]));
+    var plotW = W - padL - padR;
+    var rowH = (H - padT - padB) / n;
+    for (var i = 0; i < n; i++) {
+      var y = padT + rowH * i;
+      var cyRow = y + rowH / 2;
+      ctx.fillStyle = colores[i % colores.length];
+      ctx.beginPath();
+      ctx.arc(padL + 30, cyRow, 26, 0, Math.PI * 2);
+      ctx.fill();
+      text(ctx, String(i + 1), padL + 30, cyRow + 1, 28, '#ffffff', 'center', true);
+      var label = String(etiquetas[i] || '');
+      if (label.length > 34) label = label.slice(0, 33) + '…';
+      text(ctx, label, padL + 76, cyRow, 30, FG, 'left', true);
+      var valTxt = fmts[i] || fmtCorto(valores[i]);
+      text(ctx, valTxt, W - padR, cyRow, 30, FG, 'right', true);
+      var barW = (plotW - 620) * (valores[i] / maxV);
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      roundRect(ctx, padL + 560, cyRow - 16, plotW - 620, 32, 16);
+      ctx.fill();
+      if (barW > 4) {
+        ctx.fillStyle = colores[i % colores.length];
+        roundRect(ctx, padL + 560, cyRow - 16, barW, 32, 16);
+        ctx.fill();
+      }
+      ctx.strokeStyle = GRID;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, y + rowH);
+      ctx.lineTo(W - padR, y + rowH);
+      ctx.stroke();
+    }
+  }
+
+  window.__copilotoDescargarGrafico = function (graf) {
+    if (!graf || !graf.valores || !graf.valores.length) return;
+    var tipo = graf.tipo || 'bar';
+    var n = graf.valores.length;
+    var W = 1600;
+    var H = tipo === 'ranking' ? 340 + n * 96 : tipo === 'doughnut' ? 900 : 940;
+    var padL = 130;
+    var padR = 80;
+    var padT = 190;
+    var padB = tipo === 'bar' ? 150 : 90;
+    var BG = '#211511';
+    var FG = '#f5e9dc';
+    var MUT = '#b8a48f';
+    var GRID = 'rgba(255,255,255,0.08)';
+    var cv = document.createElement('canvas');
+    cv.width = W;
+    cv.height = H;
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, W, H);
+    text(ctx, graf.titulo || 'Gráfico', padL, 66, 46, FG, 'left', true);
+    if (graf.subtitulo) text(ctx, graf.subtitulo, padL, 124, 28, MUT, 'left', false);
+    var fecha = new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
+    text(ctx, 'RestoMaster • ' + fecha, W - padR, 66, 24, MUT, 'right', false);
+    if (tipo === 'doughnut') {
+      dibujarDona(ctx, graf, W, H, padL, padR, padT, padB, FG, MUT);
+    } else if (tipo === 'ranking') {
+      dibujarRanking(ctx, graf, W, H, padL, padR, padT, padB, FG, MUT, GRID);
+    } else {
+      dibujarBarras(ctx, graf, W, H, padL, padR, padT, padB, FG, MUT, GRID);
+    }
+    var d = new Date();
+    var sello =
+      d.getFullYear().toString() +
+      String(d.getMonth() + 1).padStart(2, '0') +
+      String(d.getDate()).padStart(2, '0');
+    var nombre = slug(graf.titulo) + '-' + sello + '.png';
+    if (cv.toBlob) {
+      cv.toBlob(function (blob) {
+        if (blob) descargar(blob, nombre);
+      }, 'image/png');
+    } else {
+      var a = document.createElement('a');
+      a.href = cv.toDataURL('image/png');
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  };
+})();
+</script>

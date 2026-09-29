@@ -8,6 +8,7 @@ use App\Models\Compra;
 use App\Models\CuentaPorPagar;
 use App\Models\Insumo;
 use App\Models\Mesa;
+use App\Models\NotaCredito;
 use App\Models\Pedido;
 use App\Models\Proveedor;
 use App\Models\Reserva;
@@ -19,6 +20,7 @@ use App\Policies\CompraPolicy;
 use App\Policies\CuentaPorPagarPolicy;
 use App\Policies\InsumoPolicy;
 use App\Policies\MesaPolicy;
+use App\Policies\NotaCreditoPolicy;
 use App\Policies\PedidoPolicy;
 use App\Policies\ProveedorPolicy;
 use App\Policies\ReservaPolicy;
@@ -79,6 +81,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(CuentaPorPagar::class, CuentaPorPagarPolicy::class);
         Gate::policy(Reserva::class, ReservaPolicy::class);
         Gate::policy(Mesa::class, MesaPolicy::class);
+        Gate::policy(NotaCredito::class, NotaCreditoPolicy::class);
         Gate::policy(Proveedor::class, ProveedorPolicy::class);
         Gate::policy(Compra::class, CompraPolicy::class);
 

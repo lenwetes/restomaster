@@ -10,6 +10,7 @@ enum PedidoEstado: string
     case EN_PROCESO = 'en_proceso';
     case LISTO = 'listo';
     case ENTREGADO = 'entregado';
+    case PENDIENTE_COBRO = 'pendiente_cobro';
     case PAGADO = 'pagado';
     case CANCELADO = 'cancelado';
 
@@ -22,6 +23,7 @@ enum PedidoEstado: string
             self::EN_PROCESO => 'En Preparación',
             self::LISTO => 'Listo para Servir',
             self::ENTREGADO => 'Entregado a Mesa',
+            self::PENDIENTE_COBRO => 'Pendiente de Cobro en Caja',
             self::PAGADO => 'Pagado',
             self::CANCELADO => 'Cancelado',
         };
@@ -36,6 +38,7 @@ enum PedidoEstado: string
             self::EN_PROCESO => 'orange',
             self::LISTO => 'blue',
             self::ENTREGADO => 'purple',
+            self::PENDIENTE_COBRO => 'amber',
             self::PAGADO => 'emerald',
             self::CANCELADO => 'red',
         };

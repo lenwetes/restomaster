@@ -2,6 +2,7 @@
 
 use App\Models\Caja;
 use App\Models\ItemPedido;
+use App\Models\NotaCredito;
 use App\Models\Pedido;
 use App\Models\TurnoCaja;
 use App\Models\User;
@@ -94,9 +95,94 @@ new class extends Component
     public string $metodoReembolsoDevolucion = 'efectivo';
     public string $pinAutorizacionDevolucion = '';
     public string $supervisorNombreDevolucion = '';
+    public string $motivoNcDevolucion = 'error_cargo';
+    public string $descripcionNcDevolucion = '';
+
+    // Fase 8.1 — Cobros pendientes solicitados por meseros
+    public bool $mostrarModalCobroPendiente = false;
+    public ?int $cobroPendienteId = null;
+    public string $metodoPagoPendiente = 'efectivo';
+    public float $montoPagadoPendiente = 0.0;
+    public float $propinaPendiente = 0.0;
+
+    /**
+     * Fase 8.1 — Solicitudes de cobro pendientes de la sucursal.
+     */
+    public function cobrosPendientes()
+    {
+        $sucursalId = Auth::user()?->sucursal_id;
+
+        return Pedido::with(['mesa', 'mesero', 'usuario'])
+            ->where('estado', 'pendiente_cobro')
+            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
+            ->orderBy('updated_at')
+            ->get();
+    }
+
+    public function abrirCobroPendiente(int $pedidoId): void
+    {
+        $this->authorize('cobrar', Pedido::class);
+
+        $pedido = Pedido::with(['mesa', 'mesero'])->findOrFail($pedidoId);
+        abort_if($pedido->estado !== 'pendiente_cobro', 422, 'El pedido ya no está pendiente de cobro.');
+        abort_if(Auth::user()?->sucursal_id && $pedido->sucursal_id !== Auth::user()->sucursal_id, 403);
+
+        $this->cobroPendienteId = $pedido->id;
+        $this->metodoPagoPendiente = 'efectivo';
+        $this->montoPagadoPendiente = (float) $pedido->total;
+        $this->propinaPendiente = 0.0;
+        $this->resetErrorBag();
+        $this->mostrarModalCobroPendiente = true;
+    }
+
+    public function cerrarCobroPendiente(): void
+    {
+        $this->mostrarModalCobroPendiente = false;
+        $this->cobroPendienteId = null;
+        $this->resetErrorBag();
+    }
+
+    public function cobrarPendiente(): void
+    {
+        $this->authorize('cobrar', Pedido::class);
+
+        $this->validate([
+            'cobroPendienteId' => ['required', 'integer', 'exists:pedidos,id'],
+            'metodoPagoPendiente' => ['required', 'string', 'max:30'],
+            'montoPagadoPendiente' => ['required', 'numeric', 'min:0'],
+            'propinaPendiente' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $pedido = Pedido::findOrFail($this->cobroPendienteId);
+        abort_if($pedido->estado !== 'pendiente_cobro', 422, 'El pedido ya no está pendiente de cobro.');
+        abort_if(Auth::user()?->sucursal_id && $pedido->sucursal_id !== Auth::user()->sucursal_id, 403);
+
+        try {
+            app(\App\Services\PedidoService::class)->cobrarPedido(
+                $pedido,
+                $this->metodoPagoPendiente,
+                (float) $this->montoPagadoPendiente,
+                null,
+                (float) ($this->propinaPendiente ?? 0.0),
+                0.0
+            );
+        } catch (\Throwable $e) {
+            $this->addError('montoPagadoPendiente', $e->getMessage());
+
+            return;
+        }
+
+        $this->cerrarCobroPendiente();
+        $this->dispatch('notificacion', [
+            'mensaje' => "Cobro procesado: {$pedido->codigo}. Ticket generado para el mesero.",
+            'tipo' => 'success',
+        ]);
+    }
 
     public function abrirModalDevolucion(int $itemId): void
     {
+        $this->authorize('create', NotaCredito::class);
+
         $item = ItemPedido::with(['pedido', 'producto'])->findOrFail($itemId);
         if ($item->cantidadDisponibleDevolucion() <= 0) {
             $this->dispatch('notificacion', ['mensaje' => 'Este ítem ya fue devuelto en su totalidad.', 'tipo' => 'warning']);
@@ -107,6 +193,8 @@ new class extends Component
         $this->itemSeleccionadoDevolucion = $item;
         $this->cantidadDevolucion = 1;
         $this->motivoDevolucion = 'Error de digitación del cajero';
+        $this->motivoNcDevolucion = 'error_cargo';
+        $this->descripcionNcDevolucion = '';
         $this->metodoReembolsoDevolucion = $item->pedido?->metodo_pago ?? 'efectivo';
         $this->pinAutorizacionDevolucion = '';
         $this->supervisorNombreDevolucion = '';
@@ -145,6 +233,14 @@ new class extends Component
             return;
         }
 
+        $this->authorize('create', NotaCredito::class);
+
+        $this->validate([
+            'motivoNcDevolucion' => ['required', 'string', 'in:error_cargo,producto_defectuoso,cambio_pedido,otro'],
+            'descripcionNcDevolucion' => ['nullable', 'string', 'max:500'],
+            'cantidadDevolucion' => ['required', 'integer', 'min:1'],
+        ]);
+
         $user = Auth::user();
         $configSvc = app(\App\Services\ConfiguracionService::class);
         $esSupervisor = $user && in_array($user->role?->slug, ['admin', 'gerente'], true);
@@ -177,13 +273,26 @@ new class extends Component
         }
 
         try {
+            $item = $this->itemSeleccionadoDevolucion;
+            $montoNc = round((float) $item->precio_unitario * (int) $this->cantidadDevolucion, 2);
+
+            // Fase 8.3 — Nota de Crédito obligatoria antes de devolver.
+            $notaCredito = NotaCredito::emitir(
+                pedido: $item->pedido,
+                motivo: $this->motivoNcDevolucion,
+                autorizadoPor: $user,
+                monto: $montoNc,
+                descripcion: trim($this->descripcionNcDevolucion) !== '' ? trim($this->descripcionNcDevolucion) : $this->motivoDevolucion
+            );
+
             $devolucion = app(\App\Services\PedidoService::class)->devolverItemPedido(
                 item: $this->itemSeleccionadoDevolucion,
                 cantidad: $this->cantidadDevolucion,
                 motivo: $this->motivoDevolucion,
                 autorizadoPor: $autorizadoPor,
                 usuario: $user,
-                metodoReembolso: $this->metodoReembolsoDevolucion
+                metodoReembolso: $this->metodoReembolsoDevolucion,
+                notaCreditoId: $notaCredito->id
             );
 
             $nombreProducto = $this->itemSeleccionadoDevolucion->nombre_producto;
@@ -196,7 +305,7 @@ new class extends Component
             }
 
             $this->dispatch('notificacion', [
-                'mensaje' => "Devolución exitosa: {$devolucion->cantidad}x {$nombreProducto} (-$" . $monto . '). Stock e inventario reajustados.',
+                'mensaje' => "Devolución exitosa con {$notaCredito->numero_nc}: {$devolucion->cantidad}x {$nombreProducto} (-$" . $monto . '). Stock e inventario reajustados.',
                 'tipo' => 'success',
             ]);
         } catch (\Throwable $e) {
@@ -676,6 +785,7 @@ new class extends Component
             'gastosPorCaja' => $gastosPorCaja,
             'comparativaCajas' => $comparativaCajas,
             'ticketConfig' => $ticketConfig,
+            'cobrosPendientes' => $this->cobrosPendientes(),
         ];
     }
 }; ?>
@@ -691,6 +801,11 @@ new class extends Component
                 <span class="rounded-full bg-secondary-container/50 px-2.5 py-0.5 text-[11px] font-bold text-on-secondary-container border border-secondary/30">
                     CAJ-01
                 </span>
+                @if($cobrosPendientes->count() > 0)
+                    <span class="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-black text-amber-500 border border-amber-500/40 animate-pulse">
+                        Cobros Pendientes: {{ $cobrosPendientes->count() }}
+                    </span>
+                @endif
             </div>
             <p class="text-xs text-on-surface-variant mt-0.5">
                 Sesiones independientes, arqueo ciego, control de efectivo y cierre fiscal Z
@@ -723,6 +838,91 @@ new class extends Component
             </a>
         </div>
     </header>
+
+    <!-- Fase 8.1 — Cobros Pendientes solicitados por meseros -->
+    @if($cobrosPendientes->count() > 0)
+        <div class="rounded-3xl border border-amber-500/30 bg-surface-container-lowest p-5 shadow-sm space-y-3 animate-fade-in">
+            <div class="flex items-center justify-between gap-2">
+                <h2 class="text-sm font-extrabold text-on-surface flex items-center gap-2">
+                    <span class="material-symbols-outlined text-amber-500 text-[20px]">pending_actions</span>
+                    Cobros Pendientes
+                    <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-black text-amber-500 border border-amber-500/40">{{ $cobrosPendientes->count() }}</span>
+                </h2>
+                <p class="text-[11px] text-on-surface-variant font-medium">Solicitudes de salón en tiempo real</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                @foreach($cobrosPendientes as $pendiente)
+                    <div class="rounded-2xl bg-surface-container-low border border-outline-variant/20 p-3.5 flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-sm font-black text-on-surface">{{ $pendiente->mesa ? 'Mesa '.$pendiente->mesa->numero : $pendiente->codigo }}</span>
+                                <span class="text-[11px] text-on-surface-variant">{{ $pendiente->mesero?->name ?? $pendiente->usuario?->name ?? 'Mesero' }}</span>
+                            </div>
+                            <p class="text-[11px] text-on-surface-variant mt-0.5">
+                                ${{ number_format((float) $pendiente->total, 0, ',', '.') }} · en espera {{ $pendiente->updated_at?->diffForHumans(null, true) ?? '' }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            wire:click="abrirCobroPendiente({{ $pendiente->id }})"
+                            class="shrink-0 rounded-xl bg-secondary px-4 py-2.5 text-xs font-black text-white shadow-sm hover:bg-secondary-fixed-dim active:scale-95 transition cursor-pointer min-h-[44px]"
+                        >
+                            Procesar cobro
+                        </button>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
+    @if($mostrarModalCobroPendiente && $cobroPendienteId)
+        @php $pedidoPendiente = $cobrosPendientes->firstWhere('id', $cobroPendienteId); @endphp
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest text-on-surface p-6 shadow-2xl border border-outline-variant/20 space-y-4">
+                <div class="flex items-center justify-between border-b border-outline-variant/15 pb-3">
+                    <h3 class="text-sm font-black text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary text-[18px]">point_of_sale</span>
+                        Cobrar solicitud de salón
+                    </h3>
+                    <button type="button" wire:click="cerrarCobroPendiente" class="text-on-surface-variant hover:text-on-surface cursor-pointer">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                @if($pedidoPendiente)
+                    <div class="rounded-2xl bg-surface-container-low p-3.5 border border-outline-variant/20 text-xs space-y-1">
+                        <p class="font-black text-on-surface text-sm">{{ $pedidoPendiente->mesa ? 'Mesa '.$pedidoPendiente->mesa->numero : $pedidoPendiente->codigo }}</p>
+                        <p class="text-on-surface-variant">Mesero: {{ $pedidoPendiente->mesero?->name ?? '—' }} · Total: ${{ number_format((float) $pedidoPendiente->total, 0, ',', '.') }}</p>
+                    </div>
+                @endif
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-on-surface">Método de pago</label>
+                        <select wire:model="metodoPagoPendiente" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2.5 text-xs text-on-surface focus:border-primary focus:ring-0 min-h-[44px]">
+                            <option value="efectivo">Efectivo</option>
+                            <option value="tarjeta">Tarjeta</option>
+                            <option value="transferencia">Transferencia</option>
+                            <option value="mixto">Mixto</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-on-surface">Monto recibido</label>
+                        <input type="number" min="0" step="100" wire:model="montoPagadoPendiente" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2.5 text-xs text-on-surface focus:border-primary focus:ring-0 min-h-[44px]" />
+                        @error('montoPagadoPendiente')
+                            <p class="text-xs text-error font-medium mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-on-surface">Propina (opcional)</label>
+                    <input type="number" min="0" step="100" wire:model="propinaPendiente" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2.5 text-xs text-on-surface focus:border-primary focus:ring-0 min-h-[44px]" />
+                </div>
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" wire:click="cerrarCobroPendiente" class="rounded-xl px-4 py-2.5 font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer min-h-[44px]">Cancelar</button>
+                    <button type="button" wire:click="cobrarPendiente" class="rounded-xl bg-secondary px-5 py-2.5 font-black text-white shadow-sm hover:bg-secondary-fixed-dim cursor-pointer min-h-[44px]">Confirmar cobro</button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     <!-- PESTAÑAS DE NAVEGACIÓN: OPERACIÓN EN VIVO / GESTIÓN POR CAJA / COMPARATIVO -->
     <div class="flex items-center gap-2 p-1.5 bg-surface-container rounded-2xl border border-surface-container-highest max-w-xl">
@@ -2452,6 +2652,24 @@ new class extends Component
                             +
                         </button>
                     </div>
+                </div>
+
+                <!-- NOTA DE CRÉDITO OBLIGATORIA (Fase 8.3) -->
+                <div class="space-y-1 rounded-2xl bg-error/5 border border-error/25 p-3">
+                    <label class="text-xs font-black text-on-surface flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-error text-[16px]">receipt_long</span>
+                        Nota de Crédito obligatoria
+                    </label>
+                    <select wire:model="motivoNcDevolucion" class="w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2.5 text-xs text-on-surface focus:border-primary focus:ring-0 min-h-[44px]">
+                        <option value="error_cargo">Error de cargo / cobro de más</option>
+                        <option value="producto_defectuoso">Producto defectuoso</option>
+                        <option value="cambio_pedido">Cambio de pedido</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                    @error('motivoNcDevolucion')
+                        <p class="text-xs text-error font-medium">{{ $message }}</p>
+                    @enderror
+                    <textarea wire:model="descripcionNcDevolucion" rows="2" maxlength="500" placeholder="Detalle adicional de la NC (opcional)" class="w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0"></textarea>
                 </div>
 
                 <!-- MOTIVO -->

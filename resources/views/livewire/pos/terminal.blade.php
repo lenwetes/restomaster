@@ -6,6 +6,7 @@ use App\Models\Pedido;
 use App\Models\Producto;
 use App\Services\ConfiguracionService;
 use App\Services\PedidoService;
+use App\Services\TurnoSemanalService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
@@ -57,6 +58,15 @@ new class extends Component
     public bool $habeasWhatsapp = true;
 
     public bool $habeasEmailPromos = true;
+
+    // Fase 4 — Aviso interactivo de horario semanal al login del mesero
+    public bool $mostrarModalTurnoSemanal = false;
+
+    public array $turnoSemanalDias = [];
+
+    public string $turnoSemanalEtiqueta = '';
+
+    public bool $turnoSemanalPuedePosponer = true;
 
     public float $costoEnvio = 8000.0;
 
@@ -183,6 +193,75 @@ new class extends Component
                 $this->cargarCarritoDesdePedido($pedidoExistente);
             }
         }
+
+        $this->verificarAvisoTurnoSemanal();
+    }
+
+    /**
+     * Fase 4.1 — Detecta horario semanal publicado sin confirmar al ingresar al POS.
+     * Solo meseros; el modal se muestra y se emite evento Alpine.
+     */
+    public function verificarAvisoTurnoSemanal(): void
+    {
+        $usuario = Auth::user();
+
+        if (! $usuario || ! $usuario->isMesero()) {
+            return;
+        }
+
+        $pendiente = app(TurnoSemanalService::class)->pendienteConfirmacion($usuario);
+
+        if ($pendiente === null) {
+            $this->mostrarModalTurnoSemanal = false;
+
+            return;
+        }
+
+        $programacion = $pendiente['programacion'];
+        $this->turnoSemanalEtiqueta = 'SEMANA '.$programacion->semana_iso.' / '.$programacion->anio;
+        $this->turnoSemanalDias = $pendiente['turnos']->map(fn ($t) => [
+            'fecha' => $t->fecha->toDateString(),
+            'dia' => Str::upper($t->fecha->locale('es')->dayName),
+            'zona' => $t->es_descanso ? null : ($t->zona?->nombre ?? 'Sin zona'),
+            'plantilla' => $t->es_descanso ? null : $t->plantilla?->nombre,
+            'es_descanso' => (bool) $t->es_descanso,
+        ])->values()->all();
+        $this->turnoSemanalPuedePosponer = ((int) session()->get('turno_semanal_pospuestas', 0)) < 1;
+        $this->mostrarModalTurnoSemanal = true;
+
+        app(TurnoSemanalService::class)->asegurarNotificacionRespaldo($usuario);
+
+        $this->dispatch('mostrar-modal-turno-semanal');
+    }
+
+    /**
+     * Fase 4.2 — El mesero confirma su horario semanal.
+     */
+    public function confirmarTurnoSemanal(): void
+    {
+        $usuario = Auth::user();
+
+        if (! $usuario) {
+            return;
+        }
+
+        // Seguridad: cada mesero solo confirma su propio horario (alcance propio).
+        if ($usuario->isMesero()) {
+            app(TurnoSemanalService::class)->confirmarHorario($usuario);
+        }
+
+        session()->forget('turno_semanal_pospuestas');
+        $this->mostrarModalTurnoSemanal = false;
+        $this->dispatch('notificacion', ['mensaje' => 'Horario semanal confirmado. ¡Buen turno!', 'tipo' => 'success']);
+    }
+
+    /**
+     * Fase 4.2 — Posponer una sola vez por sesión ("Ver más tarde").
+     */
+    public function posponerTurnoSemanal(): void
+    {
+        session()->put('turno_semanal_pospuestas', ((int) session()->get('turno_semanal_pospuestas', 0)) + 1);
+        $this->mostrarModalTurnoSemanal = false;
     }
 
     public function updatedMesaId(mixed $value): void
@@ -1247,6 +1326,59 @@ new class extends Component
         $this->limpiarCarrito();
     }
 
+    /**
+     * Fase 8.1 — El mesero solicita el cobro a caja en lugar de cobrar.
+     */
+    public function solicitarCobroCaja(): void
+    {
+        $this->authorize('solicitarCobro', Pedido::class);
+
+        if ($this->tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'Debes enviar la comanda a cocina antes de solicitar el cobro.',
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
+
+        if ($this->esMesaDeOtroMesero()) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'Esta mesa está asignada a otro mesero.',
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
+
+        $pedido = $this->obtenerPedidoActivoMesa();
+
+        if (! $pedido) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'No hay comanda activa para solicitar el cobro.',
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
+
+        try {
+            app(PedidoService::class)->solicitarCobroCaja($pedido, Auth::user());
+        } catch (\Throwable $e) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'No se pudo enviar la solicitud: '.$e->getMessage(),
+                'tipo' => 'error',
+            ]);
+
+            return;
+        }
+
+        $this->dispatch('notificacion', [
+            'mensaje' => '✅ Solicitud enviada a caja. Espera confirmación.',
+            'tipo' => 'success',
+        ]);
+    }
+
     public function previsualizarUltimoTicketPos(): void
     {
         $ultimo = Pedido::with(['items.producto', 'mesa', 'mesero', 'usuario'])
@@ -2123,7 +2255,19 @@ new class extends Component
                                             <span>{{ $this->comandaYaEnviadaACocina() ? '✓ En Cocina' : ($this->cantidadNuevosItemsParaCocina() > 0 && $this->obtenerPedidoActivoMesa() ? 'Enviar +'.$this->cantidadNuevosItemsParaCocina().' Cocina' : 'Enviar Cocina') }}</span>
                                         </button>
                                     @endif
-                                    <button 
+                                    @if (Auth::user()?->isMesero())
+                                        <button
+                                            wire:click="solicitarCobroCaja"
+                                            type="button"
+                                            @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
+                                            class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 bg-gradient-to-r from-[#2eb8b4] to-[#1e8e8a] text-white hover:brightness-110"
+                                            title="Solicitar el cobro de la mesa a Caja"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px]">forward_to_inbox</span>
+                                            <span>📲 Solicitar cobro a Caja</span>
+                                        </button>
+                                    @else
+                                    <button
                                         wire:click="abrirModalCobro"
                                         type="button"
                                         @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
@@ -2133,6 +2277,7 @@ new class extends Component
                                         <span class="material-symbols-outlined text-[18px]">{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'skillet' : ($this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments'))) }}</span>
                                         <span>{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'Enviar a Cocina Primero' : ($this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa de Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar Pedido'))) }}</span>
                                     </button>
+                                    @endif
                                 </div>
                                 @if($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
                                     <p class="text-[10px] text-center font-bold text-amber-500 bg-amber-500/15 py-1 px-2 rounded-lg border border-amber-500/30 flex items-center justify-center gap-1">
@@ -3149,7 +3294,19 @@ new class extends Component
                                     <span>{{ $this->comandaYaEnviadaACocina() ? '✓ En Cocina' : ($this->cantidadNuevosItemsParaCocina() > 0 && $this->obtenerPedidoActivoMesa() ? 'Enviar (+'.$this->cantidadNuevosItemsParaCocina().') Cocina' : 'Enviar a Cocina ('.count($carrito).')') }}</span>
                                 </button>
                             @endif
-                            <button 
+                            @if (Auth::user()?->isMesero())
+                                <button
+                                    wire:click="solicitarCobroCaja"
+                                    type="button"
+                                    @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
+                                    class="h-11 rounded-xl bg-gradient-to-r from-[#2eb8b4] to-[#1e8e8a] hover:brightness-110 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Solicitar el cobro de la mesa a Caja"
+                                >
+                                    <span class="material-symbols-outlined text-[18px]">forward_to_inbox</span>
+                                    <span>📲 Solicitar cobro a Caja</span>
+                                </button>
+                            @else
+                            <button
                                 wire:click="abrirModalCobro"
                                 type="button"
                                 @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
@@ -3159,6 +3316,7 @@ new class extends Component
                                 <span class="material-symbols-outlined text-[18px]">{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'skillet' : ($this->comandaActivaBloqueaCobro() ? 'hourglass_top' : ($this->esMesaDeOtroMesero() ? 'shield_person' : ($this->comandaListaParaCobrar() ? 'check_circle' : 'payments'))) }}</span>
                                 <span>{{ ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) ? 'Enviar a Cocina Primero' : ($this->comandaActivaBloqueaCobro() ? 'En Prep. Cocina' : ($this->esMesaDeOtroMesero() ? 'Mesa Otro Mesero' : ($this->comandaListaParaCobrar() ? '✓ Cobrar Listo' : 'Cobrar $' . number_format($this->total, 0, ',', '.')))) }}</span>
                             </button>
+                            @endif
                         </div>
 
                         @if($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
@@ -3199,4 +3357,9 @@ new class extends Component
 
     <!-- Modal Ley 1581 Habeas Data y Consentimiento -->
     @include('livewire.pos.partials.modal-habeas-data')
+
+    <!-- Fase 4 — Aviso interactivo de horario semanal al login del mesero -->
+    @if ($mostrarModalTurnoSemanal)
+        <x-modal-turno-semanal :dias="$turnoSemanalDias" :etiqueta="$turnoSemanalEtiqueta" :mostrar-posponer="$turnoSemanalPuedePosponer" />
+    @endif
 </div>

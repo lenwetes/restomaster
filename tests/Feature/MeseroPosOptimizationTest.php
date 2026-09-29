@@ -159,7 +159,7 @@ class MeseroPosOptimizationTest extends TestCase
         ]);
     }
 
-    public function test_mesero_cobra_pedido_directamente_en_mesa_y_libera_mesa_permaneciendo_en_pos(): void
+    public function test_mesero_solicita_cobro_y_caja_libera_mesa_permaneciendo_en_pos(): void
     {
         $caja = Caja::create([
             'sucursal_id' => $this->mesa->sucursal_id,
@@ -198,22 +198,22 @@ class MeseroPosOptimizationTest extends TestCase
             'estado_cocina' => 'entregado',
         ]);
 
+        // Fase 8.1: el mesero solicita el cobro a caja (ya no cobra directo)
         $component = Volt::actingAs($this->mesero)
             ->test('pos.terminal')
             ->set('mesaId', $this->mesa->id);
 
-        $component
-            ->call('abrirModalCobro')
-            ->set('metodoPago', 'tarjeta')
-            ->set('montoPagado', 28000)
-            ->call('procesarCobro');
+        $component->call('solicitarCobroCaja')->assertHasNoErrors();
 
-        $component->assertSet('mostrarTicket', true);
-        $this->assertNotNull($component->get('pedidoCompletado'));
+        $this->assertDatabaseHas('pedidos', [
+            'mesa_id' => $this->mesa->id,
+            'estado' => 'pendiente_cobro',
+        ]);
 
-        $component->call('cerrarTicket');
-
-        $component->assertRedirect(route('pos'));
+        // Caja procesa el cobro y libera la mesa
+        $this->actingAs($this->admin);
+        $pedido = Pedido::where('mesa_id', $this->mesa->id)->latest()->first();
+        app(\App\Services\PedidoService::class)->cobrarPedido($pedido, 'tarjeta', 28000);
 
         // Verificar pedido pagado
         $this->assertDatabaseHas('pedidos', [

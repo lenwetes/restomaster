@@ -5,10 +5,12 @@ use App\Http\Controllers\Cliente\PerfilClienteController;
 use App\Http\Controllers\CrmWebhookController;
 use App\Http\Controllers\EncuestaPublicaController;
 use App\Http\Controllers\ExportacionContableController;
+use App\Http\Controllers\InformeEjecutivoController;
 use App\Http\Controllers\ReporteExportController;
 use App\Http\Controllers\ReservaPublicaController;
 use App\Http\Controllers\ReservaWebhookController;
 use App\Http\Middleware\AuthCliente;
+use App\Models\NotificacionUsuario;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +52,7 @@ Volt::route('promociones', 'promociones.publico')->middleware('throttle:60,1')->
 
 Route::middleware(['auth'])->group(function () {
     Volt::route('mesas', 'mesas.index')->middleware('role:mesero,cajero,gerente')->name('mesas');
+    Volt::route('turnos', 'turnos.index')->middleware('role:admin,gerente')->name('turnos');
     Volt::route('pos', 'pos.terminal')->middleware('role:mesero,cajero,gerente')->name('pos');
     Volt::route('cocina', 'cocina.kds')->middleware('role:admin,gerente,cocina,barra,cajero')->name('cocina');
     Volt::route('caja', 'caja.control')->middleware('role:cajero,gerente')->name('caja');
@@ -64,6 +67,8 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('reportes', 'reportes.index')->middleware('role:gerente')->name('reportes');
     Route::get('reportes/exportar-pdf', [ReporteExportController::class, 'pdf'])->middleware('role:gerente')->name('reportes.pdf');
     Route::get('reportes/exportar-csv', [ReporteExportController::class, 'csv'])->middleware('role:gerente')->name('reportes.csv');
+    Route::get('reportes/informe-ejecutivo', [InformeEjecutivoController::class, 'descargar'])->middleware('role:admin,gerente')->name('reportes.informe-ejecutivo');
+    Route::get('reportes/comparativa-csv', [InformeEjecutivoController::class, 'csv'])->middleware('role:admin,gerente')->name('reportes.comparativa-csv');
     // Exportaciones Contables e Interfaz DIAN
     Route::prefix('reportes/exportar-contable')->middleware('role:gerente')->name('reportes.contable.')->group(function () {
         Route::get('siigo', [ExportacionContableController::class, 'siigo'])->name('siigo');
@@ -85,7 +90,7 @@ Route::middleware(['auth'])->group(function () {
             return response()->json([]);
         }
 
-        $notificaciones = \App\Models\NotificacionUsuario::where('user_id', $user->id)
+        $notificaciones = NotificacionUsuario::where('user_id', $user->id)
             ->where('leida', false)
             ->orderBy('id', 'desc')
             ->limit(10)
@@ -96,7 +101,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::post('notificaciones/{id}/marcar-leida', function (int $id) {
         $user = auth()->user();
-        $notif = \App\Models\NotificacionUsuario::where('id', $id)
+        $notif = NotificacionUsuario::where('id', $id)
             ->where('user_id', $user?->id)
             ->first();
 

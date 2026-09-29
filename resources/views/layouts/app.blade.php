@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'RestoMaster') }} — Sistema de Gestión Gastronómica & POS</title>
@@ -32,6 +32,8 @@
                 }
                 body {
                     overscroll-behavior: none;
+                    padding-top: env(safe-area-inset-top);
+                    padding-bottom: env(safe-area-inset-bottom);
                 }
             }
             ::-webkit-scrollbar {
@@ -133,7 +135,7 @@
             <livewire:layout.navigation />
 
             <!-- Main Application Content Area -->
-            <div class="flex flex-col flex-1 min-h-screen bg-background pt-16 lg:pl-64 transition-all duration-300 ease-in-out"
+            <div class="flex flex-col flex-1 min-h-screen bg-background pt-[calc(4rem+env(safe-area-inset-top))] lg:pl-64 transition-all duration-300 ease-in-out"
                  :class="$store.sidebar?.collapsed ? 'lg:!pl-20' : 'lg:pl-64'">
                 <!-- Page Heading (Optional) -->
                 @if (isset($header))

@@ -83,6 +83,13 @@
 
                     <!-- Botón de Confirmación Mandatorio (Único método de cierre) -->
                     <div class="flex gap-2">
+                        <template x-if="alertaActual.ticket_url">
+                            <a :href="alertaActual.ticket_url"
+                               class="py-3.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg flex items-center justify-center gap-1.5 whitespace-nowrap min-h-[44px]">
+                                <span class="material-symbols-outlined text-base font-bold">receipt_long</span>
+                                <span>Ver ticket</span>
+                            </a>
+                        </template>
                         <button type="button"
                                 @click="confirmarActual()"
                                 class="flex-1 py-3.5 px-4 bg-gradient-to-r from-amber-500 via-amber-400 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transform active:scale-[0.98] transition-all cursor-pointer">
@@ -184,7 +191,8 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
                                 cantidad: datos.cantidad || 1,
                                 mesa_numero: datos.mesa_numero,
                                 mesa_zona: datos.mesa_zona,
-                                notas: datos.notas
+                                notas: datos.notas,
+                                ticket_url: datos.ticket_url || null
                             });
                         }
                     });
@@ -200,11 +208,14 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
                 return;
             }
 
-            // Canal privado del mesero
+            // Canal privado del mesero: platos listos + pagos procesados (Fase 8.2 PagoProcesadoPorCaja)
             if (this.userId) {
                 window.Echo.private(`mesero.${this.userId}`)
                     .listen('.item.listo', (data) => {
                         this.recibirAlerta(data);
+                    })
+                    .listen('.pago.procesado', (data) => {
+                        this.recibirAlertaPago(data);
                     });
             }
 
@@ -232,6 +243,7 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
                 mesa_numero: data.mesa_numero,
                 mesa_zona: data.mesa_zona,
                 notas: data.notas,
+                ticket_url: data.ticket_url || null,
                 recibidoEn: Date.now(),
                 tiempoTranscurrido: 'Hace un momento'
             };
@@ -248,6 +260,19 @@ function alertaMeseroHub(userId, sucursalId, userRole) {
             if ('vibrate' in navigator) {
                 try { navigator.vibrate([200, 100, 200]); } catch (e) {}
             }
+        },
+
+        recibirAlertaPago(data) {
+            const mesaTexto = data.mesa || '';
+            const numero = (mesaTexto.match(/\d+/) || [null])[0];
+            this.recibirAlerta({
+                pedido_id: data.pedidoId,
+                nombre_producto: data.mensaje || 'Caja procesó el pago',
+                cantidad: 1,
+                mesa_numero: numero || mesaTexto,
+                notas: (data.total ? '$' + Number(data.total).toLocaleString('es-CO') + ' · ' : '') + (data.metodoPago || ''),
+                ticket_url: data.ticketUrl || null
+            });
         },
 
         async confirmarActual() {

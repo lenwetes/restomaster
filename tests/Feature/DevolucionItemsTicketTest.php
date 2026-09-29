@@ -6,6 +6,7 @@ use App\Models\Caja;
 use App\Models\Insumo;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
+use App\Models\NotaCredito;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Receta;
@@ -138,7 +139,8 @@ class DevolucionItemsTicketTest extends TestCase
         $this->assertEquals(124000.0, (float) $this->turno->monto_esperado_efectivo);
 
         // 2. EL ERROR HUMANO: El cajero cobró 2 pero el cliente solo consumió 1.
-        // Se ejecuta la devolución de 1 unidad
+        // Fase 8.3: primero se emite la Nota de Crédito obligatoria.
+        $nc = NotaCredito::emitir($pedido, 'error_cargo', $this->cajero, 12000.0);
         $item = $pedido->items()->first();
         $devolucion = $this->pedidoService->devolverItemPedido(
             item: $item,
@@ -146,7 +148,8 @@ class DevolucionItemsTicketTest extends TestCase
             motivo: 'Error de digitación del cajero: cliente solo consumió 1 bebida',
             autorizadoPor: 'Gerente Carlos',
             usuario: $this->cajero,
-            metodoReembolso: 'efectivo'
+            metodoReembolso: 'efectivo',
+            notaCreditoId: $nc->id
         );
 
         // 3. Verificaciones de la Transacción Atómica:
@@ -205,9 +208,12 @@ class DevolucionItemsTicketTest extends TestCase
 
         $item = $pedido->items()->first();
 
+        // Con NC válida se llega a la validación de cantidad disponible.
+        $nc = NotaCredito::emitir($pedido, 'error_cargo', $this->cajero, 24000.0);
+
         // Intentar devolver 2 cuando solo se cobró 1
         $this->expectException(\InvalidArgumentException::class);
-        $this->pedidoService->devolverItemPedido($item, 2, 'Intento excedido', 'Admin', $this->cajero);
+        $this->pedidoService->devolverItemPedido($item, 2, 'Intento excedido', 'Admin', $this->cajero, 'efectivo', $nc->id);
     }
 
     public function test_caja_livewire_procesa_devolucion_con_pin_supervisor(): void

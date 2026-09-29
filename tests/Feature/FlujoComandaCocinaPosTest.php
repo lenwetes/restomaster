@@ -186,14 +186,18 @@ class FlujoComandaCocinaPosTest extends TestCase
         $this->assertFalse($pos->instance()->comandaActivaBloqueaCobro(), 'El cobro ya NO debe estar bloqueado.');
         $this->assertTrue($pos->instance()->comandaListaParaCobrar(), 'La comanda debe estar lista para cobrar.');
 
-        // 8. Mesero / Cajero procesa el cobro exitosamente
-        $pos->call('abrirModalCobro')
-            ->set('metodoPago', 'efectivo')
-            ->set('montoPagado', 57000)
-            ->call('procesarCobro');
+        // 8. Mesero solicita el cobro a caja (Fase 8.1: cobro directo revocado)
+        $pos->call('solicitarCobroCaja')->assertHasNoErrors();
 
         $pedido->refresh();
-        $this->assertEquals('pagado', $pedido->estado, 'El pedido debe quedar en estado pagado tras el cobro.');
+        $this->assertEquals('pendiente_cobro', $pedido->estado, 'El pedido debe quedar pendiente de cobro en caja.');
+
+        // 9. Caja procesa el cobro y libera la mesa
+        $this->actingAs($this->cajero);
+        app(PedidoService::class)->cobrarPedido($pedido->fresh(), 'efectivo', 57000);
+
+        $pedido->refresh();
+        $this->assertEquals('pagado', $pedido->estado, 'El pedido debe quedar en estado pagado tras el cobro en caja.');
         $this->assertEquals(0, $pedido->cambio);
 
         // Mesa queda liberada / por limpiar
@@ -386,8 +390,8 @@ class FlujoComandaCocinaPosTest extends TestCase
             'estado_cocina' => 'entregado',
         ]);
 
-        // 2. Mesero entra al POS con la mesa seleccionada
-        $pos = Volt::actingAs($this->mesero)
+        // 2. Cajero entra al POS con la mesa seleccionada (Fase 8.1: solo caja cobra)
+        $pos = Volt::actingAs($this->cajero)
             ->test('pos.terminal')
             ->set('mesaId', $this->mesa->id);
 
@@ -440,8 +444,20 @@ class FlujoComandaCocinaPosTest extends TestCase
             ->assertDispatched('notificacion');
         $this->assertFalse($pos->get('mostrarModalCobro'));
 
-        // 5. Si intenta forzar cobro directo, debe retornar status 422
+        // 5. Mesero: cobro directo revocado (403); Cajero: bloqueo de cocina persiste (422)
         $pos->call('procesarCobro')
+            ->assertForbidden();
+
+        $posCajero = Volt::actingAs($this->cajero)
+            ->test('pos.terminal')
+            ->set('tipo', 'mesa')
+            ->set('mesaId', $this->mesa->id);
+        $posCajero->call('agregarProducto', $this->platoParrilla->id)
+            ->call('agregarProducto', $this->bebidaBarra->id);
+        $posCajero->call('abrirModalCobro')
+            ->assertDispatched('notificacion');
+        $this->assertFalse($posCajero->get('mostrarModalCobro'));
+        $posCajero->call('procesarCobro')
             ->assertStatus(422);
     }
 }
