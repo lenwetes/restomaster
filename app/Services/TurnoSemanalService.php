@@ -667,7 +667,7 @@ class TurnoSemanalService
     {
         $this->autorizar($usuario);
 
-        $turno = TurnoMeseroSemana::findOrFail($turnoId);
+        $turno = TurnoMeseroSemana::with('programacion')->findOrFail($turnoId);
 
         $cambios = [];
 

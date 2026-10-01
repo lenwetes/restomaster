@@ -109,13 +109,29 @@ new class extends Component
         $svc->actualizarCelda($turnoId, ['es_descanso' => ! $turno->es_descanso], Auth::user());
     }
 
-    public function cambiarZona(int $turnoId, ?int $zonaId): void
+    public function cambiarZona(int $turnoId, mixed $zonaId): void
     {
         $this->autorizar();
 
-        $this->validate([
-            'zonaId' => ['nullable', 'integer', 'exists:zonas,id'],
-        ], [], ['zonaId' => 'zona']);
+        // Normalizar: $event.target.value llega como string; string vacío = null
+        $zonaId = ($zonaId === '' || $zonaId === null) ? null : (int) $zonaId;
+
+        // Validar el valor normalizado con validator() manual (validate() solo
+        // funciona sobre properties de Livewire, no sobre parámetros de método)
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            ['zona_id' => $zonaId],
+            ['zona_id' => ['nullable', 'integer', 'exists:zonas,id']],
+            [],
+            ['zona_id' => 'zona']
+        );
+
+        if ($validator->fails()) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'La zona seleccionada no es válida.',
+                'tipo'    => 'error',
+            ]);
+            return;
+        }
 
         $svc = app(TurnoSemanalService::class);
         $svc->actualizarCelda($turnoId, ['zona_id' => $zonaId, 'es_descanso' => false], Auth::user());
