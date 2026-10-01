@@ -1178,7 +1178,7 @@ PROMPT;
             foreach ($meta as $tipo => [$nombre, $color]) {
                 $labels[] = $nombre;
                 $valores[] = $porTipo[$tipo];
-                $pcts[] = round(($porTipo[$tipo] / $total) * 100, 1);
+                $pcts[] = $total > 0 ? round(($porTipo[$tipo] / $total) * 100, 1) : 0.0;
                 $cols[] = $color;
                 $fmts[] = $fmt($porTipo[$tipo]);
             }

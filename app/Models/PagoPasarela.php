@@ -32,9 +32,9 @@ class PagoPasarela extends Model
     ];
 
     protected $casts = [
-        'monto' => 'float',
+        'monto'             => 'decimal:2',  // decimal exacto — nunca float en pagos
         'datos_transaccion' => 'array',
-        'pagado_en' => 'datetime',
+        'pagado_en'         => 'datetime',
     ];
 
     public function pedido(): BelongsTo

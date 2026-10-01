@@ -69,7 +69,10 @@ class CrmEmailService
                     envio: $envio,
                     urlEncuesta: $urlEncuesta,
                     asuntoPersonalizado: $asunto,
-                    contenidoHtml: $contenidoHtml
+                    // Sanitizar HTML de plantillas CRM antes de renderizar en email (M-1 XSS)
+                    contenidoHtml: $contenidoHtml !== null
+                        ? strip_tags($contenidoHtml, '<p><b><i><strong><em><u><br><ul><ol><li><a><h1><h2><h3><h4><span><div><table><tr><td><th><img>')
+                        : null
                 )
             );
 

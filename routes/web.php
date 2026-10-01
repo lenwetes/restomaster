@@ -126,7 +126,10 @@ Route::post('api/webhooks/whatsapp', [CrmWebhookController::class, 'recibir'])->
 Route::post('api/webhooks/pasarela/{proveedor}', [PasarelaWebhookController::class, 'handle'])->middleware('throttle:60,1')->name('pasarela.webhook');
 
 // Sincronización de Comandas Offline POS (IndexedDB)
-Route::post('api/pos/sincronizar-offline', [PosOfflineSyncController::class, 'sincronizar'])->name('pos.offline.sync');
+// Requiere auth: solo dispositivos con sesión activa del restaurante pueden sincronizar
+Route::post('api/pos/sincronizar-offline', [PosOfflineSyncController::class, 'sincronizar'])
+    ->middleware(['auth', 'role:mesero,cajero,gerente,admin'])
+    ->name('pos.offline.sync');
 
 // Portal Público de Clientes (F7-06)
 Route::prefix('cliente')->name('cliente.')->group(function () {

@@ -109,6 +109,7 @@
 
             @if(!empty($contenidoHtml))
                 <div class="text">
+                    {{-- contenidoHtml sanitizado: strip_tags en CrmEmailService antes de llegar aquí --}}
                     {!! $contenidoHtml !!}
                 </div>
             @else

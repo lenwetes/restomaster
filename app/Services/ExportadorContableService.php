@@ -56,7 +56,7 @@ class ExportadorContableService
 
             // Desglose Base e INC (8%)
             $factor = 1 + ($porcentajeInc / 100);
-            $baseGravable = round($totalVenta / $factor, 2);
+            $baseGravable = $factor != 0 ? round($totalVenta / $factor, 2) : $totalVenta;
             $valorInc = round($totalVenta - $baseGravable, 2);
 
             // A. Débito a Caja General (11050501) o Bancos/Adquirente (11100501)
@@ -136,7 +136,7 @@ class ExportadorContableService
             $montoReembolsado = (float) ($dev->monto_devuelto ?? $dev->monto_reembolsado ?? 0);
 
             $factor = 1 + ($porcentajeInc / 100);
-            $baseDevuelta = round($montoReembolsado / $factor, 2);
+            $baseDevuelta = $factor != 0 ? round($montoReembolsado / $factor, 2) : $montoReembolsado;
             $incDevuelto = round($montoReembolsado - $baseDevuelta, 2);
 
             // Débito a Devoluciones en Ventas (41750501)

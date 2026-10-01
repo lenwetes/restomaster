@@ -348,7 +348,7 @@ class DashboardService
                 'cantidad' => (int) $it->cantidad,
                 'total_ventas' => (float) $it->total_ventas,
                 'margen_total' => (float) $it->margen_total,
-                'pct_aporte' => round(((float) $it->total_ventas / $totalTopVentas) * 100, 1),
+                'pct_aporte' => $totalTopVentas > 0 ? round(((float) $it->total_ventas / $totalTopVentas) * 100, 1) : 0.0,
             ];
         })->all();
     }

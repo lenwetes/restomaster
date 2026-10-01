@@ -34,11 +34,11 @@ class FacturaElectronica extends Model
     ];
 
     protected $casts = [
-        'consecutivo' => 'integer',
-        'total' => 'float',
-        'impuesto' => 'float',
-        'respuesta_proveedor' => 'array',
-        'emitida_en' => 'datetime',
+        'consecutivo'          => 'integer',
+        'total'                => 'decimal:2',  // decimal exacto — nunca float en campos DIAN
+        'impuesto'             => 'decimal:2',
+        'respuesta_proveedor'  => 'array',
+        'emitida_en'           => 'datetime',
     ];
 
     public function pedido(): BelongsTo
