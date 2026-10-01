@@ -468,8 +468,8 @@ new #[Layout('layouts.menu-cliente')] class extends Component
                 <div class="p-4 rounded-3xl border border-stone-100 bg-white shadow-xs hover:shadow-md transition flex gap-3.5 items-start">
                     <!-- Image or Emoji Placeholder -->
                     <div class="w-20 h-20 rounded-2xl bg-stone-100 border border-stone-200/60 flex items-center justify-center text-3xl shrink-0 overflow-hidden shadow-inner">
-                        @if ($producto->imagen)
-                            <img src="{{ $producto->imagen }}" alt="{{ $producto->nombre }}" class="w-full h-full object-cover">
+                        @if ($producto->imagen_url)
+                            <img src="{{ $producto->imagen_url }}" alt="{{ $producto->nombre }}" class="w-full h-full object-cover">
                         @else
                             @if(preg_match('/^[a-z0-9_]+$/', $producto->categoria?->icono ?? ''))
                                 <span class="material-symbols-outlined text-3xl">{{ $producto->categoria->icono }}</span>

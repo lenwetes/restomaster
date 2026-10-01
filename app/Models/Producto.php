@@ -90,18 +90,60 @@ class Producto extends Model
     }
 
     /**
+     * Resuelve el path de imagen, con fallback a imagen demo por slug si es nula.
+     */
+    public function getImagenAttribute(?string $value): ?string
+    {
+        if (! empty($value)) {
+            return $value;
+        }
+
+        return $this->resolverRutaImagenDemo();
+    }
+
+    /**
      * Resuelve la URL pública de la imagen del producto (URL absoluta, path relativo o storage).
      */
     public function getImagenUrlAttribute(): ?string
     {
-        if (empty($this->imagen)) {
+        $img = $this->imagen;
+        if (empty($img)) {
             return null;
         }
 
-        if (str_starts_with($this->imagen, 'http://') || str_starts_with($this->imagen, 'https://') || str_starts_with($this->imagen, '/')) {
-            return $this->imagen;
+        if (str_starts_with($img, 'http://') || str_starts_with($img, 'https://')) {
+            return $img;
         }
 
-        return asset('storage/'.$this->imagen);
+        if (str_starts_with($img, '/')) {
+            return asset(ltrim($img, '/'));
+        }
+
+        return asset('storage/'.$img);
+    }
+
+    /**
+     * Busca la imagen del plato en el directorio public/demo/platos/
+     */
+    protected function resolverRutaImagenDemo(): ?string
+    {
+        if (empty($this->slug)) {
+            return null;
+        }
+
+        $candidatos = [
+            $this->slug.'.jpg',
+            $this->slug.'-350g.jpg',
+            $this->slug.'.png',
+            $this->slug.'.webp',
+        ];
+
+        foreach ($candidatos as $archivo) {
+            if (file_exists(public_path('demo/platos/'.$archivo))) {
+                return '/demo/platos/'.$archivo;
+            }
+        }
+
+        return null;
     }
 }

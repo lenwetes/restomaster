@@ -6,6 +6,27 @@
 ---
 
 ## Última Actualización
+2026-10-01 | Antigravity | 📸 **FIX CARGA DE IMÁGENES DE PLATILLOS EN TODAS LAS VISTAS (CARTA, DELIVERY, MESA, POS):**
+- **Causa Raíz:**
+  - Los productos en la base de datos tenían `imagen = null` porque el seeder `DatosPruebaRealistasSeeder.php` no asignaba la ruta de la imagen durante el ciclo de inserción, a pesar de que los 26 archivos fotográficos existían en `public/demo/platos/`.
+  - Las vistas de pedidos públicos (`delivery/pedido-publico.blade.php`, `menu/carta-publica.blade.php`, `mesa/menu-publico.blade.php`) comprobaban directamente `!empty($producto->imagen)` en lugar de invocar el accessor `$producto->imagen_url`.
+- **Solución Implementada:**
+  - **Accessor Inteligente en [`Producto.php`](file:///d:/Proyectos/restomaster/app/Models/Producto.php):**
+    * Añadido `getImagenAttribute()` con fallback dinámico que busca automáticamente en `public/demo/platos/{slug}.jpg` (o `.png`/`.webp`).
+    * Optimizado `getImagenUrlAttribute()` para devolver la URL absoluta correcta vía `asset()`.
+  - **Actualización de Plantillas Blade:**
+    * Migrado el renderizado de fotos a `$producto->imagen_url` en [`pedido-publico.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/delivery/pedido-publico.blade.php), [`carta-publica.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/menu/carta-publica.blade.php) y [`menu-publico.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/mesa/menu-publico.blade.php).
+  - **Persistencia en Seeder y Base de Datos Activa:**
+    * Actualizado [`DatosPruebaRealistasSeeder.php`](file:///d:/Proyectos/restomaster/database/seeders/DatosPruebaRealistasSeeder.php) para auto-enlazar permanentemente `/demo/platos/{slug}.jpg`.
+    * Creado alias para `bife-de-chorizo-angus.jpg` en `public/demo/platos/`.
+    * Actualizados los 26 productos existentes en la base de datos local.
+- **Calidad y Verificación:**
+  - Laravel Pint verificado (`passed`).
+  - Suite de pruebas de Menú (27/27 tests pasando, 87 aserciones).
+
+---
+
+## Actualización previa
 2026-10-01 | Antigravity | 🎨 **FIX CONTRASTE EN /profile + CONFIGURACIÓN DE DESPLIEGUE EN COOLIFY + SINCRONIZACIÓN DE RAMAS GITHUB:**
 - **Corrección de Contraste en Perfil (`/profile`):**
   - Identificada causa raíz: Falta de clase `dark` en elemento `<html>` en layouts (`app.blade.php`, `guest.blade.php`), lo que provocaba que tarjetas y campos cayeran a fondos blancos con tipografía crema/blanca casi invisible.

@@ -590,9 +590,9 @@ new #[Layout('layouts.publico')] class extends Component
                                     >
                                         <!-- Dish Image Thumbnail (Appetizing & Compact) -->
                                         <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-[#140e0b] shrink-0 border border-[#432f26]/60 shadow-inner">
-                                            @if (!empty($producto->imagen))
+                                            @if (!empty($producto->imagen_url))
                                                 <img 
-                                                    src="{{ asset($producto->imagen) }}" 
+                                                    src="{{ $producto->imagen_url }}" 
                                                     alt="{{ $producto->nombre }}" 
                                                     loading="lazy"
                                                     class="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 brightness-95"

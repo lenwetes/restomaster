@@ -995,9 +995,27 @@ class DatosPruebaRealistasSeeder extends Seeder
             $recetasList = $pData['recetas'];
             unset($pData['recetas'], $pData['codigo']);
 
+            // Vincular automáticamente imagen demo correspondiente
+            $imagenPath = null;
+            $posiblesImagenes = [
+                $pData['slug'].'.jpg',
+                $pData['slug'].'-350g.jpg',
+                $pData['slug'].'.png',
+                $pData['slug'].'.webp',
+            ];
+            foreach ($posiblesImagenes as $img) {
+                if (file_exists(public_path('demo/platos/'.$img))) {
+                    $imagenPath = '/demo/platos/'.$img;
+                    break;
+                }
+            }
+
             $prod = Producto::updateOrCreate(
                 ['slug' => $pData['slug']],
-                array_merge($pData, ['activo' => true])
+                array_merge($pData, [
+                    'activo' => true,
+                    'imagen' => $imagenPath,
+                ])
             );
             $productosMap[$pData['slug']] = $prod;
 
