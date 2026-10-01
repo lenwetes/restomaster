@@ -9,6 +9,7 @@ use Livewire\Volt\Component;
 new class extends Component
 {
     public ?string $notificacionFlash = null;
+
     public ?string $tipoNotificacionFlash = 'info';
 
     /**
@@ -33,7 +34,7 @@ new class extends Component
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->notificacionFlash = "Error al atender pedido: " . $e->getMessage();
+            $this->notificacionFlash = 'Error al atender pedido: '.$e->getMessage();
             $this->tipoNotificacionFlash = 'error';
         }
     }
@@ -528,12 +529,20 @@ new class extends Component
                         <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20 sidebar-badge">ACTIVO</span>
                     </a>
                 @else
+                <!-- ============================================== -->
+                <!-- 1. GRUPO: OPERACIÓN DIARIA                      -->
+                <!-- ============================================== -->
+                <div class="sidebar-category-header pt-2 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span class="sidebar-text truncate">⚡ Operación Diaria</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
+
                 <!-- Dashboard (DASH-01) -->
                 <a 
                     href="{{ route('dashboard') }}" 
                     wire:navigate
                     title="Panel de Control"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('dashboard') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('dashboard') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">dashboard</span>
@@ -547,7 +556,7 @@ new class extends Component
                     href="{{ route('mesas') }}" 
                     wire:navigate
                     title="Salón & Mesas"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('mesas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('mesas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">table_restaurant</span>
@@ -561,7 +570,7 @@ new class extends Component
                     href="{{ route('pos') }}" 
                     wire:navigate
                     title="Terminal POS"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('pos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('pos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">point_of_sale</span>
@@ -575,7 +584,7 @@ new class extends Component
                     href="{{ route('cocina') }}" 
                     wire:navigate
                     title="Cocina (KDS)"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('cocina') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('cocina') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">skillet</span>
@@ -589,7 +598,7 @@ new class extends Component
                     href="{{ route('caja') }}" 
                     wire:navigate
                     title="Caja & Turno"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('caja') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('caja') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">payments</span>
@@ -598,12 +607,50 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">CAJ</span>
                 </a>
 
+                <!-- Despacho Delivery (PED-04) -->
+                <a 
+                    href="{{ route('delivery') }}" 
+                    wire:navigate
+                    title="Despacho Delivery"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('delivery') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                >
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">two_wheeler</span>
+                        <span class="sidebar-text truncate">Despacho Delivery</span>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">DLV</span>
+                </a>
+
+                <!-- ============================================== -->
+                <!-- 2. GRUPO: RESTAURANTE & CARTA                   -->
+                <!-- ============================================== -->
+                <div class="sidebar-category-header pt-3 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span class="sidebar-text truncate">🍽️ Restaurante & Menú</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
+
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Carta & Menú (MEN-01) -->
+                    <a 
+                        href="{{ route('menu') }}" 
+                        wire:navigate
+                        title="Carta & Menú"
+                        class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('menu*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">restaurant_menu</span>
+                            <span class="sidebar-text truncate">Carta & Menú</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">MEN</span>
+                    </a>
+                @endif
+
                 <!-- Inventario (INV-01) -->
                 <a 
                     href="{{ route('inventario') }}" 
                     wire:navigate
-                    title="Inventario"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('inventario') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    title="Inventario & Recetas"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('inventario') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">inventory_2</span>
@@ -617,7 +664,7 @@ new class extends Component
                     href="{{ route('proveedores') }}"
                     wire:navigate
                     title="Proveedores"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('proveedores') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('proveedores') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">local_shipping</span>
@@ -626,60 +673,34 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">PRV</span>
                 </a>
 
-                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
-                    <!-- Carta & Menú (MEN-01) -->
-                    <a 
-                        href="{{ route('menu') }}" 
-                        wire:navigate
-                        title="Carta & Menú"
-                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('menu*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
-                    >
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="material-symbols-outlined text-[20px] shrink-0">restaurant_menu</span>
-                            <span class="sidebar-text truncate">Carta & Menú</span>
-                        </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">MEN</span>
-                    </a>
-                @endif
+                <!-- Reservas (RES-01) -->
+                <a 
+                    href="{{ route('reservas') }}" 
+                    wire:navigate
+                    title="Reservas"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                >
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="material-symbols-outlined text-[20px] shrink-0">event</span>
+                        <span class="sidebar-text truncate">Reservas</span>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">RES</span>
+                </a>
 
-                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
-                    <!-- Promociones & Difusión (PRO-01) -->
-                    <a 
-                        href="{{ route('promociones.index') }}" 
-                        wire:navigate
-                        title="Promociones & Campañas"
-                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('promociones.index') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
-                    >
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="material-symbols-outlined text-[20px] shrink-0 text-amber-500">local_fire_department</span>
-                            <span class="sidebar-text truncate">Promociones</span>
-                        </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">PRO</span>
-                    </a>
-                @endif
-
-                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
-                    <!-- Turnos Semanales (TUR-01) -->
-                    <a
-                        href="{{ route('turnos') }}"
-                        wire:navigate
-                        title="Turnos Semanales"
-                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('turnos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
-                    >
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="material-symbols-outlined text-[20px] shrink-0">calendar_month</span>
-                            <span class="sidebar-text truncate">Turnos Semanales</span>
-                        </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">TUR</span>
-                    </a>
-                @endif
+                <!-- ============================================== -->
+                <!-- 3. GRUPO: CLIENTES & VENTAS                     -->
+                <!-- ============================================== -->
+                <div class="sidebar-category-header pt-3 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span class="sidebar-text truncate">🚀 Clientes & Ventas</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
 
                 <!-- Clientes VIP (CLI-01) -->
                 <a 
                     href="{{ route('clientes') }}" 
                     wire:navigate
                     title="Clientes VIP"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('clientes') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('clientes') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">stars</span>
@@ -693,7 +714,7 @@ new class extends Component
                     href="{{ route('crm') }}" 
                     wire:navigate
                     title="CRM & Automatización"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('crm') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('crm') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                 >
                     <div class="flex items-center gap-3 min-w-0">
                         <span class="material-symbols-outlined text-[20px] shrink-0">mark_chat_unread</span>
@@ -702,33 +723,45 @@ new class extends Component
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">CRM</span>
                 </a>
 
-                <!-- Despacho Delivery (PED-04) -->
-                <a 
-                    href="{{ route('delivery') }}" 
-                    wire:navigate
-                    title="Despacho Delivery"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('delivery') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
-                >
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="material-symbols-outlined text-[20px] shrink-0">two_wheeler</span>
-                        <span class="sidebar-text truncate">Despacho Delivery</span>
-                    </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">DLV</span>
-                </a>
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Promociones & Difusión (PRO-01) -->
+                    <a 
+                        href="{{ route('promociones.index') }}" 
+                        wire:navigate
+                        title="Promociones & Campañas"
+                        class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('promociones.index') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0 text-amber-500">local_fire_department</span>
+                            <span class="sidebar-text truncate">Promociones</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">PRO</span>
+                    </a>
+                @endif
 
-                <!-- Reservas (RES-01) -->
-                <a 
-                    href="{{ route('reservas') }}" 
-                    wire:navigate
-                    title="Reservas"
-                    class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
-                >
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="material-symbols-outlined text-[20px] shrink-0">event</span>
-                        <span class="sidebar-text truncate">Reservas</span>
-                    </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">RES</span>
-                </a>
+                <!-- ============================================== -->
+                <!-- 4. GRUPO: GESTIÓN & CONFIGURACIÓN               -->
+                <!-- ============================================== -->
+                <div class="sidebar-category-header pt-3 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span class="sidebar-text truncate">⚙️ Gestión & Ajustes</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
+
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Turnos Semanales (TUR-01) -->
+                    <a
+                        href="{{ route('turnos') }}"
+                        wire:navigate
+                        title="Turnos Semanales"
+                        class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('turnos') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">calendar_month</span>
+                            <span class="sidebar-text truncate">Turnos Semanales</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">TUR</span>
+                    </a>
+                @endif
 
                 @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
                     <!-- Reportes DIAN (REP-01) -->
@@ -736,7 +769,7 @@ new class extends Component
                         href="{{ route('reportes') }}" 
                         wire:navigate
                         title="Reportes"
-                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                        class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('reportes*') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="material-symbols-outlined text-[20px] shrink-0">monitoring</span>
@@ -752,7 +785,7 @@ new class extends Component
                         href="{{ route('impresion') }}" 
                         wire:navigate
                         title="Impresión & Spooler"
-                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('impresion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                        class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('impresion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="material-symbols-outlined text-[20px] shrink-0">print</span>
@@ -768,7 +801,7 @@ new class extends Component
                         href="{{ route('configuracion') }}" 
                         wire:navigate
                         title="Configuración"
-                        class="flex items-center justify-between rounded-xl px-3 h-11 text-sm font-bold transition-all duration-150 {{ request()->routeIs('configuracion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                        class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('configuracion') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
                     >
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="material-symbols-outlined text-[20px] shrink-0">settings</span>
@@ -804,6 +837,17 @@ new class extends Component
         .sidebar-collapsed .sidebar-badge,
         .sidebar-collapsed .sidebar-card,
         .sidebar-collapsed .sidebar-footer-text {
+            display: none !important;
+        }
+        .sidebar-collapsed .sidebar-category-header {
+            margin: 0.35rem 0 !important;
+            padding: 0 !important;
+            height: 1px !important;
+            border-top: 1px solid rgba(140, 140, 140, 0.2) !important;
+            justify-content: center !important;
+        }
+        .sidebar-collapsed .sidebar-category-header span,
+        .sidebar-collapsed .sidebar-category-header div {
             display: none !important;
         }
         .sidebar-collapsed nav a,
@@ -947,6 +991,14 @@ new class extends Component
                         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
                     </a>
                 @else
+                <!-- ============================================== -->
+                <!-- 1. GRUPO: OPERACIÓN DIARIA                      -->
+                <!-- ============================================== -->
+                <div class="pt-2 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span>⚡ Operación Diaria</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
+
                 <a 
                     href="{{ route('dashboard') }}" 
                     @click="mobileMenuOpen = false" 
@@ -1013,6 +1065,42 @@ new class extends Component
                 </a>
 
                 <a 
+                    href="{{ route('delivery') }}" 
+                    @click="mobileMenuOpen = false" 
+                    wire:navigate 
+                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('delivery') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[20px]">two_wheeler</span>
+                        <span>Despacho Delivery</span>
+                    </div>
+                    <span class="text-[10px] font-bold">DLV</span>
+                </a>
+
+                <!-- ============================================== -->
+                <!-- 2. GRUPO: RESTAURANTE & CARTA                   -->
+                <!-- ============================================== -->
+                <div class="pt-3 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span>🍽️ Restaurante & Menú</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
+
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <a 
+                        href="{{ route('menu') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('menu*') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">restaurant_menu</span>
+                            <span>Carta & Menú</span>
+                        </div>
+                        <span class="text-[10px] font-bold">MEN</span>
+                    </a>
+                @endif
+
+                <a 
                     href="{{ route('inventario') }}" 
                     @click="mobileMenuOpen = false" 
                     wire:navigate 
@@ -1039,46 +1127,26 @@ new class extends Component
                     <span class="text-[10px] font-bold">PRV</span>
                 </a>
 
-                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
-                    <a 
-                        href="{{ route('menu') }}" 
-                        @click="mobileMenuOpen = false" 
-                        wire:navigate 
-                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('menu*') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
-                    >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">restaurant_menu</span>
-                            <span>Carta & Menú</span>
-                        </div>
-                        <span class="text-[10px] font-bold">MEN</span>
-                    </a>
+                <a 
+                    href="{{ route('reservas') }}" 
+                    @click="mobileMenuOpen = false" 
+                    wire:navigate 
+                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                >
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-[20px]">event</span>
+                        <span>Reservas</span>
+                    </div>
+                    <span class="text-[10px] font-bold">RES</span>
+                </a>
 
-                    <a 
-                        href="{{ route('promociones.index') }}" 
-                        @click="mobileMenuOpen = false" 
-                        wire:navigate 
-                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('promociones.index') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
-                    >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px] text-amber-500">local_fire_department</span>
-                            <span>Promociones</span>
-                        </div>
-                        <span class="text-[10px] font-bold">PRO</span>
-                    </a>
-
-                    <a
-                        href="{{ route('turnos') }}"
-                        @click="mobileMenuOpen = false"
-                        wire:navigate
-                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('turnos') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
-                    >
-                        <div class="flex items-center gap-3">
-                            <span class="material-symbols-outlined text-[20px]">calendar_month</span>
-                            <span>Turnos Semanales</span>
-                        </div>
-                        <span class="text-[10px] font-bold">TUR</span>
-                    </a>
-                @endif
+                <!-- ============================================== -->
+                <!-- 3. GRUPO: CLIENTES & VENTAS                     -->
+                <!-- ============================================== -->
+                <div class="pt-3 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span>🚀 Clientes & Ventas</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
 
                 <a 
                     href="{{ route('clientes') }}" 
@@ -1106,31 +1174,43 @@ new class extends Component
                     <span class="text-[10px] font-bold">CRM</span>
                 </a>
 
-                <a 
-                    href="{{ route('delivery') }}" 
-                    @click="mobileMenuOpen = false" 
-                    wire:navigate 
-                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('delivery') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
-                >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">two_wheeler</span>
-                        <span>Despacho Delivery</span>
-                    </div>
-                    <span class="text-[10px] font-bold">DLV</span>
-                </a>
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <a 
+                        href="{{ route('promociones.index') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('promociones.index') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px] text-amber-500">local_fire_department</span>
+                            <span>Promociones</span>
+                        </div>
+                        <span class="text-[10px] font-bold">PRO</span>
+                    </a>
+                @endif
 
-                <a 
-                    href="{{ route('reservas') }}" 
-                    @click="mobileMenuOpen = false" 
-                    wire:navigate 
-                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('reservas') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
-                >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">event</span>
-                        <span>Reservas</span>
-                    </div>
-                    <span class="text-[10px] font-bold">RES</span>
-                </a>
+                <!-- ============================================== -->
+                <!-- 4. GRUPO: GESTIÓN & CONFIGURACIÓN               -->
+                <!-- ============================================== -->
+                <div class="pt-3 pb-1 px-1 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-on-surface-variant/70">
+                    <span>⚙️ Gestión & Ajustes</span>
+                    <div class="h-px bg-surface-container-highest flex-1 ml-2"></div>
+                </div>
+
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <a
+                        href="{{ route('turnos') }}"
+                        @click="mobileMenuOpen = false"
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('turnos') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">calendar_month</span>
+                            <span>Turnos Semanales</span>
+                        </div>
+                        <span class="text-[10px] font-bold">TUR</span>
+                    </a>
+                @endif
 
                 @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
                     <a 

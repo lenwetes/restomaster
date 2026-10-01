@@ -14,6 +14,7 @@ use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\DashboardService;
 use App\Services\ReportesComparativosService;
+use App\Services\ReporteService;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -2268,8 +2269,12 @@ PROMPT;
         $comparativos = app(ReportesComparativosService::class);
         $sucursalId = $usuario->sucursal_id;
 
+        $desdeB = null;
+        $hastaB = null;
         if ($comparar && ! empty($params['desde_b']) && ! empty($params['hasta_b'])) {
-            $comparativa = $comparativos->comparar($desde, $hasta, (string) $params['desde_b'], (string) $params['hasta_b'], $sucursalId);
+            $desdeB = (string) $params['desde_b'];
+            $hastaB = (string) $params['hasta_b'];
+            $comparativa = $comparativos->comparar($desde, $hasta, $desdeB, $hastaB, $sucursalId);
         } elseif ($comparar) {
             [$desdeB, $hastaB] = $comparativos->periodoAnteriorAutomatico($desde, $hasta);
             $comparativa = $comparativos->comparar($desde, $hasta, $desdeB, $hastaB, $sucursalId);
@@ -2288,8 +2293,56 @@ PROMPT;
         $ventasFmt = number_format((float) $comparativa['a']['ventas'], 0, ',', '.');
         $transacciones = (int) $comparativa['a']['comandas'];
 
-        $top = $comparativos->topPeriodo($desde, $hasta, 1, $sucursalId);
-        $topPlato = $top[0]['producto'] ?? 'Sin datos';
+        $topProductos = $comparativos->topPeriodo($desde, $hasta, 5, $sucursalId);
+        $topPlato = $topProductos[0]['producto'] ?? 'Sin datos';
+
+        $reporteService = app(ReporteService::class);
+        $serieVentas = $reporteService->datosGraficaVentas($desde, $hasta);
+        $serieAnteriorVentas = ($comparar && $desdeB && $hastaB)
+            ? $reporteService->datosGraficaVentas($desdeB, $hastaB)
+            : null;
+
+        $distribucion = $reporteService->distribucionCanalesYMetodos($desde, $hasta);
+
+        $lenA = count($serieVentas['ventas'] ?? []);
+        $lenB = $serieAnteriorVentas ? count($serieAnteriorVentas['ventas'] ?? []) : 0;
+        $maxLen = max($lenA, $lenB);
+
+        $graficasIa = [
+            'tendencia_temporal' => [
+                'etiquetas' => ($maxLen > 0 && $serieAnteriorVentas)
+                    ? array_map(fn ($i) => 'Día '.($i + 1), range(0, $maxLen - 1))
+                    : ($serieVentas['etiquetas'] ?? []),
+                'serie_a' => $serieVentas['ventas'] ?? [],
+                'serie_b' => $serieAnteriorVentas ? ($serieAnteriorVentas['ventas'] ?? []) : [],
+                'label_a' => "Período A ({$desde} — {$hasta})",
+                'label_b' => $desdeB ? "Período B ({$desdeB} — {$hastaB})" : 'Período Anterior',
+            ],
+            'top_productos' => [
+                'nombres' => array_map(fn ($p) => Str::limit($p['producto'], 28), $topProductos),
+                'ventas' => array_map(fn ($p) => (float) $p['total_ventas'], $topProductos),
+                'cantidades' => array_map(fn ($p) => (int) $p['cantidad'], $topProductos),
+            ],
+            'canales' => [
+                'etiquetas' => $distribucion['canales']['etiquetas'] ?? [],
+                'series' => $distribucion['canales']['series'] ?? [],
+            ],
+            'comparativa_kpis' => [
+                'etiquetas' => ['Facturación ($)', 'Ticket Promedio ($)', 'Comandas (uds)'],
+                'label_a' => "Período A ({$desde})",
+                'label_b' => $desdeB ? "Período B ({$desdeB})" : 'Período B',
+                'valores_a' => [
+                    (float) $comparativa['a']['ventas'],
+                    (float) $comparativa['a']['ticket_promedio'],
+                    (int) $comparativa['a']['comandas'],
+                ],
+                'valores_b' => [
+                    (float) $comparativa['b']['ventas'],
+                    (float) $comparativa['b']['ticket_promedio'],
+                    (int) $comparativa['b']['comandas'],
+                ],
+            ],
+        ];
 
         $resumenBase = "📊 **Análisis Ejecutivo ({$desde} — {$hasta}):**\n\n"
             ."El periodo cerró con **\${$ventasFmt} COP** en {$transacciones} comandas, "
@@ -2316,6 +2369,7 @@ PROMPT;
                 'delta_ventas_pct' => $deltaVentas,
                 'recomendaciones' => $recomendaciones,
                 'comparativa' => $comparativa,
+                'graficas' => $graficasIa,
                 'infografia' => [
                     'titulo' => 'Informe Ejecutivo Comparativo',
                     'subtitulo' => "{$desde} — {$hasta}",

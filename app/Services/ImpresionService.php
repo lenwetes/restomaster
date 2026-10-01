@@ -7,6 +7,7 @@ use App\Jobs\ImprimirReporteZJob;
 use App\Jobs\ImprimirTicketVentaJob;
 use App\Models\Impresora;
 use App\Models\Pedido;
+use App\Models\PedidoDevolucion;
 use App\Models\TrabajoImpresion;
 use App\Models\TurnoCaja;
 use App\Models\User;
@@ -123,7 +124,7 @@ class ImpresionService
         return $trabajo;
     }
 
-    public function despacharComprobanteDevolucion(\App\Models\PedidoDevolucion $devolucion, ?User $usuario = null): TrabajoImpresion
+    public function despacharComprobanteDevolucion(PedidoDevolucion $devolucion, ?User $usuario = null): TrabajoImpresion
     {
         $devolucion->loadMissing(['pedido.mesa', 'itemPedido', 'usuario']);
 
@@ -138,25 +139,25 @@ class ImpresionService
         $lineas[] = $this->centrar('*** COMPROBANTE DE DEVOLUCIÓN ***', $ancho);
         $lineas[] = $this->centrar('NOTA DE CRÉDITO POS', $ancho);
         $lineas[] = $sep;
-        $lineas[] = 'Ticket Original: #' . ($devolucion->pedido?->codigo ?? 'N/A');
-        $lineas[] = 'Fecha: ' . ($devolucion->created_at ? $devolucion->created_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i'));
-        $lineas[] = 'Autorizó: ' . $devolucion->autorizado_por;
-        $lineas[] = 'Atendió: ' . ($devolucion->usuario?->name ?? 'Cajero');
+        $lineas[] = 'Ticket Original: #'.($devolucion->pedido?->codigo ?? 'N/A');
+        $lineas[] = 'Fecha: '.($devolucion->created_at ? $devolucion->created_at->format('d/m/Y H:i') : now()->format('d/m/Y H:i'));
+        $lineas[] = 'Autorizó: '.$devolucion->autorizado_por;
+        $lineas[] = 'Atendió: '.($devolucion->usuario?->name ?? 'Cajero');
         $lineas[] = $sep;
         $lineas[] = sprintf(
             '%-4s %-24s %12s',
-            $devolucion->cantidad . 'x',
+            $devolucion->cantidad.'x',
             mb_substr($devolucion->itemPedido?->nombre_producto ?? 'Producto', 0, 24),
-            '-$' . number_format((float) $devolucion->monto_devuelto, 0, ',', '.')
+            '-$'.number_format((float) $devolucion->monto_devuelto, 0, ',', '.')
         );
         $lineas[] = $sep;
-        $lineas[] = 'Motivo: ' . $devolucion->motivo;
-        $lineas[] = 'Reembolso: ' . strtoupper($devolucion->metodo_reembolso);
-        $lineas[] = sprintf('TOTAL DEVUELTO: %24s', '-$' . number_format((float) $devolucion->monto_devuelto, 0, ',', '.'));
+        $lineas[] = 'Motivo: '.$devolucion->motivo;
+        $lineas[] = 'Reembolso: '.strtoupper($devolucion->metodo_reembolso);
+        $lineas[] = sprintf('TOTAL DEVUELTO: %24s', '-$'.number_format((float) $devolucion->monto_devuelto, 0, ',', '.'));
         $lineas[] = $sep;
         $lineas[] = $this->centrar('Comprobante de auditoría de caja', $ancho);
 
-        $textoTicket = implode("\n", $lineas) . "\n\n";
+        $textoTicket = implode("\n", $lineas)."\n\n";
         $rawTicket = $this->convertirEscPos($textoTicket, true, $devolucion->metodo_reembolso === 'efectivo');
 
         return TrabajoImpresion::create([

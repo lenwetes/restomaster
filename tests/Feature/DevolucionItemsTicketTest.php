@@ -3,9 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Caja;
+use App\Models\Categoria;
 use App\Models\Insumo;
-use App\Models\ItemPedido;
-use App\Models\Mesa;
 use App\Models\NotaCredito;
 use App\Models\Pedido;
 use App\Models\Producto;
@@ -15,6 +14,7 @@ use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
 use App\Services\CajaService;
+use App\Services\ConfiguracionService;
 use App\Services\InventarioService;
 use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,12 +26,19 @@ class DevolucionItemsTicketTest extends TestCase
     use RefreshDatabase;
 
     protected User $cajero;
+
     protected User $gerente;
+
     protected Sucursal $sucursal;
+
     protected Caja $caja;
+
     protected TurnoCaja $turno;
+
     protected Producto $bebida;
+
     protected Insumo $insumoBebida;
+
     protected PedidoService $pedidoService;
 
     protected function setUp(): void
@@ -78,7 +85,7 @@ class DevolucionItemsTicketTest extends TestCase
             'activo' => true,
         ]);
 
-        $categoria = \App\Models\Categoria::create([
+        $categoria = Categoria::create([
             'nombre' => 'Bebidas',
             'slug' => 'bebidas',
             'area_impresion' => 'barra',
@@ -122,7 +129,7 @@ class DevolucionItemsTicketTest extends TestCase
                 'subtotal' => 24000.0,
                 'area_cocina' => 'barra',
                 'estado_cocina' => 'entregado',
-            ]
+            ],
         ], $this->cajero);
 
         $this->pedidoService->cobrarPedido($pedido, 'efectivo', 24000.0);
@@ -201,7 +208,7 @@ class DevolucionItemsTicketTest extends TestCase
                 'subtotal' => 12000.0,
                 'area_cocina' => 'barra',
                 'estado_cocina' => 'entregado',
-            ]
+            ],
         ], $this->cajero);
 
         $this->pedidoService->cobrarPedido($pedido, 'efectivo', 12000.0);
@@ -219,7 +226,7 @@ class DevolucionItemsTicketTest extends TestCase
     public function test_caja_livewire_procesa_devolucion_con_pin_supervisor(): void
     {
         // 1. Configurar PIN de supervisor '4321'
-        app(\App\Services\ConfiguracionService::class)->establecerPinSeguridad('4321', $this->gerente);
+        app(ConfiguracionService::class)->establecerPinSeguridad('4321', $this->gerente);
 
         // 2. Crear pedido cobrado
         $pedido = $this->pedidoService->crearPedido([
@@ -236,7 +243,7 @@ class DevolucionItemsTicketTest extends TestCase
                 'subtotal' => 24000.0,
                 'area_cocina' => 'barra',
                 'estado_cocina' => 'entregado',
-            ]
+            ],
         ], $this->cajero);
 
         $this->pedidoService->cobrarPedido($pedido, 'efectivo', 24000.0);

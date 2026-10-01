@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Pedido extends Model
 {
@@ -122,6 +123,16 @@ class Pedido extends Model
     public function devoluciones(): HasMany
     {
         return $this->hasMany(PedidoDevolucion::class, 'pedido_id');
+    }
+
+    public function facturaElectronica(): HasOne
+    {
+        return $this->hasOne(FacturaElectronica::class);
+    }
+
+    public function pagosPasarela(): HasMany
+    {
+        return $this->hasMany(PagoPasarela::class);
     }
 
     public function scopeActivos(Builder $query): Builder

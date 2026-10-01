@@ -4,13 +4,17 @@ namespace Tests\Feature;
 
 use App\Enums\MesaEstado;
 use App\Models\Mesa;
+use App\Models\Pedido;
 use App\Models\Role;
 use App\Models\RotacionMesero;
 use App\Models\Sucursal;
 use App\Models\User;
 use App\Models\Zona;
+use App\Services\PedidoService;
+use App\Services\RotacionMeseroService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class RotacionMeserosLivewireTest extends TestCase
@@ -294,7 +298,7 @@ class RotacionMeserosLivewireTest extends TestCase
             'mesero_id' => $otroMesero->id,
         ]);
 
-        $pedido = \App\Models\Pedido::create([
+        $pedido = Pedido::create([
             'codigo' => 'PED-TEST-RESTR',
             'tipo' => 'mesa',
             'estado' => 'listo',
@@ -314,8 +318,8 @@ class RotacionMeserosLivewireTest extends TestCase
             ->assertDispatched('notificacion');
 
         // En PedidoService directo, debe arrojar 403
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
-        app(\App\Services\PedidoService::class)->cobrarPedido(
+        $this->expectException(HttpException::class);
+        app(PedidoService::class)->cobrarPedido(
             $pedido,
             'efectivo',
             50000
@@ -336,7 +340,7 @@ class RotacionMeserosLivewireTest extends TestCase
             'orden' => 2,
         ]);
 
-        $service = app(\App\Services\RotacionMeseroService::class);
+        $service = app(RotacionMeseroService::class);
 
         // 1. Asignar a Salón
         $service->asignarMeseroAZona($this->sucursal->id, 'salon', $this->mesero->id, $this->zonaSalon->id);

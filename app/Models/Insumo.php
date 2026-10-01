@@ -83,6 +83,29 @@ class Insumo extends Model
     }
 
     /**
+     * Inventario distribuido por sucursales.
+     */
+    public function inventariosSucursal(): HasMany
+    {
+        return $this->hasMany(InsumoSucursal::class, 'insumo_id');
+    }
+
+    /**
+     * Obtiene el stock disponible en una sucursal específica con fallback al stock global.
+     */
+    public function stockEnSucursal(?int $sucursalId = null): float
+    {
+        if ($sucursalId) {
+            $inv = $this->inventariosSucursal()->where('sucursal_id', $sucursalId)->first();
+            if ($inv) {
+                return (float) $inv->stock_actual;
+            }
+        }
+
+        return (float) $this->stock_actual;
+    }
+
+    /**
      * Indica si el insumo está en nivel crítico de stock.
      */
     public function getEsCriticoAttribute(): bool

@@ -15,6 +15,7 @@ use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Livewire\Volt\Volt;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 /**
@@ -135,7 +136,7 @@ class CentralizacionCobrosTest extends TestCase
         $this->actingAs($this->mesero);
         $pedido = $this->crearPedidoCobrable();
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         app(PedidoService::class)->cobrarPedido($pedido, 'efectivo', 70000.0);
     }
 

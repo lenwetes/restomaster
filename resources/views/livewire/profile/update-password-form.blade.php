@@ -39,39 +39,42 @@ new class extends Component
 }; ?>
 
 <section>
-    <header>
-        <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Actualizar Contraseña
-        </h2>
+    <header class="border-b border-surface-container-highest/60 pb-4 mb-6">
+        <div class="flex items-center gap-2.5">
+            <span class="material-symbols-outlined text-secondary text-[22px]">lock_reset</span>
+            <h2 class="text-base font-bold text-on-surface">
+                Actualizar Contraseña
+            </h2>
+        </div>
 
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+        <p class="mt-1 text-xs text-on-surface-variant font-medium">
             Asegúrate de que tu cuenta utilice una contraseña segura para proteger tus turnos y registros.
         </p>
     </header>
 
-    <form wire:submit="updatePassword" class="mt-6 space-y-6">
+    <form wire:submit="updatePassword" class="space-y-6">
         <div>
             <x-input-label for="update_password_current_password" value="Contraseña Actual" />
-            <x-text-input wire:model="current_password" id="update_password_current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" />
+            <x-text-input wire:model="current_password" id="update_password_current_password" name="current_password" type="password" class="mt-1 block w-full" autocomplete="current-password" placeholder="••••••••" />
             <x-input-error :messages="$errors->get('current_password')" class="mt-2" />
         </div>
 
         <div>
             <x-input-label for="update_password_password" value="Nueva Contraseña" />
-            <x-text-input wire:model="password" id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+            <x-text-input wire:model="password" id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" placeholder="Mínimo 8 caracteres" />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
         <div>
             <x-input-label for="update_password_password_confirmation" value="Confirmar Nueva Contraseña" />
-            <x-text-input wire:model="password_confirmation" id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+            <x-text-input wire:model="password_confirmation" id="update_password_password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" placeholder="Repite la contraseña" />
             <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
         </div>
 
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 pt-2">
             <x-primary-button>Guardar Cambios</x-primary-button>
 
-            <x-action-message class="me-3 text-secondary font-bold" on="password-updated">
+            <x-action-message class="me-3 text-secondary font-bold text-xs" on="password-updated">
                 ✓ Contraseña actualizada correctamente.
             </x-action-message>
         </div>

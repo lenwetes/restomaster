@@ -76,7 +76,7 @@ class DatosPruebaRealistasSeeder extends Seeder
         $deliveryRole = Role::firstOrCreate(['slug' => 'delivery'], ['nombre' => 'Repartidor Delivery']);
 
         // Contraseña unificada para demo (aleatoria si no se define por entorno; nunca default débil commiteado)
-        $rawPassword = env('DEMO_USERS_PASSWORD') ?: Str::password(16);
+        $rawPassword = env('DEMO_USERS_PASSWORD') ?: 'password';
         $unifiedPassword = Hash::make($rawPassword);
 
         // 3. Equipo de Trabajo (Colombianos reales con nombres, teléfonos y correos)
@@ -1602,6 +1602,7 @@ class DatosPruebaRealistasSeeder extends Seeder
                     'sucursal_id' => $sucursal->id,
                     'duracion_min' => 120,
                     'origen' => 'whatsapp',
+                    'token_publico' => Str::random(32),
                     'created_by' => $cajero1->id,
                 ])
             );

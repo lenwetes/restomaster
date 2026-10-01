@@ -38,35 +38,35 @@ class AdminAiCopilotHotfixTest extends TestCase
         parent::setUp();
 
         $this->sucursal = Sucursal::create([
-            'nombre'    => 'Sede Test Hotfix',
+            'nombre' => 'Sede Test Hotfix',
             'direccion' => 'Calle 1 # 1-1',
-            'telefono'  => '3001234500',
-            'activo'    => true,
+            'telefono' => '3001234500',
+            'activo' => true,
         ]);
 
         $roleAdmin = Role::create(['nombre' => 'Administrador', 'slug' => 'admin']);
 
         $this->admin = User::factory()->create([
-            'role_id'     => $roleAdmin->id,
+            'role_id' => $roleAdmin->id,
             'sucursal_id' => $this->sucursal->id,
-            'name'        => 'Admin Hotfix',
-            'email'       => 'admin.hotfix@test.local',
+            'name' => 'Admin Hotfix',
+            'email' => 'admin.hotfix@test.local',
         ]);
 
         $this->caja = Caja::create([
             'sucursal_id' => $this->sucursal->id,
-            'nombre'      => 'Caja Principal Hotfix',
-            'codigo'      => 'CAJ-01',
-            'tipo'        => 'principal',
-            'activa'      => true,
+            'nombre' => 'Caja Principal Hotfix',
+            'codigo' => 'CAJ-01',
+            'tipo' => 'principal',
+            'activa' => true,
         ]);
 
         $this->turno = TurnoCaja::create([
-            'caja_id'       => $this->caja->id,
-            'user_id'       => $this->admin->id,
-            'apertura_en'   => now()->subHours(3),
+            'caja_id' => $this->caja->id,
+            'user_id' => $this->admin->id,
+            'apertura_en' => now()->subHours(3),
             'monto_inicial' => 200000,
-            'estado'        => 'abierto',
+            'estado' => 'abierto',
         ]);
     }
 
@@ -80,15 +80,15 @@ class AdminAiCopilotHotfixTest extends TestCase
     public function test_ventas_de_hoy_responde_sin_crash_con_pedidos_y_top_platos(): void
     {
         Pedido::create([
-            'codigo'      => 'PED-HOY-001',
-            'tipo'        => 'mesa',
-            'estado'      => 'pagado',
+            'codigo' => 'PED-HOY-001',
+            'tipo' => 'mesa',
+            'estado' => 'pagado',
             'sucursal_id' => $this->sucursal->id,
-            'subtotal'    => 85000,
-            'descuento'   => 0,
-            'total'       => 85000,
+            'subtotal' => 85000,
+            'descuento' => 0,
+            'total' => 85000,
             'metodo_pago' => 'efectivo',
-            'pagado_en'   => now(),
+            'pagado_en' => now(),
         ]);
 
         /** @var AdminAiCopilotService $copilot */
@@ -130,18 +130,18 @@ class AdminAiCopilotHotfixTest extends TestCase
     {
         MovimientoCaja::create([
             'turno_caja_id' => $this->turno->id,
-            'user_id'       => $this->admin->id,
-            'tipo'          => 'egreso',
-            'concepto'      => 'Compra de servilletas',
-            'monto'         => 15000,
+            'user_id' => $this->admin->id,
+            'tipo' => 'egreso',
+            'concepto' => 'Compra de servilletas',
+            'monto' => 15000,
         ]);
 
         MovimientoCaja::create([
             'turno_caja_id' => $this->turno->id,
-            'user_id'       => $this->admin->id,
-            'tipo'          => 'retiro',
-            'concepto'      => 'Retiro parcial para banco',
-            'monto'         => 50000,
+            'user_id' => $this->admin->id,
+            'tipo' => 'retiro',
+            'concepto' => 'Retiro parcial para banco',
+            'monto' => 50000,
         ]);
 
         /** @var AdminAiCopilotService $copilot */
@@ -194,18 +194,18 @@ class AdminAiCopilotHotfixTest extends TestCase
     {
         MovimientoCaja::create([
             'turno_caja_id' => $this->turno->id,
-            'user_id'       => $this->admin->id,
-            'tipo'          => 'retiro',
-            'concepto'      => 'Retiro nocturno',
-            'monto'         => 100000,
+            'user_id' => $this->admin->id,
+            'tipo' => 'retiro',
+            'concepto' => 'Retiro nocturno',
+            'monto' => 100000,
         ]);
 
         MovimientoCaja::create([
             'turno_caja_id' => $this->turno->id,
-            'user_id'       => $this->admin->id,
-            'tipo'          => 'egreso',
-            'concepto'      => 'Pago proveedor',
-            'monto'         => 30000,
+            'user_id' => $this->admin->id,
+            'tipo' => 'egreso',
+            'concepto' => 'Pago proveedor',
+            'monto' => 30000,
         ]);
 
         /** @var AdminAiCopilotService $copilot */
@@ -232,10 +232,10 @@ class AdminAiCopilotHotfixTest extends TestCase
         // Fondo inicial = 200.000. Egreso = 250.000 (supera el fondo)
         MovimientoCaja::create([
             'turno_caja_id' => $this->turno->id,
-            'user_id'       => $this->admin->id,
-            'tipo'          => 'egreso',
-            'concepto'      => 'Gasto extraordinario',
-            'monto'         => 250000,
+            'user_id' => $this->admin->id,
+            'tipo' => 'egreso',
+            'concepto' => 'Gasto extraordinario',
+            'monto' => 250000,
         ]);
 
         /** @var AdminAiCopilotService $copilot */

@@ -498,7 +498,7 @@ class MeseroAsignacionYPropinasTest extends TestCase
         $propinaEsperada10 = round($precioUnitario * 0.10);
 
         // Pre-seed pedido en estado entregado para que abrirModalCobro no quede bloqueado
-        $pedidoPreparado = \App\Models\Pedido::create([
+        $pedidoPreparado = Pedido::create([
             'codigo' => 'ORD-PROP-001',
             'tipo' => 'mesa',
             'estado' => 'entregado',

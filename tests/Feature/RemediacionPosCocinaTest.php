@@ -186,18 +186,18 @@ class RemediacionPosCocinaTest extends TestCase
 
         // Agregar item B directamente en BD (simulando modo nueva adición que ya fue enviado)
         $pedidoActivo->items()->create([
-            'producto_id'    => $this->productoB->id,
+            'producto_id' => $this->productoB->id,
             'nombre_producto' => $this->productoB->nombre,
-            'cantidad'       => 1,
+            'cantidad' => 1,
             'precio_unitario' => $this->productoB->precio,
-            'subtotal'       => $this->productoB->precio,
-            'area_cocina'    => 'cocina',
-            'estado_cocina'  => 'entregado',
+            'subtotal' => $this->productoB->precio,
+            'area_cocina' => 'cocina',
+            'estado_cocina' => 'entregado',
         ]);
         $pedidoActivo->update([
             'subtotal' => 150000,
-            'total'    => 150000,
-            'estado'   => 'entregado',
+            'total' => 150000,
+            'estado' => 'entregado',
         ]);
 
         // Montar el POS como cajero (Fase 8.1): el carrito se carga desde el pedido activo,
@@ -254,4 +254,3 @@ class RemediacionPosCocinaTest extends TestCase
         $this->assertEquals(0.0, (float) $pedido->cambio, 'Cobro con tarjeta no debe generar cambio.');
     }
 }
-

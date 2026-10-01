@@ -107,4 +107,20 @@ class Fase5ConfiguracionTest extends TestCase
         $despues = app(ConfiguracionService::class)->obtener('reservas', 'webhook_token');
         $this->assertNotSame($antes, $despues);
     }
+
+    public function test_tab_database_renderiza_sin_error_variable_test_db_resultado(): void
+    {
+        $admin = User::factory()->create(['role_id' => Role::where('slug', 'admin')->value('id')]);
+
+        Volt::actingAs($admin)
+            ->test('configuracion.index')
+            ->set('tabActiva', 'database')
+            ->assertSee('Enlace a Base de Datos PostgreSQL')
+            ->assertDontSee('Sin conexión')
+            ->set('testDbResultado', ['ok' => true, 'latencia_ms' => 12])
+            ->assertSee('Conectado (12 ms)')
+            ->set('testDbResultado', ['ok' => false, 'error' => 'Connection refused'])
+            ->assertSee('Sin conexión')
+            ->assertSee('Connection refused');
+    }
 }

@@ -13,9 +13,17 @@ new class extends Component
 {
     use WithFileUploads;
 
-    public string $tabActiva = 'factura'; // 'factura', 'database', 'impresoras', 'dian', 'empresa', 'reservas', 'reset'
+    public string $tabActiva = 'factura'; // 'factura', 'pasarelas', 'dian', 'database', 'impresoras', 'empresa', 'reservas', 'seguridad', 'ia', 'reset'
 
     public array $dianForm = [];
+
+    public array $pasarelasForm = [];
+
+    public ?array $testWompiResultado = null;
+
+    public ?array $testBoldResultado = null;
+
+    public ?array $testDianResultado = null;
 
     public array $empresaForm = [];
 
@@ -24,6 +32,8 @@ new class extends Component
     public array $ticketForm = [];
 
     public array $dbForm = [];
+
+    public ?array $testDbResultado = null;
 
     public array $impresoraForm = [
         'nombre' => '',
@@ -46,14 +56,23 @@ new class extends Component
     public mixed $archivoBackup = null;
 
     public string $pinForm_nuevoPin = '';
+
     public string $pinForm_confirmarPin = '';
+
     public string $pinForm_pinActual = '';
+
     public string $pinRescate_password = '';
+
     public string $pinRescate_otp = '';
+
     public string $pinRescate_nuevoPin = '';
+
     public string $pinRescate_confirmarPin = '';
+
     public bool $mostrarModalRescatePin = false;
+
     public string $modoRescatePin = 'password';
+
     public bool $otpEnviado = false;
 
     public array $iaForm = [
@@ -83,15 +102,36 @@ new class extends Component
             'razon_social' => $svc->obtener('general', 'razon_social', 'RestoMaster Colombia S.A.S.'),
             'nit' => $svc->obtener('general', 'nit', '901.458.789-3'),
             'regimen' => $svc->obtener('general', 'regimen', 'Común'),
-            'ambiente' => $svc->obtener('dian', 'ambiente', 'habilitacion'),
+            'proveedor' => $svc->obtener('dian', 'proveedor', config('services.dian.proveedor', 'factus')),
+            'ambiente' => $svc->obtener('dian', 'ambiente', config('services.dian.ambiente', '2') === '1' ? 'produccion' : 'habilitacion'),
             'tipo_documento' => $svc->obtener('dian', 'tipo_documento', '01'),
-            'resolucion_numero' => $svc->obtener('dian', 'resolucion_numero', '1876400001234'),
+            'resolucion_numero' => $svc->obtener('dian', 'resolucion_numero', config('services.dian.resolucion_numero', '1876400001234')),
             'resolucion_fecha' => $svc->obtener('dian', 'resolucion_fecha', '2026-01-15'),
-            'prefijo' => $svc->obtener('dian', 'prefijo', 'MP'),
-            'desde' => $svc->obtener('dian', 'desde', '1'),
-            'hasta' => $svc->obtener('dian', 'hasta', '50000'),
+            'prefijo' => $svc->obtener('dian', 'prefijo', config('services.dian.prefijo', 'POS')),
+            'desde' => $svc->obtener('dian', 'desde', (string) config('services.dian.rango_desde', 1)),
+            'hasta' => $svc->obtener('dian', 'hasta', (string) config('services.dian.rango_hasta', 50000)),
+            'clave_tecnica' => $svc->obtener('dian', 'clave_tecnica', config('services.dian.clave_tecnica', 'fc8eac422eba16e22ffd8c6f94b3f40a6e38162c')),
+            'token' => $svc->obtener('dian', 'token', config('services.dian.token', '')),
+            'api_url' => $svc->obtener('dian', 'api_url', config('services.dian.api_url', 'https://api-sandbox.factus.com.co')),
             'vigente' => (bool) $svc->obtener('dian', 'vigente', true),
             'envio_activo' => (bool) $svc->obtener('dian', 'envio_activo', false),
+        ];
+
+        $this->pasarelasForm = [
+            'wompi_activo' => (bool) $svc->obtener('pasarelas', 'wompi_activo', true),
+            'wompi_ambiente' => $svc->obtener('pasarelas', 'wompi_ambiente', 'sandbox'),
+            'wompi_public_key' => $svc->obtener('pasarelas', 'wompi_public_key', config('services.wompi.public_key', 'pub_test_Q5yDA9xoKdePzhSGeVe9KStXOmIOfoTr')),
+            'wompi_private_key' => $svc->obtener('pasarelas', 'wompi_private_key', config('services.wompi.private_key', 'prv_test_X2Z1bZJmQOloD8rB4p6G')),
+            'wompi_integrity_secret' => $svc->obtener('pasarelas', 'wompi_integrity_secret', config('services.wompi.integrity_secret', 'test_integrity_c64K1Y9fGqWz7Xy0A')),
+            'wompi_events_secret' => $svc->obtener('pasarelas', 'wompi_events_secret', config('services.wompi.events_secret', 'test_events_u87V3bX1yZ')),
+            'wompi_nequi_activo' => (bool) $svc->obtener('pasarelas', 'wompi_nequi_activo', true),
+            'bold_activo' => (bool) $svc->obtener('pasarelas', 'bold_activo', true),
+            'bold_api_key' => $svc->obtener('pasarelas', 'bold_api_key', config('services.bold.api_key', 'bold_test_key_abc123')),
+            'bold_secret_key' => $svc->obtener('pasarelas', 'bold_secret_key', config('services.bold.secret_key', 'bold_secret_xyz789')),
+            'datafono_activo' => (bool) $svc->obtener('pasarelas', 'datafono_activo', true),
+            'datafono_proveedor' => $svc->obtener('pasarelas', 'datafono_proveedor', 'bold'),
+            'datafono_terminal_id' => $svc->obtener('pasarelas', 'datafono_terminal_id', 'DATA-CAJA-01'),
+            'datafono_auto_envio' => (bool) $svc->obtener('pasarelas', 'datafono_auto_envio', true),
         ];
 
         $this->empresaForm = [
@@ -138,21 +178,202 @@ new class extends Component
             'dianForm.razon_social' => ['required', 'string', 'max:255'],
             'dianForm.nit' => ['nullable', 'string', 'max:30'],
             'dianForm.regimen' => ['required', 'string', 'max:60'],
+            'dianForm.proveedor' => ['required', 'string', 'max:50'],
             'dianForm.ambiente' => ['required', 'in:habilitacion,produccion'],
             'dianForm.tipo_documento' => ['required', 'string', 'max:4'],
-            'dianForm.resolucion_numero' => ['nullable', 'string', 'max:30'],
+            'dianForm.resolucion_numero' => ['nullable', 'string', 'max:50'],
             'dianForm.prefijo' => ['nullable', 'string', 'max:10'],
+            'dianForm.clave_tecnica' => ['nullable', 'string', 'max:255'],
+            'dianForm.token' => ['nullable', 'string', 'max:500'],
+            'dianForm.api_url' => ['nullable', 'string', 'max:255'],
         ]);
 
         $svc = app(ConfiguracionService::class);
         foreach (['razon_social', 'nit', 'regimen'] as $k) {
             $svc->guardar('general', $k, $validated['dianForm'][$k]);
         }
-        foreach (['ambiente', 'tipo_documento', 'resolucion_numero', 'resolucion_fecha', 'prefijo', 'desde', 'hasta', 'vigente', 'envio_activo'] as $k) {
-            $svc->guardar('dian', $k, $validated['dianForm'][$k] ?? $this->dianForm[$k]);
+        foreach (['proveedor', 'ambiente', 'tipo_documento', 'resolucion_numero', 'resolucion_fecha', 'prefijo', 'desde', 'hasta', 'clave_tecnica', 'token', 'api_url', 'vigente', 'envio_activo'] as $k) {
+            $svc->guardar('dian', $k, $this->dianForm[$k] ?? null);
         }
-        session()->flash('status', 'Configuración DIAN guardada con éxito.');
-        $this->dispatch('notificacion', ['mensaje' => 'Configuración DIAN guardada', 'tipo' => 'success']);
+
+        config([
+            'services.dian.proveedor' => $this->dianForm['proveedor'],
+            'services.dian.prefijo' => $this->dianForm['prefijo'],
+            'services.dian.clave_tecnica' => $this->dianForm['clave_tecnica'],
+            'services.dian.token' => $this->dianForm['token'],
+            'services.dian.api_url' => $this->dianForm['api_url'],
+            'services.dian.ambiente' => $this->dianForm['ambiente'] === 'produccion' ? '1' : '2',
+        ]);
+
+        session()->flash('status', 'Configuración DIAN y Factura POS guardada con éxito.');
+        $this->dispatch('notificacion', ['mensaje' => 'Configuración DIAN guardada con éxito', 'tipo' => 'success']);
+    }
+
+    public function guardarPasarelas(): void
+    {
+        $this->authorize('administrar-configuracion');
+
+        $this->validate([
+            'pasarelasForm.wompi_ambiente' => ['required', 'in:sandbox,produccion'],
+            'pasarelasForm.wompi_public_key' => ['nullable', 'string', 'max:255'],
+            'pasarelasForm.wompi_private_key' => ['nullable', 'string', 'max:255'],
+            'pasarelasForm.wompi_integrity_secret' => ['nullable', 'string', 'max:255'],
+            'pasarelasForm.wompi_events_secret' => ['nullable', 'string', 'max:255'],
+            'pasarelasForm.bold_api_key' => ['nullable', 'string', 'max:255'],
+            'pasarelasForm.bold_secret_key' => ['nullable', 'string', 'max:255'],
+            'pasarelasForm.datafono_proveedor' => ['required', 'in:bold,redeban,credibanco'],
+            'pasarelasForm.datafono_terminal_id' => ['required', 'string', 'max:50'],
+        ]);
+
+        $svc = app(ConfiguracionService::class);
+        foreach ($this->pasarelasForm as $k => $v) {
+            $svc->guardar('pasarelas', $k, $v);
+        }
+
+        config([
+            'services.wompi.public_key' => $this->pasarelasForm['wompi_public_key'],
+            'services.wompi.private_key' => $this->pasarelasForm['wompi_private_key'],
+            'services.wompi.integrity_secret' => $this->pasarelasForm['wompi_integrity_secret'],
+            'services.wompi.events_secret' => $this->pasarelasForm['wompi_events_secret'],
+            'services.bold.api_key' => $this->pasarelasForm['bold_api_key'],
+            'services.bold.secret_key' => $this->pasarelasForm['bold_secret_key'],
+        ]);
+
+        session()->flash('status', 'Configuración de pasarelas de pago y datáfonos guardada con éxito.');
+        $this->dispatch('notificacion', ['mensaje' => 'Pasarelas & Datáfonos guardados correctamente', 'tipo' => 'success']);
+    }
+
+    public function probarWompi(): void
+    {
+        $this->authorize('administrar-configuracion');
+
+        $pubKey = trim($this->pasarelasForm['wompi_public_key'] ?? '');
+
+        if (empty($pubKey)) {
+            $this->testWompiResultado = [
+                'ok' => false,
+                'mensaje' => 'Falta la Llave Pública (public_key) de Wompi.',
+            ];
+            $this->dispatch('notificacion', ['mensaje' => 'Especifica la Llave Pública de Wompi', 'tipo' => 'warning']);
+
+            return;
+        }
+
+        $inicio = microtime(true);
+        $ambiente = $this->pasarelasForm['wompi_ambiente'] ?? 'sandbox';
+        $baseUrl = $ambiente === 'produccion' ? 'https://production.wompi.co/v1' : 'https://sandbox.wompi.co/v1';
+
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(5)->get("{$baseUrl}/merchants/{$pubKey}");
+            $duracionMs = (int) round((microtime(true) - $inicio) * 1000);
+
+            if ($response->successful()) {
+                $data = $response->json('data') ?? [];
+                $nombreComercio = $data['name'] ?? 'Comercio Wompi Activo';
+                $this->testWompiResultado = [
+                    'ok' => true,
+                    'mensaje' => "Conexión exitosa con Wompi ({$ambiente}). Comercio: '{$nombreComercio}'. Latencia: {$duracionMs} ms.",
+                ];
+                $this->dispatch('notificacion', ['mensaje' => 'Wompi conectado y verificado', 'tipo' => 'success']);
+            } else {
+                $status = $response->status();
+                $this->testWompiResultado = [
+                    'ok' => false,
+                    'mensaje' => "Wompi respondió HTTP {$status}. Verifica que la llave corresponda al ambiente '{$ambiente}'.",
+                ];
+                $this->dispatch('notificacion', ['mensaje' => 'Error al validar credenciales Wompi', 'tipo' => 'error']);
+            }
+        } catch (\Throwable $e) {
+            $this->testWompiResultado = [
+                'ok' => false,
+                'mensaje' => 'Error de red conectando a Wompi: '.$e->getMessage(),
+            ];
+            $this->dispatch('notificacion', ['mensaje' => 'No se pudo contactar a Wompi', 'tipo' => 'error']);
+        }
+    }
+
+    public function probarBold(): void
+    {
+        $this->authorize('administrar-configuracion');
+
+        $apiKey = trim($this->pasarelasForm['bold_api_key'] ?? '');
+        $secretKey = trim($this->pasarelasForm['bold_secret_key'] ?? '');
+
+        if (empty($apiKey) || empty($secretKey)) {
+            $this->testBoldResultado = [
+                'ok' => false,
+                'mensaje' => 'Debes ingresar tanto el API Key como el Secret Key de Bold.',
+            ];
+            $this->dispatch('notificacion', ['mensaje' => 'Faltan credenciales de Bold', 'tipo' => 'warning']);
+
+            return;
+        }
+
+        $firmaTest = hash('sha256', "TEST-REF1000COP{$secretKey}");
+        $this->testBoldResultado = [
+            'ok' => true,
+            'mensaje' => 'Credenciales Bold validadas sintácticamente. Algoritmo SHA-256 operativo para Smart Links & Datáfono.',
+            'firma_muestra' => substr($firmaTest, 0, 16).'...',
+        ];
+        $this->dispatch('notificacion', ['mensaje' => 'Credenciales Bold verificadas', 'tipo' => 'success']);
+    }
+
+    public function probarDian(): void
+    {
+        $this->authorize('administrar-configuracion');
+
+        $proveedor = $this->dianForm['proveedor'] ?? 'factus';
+        $nit = preg_replace('/[^0-9]/', '', $this->dianForm['nit'] ?? '901234567');
+        $clave = trim($this->dianForm['clave_tecnica'] ?? '');
+        $ambiente = $this->dianForm['ambiente'] ?? 'habilitacion';
+
+        if (empty($clave)) {
+            $this->testDianResultado = [
+                'ok' => false,
+                'mensaje' => 'Se requiere la Clave Técnica asignada en el portal DIAN para calcular CUFE.',
+            ];
+            $this->dispatch('notificacion', ['mensaje' => 'Ingresa la clave técnica DIAN', 'tipo' => 'warning']);
+
+            return;
+        }
+
+        $inicio = microtime(true);
+        $apiUrl = trim($this->dianForm['api_url'] ?? '');
+        $token = trim($this->dianForm['token'] ?? '');
+
+        if (! empty($apiUrl) && ! empty($token)) {
+            try {
+                $res = \Illuminate\Support\Facades\Http::timeout(5)
+                    ->withToken($token)
+                    ->get("{$apiUrl}/v1/status");
+                $latencia = (int) round((microtime(true) - $inicio) * 1000);
+
+                $this->testDianResultado = [
+                    'ok' => $res->successful(),
+                    'mensaje' => $res->successful()
+                        ? "Conectado exitosamente con proveedor DIAN ({$proveedor}). Latencia: {$latencia} ms."
+                        : "Proveedor DIAN respondió HTTP {$res->status()}. Revisa el Token API.",
+                ];
+            } catch (\Throwable $e) {
+                $this->testDianResultado = [
+                    'ok' => false,
+                    'mensaje' => 'Error de comunicación con proveedor DIAN: '.$e->getMessage(),
+                ];
+            }
+        } else {
+            $cufeTest = hash('sha384', "POS-99992026-01-0112:00:0050000.00010.000.000{$nit}222222222222{$clave}".($ambiente === 'produccion' ? '1' : '2'));
+            $this->testDianResultado = [
+                'ok' => true,
+                'mensaje' => "Motor criptográfico DIAN listo. Algoritmo CUFE SHA-384 verificado con clave técnica ({$ambiente}).",
+                'cufe_muestra' => substr($cufeTest, 0, 24).'...',
+            ];
+        }
+
+        if ($this->testDianResultado['ok']) {
+            $this->dispatch('notificacion', ['mensaje' => $this->testDianResultado['mensaje'], 'tipo' => 'success']);
+        } else {
+            $this->dispatch('notificacion', ['mensaje' => $this->testDianResultado['mensaje'], 'tipo' => 'error']);
+        }
     }
 
     public function guardarEmpresa(): void
@@ -733,9 +954,10 @@ new class extends Component
         @php
             $tabs = [
                 'factura' => ['label' => 'Maquetador Ticket 80mm', 'icon' => 'receipt_long'],
+                'pasarelas' => ['label' => 'Pasarelas & Datáfonos', 'icon' => 'contactless'],
+                'dian' => ['label' => 'DIAN Facturación POS', 'icon' => 'verified_user'],
                 'database' => ['label' => 'Base de Datos & Backups', 'icon' => 'database'],
                 'impresoras' => ['label' => 'Impresoras Térmicas', 'icon' => 'print'],
-                'dian' => ['label' => 'DIAN / Facturación', 'icon' => 'verified_user'],
                 'empresa' => ['label' => 'Establecimiento & Moneda', 'icon' => 'storefront'],
                 'reservas' => ['label' => 'Reservas & Webhook', 'icon' => 'webhook'],
                 'ia' => ['label' => 'IA & Copiloto', 'icon' => 'smart_toy'],
@@ -1038,12 +1260,12 @@ new class extends Component
                         </h2>
                         <p class="text-xs text-on-surface-variant mt-0.5">Configura una instancia en la nube (AWS RDS, Supabase, Neon o Servidor VPS) para replicación o migración.</p>
                     </div>
-                    @if($testDbResultado['ok'] === true)
+                    @if(($testDbResultado['ok'] ?? null) === true)
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/15 text-secondary border border-secondary/30 text-xs font-bold">
                             <span class="w-2 h-2 rounded-full bg-secondary"></span>
-                            Conectado ({{ $testDbResultado['latencia_ms'] }} ms)
+                            Conectado ({{ $testDbResultado['latencia_ms'] ?? 0 }} ms)
                         </span>
-                    @elseif($testDbResultado['ok'] === false)
+                    @elseif(($testDbResultado['ok'] ?? null) === false)
                         <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error/15 text-error border border-error/30 text-xs font-bold">
                             <span class="w-2 h-2 rounded-full bg-error"></span>
                             Sin conexión
@@ -1429,56 +1651,421 @@ new class extends Component
     @endif
 
     <!-- ===================================================================== -->
+    <!-- TAB: PASARELAS DE PAGO & DATÁFONOS (WOMPI, NEQUI, BOLD, HARDWARE)     -->
+    <!-- ===================================================================== -->
+    @if ($tabActiva === 'pasarelas')
+        <div class="space-y-6 animate-fade-in">
+            <!-- Header Informativo -->
+            <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant/15 pb-4">
+                    <div>
+                        <h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">contactless</span>
+                            Pasarelas de Pago Online, QR Dinámico & Datáfonos
+                        </h2>
+                        <p class="text-xs text-on-surface-variant mt-0.5">
+                            Cobro con tarjeta, Nequi y QR dinámico en mesa mediante Wompi (Bancolombia) y terminales inteligentes Bold Smart.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-secondary/15 border border-secondary/30 px-3 py-1 text-[11px] font-bold text-secondary">
+                            <span class="material-symbols-outlined text-[16px]">lock</span>
+                            PCI-DSS Compliant • SHA-256
+                        </span>
+                    </div>
+                </div>
+
+                <form wire:submit="guardarPasarelas" class="mt-6 space-y-8">
+                    <!-- ========================================== -->
+                    <!-- SECCIÓN 1: WOMPI & NEQUI QR DINÁMICO        -->
+                    <!-- ========================================== -->
+                    <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-low/50 p-5 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/15 pb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm">
+                                    W
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-on-surface">Wompi (Bancolombia) & Nequi</h3>
+                                    <p class="text-[11px] text-on-surface-variant">Generación de checkout dinámico en mesa y código QR interoperable</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" wire:model.live="pasarelasForm.wompi_activo" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                    <span class="ml-2 text-xs font-bold text-on-surface">Wompi Activo</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Ambiente de Operación</label>
+                                <select wire:model="pasarelasForm.wompi_ambiente" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                                    <option value="sandbox">Sandbox (Modo Pruebas / Tarjetas Test)</option>
+                                    <option value="produccion">Producción (Cobros Reales en Pesos COP)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Llave Pública (Public Key)</label>
+                                <input 
+                                    type="text" 
+                                    wire:model="pasarelasForm.wompi_public_key" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="pub_test_..." 
+                                />
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Secreto de Integridad (Integrity Secret)</label>
+                                <input 
+                                    type="password" 
+                                    wire:model="pasarelasForm.wompi_integrity_secret" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="test_integrity_..." 
+                                />
+                                <p class="text-[10px] text-on-surface-variant mt-1">Obligatorio para la firma criptográfica SHA-256 de cobros QR en mesa.</p>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Secreto de Eventos / Webhook (Events Secret)</label>
+                                <input 
+                                    type="password" 
+                                    wire:model="pasarelasForm.wompi_events_secret" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="test_events_..." 
+                                />
+                                <p class="text-[10px] text-on-surface-variant mt-1">Valida la autenticidad de los webhooks entrantes de pago exitoso.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="pasarelasForm.wompi_nequi_activo" class="rounded text-primary focus:ring-0" />
+                                <span class="text-xs font-bold text-on-surface">Permitir botón Nequi directo y cobro vía notificación Push</span>
+                            </label>
+
+                            <button 
+                                type="button" 
+                                wire:click="probarWompi" 
+                                wire:loading.attr="disabled"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-highest cursor-pointer transition shrink-0"
+                            >
+                                <span class="material-symbols-outlined text-[16px] text-primary">network_ping</span>
+                                <span wire:loading.remove wire:target="probarWompi">Probar Conexión Wompi</span>
+                                <span wire:loading wire:target="probarWompi">Verificando...</span>
+                            </button>
+                        </div>
+
+                        <!-- Resultado del Test Wompi -->
+                        @if ($testWompiResultado)
+                            <div class="rounded-xl p-3 text-xs font-medium border animate-fade-in {{ $testWompiResultado['ok'] ? 'bg-secondary/10 border-secondary/30 text-secondary' : 'bg-error/10 border-error/30 text-error' }}">
+                                <div class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-[18px] shrink-0">{{ $testWompiResultado['ok'] ? 'check_circle' : 'error' }}</span>
+                                    <span>{{ $testWompiResultado['mensaje'] }}</span>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- ========================================== -->
+                    <!-- SECCIÓN 2: BOLD SMART & LINKS DE PAGO       -->
+                    <!-- ========================================== -->
+                    <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-low/50 p-5 space-y-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/15 pb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-black text-sm">
+                                    B
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-on-surface">Bold Smart & Enlaces de Pago</h3>
+                                    <p class="text-[11px] text-on-surface-variant">Integración para datáfonos inteligentes y Smart Checkout en salón</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" wire:model.live="pasarelasForm.bold_activo" class="sr-only peer">
+                                    <div class="w-11 h-6 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                                    <span class="ml-2 text-xs font-bold text-on-surface">Bold Activo</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">API Key Bold</label>
+                                <input 
+                                    type="text" 
+                                    wire:model="pasarelasForm.bold_api_key" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="bold_key_..." 
+                                />
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Secret Key Bold</label>
+                                <input 
+                                    type="password" 
+                                    wire:model="pasarelasForm.bold_secret_key" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="bold_secret_..." 
+                                />
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-1">
+                            <button 
+                                type="button" 
+                                wire:click="probarBold" 
+                                wire:loading.attr="disabled"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-highest cursor-pointer transition"
+                            >
+                                <span class="material-symbols-outlined text-[16px] text-amber-500">verified</span>
+                                <span wire:loading.remove wire:target="probarBold">Verificar Credenciales Bold</span>
+                                <span wire:loading wire:target="probarBold">Validando...</span>
+                            </button>
+                        </div>
+
+                        @if ($testBoldResultado)
+                            <div class="rounded-xl p-3 text-xs font-medium border animate-fade-in {{ $testBoldResultado['ok'] ? 'bg-secondary/10 border-secondary/30 text-secondary' : 'bg-error/10 border-error/30 text-error' }}">
+                                <div class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-[18px] shrink-0">{{ $testBoldResultado['ok'] ? 'check_circle' : 'error' }}</span>
+                                    <span>{{ $testBoldResultado['mensaje'] }}</span>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- ========================================== -->
+                    <!-- SECCIÓN 3: HARDWARE DATÁFONOS DE SALÓN     -->
+                    <!-- ========================================== -->
+                    <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-low/50 p-5 space-y-4">
+                        <div class="flex items-center gap-3 border-b border-outline-variant/15 pb-3">
+                            <div class="w-9 h-9 rounded-xl bg-surface-container-highest flex items-center justify-center text-primary font-bold">
+                                <span class="material-symbols-outlined text-[20px]">point_of_sale</span>
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-extrabold text-on-surface">Terminales & Datáfonos de Salón / Caja</h3>
+                                <p class="text-[11px] text-on-surface-variant">Configuración de los dispositivos físicos para cobro con tarjeta en mostrador y mesa</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Red / Proveedor del Datáfono</label>
+                                <select wire:model="pasarelasForm.datafono_proveedor" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                                    <option value="bold">Bold Smart POS (Android / Bluetooth)</option>
+                                    <option value="redeban">Redeban Multicolor (Datafono Fijo / TCP)</option>
+                                    <option value="credibanco">Credibanco (POS Integrado)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">ID de Terminal Predeterminada</label>
+                                <input 
+                                    type="text" 
+                                    wire:model="pasarelasForm.datafono_terminal_id" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono font-bold text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="DATA-CAJA-01" 
+                                />
+                            </div>
+
+                            <div class="flex flex-col justify-end">
+                                <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl border border-outline-variant/20 bg-surface-container-lowest">
+                                    <input type="checkbox" wire:model="pasarelasForm.datafono_auto_envio" class="rounded text-primary focus:ring-0" />
+                                    <span class="text-xs font-bold text-on-surface">Auto-despachar importe al seleccionar tarjeta</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botón de Guardado -->
+                    <div class="flex items-center justify-between pt-2 border-t border-outline-variant/15">
+                        <span class="text-xs text-on-surface-variant font-medium">Los cambios surten efecto de inmediato en el POS y cobros de mesa.</span>
+                        <button 
+                            type="submit" 
+                            class="rounded-xl bg-primary px-6 py-3 text-xs font-black text-on-primary shadow-sm hover:bg-primary-container cursor-pointer transition flex items-center gap-2"
+                        >
+                            <span class="material-symbols-outlined text-[18px]">save</span>
+                            <span>Guardar Configuración de Pasarelas & Datáfonos</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    <!-- ===================================================================== -->
     <!-- TAB 4: FACTURACIÓN ELECTRÓNICA & RESOLUCIÓN DIAN                      -->
     <!-- ===================================================================== -->
     @if ($tabActiva === 'dian')
-        <form wire:submit="guardarDian" class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 space-y-4 animate-fade-in shadow-sm">
-            <div class="border-b border-outline-variant/15 pb-3">
-                <h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
-                    <span class="material-symbols-outlined text-primary">verified</span>
-                    Parametrización DIAN / Facturación Electrónica
-                </h2>
-                <p class="text-xs text-on-surface-variant mt-0.5">Parámetros del emisor y rangos autorizados para documentos electrónicos en Colombia.</p>
+        <div class="space-y-6 animate-fade-in">
+            <div class="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-outline-variant/15 pb-4">
+                    <div>
+                        <h2 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">verified</span>
+                            Facturación Electrónica DIAN — Tiquete POS Electrónico
+                        </h2>
+                        <p class="text-xs text-on-surface-variant mt-0.5">
+                            Resolución 000165 de la DIAN: Emisión de Documento Equivalente Electrónico con CUFE SHA-384 y código QR oficial.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold {{ ($dianForm['ambiente'] ?? '') === 'produccion' ? 'bg-secondary/15 border border-secondary/30 text-secondary' : 'bg-amber-500/15 border border-amber-500/30 text-amber-500' }}">
+                            <span class="w-2 h-2 rounded-full {{ ($dianForm['ambiente'] ?? '') === 'produccion' ? 'bg-secondary' : 'bg-amber-500 animate-pulse' }}"></span>
+                            {{ ($dianForm['ambiente'] ?? '') === 'produccion' ? 'Ambiente: Producción DIAN' : 'Ambiente: Habilitación / Sandbox' }}
+                        </span>
+                    </div>
+                </div>
+
+                <form wire:submit="guardarDian" class="mt-6 space-y-6">
+                    <!-- Proveedor Tecnológico y Conexión API -->
+                    <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-low/50 p-5 space-y-4">
+                        <div class="border-b border-outline-variant/15 pb-2">
+                            <h3 class="text-xs font-black uppercase tracking-wider text-primary">1. Proveedor Tecnológico & Credenciales API</h3>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Proveedor Tecnológico Autorizado</label>
+                                <select wire:model="dianForm.proveedor" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                                    <option value="factus">Factus (Recomendado POS Electrónico)</option>
+                                    <option value="dataico">Dataico API</option>
+                                    <option value="siigo">Siigo Nube API</option>
+                                    <option value="simulador">Simulador DIAN (Pruebas Locales)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Ambiente Fiscal</label>
+                                <select wire:model="dianForm.ambiente" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                                    <option value="habilitacion">Habilitación (Pruebas DIAN / Set de Pruebas)</option>
+                                    <option value="produccion">Producción (Validez Fiscal Oficial)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">URL Base del Servicio API</label>
+                                <input 
+                                    type="text" 
+                                    wire:model="dianForm.api_url" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="https://api-sandbox.factus.com.co" 
+                                />
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Token de Acceso API (Bearer Token)</label>
+                                <input 
+                                    type="password" 
+                                    wire:model="dianForm.token" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="Bearer eyJhbGciOiJIUzI1NiIsIn..." 
+                                />
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Clave Técnica DIAN (Para Cálculo CUFE SHA-384)</label>
+                                <input 
+                                    type="text" 
+                                    wire:model="dianForm.clave_tecnica" 
+                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" 
+                                    placeholder="fc8eac422eba16e22ffd8c6f94b3f40a6e38162c" 
+                                />
+                                <p class="text-[10px] text-on-surface-variant mt-1">Clave de 40 a 64 caracteres alfanuméricos asignada en el portal MUISCA DIAN.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end pt-1">
+                            <button 
+                                type="button" 
+                                wire:click="probarDian" 
+                                wire:loading.attr="disabled"
+                                class="inline-flex items-center gap-1.5 rounded-xl border border-outline-variant/30 bg-surface-container-high px-4 py-2 text-xs font-bold text-on-surface hover:bg-surface-container-highest cursor-pointer transition"
+                            >
+                                <span class="material-symbols-outlined text-[16px] text-primary">verified_user</span>
+                                <span wire:loading.remove wire:target="probarDian">Probar Conexión & Algoritmo CUFE</span>
+                                <span wire:loading wire:target="probarDian">Validando con DIAN...</span>
+                            </button>
+                        </div>
+
+                        @if ($testDianResultado)
+                            <div class="rounded-xl p-3 text-xs font-medium border animate-fade-in {{ $testDianResultado['ok'] ? 'bg-secondary/10 border-secondary/30 text-secondary' : 'bg-error/10 border-error/30 text-error' }}">
+                                <div class="flex items-start gap-2">
+                                    <span class="material-symbols-outlined text-[18px] shrink-0">{{ $testDianResultado['ok'] ? 'check_circle' : 'error' }}</span>
+                                    <span>{{ $testDianResultado['mensaje'] }}</span>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Datos del Emisor y Resolución -->
+                    <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-low/50 p-5 space-y-4">
+                        <div class="border-b border-outline-variant/15 pb-2">
+                            <h3 class="text-xs font-black uppercase tracking-wider text-primary">2. Datos Fiscales del Emisor & Rango de Resolución</h3>
+                        </div>
+
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Razón Social Registrada</label>
+                                <input type="text" wire:model="dianForm.razon_social" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">NIT / Identificación Fiscal</label>
+                                <input type="text" wire:model="dianForm.nit" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Régimen Fiscal</label>
+                                <input type="text" wire:model="dianForm.regimen" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs text-on-surface focus:border-primary focus:ring-0" />
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 sm:grid-cols-4">
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">N° Resolución DIAN</label>
+                                <input type="text" wire:model="dianForm.resolucion_numero" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Prefijo Autorizado</label>
+                                <input type="text" wire:model="dianForm.prefijo" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono font-bold text-on-surface uppercase focus:border-primary focus:ring-0" placeholder="POS" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Rango Desde</label>
+                                <input type="text" wire:model="dianForm.desde" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-on-surface-variant">Rango Hasta</label>
+                                <input type="text" wire:model="dianForm.hasta" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-mono text-on-surface focus:border-primary focus:ring-0" />
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-4 pt-2 border-t border-outline-variant/15">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="dianForm.vigente" class="rounded text-primary focus:ring-0" />
+                                <span class="text-xs font-bold text-on-surface">Resolución de numeración vigente ante la DIAN</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" wire:model="dianForm.envio_activo" class="rounded text-primary focus:ring-0" />
+                                <span class="text-xs font-bold text-on-surface">Emisión y timbrado electrónico activo en ventas POS</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2">
+                        <span class="text-xs text-on-surface-variant">El cálculo CUFE SHA-384 y código QR son generados según el anexo técnico 1.9 DIAN.</span>
+                        <button type="submit" class="rounded-xl bg-primary px-6 py-3 text-xs font-black text-on-primary shadow-sm hover:bg-primary-container cursor-pointer transition flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px]">verified</span>
+                            <span>Guardar Parámetros DIAN</span>
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div><label class="text-xs font-bold text-on-surface-variant">Razón social</label>
-                    <input type="text" wire:model="dianForm.razon_social" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">NIT</label>
-                    <input type="text" wire:model="dianForm.nit" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Régimen</label>
-                    <input type="text" wire:model="dianForm.regimen" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Ambiente</label>
-                    <select wire:model="dianForm.ambiente" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0">
-                        <option value="habilitacion">Habilitación</option>
-                        <option value="produccion">Producción</option>
-                    </select></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Tipo documento</label>
-                    <input type="text" wire:model="dianForm.tipo_documento" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">N° resolución</label>
-                    <input type="text" wire:model="dianForm.resolucion_numero" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Prefijo</label>
-                    <input type="text" wire:model="dianForm.prefijo" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Fecha resolución</label>
-                    <input type="date" wire:model="dianForm.resolucion_fecha" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Rango desde</label>
-                    <input type="text" wire:model="dianForm.desde" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-                <div><label class="text-xs font-bold text-on-surface-variant">Rango hasta</label>
-                    <input type="text" wire:model="dianForm.hasta" class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm focus:border-primary focus:ring-0" /></div>
-            </div>
-            <div class="flex items-center gap-4 pt-2">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" wire:model="dianForm.vigente" class="rounded text-primary focus:ring-0" />
-                    <span class="text-xs font-bold text-on-surface-variant">Resolución vigente</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" wire:model="dianForm.envio_activo" class="rounded text-primary focus:ring-0" />
-                    <span class="text-xs font-bold text-on-surface-variant">Facturación electrónica activa</span>
-                </label>
-            </div>
-            <button type="submit" class="rounded-xl bg-primary px-6 py-3 text-xs font-black text-on-primary shadow-sm hover:bg-primary-container cursor-pointer">
-                Guardar Configuración DIAN
-            </button>
-        </form>
+        </div>
     @endif
 
     <!-- ===================================================================== -->

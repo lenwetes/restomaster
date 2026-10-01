@@ -6,6 +6,8 @@ use App\Http\Controllers\CrmWebhookController;
 use App\Http\Controllers\EncuestaPublicaController;
 use App\Http\Controllers\ExportacionContableController;
 use App\Http\Controllers\InformeEjecutivoController;
+use App\Http\Controllers\PasarelaWebhookController;
+use App\Http\Controllers\PosOfflineSyncController;
 use App\Http\Controllers\ReporteExportController;
 use App\Http\Controllers\ReservaPublicaController;
 use App\Http\Controllers\ReservaWebhookController;
@@ -119,6 +121,12 @@ Volt::route('promociones/{slug}', 'promociones.detalle')->middleware('throttle:6
 // Webhook Meta WhatsApp Cloud API (CRM Automatizaciones con Rate Limiting)
 Route::get('api/webhooks/whatsapp', [CrmWebhookController::class, 'verificar'])->middleware('throttle:60,1')->name('crm.webhook.verificar');
 Route::post('api/webhooks/whatsapp', [CrmWebhookController::class, 'recibir'])->middleware('throttle:60,1')->name('crm.webhook.recibir');
+
+// Webhooks de Pasarelas de Pago (Wompi & Bold)
+Route::post('api/webhooks/pasarela/{proveedor}', [PasarelaWebhookController::class, 'handle'])->middleware('throttle:60,1')->name('pasarela.webhook');
+
+// Sincronización de Comandas Offline POS (IndexedDB)
+Route::post('api/pos/sincronizar-offline', [PosOfflineSyncController::class, 'sincronizar'])->name('pos.offline.sync');
 
 // Portal Público de Clientes (F7-06)
 Route::prefix('cliente')->name('cliente.')->group(function () {

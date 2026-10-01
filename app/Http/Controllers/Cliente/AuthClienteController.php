@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Cliente;
 
 use App\Http\Controllers\Controller;
+use App\Mail\MagicLinkLoginMailable;
 use App\Models\Cliente;
 use App\Models\ClienteSocialAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -25,7 +27,10 @@ class AuthClienteController extends Controller
     {
         $token = $request->cookie('cliente_session_token');
         if ($token) {
-            $cliente = Cliente::where('auth_token', $token)
+            $hashedToken = hash('sha256', $token);
+            $cliente = Cliente::where(function ($q) use ($token, $hashedToken) {
+                $q->where('auth_token', $hashedToken)->orWhere('auth_token', $token);
+            })
                 ->where(fn ($q) => $q->whereNull('auth_token_expires_at')->orWhere('auth_token_expires_at', '>', now()))
                 ->first();
 
@@ -147,6 +152,12 @@ class AuthClienteController extends Controller
 
         Log::info("Magic Link generado para {$email}");
 
+        try {
+            Mail::to($email)->send(new MagicLinkLoginMailable($magicUrl, $email));
+        } catch (\Throwable $e) {
+            Log::warning("No fue posible despachar correo de Magic Link a {$email}: ".$e->getMessage());
+        }
+
         $response = back()->with('magic_sent', true)->with('magic_email', $email);
 
         if (app()->environment('testing', 'local')) {
@@ -204,10 +215,13 @@ class AuthClienteController extends Controller
         $token = $request->cookie('cliente_session_token');
 
         if ($token) {
-            Cliente::where('auth_token', $token)->update([
-                'auth_token' => null,
-                'auth_token_expires_at' => null,
-            ]);
+            $hashedToken = hash('sha256', $token);
+            Cliente::where('auth_token', $hashedToken)
+                ->orWhere('auth_token', $token)
+                ->update([
+                    'auth_token' => null,
+                    'auth_token_expires_at' => null,
+                ]);
         }
 
         Cookie::queue(Cookie::forget('cliente_session_token'));
@@ -217,20 +231,22 @@ class AuthClienteController extends Controller
     }
 
     /**
-     * Generar token seguro, persistir y configurar cookie HTTP-only.
+     * Generar token seguro, persistir hash y configurar cookie HTTP-only.
      */
     private function iniciarSesionCliente(Cliente $cliente, string $proveedor): RedirectResponse
     {
         $token = Str::random(60);
+        $hashedToken = hash('sha256', $token);
         $expira = now()->addDays(30);
 
         $cliente->update([
-            'auth_token' => $token,
+            'auth_token' => $hashedToken,
             'auth_token_expires_at' => $expira,
             'proveedor_auth' => $proveedor,
         ]);
 
-        Cookie::queue('cliente_session_token', $token, 60 * 24 * 30, null, null, false, true);
+        $secureCookie = config('session.secure', ! app()->environment('local', 'testing'));
+        Cookie::queue('cliente_session_token', $token, 60 * 24 * 30, null, null, (bool) $secureCookie, true);
 
         return redirect()->route('cliente.perfil')
             ->with('success', "¡Bienvenido, {$cliente->nombre}!");

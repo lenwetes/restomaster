@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Events\MesaActualizada;
 use App\Models\Mesa;
+use App\Models\Pedido;
 use App\Models\Reserva;
 use App\Models\RotacionMesero;
 use App\Models\RotacionZona;
@@ -473,7 +474,7 @@ class RotacionMeseroService
                 $mesasActivas = Mesa::where('mesero_id', $rot->user_id)
                     ->whereIn('estado', ['ocupada', 'cuenta_pedida', 'en_cocina'])
                     ->count();
-                $pedidosActivos = \App\Models\Pedido::where('mesero_id', $rot->user_id)
+                $pedidosActivos = Pedido::where('mesero_id', $rot->user_id)
                     ->activos()
                     ->count();
 

@@ -1,8 +1,9 @@
-const CACHE_NAME = 'restomaster-cache-v1';
+const CACHE_NAME = 'restomaster-cache-v2';
 const STATIC_ASSETS = [
     '/favicon.svg',
     '/favicon.ico',
-    '/manifest.json'
+    '/manifest.json',
+    '/js/pos-offline.js'
 ];
 
 self.addEventListener('install', (event) => {

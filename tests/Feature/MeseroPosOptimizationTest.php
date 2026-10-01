@@ -11,6 +11,7 @@ use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
+use App\Services\PedidoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
@@ -213,7 +214,7 @@ class MeseroPosOptimizationTest extends TestCase
         // Caja procesa el cobro y libera la mesa
         $this->actingAs($this->admin);
         $pedido = Pedido::where('mesa_id', $this->mesa->id)->latest()->first();
-        app(\App\Services\PedidoService::class)->cobrarPedido($pedido, 'tarjeta', 28000);
+        app(PedidoService::class)->cobrarPedido($pedido, 'tarjeta', 28000);
 
         // Verificar pedido pagado
         $this->assertDatabaseHas('pedidos', [

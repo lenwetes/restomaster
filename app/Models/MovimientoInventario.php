@@ -13,6 +13,7 @@ class MovimientoInventario extends Model
     protected $table = 'movimientos_inventario';
 
     protected $fillable = [
+        'sucursal_id',
         'insumo_id',
         'tipo',
         'cantidad',
@@ -42,6 +43,11 @@ class MovimientoInventario extends Model
     public function pedido(): BelongsTo
     {
         return $this->belongsTo(Pedido::class, 'pedido_id');
+    }
+
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class, 'sucursal_id');
     }
 
     public function user(): BelongsTo

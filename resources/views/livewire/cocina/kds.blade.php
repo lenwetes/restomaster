@@ -60,6 +60,8 @@ new class extends Component
     public function tomarItem(int $itemId): void
     {
         $item = ItemPedido::with('pedido')->findOrFail($itemId);
+        $sucursalId = $item->relationLoaded('pedido') ? $item->pedido?->sucursal_id : Pedido::where('id', $item->pedido_id)->value('sucursal_id');
+        abort_if(Auth::user()?->sucursal_id && $sucursalId && $sucursalId !== Auth::user()->sucursal_id, 403, 'No autorizado para operar sobre comandas de otra sucursal.');
         $this->authorize('cocinar', [Pedido::class, $item->area_cocina]);
 
         $item->update([

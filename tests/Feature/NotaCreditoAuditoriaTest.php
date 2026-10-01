@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Caja;
-use App\Models\ItemPedido;
 use App\Models\NotaCredito;
 use App\Models\Pedido;
 use App\Models\Producto;
@@ -124,7 +123,7 @@ class NotaCreditoAuditoriaTest extends TestCase
 
     public function test_solo_cajero_y_admin_crean_nc(): void
     {
-        $policy = new NotaCreditoPolicy();
+        $policy = new NotaCreditoPolicy;
 
         $this->assertTrue($policy->create($this->cajero));
         $this->assertTrue($policy->create($this->admin));

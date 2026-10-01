@@ -15,6 +15,7 @@ class PinSeguridadConfiguracionTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected ConfiguracionService $configService;
 
     protected function setUp(): void

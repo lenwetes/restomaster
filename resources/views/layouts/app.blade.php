@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full dark">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -165,6 +165,9 @@
             <!-- Copiloto Ejecutivo IA (Asistente Interno Administrativo) -->
             <livewire:admin.copilot-drawer />
         @endif
+
+        <!-- Resiliencia Offline: IndexedDB y Sincronización Automática -->
+        <script src="/js/pos-offline.js" defer></script>
 
         @stack('scripts')
     </body>

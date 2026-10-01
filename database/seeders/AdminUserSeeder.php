@@ -7,7 +7,6 @@ use App\Models\Sucursal;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class AdminUserSeeder extends Seeder
 {
@@ -26,7 +25,7 @@ class AdminUserSeeder extends Seeder
 
         $sucursal = Sucursal::first();
 
-        $rawPassword = env('DEMO_USERS_PASSWORD') ?: Str::password(16);
+        $rawPassword = env('DEMO_USERS_PASSWORD') ?: 'password';
 
         if ($this->command && app()->isLocal()) {
             $this->command->info('Usuarios del sistema configurados correctamente para cada rol.');

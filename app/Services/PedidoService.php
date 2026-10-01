@@ -22,6 +22,7 @@ use App\Models\Producto;
 use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
+use App\Services\Dian\DianPosElectronicoService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -524,6 +525,14 @@ class PedidoService
             'created_at' => now(),
         ]);
 
+        $cufe = null;
+        try {
+            $facturaDian = app(DianPosElectronicoService::class)->emitirPosElectronico($pedido);
+            $cufe = $facturaDian->cufe;
+        } catch (\Throwable $e) {
+            Log::warning("Emisión POS Electrónico DIAN pospuesta o en contingencia para pedido {$pedido->id}: {$e->getMessage()}");
+        }
+
         broadcast(new PagoProcesadoPorCaja(
             pedidoId: $pedido->id,
             meseroId: (int) $meseroId,
@@ -531,7 +540,8 @@ class PedidoService
             total: (float) $pedido->total,
             metodoPago: (string) ($pedido->metodo_pago ?? 'efectivo'),
             ticketUrl: route('caja'),
-            mensaje: $mensaje
+            mensaje: $mensaje,
+            cufe: $cufe
         ));
     }
 

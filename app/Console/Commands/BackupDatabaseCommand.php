@@ -7,17 +7,21 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Storage;
 
 class BackupDatabaseCommand extends Command
 {
     protected $signature = 'restomaster:backup
                             {--tablas= : Lista opcional de tablas separadas por coma}
-                            {--keep=14 : Cantidad de respaldos recientes a conservar en rotación}
-                            {--dump : Forzar uso de pg_dump binario si está disponible}';
+                            {--keep=14 : Cantidad de respaldos recientes a conservar en rotación local}
+                            {--dump : Forzar uso de pg_dump binario si está disponible}
+                            {--cloud : Subir automáticamente al almacenamiento de objetos (Cloudflare R2 o AWS S3)}
+                            {--disk= : Disco de destino en almacenamiento de objetos (por defecto: r2 o s3)}
+                            {--keep-remote=14 : Cantidad de respaldos a conservar en el bucket de almacenamiento de objetos}';
 
     protected $aliases = ['db:backup', 'sushixpress:backup'];
 
-    protected $description = 'Genera un volcado estructurado de respaldo de la base de datos de RestoMaster con streaming y rotación';
+    protected $description = 'Genera un volcado estructurado de respaldo de la base de datos de RestoMaster con streaming y rotación en local y en la nube';
 
     /**
      * Tablas cubiertas por el respaldo (y por la restauración automática).
@@ -75,108 +79,118 @@ class BackupDatabaseCommand extends Command
         $conn = config('database.default');
         $keep = (int) $this->option('keep') ?: 14;
 
+        $filepath = null;
+        $filename = null;
+
         // Intentar pg_dump binario si es pgsql y se solicita o no hay filtro de tablas
         if ($conn === 'pgsql' && ($this->option('dump') || ! $this->option('tablas'))) {
-            $dumpResult = $this->ejecutarPgDump($backupDir, $timestamp);
-            if ($dumpResult !== null) {
-                $this->rotarRespaldos($backupDir, $keep);
-
-                return $dumpResult;
+            $filepath = $this->ejecutarPgDump($backupDir, $timestamp);
+            if ($filepath !== null) {
+                $filename = basename($filepath);
             }
         }
 
-        // Respaldo streaming mediante cursores (bajo uso de memoria y sin desbordamiento)
-        $tablasPorDefecto = self::TABLAS;
+        if (! $filepath) {
 
-        if ($this->option('tablas')) {
-            $tablas = array_map('trim', explode(',', $this->option('tablas')));
-        } else {
-            $tablas = $tablasPorDefecto;
-        }
+            // Respaldo streaming mediante cursores (bajo uso de memoria y sin desbordamiento)
+            $tablasPorDefecto = self::TABLAS;
 
-        $filename = "restomaster_backup_{$timestamp}.sql";
-        $filepath = "{$backupDir}/{$filename}";
+            if ($this->option('tablas')) {
+                $tablas = array_map('trim', explode(',', $this->option('tablas')));
+            } else {
+                $tablas = $tablasPorDefecto;
+            }
 
-        $fp = fopen($filepath, 'w');
-        if (! $fp) {
-            $this->error("No se pudo abrir el archivo de respaldo: {$filepath}");
+            $filename = "restomaster_backup_{$timestamp}.sql";
+            $filepath = "{$backupDir}/{$filename}";
 
-            return Command::FAILURE;
-        }
+            $fp = fopen($filepath, 'w');
+            if (! $fp) {
+                $this->error("No se pudo abrir el archivo de respaldo: {$filepath}");
 
-        fwrite($fp, "-- ========================================================\n");
-        fwrite($fp, "-- RestoMaster POS Enterprise — Volcado de Respaldo\n");
-        fwrite($fp, '-- Fecha: '.Carbon::now()->toIso8601String()."\n");
-        fwrite($fp, '-- Servidor: '.$conn."\n");
-        fwrite($fp, "-- ========================================================\n\n");
+                return Command::FAILURE;
+            }
 
-        $totalRegistros = 0;
+            fwrite($fp, "-- ========================================================\n");
+            fwrite($fp, "-- RestoMaster POS Enterprise — Volcado de Respaldo\n");
+            fwrite($fp, '-- Fecha: '.Carbon::now()->toIso8601String()."\n");
+            fwrite($fp, '-- Servidor: '.$conn."\n");
+            fwrite($fp, "-- ========================================================\n\n");
 
-        foreach ($tablas as $tabla) {
-            try {
-                $count = DB::table($tabla)->count();
-                $totalRegistros += $count;
+            $totalRegistros = 0;
 
-                fwrite($fp, "-- Tabla: {$tabla} ({$count} registros)\n");
+            foreach ($tablas as $tabla) {
+                try {
+                    $count = DB::table($tabla)->count();
+                    $totalRegistros += $count;
 
-                // Streaming por cursor para no materializar todas las filas en RAM
-                foreach (DB::table($tabla)->cursor() as $row) {
-                    $rowArray = (array) $row;
-                    $cols = array_keys($rowArray);
-                    $vals = array_map(function ($val) {
-                        if ($val === null) {
-                            return 'NULL';
-                        }
-                        if (is_bool($val)) {
-                            return $val ? 'true' : 'false';
-                        }
-                        if (is_int($val) || is_float($val)) {
-                            return (string) $val;
-                        }
+                    fwrite($fp, "-- Tabla: {$tabla} ({$count} registros)\n");
 
-                        // Escape SQL estándar seguro evitando corrupción de backslashes
-                        return "'".str_replace("'", "''", (string) $val)."'";
-                    }, array_values($rowArray));
+                    // Streaming por cursor para no materializar todas las filas en RAM
+                    foreach (DB::table($tabla)->cursor() as $row) {
+                        $rowArray = (array) $row;
+                        $cols = array_keys($rowArray);
+                        $vals = array_map(function ($val) {
+                            if ($val === null) {
+                                return 'NULL';
+                            }
+                            if (is_bool($val)) {
+                                return $val ? 'true' : 'false';
+                            }
+                            if (is_int($val) || is_float($val)) {
+                                return (string) $val;
+                            }
 
-                    $colList = '"'.implode('", "', $cols).'"';
-                    $valList = implode(', ', $vals);
+                            // Escape SQL estándar seguro evitando corrupción de backslashes
+                            return "'".str_replace("'", "''", (string) $val)."'";
+                        }, array_values($rowArray));
 
-                    fwrite($fp, "INSERT INTO \"{$tabla}\" ({$colList}) VALUES ({$valList});\n");
+                        $colList = '"'.implode('", "', $cols).'"';
+                        $valList = implode(', ', $vals);
+
+                        fwrite($fp, "INSERT INTO \"{$tabla}\" ({$colList}) VALUES ({$valList});\n");
+                    }
+
+                    fwrite($fp, "\n");
+                    $this->line(" <info>✓</info> Tabla <comment>{$tabla}</comment>: {$count} registros respaldados.");
+                } catch (\Throwable $e) {
+                    $this->warn(" <comment>!</comment> Omitida tabla {$tabla}: ".$e->getMessage());
                 }
-
-                fwrite($fp, "\n");
-                $this->line(" <info>✓</info> Tabla <comment>{$tabla}</comment>: {$count} registros respaldados.");
-            } catch (\Throwable $e) {
-                $this->warn(" <comment>!</comment> Omitida tabla {$tabla}: ".$e->getMessage());
             }
+
+            fclose($fp);
+
+            $duracion = round(microtime(true) - $inicio, 2);
+            $tamanoKb = round(filesize($filepath) / 1024, 2);
+            $sha256 = hash_file('sha256', $filepath);
+
+            $this->newLine();
+            $this->info("✓ Respaldo completado exitosamente en {$duracion} s.");
+            $this->table(
+                ['Propiedad', 'Detalle'],
+                [
+                    ['Archivo Generado', $filename],
+                    ['Ruta Completa', $filepath],
+                    ['Tamaño del Archivo', "{$tamanoKb} KB"],
+                    ['Checksum (SHA256)', substr($sha256, 0, 16).'...'],
+                    ['Registros Respaldados', (string) $totalRegistros],
+                    ['Tablas Procesadas', (string) count($tablas)],
+                ]
+            );
         }
-
-        fclose($fp);
-
-        $duracion = round(microtime(true) - $inicio, 2);
-        $tamanoKb = round(filesize($filepath) / 1024, 2);
-        $sha256 = hash_file('sha256', $filepath);
 
         $this->rotarRespaldos($backupDir, $keep);
 
-        $this->newLine();
-        $this->info("✓ Respaldo completado exitosamente en {$duracion} s.");
-        $this->table(
-            ['Propiedad', 'Detalle'],
-            [
-                ['Archivo Generado', $filename],
-                ['Ruta Completa', $filepath],
-                ['Tamaño del Archivo', "{$tamanoKb} KB"],
-                ['Checksum (SHA256)', substr($sha256, 0, 16).'...'],
-                ['Registros Respaldados', (string) $totalRegistros],
-                ['Tablas Procesadas', (string) count($tablas)],
-            ]
-        );
+        // Subida a almacenamiento de objetos (Cloudflare R2 o AWS S3)
+        if ($this->option('cloud') || $this->option('disk')) {
+            $keepRemote = (int) ($this->option('keep-remote') ?: 14);
+            $this->subirARemotoYRotar($filepath, $filename, $this->option('disk'), $keepRemote);
+        }
 
         return Command::SUCCESS;
     }
 
-    protected function ejecutarPgDump(string $backupDir, string $timestamp): ?int
+    protected function ejecutarPgDump(string $backupDir, string $timestamp): ?string
     {
         $dbConfig = config('database.connections.pgsql');
         if (! $dbConfig) {
@@ -226,7 +240,7 @@ class BackupDatabaseCommand extends Command
                     ]
                 );
 
-                return Command::SUCCESS;
+                return $filepath;
             }
         } catch (\Throwable $e) {
             // Si pg_dump no está en el PATH o falla, se continúa con streaming cursor
@@ -234,6 +248,44 @@ class BackupDatabaseCommand extends Command
         }
 
         return null;
+    }
+
+    protected function subirARemotoYRotar(string $filepath, string $filename, ?string $diskName = null, int $keepRemote = 14): void
+    {
+        $disk = $diskName ?: (config('filesystems.disks.r2.endpoint') ? 'r2' : 's3');
+
+        $this->info("Subiendo respaldo a almacenamiento de objetos (disco: {$disk})...");
+
+        try {
+            $stream = fopen($filepath, 'r');
+            if (! $stream) {
+                $this->error("No se pudo leer el archivo local para subir a la nube: {$filepath}");
+
+                return;
+            }
+
+            $remotePath = "backups/{$filename}";
+            Storage::disk($disk)->put($remotePath, $stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            $this->info("✓ Respaldo subido exitosamente a {$disk}://{$remotePath}");
+
+            // Rotación en bucket remoto
+            $archivosRemotos = Storage::disk($disk)->files('backups');
+            if (count($archivosRemotos) > $keepRemote) {
+                // Ordenar por nombre descendente (los nombres contienen timestamp Y-m-d_His)
+                rsort($archivosRemotos);
+                $aBorrar = array_slice($archivosRemotos, $keepRemote);
+                foreach ($aBorrar as $remoto) {
+                    Storage::disk($disk)->delete($remoto);
+                    $this->comment("Rotación remota: eliminado respaldo antiguo en {$disk}://{$remoto}");
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->warn("Aviso: No se pudo completar la sincronización con almacenamiento de objetos ({$disk}): {$e->getMessage()}");
+        }
     }
 
     protected function rotarRespaldos(string $backupDir, int $keep = 14): void

@@ -23,7 +23,11 @@ class AuthCliente
             return $this->noAutorizado($request);
         }
 
-        $cliente = Cliente::where('auth_token', $token)
+        $hashedToken = hash('sha256', $token);
+        $cliente = Cliente::where(function ($q) use ($token, $hashedToken) {
+            $q->where('auth_token', $hashedToken)
+                ->orWhere('auth_token', $token);
+        })
             ->where(function ($q) {
                 $q->whereNull('auth_token_expires_at')
                     ->orWhere('auth_token_expires_at', '>', now());

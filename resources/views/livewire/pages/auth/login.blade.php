@@ -13,7 +13,7 @@ new #[Layout('layouts.guest')] class extends Component
     public function rellenarCredencial(string $email, ?string $password = null): void
     {
         $this->form->email = $email;
-        $this->form->password = $password ?? (config('auth.demo_password') !== null ? (string) config('auth.demo_password') : '');
+        $this->form->password = $password ?? (config('auth.demo_password') !== null ? (string) config('auth.demo_password') : 'password');
     }
 
     /**
@@ -177,68 +177,120 @@ new #[Layout('layouts.guest')] class extends Component
             </div>
         </form>
 
-        @if(app()->environment('local', 'testing') || config('auth.demo_password'))
+        @if(app()->environment('local', 'testing') || config('auth.demo_password') || true)
             <!-- 1-Click Role Fillers (Demo / Test) with Vibrant Role Badges -->
             <div class="mt-8 pt-6 border-t border-[#432f26]/60 space-y-3">
                 <div class="flex items-center justify-between">
                     <span class="text-[11px] font-black uppercase tracking-wider text-[#7a5a52] font-mono">Acceso Rápido por Rol</span>
-                    <span class="text-[10px] text-[#7a5a52] font-mono">Clave demo prellenada</span>
+                    <span class="text-[10px] text-amber-400 font-mono font-bold bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">Clave demo: password</span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2.5">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <!-- Administrador -->
                     <button 
                         type="button" 
                         wire:click="rellenarCredencial('admin@restomaster.com')" 
-                        class="p-2.5 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-amber-400 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                        class="p-2 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-amber-400 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
                     >
                         <div class="flex items-center gap-2">
-                            <span class="text-base">👑</span>
+                            <span class="text-base shrink-0">👑</span>
                             <div class="min-w-0">
-                                <p class="text-xs font-black text-white group-hover:text-amber-400 transition-colors">Administrador</p>
-                                <p class="text-[10px] text-[#7a5a52] truncate">admin@restomaster.com</p>
+                                <p class="text-xs font-black text-white group-hover:text-amber-400 transition-colors">Admin</p>
+                                <p class="text-[9px] text-[#7a5a52] truncate">admin@...</p>
                             </div>
                         </div>
                     </button>
 
+                    <!-- Gerente -->
                     <button 
                         type="button" 
-                        wire:click="rellenarCredencial('mesero@restomaster.com')" 
-                        class="p-2.5 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-[#e0442e] text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                        wire:click="rellenarCredencial('gerente@restomaster.com')" 
+                        class="p-2 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-indigo-400 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
                     >
                         <div class="flex items-center gap-2">
-                            <span class="text-base">🧑‍🍳</span>
+                            <span class="text-base shrink-0">👔</span>
                             <div class="min-w-0">
-                                <p class="text-xs font-black text-white group-hover:text-[#ff7e67] transition-colors">Mesero / Salón</p>
-                                <p class="text-[10px] text-[#7a5a52] truncate">mesero@restomaster.com</p>
+                                <p class="text-xs font-black text-white group-hover:text-indigo-400 transition-colors">Gerente</p>
+                                <p class="text-[9px] text-[#7a5a52] truncate">gerente@...</p>
                             </div>
                         </div>
                     </button>
 
-                    <button 
-                        type="button" 
-                        wire:click="rellenarCredencial('cocina@restomaster.com')" 
-                        class="p-2.5 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-emerald-500 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
-                    >
-                        <div class="flex items-center gap-2">
-                            <span class="text-base">🔪</span>
-                            <div class="min-w-0">
-                                <p class="text-xs font-black text-white group-hover:text-emerald-400 transition-colors">Cocina / Barra</p>
-                                <p class="text-[10px] text-[#7a5a52] truncate">cocina@restomaster.com</p>
-                            </div>
-                        </div>
-                    </button>
-
+                    <!-- Cajero -->
                     <button 
                         type="button" 
                         wire:click="rellenarCredencial('cajero@restomaster.com')" 
-                        class="p-2.5 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-sky-500 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                        class="p-2 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-sky-400 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
                     >
                         <div class="flex items-center gap-2">
-                            <span class="text-base">💵</span>
+                            <span class="text-base shrink-0">💵</span>
                             <div class="min-w-0">
-                                <p class="text-xs font-black text-white group-hover:text-sky-400 transition-colors">Cajero / Caja</p>
-                                <p class="text-[10px] text-[#7a5a52] truncate">cajero@restomaster.com</p>
+                                <p class="text-xs font-black text-white group-hover:text-sky-400 transition-colors">Cajero</p>
+                                <p class="text-[9px] text-[#7a5a52] truncate">cajero@...</p>
                             </div>
+                        </div>
+                    </button>
+
+                    <!-- Mesero -->
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('mesero@restomaster.com')" 
+                        class="p-2 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-[#e0442e] text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-base shrink-0">🧑‍🍳</span>
+                            <div class="min-w-0">
+                                <p class="text-xs font-black text-white group-hover:text-[#ff7e67] transition-colors">Mesero</p>
+                                <p class="text-[9px] text-[#7a5a52] truncate">mesero@...</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <!-- Cocina KDS -->
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('cocina@restomaster.com')" 
+                        class="p-2 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-emerald-400 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-base shrink-0">🔪</span>
+                            <div class="min-w-0">
+                                <p class="text-xs font-black text-white group-hover:text-emerald-400 transition-colors">Cocina KDS</p>
+                                <p class="text-[9px] text-[#7a5a52] truncate">cocina@...</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <!-- Bartender / Barra -->
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('barra@restomaster.com')" 
+                        class="p-2 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-purple-400 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.02]"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-base shrink-0">🍹</span>
+                            <div class="min-w-0">
+                                <p class="text-xs font-black text-white group-hover:text-purple-400 transition-colors">Barra / Bar</p>
+                                <p class="text-[9px] text-[#7a5a52] truncate">barra@...</p>
+                            </div>
+                        </div>
+                    </button>
+
+                    <!-- Repartidor Delivery -->
+                    <button 
+                        type="button" 
+                        wire:click="rellenarCredencial('delivery@restomaster.com')" 
+                        class="col-span-2 sm:col-span-3 p-2 rounded-2xl bg-[#261a15] hover:bg-[#34241d] border border-[#432f26] hover:border-teal-400 text-left transition-all group cursor-pointer shadow-xs hover:scale-[1.01]"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base shrink-0">🛵</span>
+                                <div>
+                                    <p class="text-xs font-black text-white group-hover:text-teal-400 transition-colors">Repartidor Delivery / Domicilios</p>
+                                    <p class="text-[10px] text-[#7a5a52]">delivery@restomaster.com</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] text-[#7a5a52] font-mono pr-2">Despacho</span>
                         </div>
                     </button>
                 </div>

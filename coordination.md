@@ -6,6 +6,170 @@
 ---
 
 ## Última Actualización
+2026-10-01 | Antigravity | 🎨 **FIX CONTRASTE EN /profile + CONFIGURACIÓN DE DESPLIEGUE EN COOLIFY + SINCRONIZACIÓN DE RAMAS GITHUB:**
+- **Corrección de Contraste en Perfil (`/profile`):**
+  - Identificada causa raíz: Falta de clase `dark` en elemento `<html>` en layouts (`app.blade.php`, `guest.blade.php`), lo que provocaba que tarjetas y campos cayeran a fondos blancos con tipografía crema/blanca casi invisible.
+  - Añadida clase `dark` a `<html lang="..." class="h-full dark">` en [`app.blade.php`](file:///d:/Proyectos/restomaster/resources/views/layouts/app.blade.php) y [`guest.blade.php`](file:///d:/Proyectos/restomaster/resources/views/layouts/guest.blade.php).
+  - Rediseñadas tarjetas y maquetación de [`profile.blade.php`](file:///d:/Proyectos/restomaster/resources/views/profile.blade.php) con tokens de diseño Aura Gastro OS (`bg-surface-container-low`, `border-surface-container-highest`, `rounded-2xl`, sombras y cabecera de rol).
+  - Modernizados y blindados los componentes de formulario: [`text-input.blade.php`](file:///d:/Proyectos/restomaster/resources/views/components/text-input.blade.php) (fondo oscuro carbón cálido, texto de alto contraste `#f5e8e2`, borde `#432f26`, foco terracota `#e0442e`), [`input-label.blade.php`](file:///d:/Proyectos/restomaster/resources/views/components/input-label.blade.php), [`primary-button.blade.php`](file:///d:/Proyectos/restomaster/resources/views/components/primary-button.blade.php) y [`danger-button.blade.php`](file:///d:/Proyectos/restomaster/resources/views/components/danger-button.blade.php).
+- **Configuración Optimizada de Despliegue en Coolify:**
+  - Sincronizados y estandarizados los tres archivos de compose: [`docker-compose.coolify.yml`](file:///d:/Proyectos/restomaster/docker-compose.coolify.yml), [`docker-compose.yaml`](file:///d:/Proyectos/restomaster/docker-compose.yaml) y [`docker-compose.yml`](file:///d:/Proyectos/restomaster/docker-compose.yml).
+  - Corregido volumen de PostgreSQL: `postgres_data_v18:/var/lib/postgresql/data` con `PGDATA: /var/lib/postgresql/data/pgdata` para evitar advertencias de permisos en discos persistentes.
+  - Agregada dependencia explícita de `redis: condition: service_healthy` en el servicio `app` para evitar carreras en arranque.
+  - Inyectadas todas las variables de entorno de producción: Sentry APM (`SENTRY_LARAVEL_DSN`, `METRICAS_P95_ENABLED`), pasarelas de pago (`WOMPI_*`, `BOLD_*`), facturación electrónica DIAN (`DIAN_*`) y backups S3/R2 (`AWS_*`).
+  - Actualizado [`docker/entrypoint.sh`](file:///d:/Proyectos/restomaster/docker/entrypoint.sh) para generar `.env` en tiempo de ejecución con las variables nuevas para PHP-FPM y CLI.
+- **Calidad de Código y Suites:**
+  - Laravel Pint ejecutado con éxito.
+  - Tests `ProfileTest` (4/4 pasando), `PasswordUpdateTest` (2/2 pasando) y `AuthenticationTest` (5/5 pasando).
+- **Control de Versiones:**
+  - Git commit y push sincronizando `main` y `master`.
+
+---
+
+## Actualización previa
+2026-10-01 | Antigravity | 🗓️ **SEED COMPLETA DE 1 MES DE OPERACIONES (30 DÍAS) + PROVEEDORES + RESET DB + LOGIN RÁPIDO:**
+- **Reinicio Total de Base de Datos Solicitado (`php artisan migrate:fresh --seed`):**
+  - Base de datos eliminada y migrada desde cero limpiamente.
+  - Creado y ejecutado [`OperacionesMesCompletoSeeder.php`](file:///d:/Proyectos/restomaster/database/seeders/OperacionesMesCompletoSeeder.php) integrado en [`DatabaseSeeder.php`](file:///d:/Proyectos/restomaster/database/seeders/DatabaseSeeder.php).
+- **Módulos y Operaciones de 30 Días Sembradas:**
+  1. **Proveedores & Compras (`proveedores`, `compras`, `cuentas_por_pagar`, `pagos_cxps`):**
+     - 6 proveedores colombianos líderes de insumos (Carnes Frías San Martín, Avícola Los Andes, Lácteos El Trébol, Del Campo La Ceja, Distribuidora Licores La 70, Empaques Ecológicos).
+     - 9 facturas de compra a lo largo del mes (`FAC-...`) con líneas de compra detalladas.
+     - Cuentas por pagar en estados realistas: pagadas con comprobantes en `pagos_cxps`, parciales con abonos registrados y pendientes recientes.
+     - Movimientos de inventario asociados por compra de insumos (`movimientos_inventario`).
+  2. **Turnos de Caja (30 días completos en `turnos_caja`):**
+     - 29 turnos históricos cerrados y cuadrados sin novedades en Caja Principal (`CAJ-01`) y Caja Barra (`CAJ-02`), con diferenciación de picos de fin de semana (viernes, sábado, domingo).
+     - 2 turnos abiertos en vivo hoy (`CAJ-01` Salón y `CAJ-02` Barra & Terraza).
+  3. **Movimientos de Caja Diarios (`movimientos_caja`):**
+     - Ingresos por base de cambio adicional y anticipos de eventos.
+     - Egresos por caja menor (compras urgentes de limones/hielo/insumos frescos y propinas liquidadas).
+     - Retiros de seguridad preventivos a bóveda bancaria.
+  4. **150+ Comandas Históricas Pagadas (`pedidos`, `items_pedido`, `facturas_electronicas`):**
+     - 5 a 8 comandas diarias detalladas con propinas voluntarias del 10% y métodos combinados (efectivo, datáfono, Wompi, Bold).
+     - Facturación electrónica DIAN POS emitida con código CUFE SHA-384 oficial y cadena QR.
+  5. **Comandas Activas en Vivo de Hoy:**
+     - Mesa 1: Estado `en_cocina` (KDS caliente y barra).
+     - Mesa 2: Estado `solicitado_qr` (auto-ordenado desde QR en mesa).
+     - Mesa 3: Estado `listo` (campana sonada en cocina, lista para servir).
+     - Mesa 4: Estado `pendiente_cobro` (cuenta solicitada para pago en caja).
+     - Domicilio 1: Estado `en_camino` (asignado a repartidor con dirección de entrega).
+  6. **Reservas para Todo el Mes (`reservas`):**
+     - Históricas finalizadas a lo largo del mes, hoy (almuerzo familiar y cena ejecutiva VIP con anticipo) y próximas semanas.
+  7. **Malla de Turnos Semanales de Meseros (`ProgramacionSemanal` & `TurnoMeseroSemana`):**
+     - Estado publicado con 10 meseros colombianos rotando equitativamente en Salón, Terraza y Barra con descansos asignados.
+- **Acceso Rápido por Rol en Login (`login.blade.php`):**
+  - Botones táctiles de 1 clic para los 7 roles con contraseña unificada `password`.
+- **Calidad y Verificación:**
+  - Laravel Pint ejecutado sin advertencias.
+  - Suites `Turno` (74/74 tests pasando) y `AuthenticationTest` (5/5 tests pasando). Todo verde.
+
+2026-10-01 | Antigravity | 📈 **GENERACIÓN DE GRÁFICAS EN TIEMPO REAL AL ANALIZAR CON IA EN REPORTES:**
+- **Ampliación del Motor IA Ejecutivo (`AdminAiCopilotService.php`):**
+  - Añadido cálculo y retorno de payload completo de datos para gráficos interactivos en el resultado de `analizarReporte`:
+    1. `tendencia_temporal`: Curva de ventas día a día del Período A vs Período de Comparación B con etiquetas unificadas.
+    2. `top_productos`: Ranking de los 5 platos líderes que explican la tendencia del período con ventas en COP y cantidades vendidas.
+    3. `comparativa_kpis`: Balance de KPIs clave (Facturación Total, Ticket Promedio y Volumen de Comandas) entre Período A y B.
+    4. `canales`: Distribución de facturación por canales (En Sala, Delivery, QR de Mesa y Para Llevar).
+- **Interfaz Gráfica Interactiva en Reportes (`resources/views/livewire/reportes/index.blade.php`):**
+  - Incorporada sección visual interactiva dentro de la tarjeta de Diagnóstico IA al presionar `🧠 Analizar con IA`:
+    * **Curva de Ventas (Evolución A vs B):** Gráfica de área con gradiente suave (`chart-ia-tendencia`).
+    * **Top Platos Impulsores:** Gráfica de barras horizontales coloreadas (`chart-ia-top-productos`).
+    * **Balance de Métricas Clave:** Gráfica de barras comparativas agrupadas (`chart-ia-comparativa-kpis`).
+    * **Distribución de Canales:** Gráfica Donut interactiva (`chart-ia-canales`).
+  - Sincronización automática de Alpine.js con ApexCharts al recibir el evento `ia-analisis-generado` y en `x-init` del bloque IA.
+- **Calidad y Verificación:**
+  - Laravel Pint ejecutado con éxito.
+  - Tests `CopilotoReportesIntegracionTest` pasando 6/6 (17 aserciones).
+
+2026-10-01 | Antigravity | 🚀 **SEED COMPLETA DE 7 DÍAS DE OPERACIONES REALISTAS + RESET DB + LOGIN RÁPIDO POR ROL:**
+- **Reinicio Total de Base de Datos Solicitado (`php artisan migrate:fresh --seed`):**
+  - Base de datos eliminada y migrada desde cero limpiamente.
+  - Ejecutada la suite completa de seeders: `RoleSeeder`, `SucursalSeeder`, `ZonaSeeder`, `ConfiguracionSeeder`, `AdminUserSeeder`, `CrmIaPlantillaSeeder`, `MeseroPruebaSeeder`, `DatosPruebaRealistasSeeder` y `OperacionesSemanaCompletaSeeder`.
+- **Seeder de Operaciones Semanales (`OperacionesSemanaCompletaSeeder.php`):**
+  - **7 Días de Turnos de Caja (`turnos_caja`):** 6 turnos históricos cerrados y cuadrados sin novedades + 2 turnos abiertos en vivo hoy (`CAJ-01 Salón Principal` y `CAJ-02 Barra & Terraza`).
+  - **Movimientos de Caja (`movimientos_caja`):** Ingresos de efectivo (bases adicionales, cobro de anticipos de reservas), egresos de caja menor (compras urgentes de limones/hielo, pago de propinas) y retiros de seguridad a bóveda.
+  - **48+ Pedidos Históricos:** Repartidos a lo largo de 6 días con ítems detallados, métodos de pago diversos (efectivo, tarjeta, Wompi, Bold) y facturación electrónica DIAN POS con CUFE oficial (SHA-384) y cadena QR.
+  - **Comandas Activas en Vivo de Hoy:**
+    * Mesa 1: Estado `en_cocina` (ingresada al KDS de cocina caliente y barra).
+    * Mesa 2: Estado `solicitado_qr` (pedido generado por comensal desde el QR en mesa).
+    * Mesa 3: Estado `listo` (campana sonada en cocina, lista para ser llevada por el mesero).
+    * Mesa 4: Estado `pendiente_cobro` (cuenta pedida, lista para procesar en caja).
+    * Domicilio 1: Estado `en_camino` (asignado a repartidor con dirección de entrega).
+    * Domicilio 2: Estado `entregado` (con propina y factura emitida).
+  - **Reservas Semanales:** Pasadas completadas, reservas de hoy (almuerzo familiar y cena ejecutiva VIP con anticipo pagado), reservas de mañana y fin de semana.
+  - **Malla Semanal de Meseros (`ProgramacionSemanal` & `TurnoMeseroSemana`):** Estado `publicado` para la semana actual con los 10 meseros colombianos rotando equitativamente en Salón, Terraza y Barra con descansos semanales programados.
+- **Acceso Rápido por Rol en Pantalla de Login (`login.blade.php`):**
+  - Botones táctiles de 1 clic que auto-rellenan correo y contraseña (`password`) para los 7 roles: Admin, Gerente, Cajero, Mesero, Cocina KDS, Barra/Bar y Repartidor Delivery.
+- **Calidad y Verificación:**
+  - Laravel Pint ejecutado sin advertencias.
+  - Test suites pasando: `Turno` (74/74 tests, 250 aserciones), `AuthenticationTest` (5/5 tests, 15 aserciones). Todos verdes.
+- **Reorganización Estructural del Menú Lateral (Desktop & Mobile):**
+  - Despejada la lista plana de 17 opciones en 4 grupos operativos limpios con micro-encabezados y divisores sutiles:
+    1. `⚡ Operación Diaria`: Panel de Control (DASH), Salón & Mesas (MES), Terminal POS (POS), Cocina KDS (COC), Caja & Turno (CAJ), Despacho Delivery (DLV).
+    2. `🍽️ Restaurante & Menú`: Carta & Menú (MEN), Inventario & Recetas (INV), Proveedores (PRV), Reservas (RES).
+    3. `🚀 Clientes & Ventas`: Clientes VIP (CLI), CRM & Automatización (CRM), Promociones (PRO).
+    4. `⚙️ Gestión & Ajustes`: Turnos Semanales (TUR), Reportes (REP), Impresión & Spooler (IMP), Configuración (CFG).
+  - Estado contraído (`sidebar-collapsed`): micro-headers se convierten en delgadas líneas separadoras con `display: none` de texto/badges para evitar desbordes visuales.
+- **Pestaña Nueva en Configuración: `Pasarelas & Datáfonos` (`contactless`):**
+  - **Wompi Bancolombia & Nequi:** Toggle de activación, selector de ambiente (Sandbox / Producción), Llave Pública (`wompi_public_key`), Llave Privada (`wompi_private_key`), Secreto de Integridad (`wompi_integrity_secret` para checkout y QR dinámico de mesa con SHA-256), Secreto de Eventos Webhook y switch de cobro directo Nequi Push.
+  - **Bold Smart & Checkout:** Activación, API Key y Secret Key de Bold con verificación de algoritmo SHA-256 en vivo.
+  - **Datáfonos de Salón / Mostrador:** Proveedor de terminal física (Bold Smart POS, Redeban, Credibanco), Terminal ID asignado (`DATA-CAJA-01`) y switch de auto-envío de importe al POS.
+  - **Pruebas en Vivo:** Botones `Probar Conexión Wompi` (ping y verificación de comerciante vía HTTP) y `Verificar Credenciales Bold`.
+- **Enriquecimiento del Módulo `DIAN Facturación POS`:**
+  - Selector de proveedor tecnológico (`factus`, `dataico`, `siigo`, `simulador`), ambiente (`habilitacion` / `produccion`), URL del endpoint y Token API.
+  - Parámetros fiscales: Clave Técnica DIAN, N° de resolución, prefijo (`POS`), rangos autorizado desde/hasta, estado de vigencia y switch de timbrado automático.
+  - Botón de diagnóstico en vivo: `Probar Conexión & Algoritmo CUFE` (valida conexión HTTP con proveedor y motor criptográfico SHA-384 oficial DIAN).
+- **Pruebas y Calidad:**
+  - Laravel Pint ejecutado con éxito (0 linter warnings).
+  - Suites de pruebas: `Turnos` (74 tests pasando, 250 aserciones) y `Configuracion` (36 tests pasando, 107 aserciones). Total: **110/110 tests verdes**.
+
+2026-10-01 | Antigravity | 🎨 **REDISEÑO RADICAL UI/UX TURNOS SEMANALES (ALTERNATIVA 1 - PIZARRA DE SALÓN POR ZONAS):**
+- **Arquitectura Enfocada Diaria:** Reemplazada la sobrecarga visual de 160+ controles amontonados por un selector de días semanal superior (`Lun` a `Dom`) con identificación de días pico (`🔥 Alta Demanda`) y fecha.
+- **Pizarra de Zonas Físicas (Floor Board):** Columnas dedicadas por área de restaurante (*Salón Principal*, *Terraza*, *Barra VIP*, *Descansos Libres*). Cada mesero se visualiza en una tarjeta compacta con horario y selector directo para transferir de zona o enviar a descanso con un solo clic.
+- **Sistema de Pestañas Ejecutivas:** Cuatro modos limpios e independientes (`Pizarra Diaria`, `Malla Semanal Completa`, `Proyección 4 Semanas`, `Reglas de Rotación`) para eliminar el scroll vertical infinito.
+- **Botones de Alto Impacto:** Mantenidos y destacados en cabecera: `⚡ Auto-Programar con IA` y `✅ Publicar Horarios` con badges semánticos de borrador/publicado.
+- **Linter & Tests:** Corregido error de linter CSS (`style="width: {{ (int) $scoreEquidad }}%;"`). Suite `TurnoSemanal` 23/23 tests pasando (89 aserciones). Pint limpio.
+
+2026-10-01 | Antigravity | 🐛 **HOTFIX CONFIGURACIÓN:** Corregido `ErrorException: Undefined variable $testDbResultado` en `resources/views/livewire/configuracion/index.blade.php`.
+- Declarada la propiedad pública `public ?array $testDbResultado = null;` en el componente Volt.
+- Blindadas las directivas Blade con coalescencia nula `($testDbResultado['ok'] ?? null)`.
+- Añadido test automatizado en `tests/Feature/Fase5ConfiguracionTest.php` (10/10 pasando).
+
+2026-10-01 | Antigravity | ✅ **REMEDIACIONES HORIZONTE 2 & HORIZONTE 3 COMPLETADAS** (DIAN CUFE, Refactor terminal.blade.php <1.200 líneas, APM Sentry/p95, Pasarelas Wompi/Bold, Resiliencia Offline IndexedDB, Backups S3/R2):
+- **1. Facturación Electrónica DIAN POS con CUFE:**
+  - Migración y Modelo `FacturaElectronica` vinculada al `Pedido` con hash SHA-384 oficial DIAN para CUFE, generación de código QR en Base64 SVG (BaconQrCode) y campos de resolución.
+  - Servicio `DianPosElectronicoService` y Listener `EmitirFacturaElectronicaPosListener` conectado al evento `PagoProcesadoPorCaja` (`app/Events/PagoProcesadoPorCaja.php`), con emisión idempotente y contingencia tolerante a caídas de red.
+  - Tests automatizados en `tests/Feature/DianPosElectronicoTest.php` (3/3 verde).
+- **2. Refactor de terminal.blade.php a <1.200 líneas:**
+  - Reducido el tamaño de `resources/views/livewire/pos/terminal.blade.php` de **3.370 líneas a 899 líneas** (reducción del 73%).
+  - Extraídos componentes Volt hijos: `resources/views/livewire/pos/selector-cliente.blade.php` y `resources/views/livewire/pos/modal-cobro.blade.php`.
+  - Extraídas vistas principales a `partials/vista-movil.blade.php` y `partials/vista-escritorio.blade.php`.
+  - Métodos extraídos a traits reutilizables: `App\Livewire\Concerns\ManejaClientePos` y `App\Livewire\Concerns\ManejaCobroPos`.
+  - Suite de regresión pasando al 100%: `PosTerminalComponentTest` 4/4, `ClienteClasificacionYPredictivoPosTest` 8/8, `FlujoComandaCocinaPosTest` 6/6.
+- **3. Monitoreo y Métricas en Servidor (Coolify + Sentry + p95 por Sucursal):**
+  - Paquete `sentry/sentry-laravel` integrado; variables de entorno en `docker-compose.coolify.yml` y `docker-compose.yaml` (`SENTRY_LARAVEL_DSN`, `METRICAS_P95_ENABLED`).
+  - Middleware `MonitoreoRendimientoSucursalesMiddleware` que captura latencias en ventana rodante, etiqueta contexto en Sentry y emite alertas de breach si p95 > 800ms.
+  - Comando `php artisan restomaster:metricas-p95` que calcula mediana (p50), p90, p95 y p99 en tiempo real para las sucursales.
+  - Tests automatizados en `tests/Feature/MonitoreoRendimientoTest.php` (3/3 verde).
+- **4. Pasarelas de Pago (Wompi y Bold SDK para QR en mesa y datáfonos inteligentes):**
+  - Migración y Modelo `PagoPasarela`. Servicio `PasarelaPagoService` con generación de links de pago, firma SHA-256 de integridad (Wompi/Bold) y código QR dinámico por mesa.
+  - Despacho a datáfonos inteligentes mediante `enviarCobroDatafono()`.
+  - Webhook seguro `/api/webhooks/pasarela/{proveedor}` (`PasarelaWebhookController`) con verificación criptográfica y cobro automático del pedido (`PedidoService::cobrarPedido`).
+  - Tests automatizados en `tests/Feature/PasarelaPagoTest.php` (4/4 verde).
+- **5. Resiliencia Offline (Service Worker + IndexedDB en Alpine):**
+  - Base de datos IndexedDB `RestoMasterOfflinePOS` en `public/js/pos-offline.js` para almacenamiento local de comandas cuando `navigator.onLine === false`.
+  - Actualizado `public/sw.js` (cache v2) y layout principal `app.blade.php`.
+  - Endpoint `POST /api/pos/sincronizar-offline` (`PosOfflineSyncController`) para procesar en lote las comandas generadas offline con verificación estricta de idempotencia.
+  - Tests automatizados en `tests/Feature/PosOfflineSyncTest.php` (2/2 verde).
+- **6. Backups Automatizados (pg_dump y rotación en Cloudflare R2 / AWS S3):**
+  - Disco `r2` configurado en `config/filesystems.php`.
+  - Opciones `--cloud`, `--disk`, `--keep-remote` añadidas a `BackupDatabaseCommand` (`restomaster:backup`) con rotación automática en el bucket remoto.
+  - Script bash `scripts/backup-nocturno-s3-r2.sh` listo para Coolify / cron de servidor.
+  - Tests automatizados en `tests/Feature/BackupDatabaseCloudTest.php` (1/1 verde).
+
+---
+
+## Actualización previa
 2026-09-29 | OpenCode | ✅ **REMATES FASE 6 — SHARE NATIVO + ASPECT 16:9 + REGISTRO EN DETALLE** (`app/Livewire/Concerns/RegistraDifusionSocial.php` *(nuevo)*, `promociones/publico`, `promociones/detalle`, `tests/Feature/PromocionesCompartirSocialTest.php`):
 - Botón nativo PWA (`navigator.share`, solo si disponible) con registro `social_nativo` en catálogo y detalle; `registrarDifusion` extraído a trait compartido (allowlist + `social_nativo`); tarjetas a `aspect-video` + textos ≥14px; detalle FB ahora registra (WA/IG ya lo hacían).
 - **Tests:** 18/18 (12 compartir + público + admin). Pint verde. Build 0 errores.
@@ -2437,6 +2601,7 @@
 | 2026-09-10 | OpenCode | RE-auditoría integral (2ª pasada, 4 dominios) tras remediación de Antigravity: verificados FIXED (C1, C5/H5, M2/C2, H9/H10, L1, L3) y enumerados STILL/PARTIAL/NEW (C3 authorize, C4 cascades, H1/H2/H3/H4/H6/H7, F1-F5/F9, enums, wildcard bacon, Tailwind dual, N1 impresora cascade). Calificativos actualizados (Global ≈7.2/10). Reporte v2 regenerado en `docs/auditoria/auditoria-2026-09-10.md`. Ningún cambio de código. | (ninguno — solo lectura; reporte en docs/auditoria/) |
 | 2026-09-18 | OpenCode | Sistema de privilegios por usuario + plantillas (plan 2026-09-18, 7 tasks, subagent-driven, suite 403/405) | database/migrations/2026_09_18_100000_create_permission_user_table.php, app/Models/User.php, config/permisos.php, app/Services/PermisoService.php, app/Providers/AppServiceProvider.php, resources/views/livewire/trabajadores/index.blade.php, resources/views/livewire/pos/terminal.blade.php, resources/views/livewire/caja/control.blade.php, resources/views/livewire/mesas/index.blade.php, app/Console/Commands/VerificarPermisosCommand.php, tests/Feature/PermisosPrivilegiosTest.php |
 | 2026-09-18 | OpenCode | Gestión de proveedores F1+F2 (plan 2026-09-18, subagent-driven, suite 428/428) | app/Models/Proveedor.php, app/Models/Compra.php, app/Models/CompraLinea.php, app/Models/Insumo.php, app/Models/CuentaPorPagar.php, app/Policies/ProveedorPolicy.php, app/Policies/CompraPolicy.php, app/Services/ProveedorService.php, app/Services/CompraService.php, database/migrations/2026_09_18_110000_create_proveedores_table.php, database/migrations/2026_09_18_110001_create_compras_tables.php, database/migrations/2026_09_18_110002_add_proveedor_to_insumos_table.php, database/migrations/2026_09_18_110003_add_compra_to_cxp_table.php, config/permisos.php, tests/Feature/ProveedoresTest.php, tests/Feature/PermisosPrivilegiosTest.php |
+| 2026-09-30 | Antigravity | Remediación integral de auditoría (Seguridad, BD SoftDeletes, Inventario 5 sucursales, Performance POS, Scoping KDS) | CrmWebhookController.php, AuthClienteController.php, AuthCliente.php, MagicLinkLoginMailable.php, Insumo.php, InsumoSucursal.php, MovimientoInventario.php, InventarioService.php, terminal.blade.php, kds.blade.php, docker-compose.coolify.yml, php.ini, migraciones 2026_09_30_* |
 
 ---
-*Ultima edicion: 2026-09-10 21:15*
+*Ultima edicion: 2026-09-30 16:21*

@@ -41,6 +41,27 @@ class CrmWebhookController extends Controller
      */
     public function recibir(Request $request): JsonResponse
     {
+        $config = CrmConfiguracion::activa();
+        $appSecret = $config->whatsapp_webhook_secret ?: config('services.whatsapp.app_secret', env('WHATSAPP_APP_SECRET', ''));
+        $signature = $request->header('X-Hub-Signature-256');
+
+        if (! empty($appSecret)) {
+            if (! $signature) {
+                Log::channel('single')->warning('Meta WhatsApp Webhook sin encabezado X-Hub-Signature-256.');
+
+                return response()->json(['error' => 'Missing signature'], 401);
+            }
+
+            $rawContent = $request->getContent();
+            $expectedSignature = 'sha256='.hash_hmac('sha256', $rawContent, $appSecret);
+
+            if (! hash_equals($expectedSignature, $signature)) {
+                Log::channel('single')->warning('Meta WhatsApp Webhook firma inválida.');
+
+                return response()->json(['error' => 'Invalid signature'], 403);
+            }
+        }
+
         $payload = $request->all();
 
         Log::channel('single')->info('Meta WhatsApp Webhook Recibido:', ['payload' => $payload]);

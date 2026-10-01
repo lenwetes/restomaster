@@ -1,13 +1,9 @@
 # ==============================================================================
-# RestoMaster — Docker Compose para DEMOS (cero-fricción)
+# RestoMaster — Docker Compose para Producción y Demos en Coolify
 # ==============================================================================
-# Despliegue de demostración: todo trae valor por defecto y arranca solo.
-# Las credenciales están EXPUESTAS a propósito: entorno demo desechable.
-# NO reutilizar estas claves en ningún entorno real.
-#
-# Uso: docker compose up -d --build
-# Demo lista (catálogo + imágenes + turno + pedidos): AUTO_SEED_DEMO=true
-# Login demo: admin@restomaster.com / RestoDemo2026
+# Compatible con despliegue en Coolify (Docker Compose con proxy Traefik/Caddy
+# o mapeo directo de puertos). Cero fricción, arranque autónomo con migraciones
+# y soporte completo de WebSockets (Laravel Reverb) en el puerto HTTP/HTTPS.
 # ==============================================================================
 
 services:
@@ -19,7 +15,6 @@ services:
     restart: unless-stopped
     expose:
       - "80"
-    # Acceso directo por IP (sin dominio).
     ports:
       - "${APP_PORT:-8004}:80"
     environment:
@@ -31,7 +26,7 @@ services:
       LOG_CHANNEL: "${LOG_CHANNEL:-stderr}"
       LOG_LEVEL: "${LOG_LEVEL:-info}"
 
-      # Base de datos PostgreSQL (servicio postgres de este mismo compose)
+      # Base de datos PostgreSQL
       DB_CONNECTION: pgsql
       DB_HOST: "${DB_HOST:-postgres}"
       DB_PORT: "${DB_PORT:-5432}"
@@ -73,6 +68,36 @@ services:
       GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
       GOOGLE_REDIRECT_URI: "${GOOGLE_REDIRECT_URI:-}"
 
+      # Monitoreo y Métricas en Servidor (Sentry & Tiempos p95 por Sucursal)
+      SENTRY_LARAVEL_DSN: "${SENTRY_LARAVEL_DSN:-}"
+      SENTRY_TRACES_SAMPLE_RATE: "${SENTRY_TRACES_SAMPLE_RATE:-1.0}"
+      SENTRY_PROFILES_SAMPLE_RATE: "${SENTRY_PROFILES_SAMPLE_RATE:-0.5}"
+      METRICAS_P95_ENABLED: "${METRICAS_P95_ENABLED:-true}"
+
+      # Pasarelas de Pago (Wompi Bancolombia / Nequi & Bold Smart POS)
+      WOMPI_PUBLIC_KEY: "${WOMPI_PUBLIC_KEY:-}"
+      WOMPI_PRIVATE_KEY: "${WOMPI_PRIVATE_KEY:-}"
+      WOMPI_INTEGRITY_SECRET: "${WOMPI_INTEGRITY_SECRET:-}"
+      WOMPI_EVENTS_SECRET: "${WOMPI_EVENTS_SECRET:-}"
+      WOMPI_SANDBOX: "${WOMPI_SANDBOX:-true}"
+      BOLD_API_KEY: "${BOLD_API_KEY:-}"
+      BOLD_SECRET_KEY: "${BOLD_SECRET_KEY:-}"
+
+      # Facturación Electrónica DIAN POS con CUFE
+      DIAN_PROVEEDOR: "${DIAN_PROVEEDOR:-simulador}"
+      DIAN_ENDPOINT: "${DIAN_ENDPOINT:-}"
+      DIAN_TOKEN: "${DIAN_TOKEN:-}"
+      DIAN_CLAVE_TECNICA: "${DIAN_CLAVE_TECNICA:-}"
+      DIAN_RESOLUCION_NUMERO: "${DIAN_RESOLUCION_NUMERO:-}"
+      DIAN_PREFIJO: "${DIAN_PREFIJO:-POS}"
+
+      # Backups Cloud (Cloudflare R2 / AWS S3)
+      AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
+      AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
+      AWS_DEFAULT_REGION: "${AWS_DEFAULT_REGION:-auto}"
+      AWS_BUCKET: "${AWS_BUCKET:-}"
+      AWS_ENDPOINT: "${AWS_ENDPOINT:-}"
+
       # Correo Transaccional
       MAIL_MAILER: "${MAIL_MAILER:-log}"
       MAIL_HOST: "${MAIL_HOST:-}"
@@ -95,6 +120,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/up"]
       interval: 30s
@@ -109,11 +136,10 @@ services:
       POSTGRES_DB: "${DB_DATABASE:-restomaster}"
       POSTGRES_USER: "${DB_USERNAME:-adminresto}"
       POSTGRES_PASSWORD: "${DB_PASSWORD:-RestoDemo2026DB}"
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - postgres_data_v18:/var/lib/postgresql
+      - postgres_data_v18:/var/lib/postgresql/data
     healthcheck:
-      # Con password explícita (auth scram por TCP) + gracia amplia para initdb en discos lentos.
-      # OJO: $$ escapa el $ para que Compose NO lo interpole y llegue literal al shell del contenedor.
       test: ["CMD-SHELL", "PGPASSWORD=\"$$POSTGRES_PASSWORD\" pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\" -h 127.0.0.1"]
       interval: 5s
       timeout: 10s
@@ -125,7 +151,7 @@ services:
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD:-}"
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:

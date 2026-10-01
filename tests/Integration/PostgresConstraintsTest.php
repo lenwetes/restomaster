@@ -4,6 +4,7 @@ namespace Tests\Integration;
 
 use App\Models\Configuracion;
 use App\Models\Mesa;
+use App\Models\Producto;
 use App\Models\Sucursal;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,5 +73,30 @@ class PostgresConstraintsTest extends TestCase
             'clave' => 'moneda_defecto',
             'valor' => 'USD',
         ]);
+    }
+
+    /**
+     * Test de recreación de slug en Producto tras soft-delete.
+     */
+    public function test_recreacion_de_producto_con_mismo_slug_tras_soft_delete(): void
+    {
+        $producto1 = Producto::create([
+            'nombre' => 'Maki Tempura Audit',
+            'slug' => 'maki-tempura-audit',
+            'precio' => 25000,
+            'activo' => true,
+        ]);
+
+        $producto1->delete();
+        $this->assertSoftDeleted('productos', ['id' => $producto1->id]);
+
+        $producto2 = Producto::create([
+            'nombre' => 'Maki Tempura Nuevo Audit',
+            'slug' => 'maki-tempura-audit',
+            'precio' => 28000,
+            'activo' => true,
+        ]);
+
+        $this->assertDatabaseHas('productos', ['id' => $producto2->id, 'slug' => 'maki-tempura-audit']);
     }
 }

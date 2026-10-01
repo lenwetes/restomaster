@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Models\Insumo;
+use App\Models\InsumoSucursal;
 use App\Models\ItemPedido;
 use App\Models\MovimientoInventario;
 use App\Models\Pedido;
 use App\Models\Receta;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class InventarioService
@@ -37,6 +39,10 @@ class InventarioService
                 return false;
             }
 
+            $sucursalId = $item->relationLoaded('pedido')
+                ? $item->pedido?->sucursal_id
+                : $item->pedido()->value('sucursal_id');
+
             foreach ($producto->recetas as $receta) {
                 $insumo = Insumo::where('id', $receta->insumo_id)->lockForUpdate()->first();
                 if (! $insumo) {
@@ -52,7 +58,31 @@ class InventarioService
 
                 $insumo->update(['stock_actual' => $saldoPosterior]);
 
+                // Actualizar inventario específico de sucursal si existe sucursal vinculada
+                if ($sucursalId) {
+                    $invSucursal = InsumoSucursal::where('sucursal_id', $sucursalId)
+                        ->where('insumo_id', $insumo->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($invSucursal) {
+                        $stockSucAnterior = (float) $invSucursal->stock_actual;
+                        $stockSucPosterior = max(0, round($stockSucAnterior - $cantidadConsumo, 3));
+                        $invSucursal->update(['stock_actual' => $stockSucPosterior]);
+                    } else {
+                        InsumoSucursal::create([
+                            'sucursal_id' => $sucursalId,
+                            'insumo_id' => $insumo->id,
+                            'stock_actual' => $saldoPosterior,
+                            'stock_minimo' => $insumo->stock_minimo,
+                            'costo_unitario' => $insumo->costo_unitario,
+                            'activo' => true,
+                        ]);
+                    }
+                }
+
                 MovimientoInventario::create([
+                    'sucursal_id' => $sucursalId,
                     'insumo_id' => $insumo->id,
                     'tipo' => 'consumo_venta',
                     'cantidad' => $cantidadConsumo,
@@ -74,7 +104,7 @@ class InventarioService
     /**
      * Revierte los insumos correspondientes a la receta de un ItemPedido que fue devuelto.
      */
-    public function revertirPorItemDevuelto(ItemPedido $item, int $cantidadDevuelta, ?\App\Models\User $usuario = null): bool
+    public function revertirPorItemDevuelto(ItemPedido $item, int $cantidadDevuelta, ?User $usuario = null): bool
     {
         if ($cantidadDevuelta <= 0) {
             return false;
@@ -92,6 +122,10 @@ class InventarioService
                 return false;
             }
 
+            $sucursalId = $item->relationLoaded('pedido')
+                ? $item->pedido?->sucursal_id
+                : $item->pedido()->value('sucursal_id');
+
             foreach ($producto->recetas as $receta) {
                 $insumo = Insumo::where('id', $receta->insumo_id)->lockForUpdate()->first();
                 if (! $insumo) {
@@ -106,7 +140,20 @@ class InventarioService
 
                 $insumo->update(['stock_actual' => $saldoPosterior]);
 
+                if ($sucursalId) {
+                    $invSucursal = InsumoSucursal::where('sucursal_id', $sucursalId)
+                        ->where('insumo_id', $insumo->id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($invSucursal) {
+                        $stockSucAnterior = (float) $invSucursal->stock_actual;
+                        $invSucursal->update(['stock_actual' => round($stockSucAnterior + $cantidadRetorno, 3)]);
+                    }
+                }
+
                 MovimientoInventario::create([
+                    'sucursal_id' => $sucursalId,
                     'insumo_id' => $insumo->id,
                     'tipo' => 'devolucion_venta',
                     'cantidad' => $cantidadRetorno,

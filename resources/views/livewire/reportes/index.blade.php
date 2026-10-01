@@ -1,8 +1,8 @@
 <?php
 
 use App\Services\Ai\AdminAiCopilotService;
-use App\Services\ReporteService;
 use App\Services\ReportesComparativosService;
+use App\Services\ReporteService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
@@ -84,6 +84,10 @@ new class extends Component
             'mensaje' => $this->analisisIa ? 'Análisis con IA generado.' : 'No se pudo generar el análisis.',
             'tipo' => $this->analisisIa ? 'success' : 'error',
         ]);
+
+        if ($this->analisisIa) {
+            $this->dispatch('ia-analisis-generado');
+        }
     }
 
     public function setPeriodo(string $preset): void
@@ -412,10 +416,148 @@ new class extends Component
                         });
                         this.charts.metodos.render();
                     }
+
+                    // 5a. Gráfica de Tendencia Temporal del Análisis IA
+                    const elIaTendencia = document.getElementById('chart-ia-tendencia');
+                    if (elIaTendencia) {
+                        if (this.charts.iaTendencia) this.charts.iaTendencia.destroy();
+                        this.charts.iaTendencia = new ApexCharts(elIaTendencia, {
+                            chart: { type: 'area', height: 260, toolbar: { show: false }, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: [
+                                {
+                                    name: {{ json_encode($analisisIa['datos']['graficas']['tendencia_temporal']['label_a'] ?? 'Período A') }},
+                                    data: {{ json_encode($analisisIa['datos']['graficas']['tendencia_temporal']['serie_a'] ?? []) }}
+                                }
+                                @if(!empty($analisisIa['datos']['graficas']['tendencia_temporal']['serie_b']))
+                                , {
+                                    name: {{ json_encode($analisisIa['datos']['graficas']['tendencia_temporal']['label_b'] ?? 'Período B') }},
+                                    data: {{ json_encode($analisisIa['datos']['graficas']['tendencia_temporal']['serie_b'] ?? []) }}
+                                }
+                                @endif
+                            ],
+                            xaxis: {
+                                categories: {{ json_encode($analisisIa['datos']['graficas']['tendencia_temporal']['etiquetas'] ?? []) }},
+                                labels: { style: { colors: '#94a3b8', fontSize: '10px' } }
+                            },
+                            yaxis: {
+                                labels: {
+                                    formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO'),
+                                    style: { colors: '#94a3b8', fontSize: '10px' }
+                                }
+                            },
+                            colors: ['#2eb8b4', '#e0442e'],
+                            stroke: { curve: 'smooth', width: 2.5 },
+                            fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.5, opacityTo: 0.05 } },
+                            dataLabels: { enabled: false },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.iaTendencia.render();
+                    }
+
+                    // 5b. Gráfica de Platos Líderes / Top Productos IA
+                    const elIaTop = document.getElementById('chart-ia-top-productos');
+                    if (elIaTop) {
+                        if (this.charts.iaTop) this.charts.iaTop.destroy();
+                        this.charts.iaTop = new ApexCharts(elIaTop, {
+                            chart: { type: 'bar', height: 260, toolbar: { show: false }, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            plotOptions: {
+                                bar: {
+                                    horizontal: true,
+                                    borderRadius: 6,
+                                    barHeight: '60%',
+                                    distributed: true
+                                }
+                            },
+                            series: [{
+                                name: 'Facturación ($)',
+                                data: {{ json_encode($analisisIa['datos']['graficas']['top_productos']['ventas'] ?? []) }}
+                            }],
+                            xaxis: {
+                                categories: {{ json_encode($analisisIa['datos']['graficas']['top_productos']['nombres'] ?? []) }},
+                                labels: {
+                                    formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO'),
+                                    style: { colors: '#94a3b8', fontSize: '10px' }
+                                }
+                            },
+                            yaxis: {
+                                labels: { style: { colors: '#f1f5f9', fontSize: '11px', fontWeight: 600 } }
+                            },
+                            colors: ['#e0442e', '#e8a020', '#2eb8b4', '#8b5cf6', '#ec4899'],
+                            legend: { show: false },
+                            dataLabels: {
+                                enabled: true,
+                                formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO'),
+                                style: { fontSize: '10px', colors: ['#fff'] }
+                            },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.iaTop.render();
+                    }
+
+                    // 5c. Gráfica Comparativa de KPIs Clave IA
+                    const elIaKpis = document.getElementById('chart-ia-comparativa-kpis');
+                    if (elIaKpis) {
+                        if (this.charts.iaKpis) this.charts.iaKpis.destroy();
+                        this.charts.iaKpis = new ApexCharts(elIaKpis, {
+                            chart: { type: 'bar', height: 240, toolbar: { show: false }, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            plotOptions: {
+                                bar: {
+                                    horizontal: false,
+                                    columnWidth: '45%',
+                                    borderRadius: 6
+                                }
+                            },
+                            series: [
+                                {
+                                    name: {{ json_encode($analisisIa['datos']['graficas']['comparativa_kpis']['label_a'] ?? 'Período A') }},
+                                    data: {{ json_encode($analisisIa['datos']['graficas']['comparativa_kpis']['valores_a'] ?? []) }}
+                                },
+                                {
+                                    name: {{ json_encode($analisisIa['datos']['graficas']['comparativa_kpis']['label_b'] ?? 'Período B') }},
+                                    data: {{ json_encode($analisisIa['datos']['graficas']['comparativa_kpis']['valores_b'] ?? []) }}
+                                }
+                            ],
+                            xaxis: {
+                                categories: {{ json_encode($analisisIa['datos']['graficas']['comparativa_kpis']['etiquetas'] ?? []) }},
+                                labels: { style: { colors: '#94a3b8', fontSize: '11px', fontWeight: 600 } }
+                            },
+                            yaxis: {
+                                labels: {
+                                    formatter: (val) => Number(val).toLocaleString('es-CO'),
+                                    style: { colors: '#94a3b8', fontSize: '10px' }
+                                }
+                            },
+                            colors: ['#2eb8b4', '#64748b'],
+                            legend: { position: 'top', labels: { colors: '#94a3b8' } },
+                            dataLabels: { enabled: false },
+                            tooltip: { y: { formatter: (val) => Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.iaKpis.render();
+                    }
+
+                    // 5d. Gráfica de Distribución de Canales IA
+                    const elIaCanales = document.getElementById('chart-ia-canales');
+                    if (elIaCanales) {
+                        if (this.charts.iaCanales) this.charts.iaCanales.destroy();
+                        this.charts.iaCanales = new ApexCharts(elIaCanales, {
+                            chart: { type: 'donut', height: 240, background: 'transparent' },
+                            theme: { mode: 'dark' },
+                            series: {{ json_encode($analisisIa['datos']['graficas']['canales']['series'] ?? []) }},
+                            labels: {{ json_encode($analisisIa['datos']['graficas']['canales']['etiquetas'] ?? []) }},
+                            colors: ['#e0442e', '#e8a020', '#2eb8b4', '#8b5cf6'],
+                            legend: { position: 'bottom', labels: { colors: '#94a3b8', fontSize: '10px' } },
+                            tooltip: { y: { formatter: (val) => '$ ' + Number(val).toLocaleString('es-CO') } }
+                        });
+                        this.charts.iaCanales.render();
+                    }
                 }
              }"
              x-init="$nextTick(() => renderAll())"
-             x-effect="renderAll()">
+             x-effect="renderAll()"
+             @ia-analisis-generado.window="$nextTick(() => setTimeout(() => renderAll(), 60))">
 
             <!-- KPI Cards Resumen Gráficas -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -560,21 +702,136 @@ new class extends Component
                 @endif
 
                 @if ($analisisIa)
-                    <div class="rounded-2xl border border-secondary/30 bg-secondary/10 p-5 space-y-3">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-secondary text-[20px]">smart_toy</span>
-                            <h4 class="text-sm font-extrabold text-on-surface">Análisis IA — {{ $analisisIa['datos']['tendencia'] ?? '' }}</h4>
-                            <span class="rounded-full bg-secondary/20 px-2.5 py-0.5 text-[11px] font-black text-secondary">Δ {{ $analisisIa['datos']['delta_ventas_pct'] ?? 0 }}%</span>
+                    <div class="rounded-3xl border border-secondary/35 bg-surface-container-low/95 p-6 space-y-5 shadow-xl backdrop-blur-md relative overflow-hidden"
+                         x-init="$nextTick(() => setTimeout(() => renderAll(), 60))">
+                        
+                        <!-- Top subtle accent line -->
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary via-primary to-amber-400"></div>
+
+                        <!-- Header & Badges -->
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-outline-variant/15 pb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-secondary/20 flex items-center justify-center text-secondary border border-secondary/30 shadow-inner">
+                                    <span class="material-symbols-outlined text-[24px]">smart_toy</span>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-base font-black text-on-surface tracking-tight">Diagnóstico Ejecutivo de Analítica IA</h4>
+                                        @php
+                                            $tendencia = $analisisIa['datos']['tendencia'] ?? 'meseta';
+                                            $badgeClase = match($tendencia) {
+                                                'crecimiento' => 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+                                                'caída' => 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+                                                default => 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+                                            };
+                                        @endphp
+                                        <span class="rounded-full px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider border {{ $badgeClase }}">
+                                            {{ $tendencia }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-on-surface-variant font-medium mt-0.5">Modelado predictivo, comparativa de períodos y síntesis de patrones comerciales</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="rounded-xl bg-secondary/15 px-3 py-1.5 text-xs font-black text-secondary border border-secondary/30 font-mono">
+                                    Δ Ventas: {{ $analisisIa['datos']['delta_ventas_pct'] ?? 0 }}%
+                                </span>
+                                <a href="{{ route('reportes.informe-ejecutivo', array_filter(['desde' => $desde, 'hasta' => $hasta, 'comparar' => 1, 'desde_b' => $compararAuto ? null : $desdeB, 'hasta_b' => $compararAuto ? null : $hastaB])) }}" 
+                                   class="rounded-xl bg-secondary/20 hover:bg-secondary hover:text-white px-3 py-1.5 text-xs font-bold text-secondary border border-secondary/30 transition flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px]">download</span>
+                                    <span>Exportar PDF</span>
+                                </a>
+                            </div>
                         </div>
-                        <p class="text-xs text-on-surface leading-relaxed">{{ $analisisIa['mensaje'] }}</p>
-                        <ul class="space-y-1.5">
-                            @foreach ($analisisIa['datos']['recomendaciones'] ?? [] as $i => $rec)
-                                <li class="text-xs text-on-surface flex items-start gap-2">
-                                    <span class="font-black text-secondary">{{ $i + 1 }}.</span>
-                                    <span>{{ $rec }}</span>
-                                </li>
-                            @endforeach
-                        </ul>
+
+                        <!-- Síntesis Ejecutiva -->
+                        <div class="rounded-2xl bg-surface-container-lowest/80 border border-outline-variant/20 p-4 text-xs text-on-surface leading-relaxed whitespace-pre-line font-medium shadow-inner">
+                            {{ $analisisIa['mensaje'] }}
+                        </div>
+
+                        <!-- 📊 SECCIÓN DE GRÁFICAS GENERADAS POR IA -->
+                        <div class="space-y-4 pt-1">
+                            <div class="flex items-center justify-between border-b border-outline-variant/15 pb-2">
+                                <h5 class="text-xs font-black uppercase tracking-wider text-secondary flex items-center gap-1.5 font-mono">
+                                    <span class="material-symbols-outlined text-[18px]">query_stats</span>
+                                    <span>Gráficas del Análisis IA Generadas en Tiempo Real</span>
+                                </h5>
+                                <span class="text-[11px] text-on-surface-variant font-mono">ApexCharts interactivo</span>
+                            </div>
+
+                            <!-- Fila 1 de Gráficas IA: Tendencia Temporal + Top Platos Impulsores -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <!-- Gráfica 1: Curva de Ventas Período A vs Comparación B -->
+                                <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2 text-xs font-black text-on-surface">
+                                            <span class="material-symbols-outlined text-[18px] text-secondary">show_chart</span>
+                                            <span>Curva de Ventas (Evolución Período A vs Período B)</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-[10px] text-on-surface-variant mb-2">Trayectoria día a día comparada</p>
+                                    <div id="chart-ia-tendencia" class="min-h-[260px]"></div>
+                                </div>
+
+                                <!-- Gráfica 2: Top 5 Platos Líderes Impulsores -->
+                                <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2 text-xs font-black text-on-surface">
+                                            <span class="material-symbols-outlined text-[18px] text-primary">leaderboard</span>
+                                            <span>Top Platos Impulsores del Período</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-[10px] text-on-surface-variant mb-2">Platos que explican la tendencia detectada</p>
+                                    <div id="chart-ia-top-productos" class="min-h-[260px]"></div>
+                                </div>
+                            </div>
+
+                            <!-- Fila 2 de Gráficas IA: Balance KPIs + Mix Canales -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <!-- Gráfica 3: Balance Comparativo de Métricas Clave -->
+                                <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2 text-xs font-black text-on-surface">
+                                            <span class="material-symbols-outlined text-[18px] text-amber-400">stacked_bar_chart</span>
+                                            <span>Balance Comparativo de KPIs (Nominal A vs B)</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-[10px] text-on-surface-variant mb-2">Facturación, Ticket Promedio y Volumen de Comandas</p>
+                                    <div id="chart-ia-comparativa-kpis" class="min-h-[240px]"></div>
+                                </div>
+
+                                <!-- Gráfica 4: Mix de Canales de Venta -->
+                                <div class="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-4 shadow-sm">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2 text-xs font-black text-on-surface">
+                                            <span class="material-symbols-outlined text-[18px] text-teal-400">pie_chart</span>
+                                            <span>Distribución por Canales de Venta</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-[10px] text-on-surface-variant mb-2">Proporción de Sala, Delivery, QR de Mesa y Para Llevar</p>
+                                    <div id="chart-ia-canales" class="min-h-[240px]"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recomendaciones Operativas Sugeridas -->
+                        <div class="pt-3 border-t border-outline-variant/15 space-y-2">
+                            <h5 class="text-xs font-black uppercase tracking-wider text-secondary flex items-center gap-1.5 font-mono">
+                                <span class="material-symbols-outlined text-[18px]">lightbulb</span>
+                                <span>Plan de Acción Operativo Recomendado</span>
+                            </h5>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                @foreach ($analisisIa['datos']['recomendaciones'] ?? [] as $i => $rec)
+                                    <div class="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/20 flex items-start gap-3 shadow-xs">
+                                        <span class="w-6 h-6 rounded-xl bg-secondary/20 text-secondary text-xs font-black flex items-center justify-center shrink-0 border border-secondary/30 mt-0.5">
+                                            {{ $i + 1 }}
+                                        </span>
+                                        <span class="text-xs text-on-surface leading-relaxed font-medium">{{ $rec }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
                     </div>
                 @endif
             </div>

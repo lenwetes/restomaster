@@ -63,17 +63,20 @@ new class extends Component
 }; ?>
 
 <section>
-    <header>
-        <h2 class="text-lg font-bold text-gray-900 dark:text-gray-100">
-            Información del Perfil
-        </h2>
+    <header class="border-b border-surface-container-highest/60 pb-4 mb-6">
+        <div class="flex items-center gap-2.5">
+            <span class="material-symbols-outlined text-primary text-[22px]">badge</span>
+            <h2 class="text-base font-bold text-on-surface">
+                Información del Perfil
+            </h2>
+        </div>
 
-        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Actualiza los datos personales de tu cuenta y tu dirección de correo electrónico.
+        <p class="mt-1 text-xs text-on-surface-variant font-medium">
+            Actualiza los datos personales de tu cuenta y tu dirección de correo electrónico corporativo.
         </p>
     </header>
 
-    <form wire:submit="updateProfileInformation" class="mt-6 space-y-6">
+    <form wire:submit="updateProfileInformation" class="space-y-6">
         <div>
             <x-input-label for="name" value="Nombre Completo" />
             <x-text-input wire:model="name" id="name" name="name" type="text" class="mt-1 block w-full" required autofocus autocomplete="name" />
@@ -86,28 +89,28 @@ new class extends Component
             <x-input-error class="mt-2" :messages="$errors->get('email')" />
 
             @if (Auth::user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! Auth::user()->hasVerifiedEmail())
-                <div>
-                    <p class="text-sm mt-2 text-gray-800 dark:text-gray-200">
+                <div class="mt-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
+                    <p>
                         Tu dirección de correo electrónico no ha sido verificada.
 
-                        <button wire:click.prevent="sendVerification" class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800">
+                        <button wire:click.prevent="sendVerification" class="underline font-bold text-amber-400 hover:text-amber-300 ml-1">
                             Haz clic aquí para reenviar el correo de verificación.
                         </button>
                     </p>
 
                     @if (session('status') === 'verification-link-sent')
-                        <p class="mt-2 font-medium text-sm text-green-600 dark:text-green-400">
-                            Se ha enviado un nuevo enlace de verificación a tu dirección de correo.
+                        <p class="mt-2 font-semibold text-xs text-secondary">
+                            ✓ Se ha enviado un nuevo enlace de verificación a tu dirección de correo.
                         </p>
                     @endif
                 </div>
             @endif
         </div>
 
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 pt-2">
             <x-primary-button>Guardar Cambios</x-primary-button>
 
-            <x-action-message class="me-3 text-secondary font-bold" on="profile-updated">
+            <x-action-message class="me-3 text-secondary font-bold text-xs" on="profile-updated">
                 ✓ Información guardada correctamente.
             </x-action-message>
         </div>

@@ -18,7 +18,8 @@ class PagoProcesadoPorCaja implements ShouldBroadcast
         public float $total,
         public string $metodoPago,
         public string $ticketUrl,
-        public string $mensaje
+        public string $mensaje,
+        public ?string $cufe = null
     ) {}
 
     public function broadcastOn(): PrivateChannel
