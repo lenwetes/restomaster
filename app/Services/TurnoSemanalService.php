@@ -319,7 +319,7 @@ class TurnoSemanalService
      *
      * @return array<string, array<int, array{user_id: int, zona_id: ?int, plantilla_turno_id: ?int, es_descanso: bool}>>
      */
-    public function calcularSemana($meseros, $zonas, $plantillas, int $semanaIso, Carbon $inicio, Carbon $domingo, array $reglas, array $historial): array
+    public function calcularSemana(\Illuminate\Database\Eloquent\Collection $meseros, \Illuminate\Database\Eloquent\Collection $zonas, \Illuminate\Database\Eloquent\Collection $plantillas, int $semanaIso, Carbon $inicio, Carbon $domingo, array $reglas, array $historial): array
     {
         $numZonas = $zonas->count();
         $numPlantillas = max(1, $plantillas->count());
@@ -423,11 +423,14 @@ class TurnoSemanalService
         $porId = $zonas->keyBy('id');
         $resultado = [];
 
+        // Calcular historial UNA sola vez (aplica a todos los meseros por igual)
+        $historialBase = $reglas['impedir_zona_repetida']
+            ? $this->historialZonas($sucursalId, $semanaIso, $anio, $reglas['longitud_ciclo'])
+            : [];
+
         foreach ($meseros as $indiceMesero => $mesero) {
             $resultado[] = ['mesero' => $mesero, 'semanas' => []];
-            $historial = $reglas['impedir_zona_repetida']
-                ? $this->historialZonas($sucursalId, $semanaIso, $anio, $reglas['longitud_ciclo'])
-                : [];
+            $historial = $historialBase;
 
             for ($w = 0; $w < $semanas; $w++) {
                 $base = Carbon::now()->setISODate($anio, $semanaIso)->addWeeks($w);

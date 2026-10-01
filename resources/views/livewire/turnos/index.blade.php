@@ -123,9 +123,27 @@ new class extends Component
 
     public function with(): array
     {
+        $sucursalId = Auth::user()?->sucursal_id;
+
+        // Guard: si no hay programación aún, retornar estado vacío seguro
+        if (! $this->programacionId) {
+            return [
+                'dias'             => [],
+                'filas'            => [],
+                'programacion'     => null,
+                'zonas'            => collect(),
+                'plantillas'       => collect(),
+                'proyeccion'       => [],
+                'scoreEquidad'     => 100,
+                'fechaSeleccionada' => \Carbon\Carbon::now(),
+                'turnosPorZona'    => [],
+                'turnosDescanso'   => [],
+                'turnosSinZona'    => [],
+            ];
+        }
+
         $svc = app(TurnoSemanalService::class);
         $matriz = $svc->matrizSemanal($this->programacionId);
-        $sucursalId = Auth::user()?->sucursal_id;
         $proyeccion = $sucursalId ? $svc->proyeccionRotacion($sucursalId, $this->semanaIso, $this->anio, 4) : [];
         $zonas = Zona::where('sucursal_id', $sucursalId)->where('activa', true)->orderBy('orden')->get();
 

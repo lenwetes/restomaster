@@ -125,9 +125,9 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/up"]
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
 
   postgres:
     image: postgres:18-alpine
