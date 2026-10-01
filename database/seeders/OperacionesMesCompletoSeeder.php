@@ -361,171 +361,175 @@ class OperacionesMesCompletoSeeder extends Seeder
         $prefijo = 'POS';
         $consecutivo = 5000;
 
-        for ($diaOffset = 29; $diaOffset >= 1; $diaOffset--) {
-            $fechaDia = Carbon::today()->subDays($diaOffset);
-            $esFinDeSemana = in_array($fechaDia->dayOfWeekIso, [5, 6, 7], true); // Vie, Sáb, Dom
+        $historialExiste = TurnoCaja::whereDate('apertura_en', '<', Carbon::today())->exists();
 
-            $montoInicial = 250000.00;
-            // Ventas más altas en fin de semana
-            $ventasEfectivo = $esFinDeSemana ? rand(900000, 1500000) : rand(450000, 800000);
-            $ventasTarjeta = $esFinDeSemana ? rand(1800000, 3200000) : rand(800000, 1600000);
-            $ventasTransfer = $esFinDeSemana ? rand(500000, 1200000) : rand(200000, 600000);
+        if (! $historialExiste) {
+            for ($diaOffset = 29; $diaOffset >= 1; $diaOffset--) {
+                $fechaDia = Carbon::today()->subDays($diaOffset);
+                $esFinDeSemana = in_array($fechaDia->dayOfWeekIso, [5, 6, 7], true); // Vie, Sáb, Dom
 
-            $ingresoExtra = rand(0, 1) ? 50000.00 : 0.00;
-            $egresoMenor = rand(15000, 45000);
-            $egresoPropina = rand(30000, 80000);
-            $retiroBoveda = (float) (floor($ventasEfectivo * 0.70 / 50000) * 50000); // 70% retirado a bóveda
+                $montoInicial = 250000.00;
+                // Ventas más altas en fin de semana
+                $ventasEfectivo = $esFinDeSemana ? rand(900000, 1500000) : rand(450000, 800000);
+                $ventasTarjeta = $esFinDeSemana ? rand(1800000, 3200000) : rand(800000, 1600000);
+                $ventasTransfer = $esFinDeSemana ? rand(500000, 1200000) : rand(200000, 600000);
 
-            $montoEsperado = $montoInicial + $ingresoExtra - $egresoMenor - $egresoPropina - $retiroBoveda + $ventasEfectivo;
+                $ingresoExtra = rand(0, 1) ? 50000.00 : 0.00;
+                $egresoMenor = rand(15000, 45000);
+                $egresoPropina = rand(30000, 80000);
+                $retiroBoveda = (float) (floor($ventasEfectivo * 0.70 / 50000) * 50000); // 70% retirado a bóveda
 
-            $turno = TurnoCaja::create([
-                'caja_id' => $cajaPrincipal->id,
-                'user_id' => $cajero1->id,
-                'monto_inicial' => $montoInicial,
-                'estado' => 'cerrado',
-                'apertura_en' => (clone $fechaDia)->setTime(11, 30),
-                'cierre_en' => (clone $fechaDia)->setTime(23, 30),
-                'total_ingresos' => $ingresoExtra,
-                'total_egresos' => $egresoMenor + $egresoPropina,
-                'total_retiros' => $retiroBoveda,
-                'total_ventas_efectivo' => $ventasEfectivo,
-                'total_ventas_tarjeta' => $ventasTarjeta,
-                'total_ventas_transferencia' => $ventasTransfer,
-                'monto_esperado_efectivo' => $montoEsperado,
-                'monto_real_efectivo' => $montoEsperado,
-                'diferencia' => 0.00,
-                'notas_apertura' => 'Base apertura mediodía $250.000 COP',
-                'notas_cierre' => 'Cierre de turno cuadrado sin novedades ni descuadres.',
-            ]);
+                $montoEsperado = $montoInicial + $ingresoExtra - $egresoMenor - $egresoPropina - $retiroBoveda + $ventasEfectivo;
 
-            // Movimiento 1: Adición de base
-            if ($ingresoExtra > 0) {
-                MovimientoCaja::create([
-                    'turno_caja_id' => $turno->id,
+                $turno = TurnoCaja::create([
+                    'caja_id' => $cajaPrincipal->id,
                     'user_id' => $cajero1->id,
-                    'tipo' => 'ingreso',
-                    'concepto' => 'Billetes de baja denominación para cambio en caja',
-                    'monto' => $ingresoExtra,
-                    'metodo_pago' => 'efectivo',
-                    'numero_comprobante' => 'ING-'.$fechaDia->format('Ymd').'-01',
-                    'created_at' => (clone $fechaDia)->setTime(12, 15),
-                ]);
-            }
-
-            // Movimiento 2: Caja menor
-            MovimientoCaja::create([
-                'turno_caja_id' => $turno->id,
-                'user_id' => $cajero1->id,
-                'tipo' => 'egreso',
-                'concepto' => 'Caja menor: limones criollos, servilletas y hielo',
-                'monto' => $egresoMenor,
-                'metodo_pago' => 'efectivo',
-                'numero_comprobante' => 'EGR-'.$fechaDia->format('Ymd').'-01',
-                'autorizado_por' => 'Gerencia',
-                'created_at' => (clone $fechaDia)->setTime(15, 30),
-            ]);
-
-            // Movimiento 3: Retiro a bóveda
-            if ($retiroBoveda > 0) {
-                MovimientoCaja::create([
-                    'turno_caja_id' => $turno->id,
-                    'user_id' => $cajero1->id,
-                    'tipo' => 'retiro',
-                    'concepto' => 'Retiro preventivo de efectivo para depósito en bóveda',
-                    'monto' => $retiroBoveda,
-                    'metodo_pago' => 'efectivo',
-                    'numero_comprobante' => 'RET-'.$fechaDia->format('Ymd').'-01',
-                    'autorizado_por' => 'Gerente de Operaciones',
-                    'created_at' => (clone $fechaDia)->setTime(21, 45),
-                ]);
-            }
-
-            // Pedidos históricos de este día (5 a 8 comandas por día)
-            $numPedidosDia = $esFinDeSemana ? 8 : 5;
-            for ($p = 0; $p < $numPedidosDia; $p++) {
-                $contadorCodigo++;
-                $consecutivo++;
-                $hora = ($p % 2 === 0) ? rand(12, 15) : rand(19, 22);
-                $fechaPedido = (clone $fechaDia)->setTime($hora, rand(5, 55));
-
-                $cliente = $clientes->isNotEmpty() ? $clientes->random() : null;
-                $mesero = $meseros->isNotEmpty() ? $meseros->random() : $primerMesero;
-                $mesa = $mesas->random();
-                $esDelivery = ($p === ($numPedidosDia - 1));
-
-                $metodos = ['efectivo', 'tarjeta', 'tarjeta', 'wompi', 'bold'];
-                $metodo = $metodos[array_rand($metodos)];
-
-                $platosMuestra = $productos->random(min(3, $productos->count()));
-                $subtotal = 0;
-                foreach ($platosMuestra as $pl) {
-                    $subtotal += (float) $pl->precio;
-                }
-
-                $propina = round($subtotal * 0.10, 2);
-                $total = $subtotal + $propina;
-
-                $pedido = Pedido::create([
-                    'codigo' => 'ORD-'.date('Ymd', $fechaDia->timestamp).'-'.str_pad((string) $p, 3, '0', STR_PAD_LEFT),
-                    'tipo' => $esDelivery ? 'delivery' : 'mesa',
-                    'estado' => 'pagado',
-                    'sucursal_id' => $sucursal->id,
-                    'mesa_id' => $esDelivery ? null : $mesa->id,
-                    'cliente_id' => $cliente?->id,
-                    'usuario_id' => $mesero->id,
-                    'mesero_id' => $mesero->id,
-                    'repartidor_id' => $esDelivery ? $repartidor->id : null,
-                    'turno_caja_id' => $turno->id,
-                    'nombre_cliente' => $cliente?->nombre ?? 'Cliente Salón Mesa '.$mesa->numero,
-                    'subtotal' => $subtotal,
-                    'propina' => $propina,
-                    'porcentaje_propina' => 10.0,
-                    'total' => $total,
-                    'metodo_pago' => $metodo,
-                    'monto_pagado' => $total,
-                    'cambio' => 0.00,
-                    'pagado_en' => (clone $fechaPedido)->addMinutes(45),
-                    'created_at' => $fechaPedido,
+                    'monto_inicial' => $montoInicial,
+                    'estado' => 'cerrado',
+                    'apertura_en' => (clone $fechaDia)->setTime(11, 30),
+                    'cierre_en' => (clone $fechaDia)->setTime(23, 30),
+                    'total_ingresos' => $ingresoExtra,
+                    'total_egresos' => $egresoMenor + $egresoPropina,
+                    'total_retiros' => $retiroBoveda,
+                    'total_ventas_efectivo' => $ventasEfectivo,
+                    'total_ventas_tarjeta' => $ventasTarjeta,
+                    'total_ventas_transferencia' => $ventasTransfer,
+                    'monto_esperado_efectivo' => $montoEsperado,
+                    'monto_real_efectivo' => $montoEsperado,
+                    'diferencia' => 0.00,
+                    'notas_apertura' => 'Base apertura mediodía $250.000 COP',
+                    'notas_cierre' => 'Cierre de turno cuadrado sin novedades ni descuadres.',
                 ]);
 
-                // Ítems de la comanda
-                foreach ($platosMuestra as $pl) {
-                    ItemPedido::create([
-                        'pedido_id' => $pedido->id,
-                        'producto_id' => $pl->id,
-                        'nombre_producto' => $pl->nombre,
-                        'cantidad' => 1,
-                        'precio_unitario' => $pl->precio,
-                        'subtotal' => $pl->precio,
-                        'area_cocina' => $pl->area_cocina ?? 'caliente',
-                        'estado_cocina' => 'servido',
-                        'iniciado_en' => (clone $fechaPedido)->addMinutes(5),
-                        'listo_en' => (clone $fechaPedido)->addMinutes(25),
-                        'created_at' => $fechaPedido,
+                // Movimiento 1: Adición de base
+                if ($ingresoExtra > 0) {
+                    MovimientoCaja::create([
+                        'turno_caja_id' => $turno->id,
+                        'user_id' => $cajero1->id,
+                        'tipo' => 'ingreso',
+                        'concepto' => 'Billetes de baja denominación para cambio en caja',
+                        'monto' => $ingresoExtra,
+                        'metodo_pago' => 'efectivo',
+                        'numero_comprobante' => 'ING-'.$fechaDia->format('Ymd').'-01',
+                        'created_at' => (clone $fechaDia)->setTime(12, 15),
                     ]);
                 }
 
-                // Factura electrónica DIAN POS con CUFE SHA-384
-                $cufeRaw = "NumFac={$prefijo}-{$consecutivo}&FecFac={$fechaPedido->format('Y-m-d')}&ValFac={$total}&NitFac={$sucursal->nit_ruc}&ClaveTecnica=CLAVE-TECNICA-DEMO-2026";
-                $cufe = hash('sha384', $cufeRaw);
-
-                FacturaElectronica::create([
-                    'pedido_id' => $pedido->id,
-                    'sucursal_id' => $sucursal->id,
-                    'tipo_documento' => 'pos_electronico',
-                    'prefijo' => $prefijo,
-                    'consecutivo' => $consecutivo,
-                    'numero_factura' => "{$prefijo}-{$consecutivo}",
-                    'cufe' => $cufe,
-                    'qr_cadena' => "NumFac:{$prefijo}-{$consecutivo}&FecFac:{$fechaPedido->format('Y-m-d')}&ValFac:{$total}&CUFE:{$cufe}",
-                    'estado' => 'emitida',
-                    'total' => $total,
-                    'impuesto' => round($total * 0.08, 2),
-                    'cliente_nit' => $cliente?->identificacion ?? '222222222222',
-                    'cliente_nombre' => $cliente?->nombre ?? 'Consumidor Final',
-                    'proveedor_tecnologico' => 'factus',
-                    'emitida_en' => (clone $fechaPedido)->addMinutes(50),
+                // Movimiento 2: Caja menor
+                MovimientoCaja::create([
+                    'turno_caja_id' => $turno->id,
+                    'user_id' => $cajero1->id,
+                    'tipo' => 'egreso',
+                    'concepto' => 'Caja menor: limones criollos, servilletas y hielo',
+                    'monto' => $egresoMenor,
+                    'metodo_pago' => 'efectivo',
+                    'numero_comprobante' => 'EGR-'.$fechaDia->format('Ymd').'-01',
+                    'autorizado_por' => 'Gerencia',
+                    'created_at' => (clone $fechaDia)->setTime(15, 30),
                 ]);
+
+                // Movimiento 3: Retiro a bóveda
+                if ($retiroBoveda > 0) {
+                    MovimientoCaja::create([
+                        'turno_caja_id' => $turno->id,
+                        'user_id' => $cajero1->id,
+                        'tipo' => 'retiro',
+                        'concepto' => 'Retiro preventivo de efectivo para depósito en bóveda',
+                        'monto' => $retiroBoveda,
+                        'metodo_pago' => 'efectivo',
+                        'numero_comprobante' => 'RET-'.$fechaDia->format('Ymd').'-01',
+                        'autorizado_por' => 'Gerente de Operaciones',
+                        'created_at' => (clone $fechaDia)->setTime(21, 45),
+                    ]);
+                }
+
+                // Pedidos históricos de este día (5 a 8 comandas por día)
+                $numPedidosDia = $esFinDeSemana ? 8 : 5;
+                for ($p = 0; $p < $numPedidosDia; $p++) {
+                    $contadorCodigo++;
+                    $consecutivo++;
+                    $hora = ($p % 2 === 0) ? rand(12, 15) : rand(19, 22);
+                    $fechaPedido = (clone $fechaDia)->setTime($hora, rand(5, 55));
+
+                    $cliente = $clientes->isNotEmpty() ? $clientes->random() : null;
+                    $mesero = $meseros->isNotEmpty() ? $meseros->random() : $primerMesero;
+                    $mesa = $mesas->random();
+                    $esDelivery = ($p === ($numPedidosDia - 1));
+
+                    $metodos = ['efectivo', 'tarjeta', 'tarjeta', 'wompi', 'bold'];
+                    $metodo = $metodos[array_rand($metodos)];
+
+                    $platosMuestra = $productos->random(min(3, $productos->count()));
+                    $subtotal = 0;
+                    foreach ($platosMuestra as $pl) {
+                        $subtotal += (float) $pl->precio;
+                    }
+
+                    $propina = round($subtotal * 0.10, 2);
+                    $total = $subtotal + $propina;
+
+                    $pedido = Pedido::create([
+                        'codigo' => 'ORD-'.date('Ymd', $fechaDia->timestamp).'-'.str_pad((string) $p, 3, '0', STR_PAD_LEFT),
+                        'tipo' => $esDelivery ? 'delivery' : 'mesa',
+                        'estado' => 'pagado',
+                        'sucursal_id' => $sucursal->id,
+                        'mesa_id' => $esDelivery ? null : $mesa->id,
+                        'cliente_id' => $cliente?->id,
+                        'usuario_id' => $mesero->id,
+                        'mesero_id' => $mesero->id,
+                        'repartidor_id' => $esDelivery ? $repartidor->id : null,
+                        'turno_caja_id' => $turno->id,
+                        'nombre_cliente' => $cliente?->nombre ?? 'Cliente Salón Mesa '.$mesa->numero,
+                        'subtotal' => $subtotal,
+                        'propina' => $propina,
+                        'porcentaje_propina' => 10.0,
+                        'total' => $total,
+                        'metodo_pago' => $metodo,
+                        'monto_pagado' => $total,
+                        'cambio' => 0.00,
+                        'pagado_en' => (clone $fechaPedido)->addMinutes(45),
+                        'created_at' => $fechaPedido,
+                    ]);
+
+                    // Ítems de la comanda
+                    foreach ($platosMuestra as $pl) {
+                        ItemPedido::create([
+                            'pedido_id' => $pedido->id,
+                            'producto_id' => $pl->id,
+                            'nombre_producto' => $pl->nombre,
+                            'cantidad' => 1,
+                            'precio_unitario' => $pl->precio,
+                            'subtotal' => $pl->precio,
+                            'area_cocina' => $pl->area_cocina ?? 'caliente',
+                            'estado_cocina' => 'servido',
+                            'iniciado_en' => (clone $fechaPedido)->addMinutes(5),
+                            'listo_en' => (clone $fechaPedido)->addMinutes(25),
+                            'created_at' => $fechaPedido,
+                        ]);
+                    }
+
+                    // Factura electrónica DIAN POS con CUFE SHA-384
+                    $cufeRaw = "NumFac={$prefijo}-{$consecutivo}&FecFac={$fechaPedido->format('Y-m-d')}&ValFac={$total}&NitFac={$sucursal->nit_ruc}&ClaveTecnica=CLAVE-TECNICA-DEMO-2026";
+                    $cufe = hash('sha384', $cufeRaw);
+
+                    FacturaElectronica::create([
+                        'pedido_id' => $pedido->id,
+                        'sucursal_id' => $sucursal->id,
+                        'tipo_documento' => 'pos_electronico',
+                        'prefijo' => $prefijo,
+                        'consecutivo' => $consecutivo,
+                        'numero_factura' => "{$prefijo}-{$consecutivo}",
+                        'cufe' => $cufe,
+                        'qr_cadena' => "NumFac:{$prefijo}-{$consecutivo}&FecFac:{$fechaPedido->format('Y-m-d')}&ValFac:{$total}&CUFE:{$cufe}",
+                        'estado' => 'emitida',
+                        'total' => $total,
+                        'impuesto' => round($total * 0.08, 2),
+                        'cliente_nit' => $cliente?->identificacion ?? '222222222222',
+                        'cliente_nombre' => $cliente?->nombre ?? 'Consumidor Final',
+                        'proveedor_tecnologico' => 'factus',
+                        'emitida_en' => (clone $fechaPedido)->addMinutes(50),
+                    ]);
+                }
             }
         }
 
@@ -563,28 +567,32 @@ class OperacionesMesCompletoSeeder extends Seeder
         }
 
         // Movimientos de hoy en Caja Principal
-        MovimientoCaja::create([
-            'turno_caja_id' => $turnoHoy->id,
-            'user_id' => $cajero1->id,
-            'tipo' => 'ingreso',
-            'concepto' => 'Cobro anticipo en efectivo para reserva evento cena VIP',
-            'monto' => 150000.00,
-            'metodo_pago' => 'efectivo',
-            'numero_comprobante' => 'ING-HOY-01',
-            'created_at' => now()->subHours(2),
-        ]);
+        MovimientoCaja::firstOrCreate(
+            ['numero_comprobante' => 'ING-HOY-01'],
+            [
+                'turno_caja_id' => $turnoHoy->id,
+                'user_id' => $cajero1->id,
+                'tipo' => 'ingreso',
+                'concepto' => 'Cobro anticipo en efectivo para reserva evento cena VIP',
+                'monto' => 150000.00,
+                'metodo_pago' => 'efectivo',
+                'created_at' => now()->subHours(2),
+            ]
+        );
 
-        MovimientoCaja::create([
-            'turno_caja_id' => $turnoHoy->id,
-            'user_id' => $cajero1->id,
-            'tipo' => 'egreso',
-            'concepto' => 'Compra urgente de hielo gourmet y servilletas',
-            'monto' => 22000.00,
-            'metodo_pago' => 'efectivo',
-            'numero_comprobante' => 'EGR-HOY-01',
-            'autorizado_por' => 'Gerencia',
-            'created_at' => now()->subHour(),
-        ]);
+        MovimientoCaja::firstOrCreate(
+            ['numero_comprobante' => 'EGR-HOY-01'],
+            [
+                'turno_caja_id' => $turnoHoy->id,
+                'user_id' => $cajero1->id,
+                'tipo' => 'egreso',
+                'concepto' => 'Compra urgente de hielo gourmet y servilletas',
+                'monto' => 22000.00,
+                'metodo_pago' => 'efectivo',
+                'autorizado_por' => 'Gerencia',
+                'created_at' => now()->subHour(),
+            ]
+        );
 
         // COMANDAS EN VIVO DE HOY EN TODAS LAS ETAPAS DEL FLUJO:
         $platoCarnes = $productos->firstWhere('slug', 'bife-de-chorizo-angus-350g') ?? $productos->first();
@@ -595,129 +603,143 @@ class OperacionesMesCompletoSeeder extends Seeder
         $m1 = $mesas->firstWhere('numero', '1') ?? $mesas->first();
         $m1->update(['estado' => 'ocupada']);
 
-        $pedCocina = Pedido::create([
-            'codigo' => 'ORD-HOY-101',
-            'tipo' => 'mesa',
-            'estado' => 'en_cocina',
-            'sucursal_id' => $sucursal->id,
-            'mesa_id' => $m1->id,
-            'usuario_id' => $primerMesero->id,
-            'mesero_id' => $primerMesero->id,
-            'turno_caja_id' => $turnoHoy->id,
-            'nombre_cliente' => 'Familia Restrepo',
-            'subtotal' => ($platoCarnes->precio * 2) + $bebidaBarra->precio,
-            'total' => (($platoCarnes->precio * 2) + $bebidaBarra->precio) * 1.10,
-            'propina' => (($platoCarnes->precio * 2) + $bebidaBarra->precio) * 0.10,
-            'notas' => 'Cortes término 3/4. Sin cebolla en salsas.',
-            'created_at' => now()->subMinutes(12),
-        ]);
+        $pedCocina = Pedido::firstOrCreate(
+            ['codigo' => 'ORD-HOY-101'],
+            [
+                'tipo' => 'mesa',
+                'estado' => 'en_cocina',
+                'sucursal_id' => $sucursal->id,
+                'mesa_id' => $m1->id,
+                'usuario_id' => $primerMesero->id,
+                'mesero_id' => $primerMesero->id,
+                'turno_caja_id' => $turnoHoy->id,
+                'nombre_cliente' => 'Familia Restrepo',
+                'subtotal' => ($platoCarnes->precio * 2) + $bebidaBarra->precio,
+                'total' => (($platoCarnes->precio * 2) + $bebidaBarra->precio) * 1.10,
+                'propina' => (($platoCarnes->precio * 2) + $bebidaBarra->precio) * 0.10,
+                'notas' => 'Cortes término 3/4. Sin cebolla en salsas.',
+                'created_at' => now()->subMinutes(12),
+            ]
+        );
 
-        ItemPedido::create([
-            'pedido_id' => $pedCocina->id,
-            'producto_id' => $platoCarnes->id,
-            'nombre_producto' => $platoCarnes->nombre,
-            'cantidad' => 2,
-            'precio_unitario' => $platoCarnes->precio,
-            'subtotal' => $platoCarnes->precio * 2,
-            'area_cocina' => 'caliente',
-            'estado_cocina' => 'en_preparacion',
-            'iniciado_en' => now()->subMinutes(10),
-        ]);
+        if ($pedCocina->wasRecentlyCreated) {
+            ItemPedido::create([
+                'pedido_id' => $pedCocina->id,
+                'producto_id' => $platoCarnes->id,
+                'nombre_producto' => $platoCarnes->nombre,
+                'cantidad' => 2,
+                'precio_unitario' => $platoCarnes->precio,
+                'subtotal' => $platoCarnes->precio * 2,
+                'area_cocina' => 'caliente',
+                'estado_cocina' => 'en_preparacion',
+                'iniciado_en' => now()->subMinutes(10),
+            ]);
+        }
 
         // 2. Mesa 2: Solicitada vía QR en mesa
         $m2 = $mesas->firstWhere('numero', '2') ?? $mesas->skip(1)->first();
         $m2->update(['estado' => 'ocupada']);
 
-        Pedido::create([
-            'codigo' => 'ORD-HOY-102',
-            'tipo' => 'mesa',
-            'estado' => 'solicitado_qr',
-            'sucursal_id' => $sucursal->id,
-            'mesa_id' => $m2->id,
-            'turno_caja_id' => $turnoHoy->id,
-            'nombre_cliente' => 'Comensal QR Mesa 2',
-            'subtotal' => $platoBurger->precio + $bebidaBarra->precio,
-            'total' => $platoBurger->precio + $bebidaBarra->precio,
-            'notas' => 'Pedido auto-generado por el cliente desde el código QR en mesa.',
-            'created_at' => now()->subMinutes(5),
-        ]);
+        Pedido::firstOrCreate(
+            ['codigo' => 'ORD-HOY-102'],
+            [
+                'tipo' => 'mesa',
+                'estado' => 'solicitado_qr',
+                'sucursal_id' => $sucursal->id,
+                'mesa_id' => $m2->id,
+                'turno_caja_id' => $turnoHoy->id,
+                'nombre_cliente' => 'Comensal QR Mesa 2',
+                'subtotal' => $platoBurger->precio + $bebidaBarra->precio,
+                'total' => $platoBurger->precio + $bebidaBarra->precio,
+                'notas' => 'Pedido auto-generado por el cliente desde el código QR en mesa.',
+                'created_at' => now()->subMinutes(5),
+            ]
+        );
 
         // 3. Mesa 3: Comanda lista para servir (campana en KDS)
         $m3 = $mesas->firstWhere('numero', '3') ?? $mesas->skip(2)->first();
         $m3->update(['estado' => 'ocupada']);
 
-        $pedListo = Pedido::create([
-            'codigo' => 'ORD-HOY-103',
-            'tipo' => 'mesa',
-            'estado' => 'listo',
-            'sucursal_id' => $sucursal->id,
-            'mesa_id' => $m3->id,
-            'usuario_id' => $primerMesero->id,
-            'mesero_id' => $primerMesero->id,
-            'turno_caja_id' => $turnoHoy->id,
-            'nombre_cliente' => 'Carlos Andrés Restrepo',
-            'subtotal' => $platoBurger->precio * 2,
-            'total' => ($platoBurger->precio * 2) * 1.10,
-            'propina' => ($platoBurger->precio * 2) * 0.10,
-            'created_at' => now()->subMinutes(25),
-        ]);
+        $pedListo = Pedido::firstOrCreate(
+            ['codigo' => 'ORD-HOY-103'],
+            [
+                'tipo' => 'mesa',
+                'estado' => 'listo',
+                'sucursal_id' => $sucursal->id,
+                'mesa_id' => $m3->id,
+                'usuario_id' => $primerMesero->id,
+                'mesero_id' => $primerMesero->id,
+                'turno_caja_id' => $turnoHoy->id,
+                'nombre_cliente' => 'Carlos Andrés Restrepo',
+                'subtotal' => $platoBurger->precio * 2,
+                'total' => ($platoBurger->precio * 2) * 1.10,
+                'propina' => ($platoBurger->precio * 2) * 0.10,
+                'created_at' => now()->subMinutes(25),
+            ]
+        );
 
-        ItemPedido::create([
-            'pedido_id' => $pedListo->id,
-            'producto_id' => $platoBurger->id,
-            'nombre_producto' => $platoBurger->nombre,
-            'cantidad' => 2,
-            'precio_unitario' => $platoBurger->precio,
-            'subtotal' => $platoBurger->precio * 2,
-            'area_cocina' => 'caliente',
-            'estado_cocina' => 'listo',
-            'iniciado_en' => now()->subMinutes(20),
-            'listo_en' => now()->subMinutes(2),
-        ]);
+        if ($pedListo->wasRecentlyCreated) {
+            ItemPedido::create([
+                'pedido_id' => $pedListo->id,
+                'producto_id' => $platoBurger->id,
+                'nombre_producto' => $platoBurger->nombre,
+                'cantidad' => 2,
+                'precio_unitario' => $platoBurger->precio,
+                'subtotal' => $platoBurger->precio * 2,
+                'area_cocina' => 'caliente',
+                'estado_cocina' => 'listo',
+                'iniciado_en' => now()->subMinutes(20),
+                'listo_en' => now()->subMinutes(2),
+            ]);
+        }
 
         // 4. Mesa 4: Pendiente de cobro en caja
         $m4 = $mesas->firstWhere('numero', '4') ?? $mesas->skip(3)->first();
         $m4->update(['estado' => 'ocupada']);
 
-        Pedido::create([
-            'codigo' => 'ORD-HOY-104',
-            'tipo' => 'mesa',
-            'estado' => 'pendiente_cobro',
-            'sucursal_id' => $sucursal->id,
-            'mesa_id' => $m4->id,
-            'usuario_id' => $primerMesero->id,
-            'mesero_id' => $primerMesero->id,
-            'turno_caja_id' => $turnoHoy->id,
-            'nombre_cliente' => 'Dra. Valentina Morales',
-            'subtotal' => 145000.00,
-            'total' => 159500.00,
-            'propina' => 14500.00,
-            'metodo_pago' => 'tarjeta',
-            'notas' => 'Cliente solicitó la cuenta. Pagará con datáfono contactless.',
-            'created_at' => now()->subMinutes(45),
-        ]);
+        Pedido::firstOrCreate(
+            ['codigo' => 'ORD-HOY-104'],
+            [
+                'tipo' => 'mesa',
+                'estado' => 'pendiente_cobro',
+                'sucursal_id' => $sucursal->id,
+                'mesa_id' => $m4->id,
+                'usuario_id' => $primerMesero->id,
+                'mesero_id' => $primerMesero->id,
+                'turno_caja_id' => $turnoHoy->id,
+                'nombre_cliente' => 'Dra. Valentina Morales',
+                'subtotal' => 145000.00,
+                'total' => 159500.00,
+                'propina' => 14500.00,
+                'metodo_pago' => 'tarjeta',
+                'notas' => 'Cliente solicitó la cuenta. Pagará con datáfono contactless.',
+                'created_at' => now()->subMinutes(45),
+            ]
+        );
 
         // 5. Delivery Activo (En camino con repartidor)
-        Pedido::create([
-            'codigo' => 'DLV-HOY-201',
-            'tipo' => 'delivery',
-            'estado' => 'en_proceso',
-            'estado_delivery' => 'en_camino',
-            'sucursal_id' => $sucursal->id,
-            'usuario_id' => $cajero1->id,
-            'repartidor_id' => $repartidor->id,
-            'turno_caja_id' => $turnoHoy->id,
-            'nombre_cliente' => 'Santiago Uribe Arango',
-            'telefono_cliente' => '+57 312 405 8821',
-            'direccion_delivery' => 'Carrera 43A # 1Sur-150, Edificio Torre Ónix, Apto 804',
-            'subtotal' => 78000.00,
-            'costo_envio' => 8000.00,
-            'total' => 86000.00,
-            'metodo_pago' => 'efectivo',
-            'notas' => 'Timbrar en portería y anunciar para entregar en piso 8.',
-            'hora_despacho' => now()->subMinutes(18),
-            'created_at' => now()->subMinutes(35),
-        ]);
+        Pedido::firstOrCreate(
+            ['codigo' => 'DLV-HOY-201'],
+            [
+                'tipo' => 'delivery',
+                'estado' => 'en_proceso',
+                'estado_delivery' => 'en_camino',
+                'sucursal_id' => $sucursal->id,
+                'usuario_id' => $cajero1->id,
+                'repartidor_id' => $repartidor->id,
+                'turno_caja_id' => $turnoHoy->id,
+                'nombre_cliente' => 'Santiago Uribe Arango',
+                'telefono_cliente' => '+57 312 405 8821',
+                'direccion_delivery' => 'Carrera 43A # 1Sur-150, Edificio Torre Ónix, Apto 804',
+                'subtotal' => 78000.00,
+                'costo_envio' => 8000.00,
+                'total' => 86000.00,
+                'metodo_pago' => 'efectivo',
+                'notas' => 'Timbrar en portería y anunciar para entregar en piso 8.',
+                'hora_despacho' => now()->subMinutes(18),
+                'created_at' => now()->subMinutes(35),
+            ]
+        );
 
         // =========================================================================
         // 4. RESERVAS DEL MES (PASADAS, HOY Y PRÓXIMAS SEMANAS)
@@ -827,15 +849,22 @@ class OperacionesMesCompletoSeeder extends Seeder
             $mesaId = $rData['mesa_id'] ?? null;
             unset($rData['mesa_id']);
 
-            $res = Reserva::create(array_merge($rData, [
-                'sucursal_id' => $sucursal->id,
-                'duracion_min' => 120,
-                'origen' => 'whatsapp',
-                'token_publico' => Str::random(32),
-                'created_by' => $cajero1->id,
-            ]));
+            $res = Reserva::firstOrCreate(
+                [
+                    'nombre_contacto' => $rData['nombre_contacto'],
+                    'fecha' => $rData['fecha'],
+                    'hora_llegada' => $rData['hora_llegada'],
+                ],
+                array_merge($rData, [
+                    'sucursal_id' => $sucursal->id,
+                    'duracion_min' => 120,
+                    'origen' => 'whatsapp',
+                    'token_publico' => Str::random(32),
+                    'created_by' => $cajero1->id,
+                ])
+            );
 
-            if ($mesaId) {
+            if ($mesaId && $res->wasRecentlyCreated) {
                 $res->mesas()->sync([$mesaId]);
             }
         }

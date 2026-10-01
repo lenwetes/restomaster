@@ -2,14 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Insumo;
 use App\Models\Producto;
-use Database\Seeders\CajaSeeder;
-use Database\Seeders\DemoOperacionesSeeder;
-use Database\Seeders\ImpresoraSeeder;
-use Database\Seeders\InventarioSeeder;
-use Database\Seeders\MenuSeeder;
-use Database\Seeders\MesaSeeder;
-use Database\Seeders\MeseroPruebaSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -29,32 +23,22 @@ class CargarDatosDemoCommand extends Command
 
         $this->call('db:seed', ['--force' => true]);
 
-        $seedersDemo = [
-            MenuSeeder::class,
-            MesaSeeder::class,
-            MeseroPruebaSeeder::class,
-            CajaSeeder::class,
-            ImpresoraSeeder::class,
-            InventarioSeeder::class,
-            DemoOperacionesSeeder::class,
-        ];
-
-        foreach ($seedersDemo as $seeder) {
-            $this->call('db:seed', ['--class' => $seeder, '--force' => true]);
-        }
-
         $vinculadas = $this->vincularImagenesDemo();
         $this->info("✓ Imágenes de platos vinculadas: {$vinculadas}.");
 
+        $insumosCount = Insumo::count();
+        $productosCount = Producto::count();
+        $conImagenCount = Producto::whereNotNull('imagen')->where('imagen', '!=', '')->count();
+
         $this->newLine();
-        $this->info('✓ Demo lista: catálogo, mesas, cajas, inventario, turno abierto, pedidos de ejemplo e imágenes.');
+        $this->info("✓ Demo lista: {$productosCount} platos catalogados ({$conImagenCount} con fotografía), {$insumosCount} insumos en inventario.");
 
         return self::SUCCESS;
     }
 
     /**
-     * Convención: public/demo/platos/{slug}.jpg se vincula solo al producto
-     * con ese slug. Basta con agregar el archivo para futuros platos.
+     * Convención: public/demo/platos/{slug}.jpg (o extensiones/variantes)
+     * se vincula a cada plato del menú.
      */
     protected function vincularImagenesDemo(): int
     {
@@ -67,10 +51,21 @@ class CargarDatosDemoCommand extends Command
 
         $vinculadas = 0;
         foreach (Producto::all(['id', 'slug', 'imagen']) as $producto) {
-            $ruta = "demo/platos/{$producto->slug}.jpg";
-            if ($producto->imagen !== '/'.$ruta && File::exists($base.'/'.$producto->slug.'.jpg')) {
-                $producto->update(['imagen' => '/'.$ruta]);
-                $vinculadas++;
+            $posibles = [
+                $producto->slug.'.jpg',
+                $producto->slug.'-350g.jpg',
+                $producto->slug.'.png',
+                $producto->slug.'.webp',
+            ];
+            foreach ($posibles as $img) {
+                if (File::exists($base.'/'.$img)) {
+                    $ruta = '/demo/platos/'.$img;
+                    if ($producto->imagen !== $ruta) {
+                        $producto->update(['imagen' => $ruta]);
+                        $vinculadas++;
+                    }
+                    break;
+                }
             }
         }
 

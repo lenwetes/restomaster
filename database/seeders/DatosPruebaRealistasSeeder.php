@@ -38,25 +38,6 @@ class DatosPruebaRealistasSeeder extends Seeder
     {
         $this->command?->info('Iniciando carga de datos realistas de Restaurante General para RestoMaster Colombia...');
 
-        // 0. Limpieza defensiva de datos demo previos para garantizar un catálogo libre de sushi
-        $pedidosDemoIds = Pedido::where('codigo', 'like', 'ORD-%')->pluck('id');
-        if ($pedidosDemoIds->isNotEmpty()) {
-            ItemPedido::whereIn('pedido_id', $pedidosDemoIds)->delete();
-            Pedido::whereIn('id', $pedidosDemoIds)->delete();
-        }
-
-        Receta::query()->delete();
-        MovimientoInventario::where('referencia_documento', 'like', 'FAC-INI-%')->delete();
-
-        // Eliminar productos previos si no están referenciados por pedidos externos
-        Producto::whereDoesntHave('itemsPedido')->forceDelete();
-        Categoria::whereDoesntHave('productos')->delete();
-
-        Insumo::whereDoesntHave('recetas')->whereDoesntHave('movimientos')->forceDelete();
-        CategoriaInsumo::whereDoesntHave('insumos')->delete();
-
-        CuentaPorPagar::where('numero_factura', 'like', 'FAC-%')->delete();
-
         // 1. Sucursal Principal
         $sucursal = Sucursal::first() ?? Sucursal::create([
             'nombre' => 'RestoMaster Gourmet & Parrilla · Medellín',
