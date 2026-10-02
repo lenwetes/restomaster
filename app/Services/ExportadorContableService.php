@@ -381,7 +381,7 @@ class ExportadorContableService
 
             $cantOperaciones = $pedidosDia->count();
             $ingresosBrutos = (float) $pedidosDia->sum('total');
-            $baseGravable = round($ingresosBrutos / $factor, 2);
+            $baseGravable = $factor != 0 ? round($ingresosBrutos / $factor, 2) : $ingresosBrutos;
             $valorInc = round($ingresosBrutos - $baseGravable, 2);
             $totalDevoluciones = (float) $devolucionesDia->sum(fn ($d) => $d->monto_devuelto ?? $d->monto_reembolsado ?? 0);
             $ingresosNetos = round($ingresosBrutos - $totalDevoluciones, 2);

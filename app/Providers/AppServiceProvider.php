@@ -89,9 +89,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Compra::class, CompraPolicy::class);
 
         // Gates para acciones del sistema
-        Gate::define('administrar-configuracion', function (User $user) {
-            return $user->hasRole('admin');
-        });
+        Gate::define('administrar-configuracion', fn (User $user) => $user->hasRole('admin'));
 
         // Event Listeners: Facturación Electrónica DIAN
         Event::listen(

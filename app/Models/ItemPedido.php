@@ -2,32 +2,32 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'pedido_id',
+    'producto_id',
+    'nombre_producto',
+    'cantidad',
+    'precio_unitario',
+    'subtotal',
+    'area_cocina',
+    'estado_cocina',
+    'notas',
+    'inventario_descontado',
+    'cantidad_devuelta',
+    'iniciado_en',
+    'listo_en',
+])]
+#[Table(name: 'items_pedido')]
 class ItemPedido extends Model
 {
     use HasFactory;
-
-    protected $table = 'items_pedido';
-
-    protected $fillable = [
-        'pedido_id',
-        'producto_id',
-        'nombre_producto',
-        'cantidad',
-        'precio_unitario',
-        'subtotal',
-        'area_cocina',
-        'estado_cocina',
-        'notas',
-        'inventario_descontado',
-        'cantidad_devuelta',
-        'iniciado_en',
-        'listo_en',
-    ];
 
     protected function casts(): array
     {

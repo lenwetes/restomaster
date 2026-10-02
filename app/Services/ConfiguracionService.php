@@ -30,7 +30,7 @@ class ConfiguracionService
         if ($clave === 'password' && ! empty($config->valor)) {
             try {
                 return Crypt::decryptString($config->valor);
-            } catch (\Throwable $e) {
+            } catch (\Throwable) {
                 return $config->valor;
             }
         }
@@ -43,7 +43,7 @@ class ConfiguracionService
         if ($clave === 'password' && ! empty($valor)) {
             try {
                 Crypt::decryptString($valor);
-            } catch (\Throwable $e) {
+            } catch (\Throwable) {
                 $valor = Crypt::encryptString($valor);
             }
         }
@@ -58,11 +58,9 @@ class ConfiguracionService
 
     public function obtenerGrupo(string $grupo): array
     {
-        return Cache::remember("config_grupo_{$grupo}", 300, function () use ($grupo) {
-            return Configuracion::where('grupo', $grupo)
-                ->pluck('valor', 'clave')
-                ->toArray();
-        });
+        return Cache::remember("config_grupo_{$grupo}", 300, fn () => Configuracion::where('grupo', $grupo)
+            ->pluck('valor', 'clave')
+            ->toArray());
     }
 
     public function regenerarWebhookToken(): string
@@ -339,8 +337,10 @@ class ConfiguracionService
             if ($nombre === false) {
                 continue;
             }
-            if (str_starts_with($nombre, '/') || str_starts_with($nombre, '\\')
-                || str_contains($nombre, '..') || (bool) preg_match('/^[A-Za-z]:/', $nombre)) {
+            if (
+                str_starts_with($nombre, '/') || str_starts_with($nombre, '\\')
+                || str_contains($nombre, '..') || (bool) preg_match('/^[A-Za-z]:/', $nombre)
+            ) {
                 $zip->close();
 
                 throw new \DomainException('El ZIP contiene rutas no permitidas.');
@@ -501,7 +501,7 @@ class ConfiguracionService
                         ->subject('RestoMaster - Código de Rescate de PIN de Seguridad');
                 }
             );
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             Log::info("Código OTP de rescate de PIN para {$usuario->email}: {$otp}");
         }
 

@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
 
-new class extends Component
-{
+new class () extends Component {
     use WithFileUploads;
 
     public bool $mostrarModalCategoria = false;

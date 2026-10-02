@@ -5,8 +5,7 @@ use App\Models\Promocion;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('layouts.publico')] class extends Component
-{
+new #[Layout('layouts.publico')] class extends Component {
     use RegistraDifusionSocial;
 
     public Promocion $promocion;

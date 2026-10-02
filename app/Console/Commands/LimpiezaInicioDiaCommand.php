@@ -5,16 +5,16 @@ namespace App\Console\Commands;
 use App\Models\ItemPedido;
 use App\Models\Mesa;
 use App\Models\Pedido;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
+#[Description('Deja el día en cero (SOLO desarrollo): elimina pedidos+items y las mesas no-libres o asignadas. Prohibido en producción.')]
+#[Signature('limpieza:inicio-dia {--force : Ejecuta el borrado. Sin el flag solo muestra el conteo (dry-run)}')]
 class LimpiezaInicioDiaCommand extends Command
 {
-    protected $signature = 'limpieza:inicio-dia {--force : Ejecuta el borrado. Sin el flag solo muestra el conteo (dry-run)}';
-
-    protected $description = 'Deja el día en cero (SOLO desarrollo): elimina pedidos+items y las mesas no-libres o asignadas. Prohibido en producción.';
-
     public function handle(): int
     {
         abort_if(app()->isProduction(), 403, 'limpieza:inicio-dia prohibido en producción.');

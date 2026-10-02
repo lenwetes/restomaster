@@ -4,14 +4,14 @@ namespace App\Console\Commands;
 
 use App\Http\Middleware\MonitoreoRendimientoSucursalesMiddleware;
 use App\Models\Sucursal;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
+#[Description('Monitorea y calcula los tiempos de respuesta p95 reales de las 5 sucursales de RestoMaster')]
+#[Signature('restomaster:metricas-p95')]
 class MonitoreoMetricasP95Command extends Command
 {
-    protected $signature = 'restomaster:metricas-p95';
-
-    protected $description = 'Monitorea y calcula los tiempos de respuesta p95 reales de las 5 sucursales de RestoMaster';
-
     public function handle(): int
     {
         $this->info('================================================================');

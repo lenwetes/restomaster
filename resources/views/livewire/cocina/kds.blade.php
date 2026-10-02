@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public string $vistaModo = 'kds'; // 'kds', 'historial'
 
     public string $areaSeleccionada = 'todas'; // 'todas', 'sushi', 'caliente', 'barra'

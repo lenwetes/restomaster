@@ -2,32 +2,29 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'nombre',
+    'codigo',
+    'canal',
+    'categoria',
+    'asunto',
+    'contenido',
+    'whatsapp_template_name',
+    'whatsapp_language_code',
+    'activa',
+])]
+#[Table(name: 'crm_plantillas')]
 class CrmPlantilla extends Model
 {
     use HasFactory;
-
-    protected $table = 'crm_plantillas';
-
-    protected $fillable = [
-        'nombre',
-        'codigo',
-        'canal',
-        'categoria',
-        'asunto',
-        'contenido',
-        'whatsapp_template_name',
-        'whatsapp_language_code',
-        'activa',
-    ];
-
-    protected $casts = [
-        'activa' => 'boolean',
-    ];
 
     public function automatizacionesWhatsapp(): HasMany
     {
@@ -39,12 +36,14 @@ class CrmPlantilla extends Model
         return $this->hasMany(CrmAutomatizacion::class, 'plantilla_email_id');
     }
 
-    public function scopeActivas(Builder $query): Builder
+    #[Scope]
+    protected function activas(Builder $query): Builder
     {
         return $query->where('activa', true);
     }
 
-    public function scopeCanal(Builder $query, string $canal): Builder
+    #[Scope]
+    protected function canal(Builder $query, string $canal): Builder
     {
         return $query->where('canal', $canal);
     }
@@ -61,5 +60,12 @@ class CrmPlantilla extends Model
         }
 
         return $contenido;
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'activa' => 'boolean',
+        ];
     }
 }

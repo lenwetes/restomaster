@@ -2,26 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'turno_caja_id',
+    'user_id',
+    'tipo',
+    'concepto',
+    'monto',
+    'metodo_pago',
+    'numero_comprobante',
+    'autorizado_por',
+])]
+#[Table(name: 'movimientos_caja')]
 class MovimientoCaja extends Model
 {
     use HasFactory;
-
-    protected $table = 'movimientos_caja';
-
-    protected $fillable = [
-        'turno_caja_id',
-        'user_id',
-        'tipo',
-        'concepto',
-        'monto',
-        'metodo_pago',
-        'numero_comprobante',
-        'autorizado_por',
-    ];
 
     protected function casts(): array
     {

@@ -2,152 +2,140 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Crypt;
 
+#[Fillable([
+    'sucursal_id',
+    'whatsapp_proveedor',
+    'whatsapp_phone_number_id',
+    'whatsapp_waba_id',
+    'whatsapp_access_token',
+    'whatsapp_webhook_secret',
+    'whatsapp_telefono_pruebas',
+    'email_activo',
+    'email_remitente_nombre',
+    'email_remitente_correo',
+    'email_driver',
+    'email_smtp_host',
+    'email_smtp_port',
+    'email_smtp_username',
+    'email_smtp_password',
+    'email_smtp_encryption',
+    'email_correo_pruebas',
+    'horario_envio_inicio',
+    'horario_envio_fin',
+    'delay_encuesta_minutos',
+    'winback_dias_inactividad',
+    'ia_activo',
+    'ia_plantilla_privilegio_id',
+    'ia_proveedor',
+    'ia_modelo',
+    'ia_api_key',
+    'ia_limite_mensajes_por_cliente_dia',
+    'ia_mensaje_apagado',
+])]
+#[Table(name: 'crm_configuraciones')]
 class CrmConfiguracion extends Model
 {
     use HasFactory;
 
-    protected $table = 'crm_configuraciones';
-
-    protected $fillable = [
-        'sucursal_id',
-        'whatsapp_proveedor',
-        'whatsapp_phone_number_id',
-        'whatsapp_waba_id',
-        'whatsapp_access_token',
-        'whatsapp_webhook_secret',
-        'whatsapp_telefono_pruebas',
-        'email_activo',
-        'email_remitente_nombre',
-        'email_remitente_correo',
-        'email_driver',
-        'email_smtp_host',
-        'email_smtp_port',
-        'email_smtp_username',
-        'email_smtp_password',
-        'email_smtp_encryption',
-        'email_correo_pruebas',
-        'horario_envio_inicio',
-        'horario_envio_fin',
-        'delay_encuesta_minutos',
-        'winback_dias_inactividad',
-        'ia_activo',
-        'ia_plantilla_privilegio_id',
-        'ia_proveedor',
-        'ia_modelo',
-        'ia_api_key',
-        'ia_limite_mensajes_por_cliente_dia',
-        'ia_mensaje_apagado',
-    ];
-
-    protected $casts = [
-        'email_activo' => 'boolean',
-        'email_smtp_port' => 'integer',
-        'delay_encuesta_minutos' => 'integer',
-        'winback_dias_inactividad' => 'integer',
-        'ia_activo' => 'boolean',
-        'ia_limite_mensajes_por_cliente_dia' => 'integer',
-        'ia_plantilla_privilegio_id' => 'integer',
-    ];
-
     /**
      * Accesor tolerante a fallos para WhatsApp Access Token (evita 500 por payload inválido o texto plano heredado).
      */
-    public function getWhatsappAccessTokenAttribute(?string $value): ?string
+    protected function whatsappAccessToken(): Attribute
     {
-        if (empty($value)) {
-            return null;
-        }
+        return Attribute::make(get: function (?string $value) {
+            if (empty($value)) {
+                return null;
+            }
+            try {
+                return Crypt::decryptString($value);
+            } catch (\Throwable) {
+                return $value;
+            }
+        }, set: function (?string $value) {
+            if (empty($value)) {
+                $this->attributes['whatsapp_access_token'] = null;
 
-        try {
-            return Crypt::decryptString($value);
-        } catch (\Throwable) {
-            return $value;
-        }
-    }
+                return;
+            }
+            try {
+                Crypt::decryptString($value);
+                $this->attributes['whatsapp_access_token'] = $value;
+            } catch (\Throwable) {
+                $this->attributes['whatsapp_access_token'] = Crypt::encryptString($value);
+            }
 
-    public function setWhatsappAccessTokenAttribute(?string $value): void
-    {
-        if (empty($value)) {
-            $this->attributes['whatsapp_access_token'] = null;
-
-            return;
-        }
-
-        try {
-            Crypt::decryptString($value);
-            $this->attributes['whatsapp_access_token'] = $value;
-        } catch (\Throwable) {
-            $this->attributes['whatsapp_access_token'] = Crypt::encryptString($value);
-        }
+            return ['whatsapp_access_token' => null, 'whatsapp_access_token' => $value, 'whatsapp_access_token' => Crypt::encryptString($value)];
+        });
     }
 
     /**
      * Accesor tolerante a fallos para API Key de IA.
      */
-    public function getIaApiKeyAttribute(?string $value): ?string
+    protected function iaApiKey(): Attribute
     {
-        if (empty($value)) {
-            return null;
-        }
+        return Attribute::make(get: function (?string $value) {
+            if (empty($value)) {
+                return null;
+            }
+            try {
+                return Crypt::decryptString($value);
+            } catch (\Throwable) {
+                return $value;
+            }
+        }, set: function (?string $value) {
+            if (empty($value)) {
+                $this->attributes['ia_api_key'] = null;
 
-        try {
-            return Crypt::decryptString($value);
-        } catch (\Throwable) {
-            return $value;
-        }
-    }
+                return;
+            }
+            try {
+                Crypt::decryptString($value);
+                $this->attributes['ia_api_key'] = $value;
+            } catch (\Throwable) {
+                $this->attributes['ia_api_key'] = Crypt::encryptString($value);
+            }
 
-    public function setIaApiKeyAttribute(?string $value): void
-    {
-        if (empty($value)) {
-            $this->attributes['ia_api_key'] = null;
-
-            return;
-        }
-
-        try {
-            Crypt::decryptString($value);
-            $this->attributes['ia_api_key'] = $value;
-        } catch (\Throwable) {
-            $this->attributes['ia_api_key'] = Crypt::encryptString($value);
-        }
+            return ['ia_api_key' => null, 'ia_api_key' => $value, 'ia_api_key' => Crypt::encryptString($value)];
+        });
     }
 
     /**
      * Accesor tolerante a fallos para contraseña SMTP.
      */
-    public function getEmailSmtpPasswordAttribute(?string $value): ?string
+    protected function emailSmtpPassword(): Attribute
     {
-        if (empty($value)) {
-            return null;
-        }
+        return Attribute::make(get: function (?string $value) {
+            if (empty($value)) {
+                return null;
+            }
+            try {
+                return Crypt::decryptString($value);
+            } catch (\Throwable) {
+                return $value;
+            }
+        }, set: function (?string $value) {
+            if (empty($value)) {
+                $this->attributes['email_smtp_password'] = null;
 
-        try {
-            return Crypt::decryptString($value);
-        } catch (\Throwable) {
-            return $value;
-        }
-    }
+                return;
+            }
+            try {
+                Crypt::decryptString($value);
+                $this->attributes['email_smtp_password'] = $value;
+            } catch (\Throwable) {
+                $this->attributes['email_smtp_password'] = Crypt::encryptString($value);
+            }
 
-    public function setEmailSmtpPasswordAttribute(?string $value): void
-    {
-        if (empty($value)) {
-            $this->attributes['email_smtp_password'] = null;
-
-            return;
-        }
-
-        try {
-            Crypt::decryptString($value);
-            $this->attributes['email_smtp_password'] = $value;
-        } catch (\Throwable) {
-            $this->attributes['email_smtp_password'] = Crypt::encryptString($value);
-        }
+            return ['email_smtp_password' => null, 'email_smtp_password' => $value, 'email_smtp_password' => Crypt::encryptString($value)];
+        });
     }
 
     public function sucursal(): BelongsTo
@@ -259,5 +247,18 @@ class CrmConfiguracion extends Model
                 'ia_mensaje_apagado' => 'En este momento nuestro asistente virtual está en pausa. Para reservas o consultas urgentes, por favor comunícate a nuestra línea de atención telefónica.',
             ]
         );
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'email_activo' => 'boolean',
+            'email_smtp_port' => 'integer',
+            'delay_encuesta_minutos' => 'integer',
+            'winback_dias_inactividad' => 'integer',
+            'ia_activo' => 'boolean',
+            'ia_limite_mensajes_por_cliente_dia' => 'integer',
+            'ia_plantilla_privilegio_id' => 'integer',
+        ];
     }
 }

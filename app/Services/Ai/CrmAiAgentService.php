@@ -748,7 +748,7 @@ class CrmAiAgentService
             if ($mesa) {
                 $mesaTexto = "Mesa #{$mesa->numero}";
             }
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             // Se mantiene en solicitada si no hay mesa inmediata
         }
 

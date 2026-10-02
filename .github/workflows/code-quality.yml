@@ -1,0 +1,36 @@
+name: Code Quality
+
+on: [push, pull_request]
+
+jobs:
+  analysis:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php: ['8.3']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+
+      - name: Install Dependencies
+        run: composer install --prefer-dist --no-interaction
+
+      - name: PHPStan
+        run: ./vendor/bin/phpstan analyse --memory-limit=1G
+
+      - name: Pint
+        run: ./vendor/bin/pint --test
+
+      - name: PHP-CS-Fixer
+        run: ./vendor/bin/php-cs-fixer fix --dry-run
+
+      - name: PHPCodeSniffer
+        run: ./vendor/bin/phpcs app --standard=PSR12
+
+      - name: Rector
+        run: ./vendor/bin/rector process --dry-run

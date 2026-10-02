@@ -2,44 +2,36 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'pedido_id',
+    'sucursal_id',
+    'tipo_documento',
+    'prefijo',
+    'consecutivo',
+    'numero_factura',
+    'cufe',
+    'qr_cadena',
+    'qr_imagen_url',
+    'estado',
+    'total',
+    'impuesto',
+    'cliente_nit',
+    'cliente_nombre',
+    'proveedor_tecnologico',
+    'respuesta_proveedor',
+    'error_mensaje',
+    'emitida_en',
+])]
+#[Table(name: 'facturas_electronicas')]
 class FacturaElectronica extends Model
 {
     use HasFactory;
-
-    protected $table = 'facturas_electronicas';
-
-    protected $fillable = [
-        'pedido_id',
-        'sucursal_id',
-        'tipo_documento',
-        'prefijo',
-        'consecutivo',
-        'numero_factura',
-        'cufe',
-        'qr_cadena',
-        'qr_imagen_url',
-        'estado',
-        'total',
-        'impuesto',
-        'cliente_nit',
-        'cliente_nombre',
-        'proveedor_tecnologico',
-        'respuesta_proveedor',
-        'error_mensaje',
-        'emitida_en',
-    ];
-
-    protected $casts = [
-        'consecutivo'          => 'integer',
-        'total'                => 'decimal:2',  // decimal exacto — nunca float en campos DIAN
-        'impuesto'             => 'decimal:2',
-        'respuesta_proveedor'  => 'array',
-        'emitida_en'           => 'datetime',
-    ];
 
     public function pedido(): BelongsTo
     {
@@ -118,5 +110,16 @@ class FacturaElectronica extends Model
             "CUFE: {$cufe}",
             "QRCode: {$urlValidacion}{$cufe}",
         ]);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'consecutivo' => 'integer',
+            'total' => 'decimal:2',  // decimal exacto — nunca float en campos DIAN
+            'impuesto' => 'decimal:2',
+            'respuesta_proveedor' => 'array',
+            'emitida_en' => 'datetime',
+        ];
     }
 }

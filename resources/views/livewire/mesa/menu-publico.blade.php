@@ -8,8 +8,7 @@ use App\Services\PedidoService;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('layouts.menu-cliente')] class extends Component
-{
+new #[Layout('layouts.menu-cliente')] class extends Component {
     public string $numero = '';
     public ?int $mesaId = null;
     public ?string $mesaZona = '';

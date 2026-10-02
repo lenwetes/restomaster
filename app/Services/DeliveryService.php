@@ -240,9 +240,7 @@ class DeliveryService
             ->whereDate('created_at', $hoy)
             ->whereNotNull('hora_entrega')
             ->get()
-            ->map(function ($p) {
-                return $p->created_at->diffInMinutes($p->hora_entrega);
-            });
+            ->map(fn ($p) => $p->created_at->diffInMinutes($p->hora_entrega));
 
         $tiempoPromedioMin = $tiempos->count() > 0 ? (int) round($tiempos->avg()) : 28;
 

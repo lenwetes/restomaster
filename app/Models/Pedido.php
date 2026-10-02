@@ -3,39 +3,41 @@
 namespace App\Models;
 
 use App\Enums\PedidoEstado;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+#[Fillable([
+    'codigo',
+    'tipo',
+    'sucursal_id',
+    'mesa_id',
+    'usuario_id',
+    'mesero_id',
+    'turno_caja_id',
+    'nombre_cliente',
+    'telefono_cliente',
+    'direccion_delivery',
+    'cliente_id',
+    'direccion_id',
+    'repartidor_id',
+    'estado_delivery',
+    'canal_origen',
+    'costo_envio',
+    'notas',
+    'idempotencia_uuid',
+])]
+#[Table(name: 'pedidos')]
 class Pedido extends Model
 {
     use HasFactory;
-
-    protected $table = 'pedidos';
-
-    protected $fillable = [
-        'codigo',
-        'tipo',
-        'sucursal_id',
-        'mesa_id',
-        'usuario_id',
-        'mesero_id',
-        'turno_caja_id',
-        'nombre_cliente',
-        'telefono_cliente',
-        'direccion_delivery',
-        'cliente_id',
-        'direccion_id',
-        'repartidor_id',
-        'estado_delivery',
-        'canal_origen',
-        'costo_envio',
-        'notas',
-        'idempotencia_uuid',
-    ];
 
     protected function casts(): array
     {
@@ -60,14 +62,12 @@ class Pedido extends Model
         ];
     }
 
-    public function setImpuestosAttribute(mixed $value): void
+    protected function impuestos(): Attribute
     {
-        // La tabla pedidos no almacena columna impuestos por separado
-    }
-
-    public function getImpuestosAttribute(): float
-    {
-        return 0.0;
+        return Attribute::make(get: fn () => 0.0, set: function (mixed $value) {
+            // La tabla pedidos no almacena columna impuestos por separado
+            return [];
+        });
     }
 
     public function sucursal(): BelongsTo
@@ -135,12 +135,14 @@ class Pedido extends Model
         return $this->hasMany(PagoPasarela::class);
     }
 
-    public function scopeActivos(Builder $query): Builder
+    #[Scope]
+    protected function activos(Builder $query): Builder
     {
         return $query->whereNotIn('estado', [PedidoEstado::PAGADO->value, PedidoEstado::CANCELADO->value]);
     }
 
-    public function scopeEnCocina(Builder $query): Builder
+    #[Scope]
+    protected function enCocina(Builder $query): Builder
     {
         return $query->whereIn('estado', [
             PedidoEstado::EN_COCINA->value,
@@ -149,12 +151,14 @@ class Pedido extends Model
         ]);
     }
 
-    public function scopeDelivery(Builder $query): Builder
+    #[Scope]
+    protected function delivery(Builder $query): Builder
     {
         return $query->where('tipo', 'delivery');
     }
 
-    public function scopePendientesDelivery(Builder $query): Builder
+    #[Scope]
+    protected function pendientesDelivery(Builder $query): Builder
     {
         return $query->where('tipo', 'delivery')
             ->whereIn('estado_delivery', ['pendiente', 'asignado', 'en_ruta']);

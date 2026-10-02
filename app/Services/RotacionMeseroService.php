@@ -27,7 +27,7 @@ class RotacionMeseroService
     ): RotacionZona {
         $zonaId = $zona instanceof Zona ? $zona->id : $zona;
         $zonaModel = $zona instanceof Zona ? $zona : Zona::find($zonaId);
-        $sucursalId = $sucursalId ?? $zonaModel?->sucursal_id ?? 1;
+        $sucursalId ??= $zonaModel?->sucursal_id ?? 1;
 
         $rotacionZona = RotacionZona::updateOrCreate(
             ['sucursal_id' => $sucursalId, 'zona_id' => $zonaId],
@@ -194,7 +194,7 @@ class RotacionMeseroService
      */
     public function liberarMesa(Mesa $mesa, ?int $meseroId = null): void
     {
-        $meseroId = $meseroId ?? $mesa->mesero_id;
+        $meseroId ??= $mesa->mesero_id;
         if (! $meseroId) {
             return;
         }
@@ -297,7 +297,7 @@ class RotacionMeseroService
      */
     public function autodistribuirMeserosActivos(?int $sucursalId = null): int
     {
-        $sucursalId = $sucursalId ?? 1;
+        $sucursalId ??= 1;
         $zonas = Zona::where('sucursal_id', $sucursalId)->where('activa', true)->orderBy('orden')->get();
         if ($zonas->isEmpty()) {
             $zonas = Zona::where('activa', true)->orderBy('orden')->get();
@@ -338,7 +338,7 @@ class RotacionMeseroService
      */
     public function deduplicarRotaciones(?int $sucursalId = null, string $turno = 'general'): int
     {
-        $sucursalId = $sucursalId ?? 1;
+        $sucursalId ??= 1;
         $rotaciones = RotacionMesero::where('sucursal_id', $sucursalId)
             ->where('turno', $turno)
             ->orderBy('updated_at', 'desc')
@@ -420,7 +420,7 @@ class RotacionMeseroService
      */
     public function obtenerRotacionesPorSucursal(?int $sucursalId = null, string $turno = 'general'): Collection
     {
-        $sucursalId = $sucursalId ?? 1;
+        $sucursalId ??= 1;
 
         // Auto-reparación: Garantizar que no existan duplicados residuales antes de listar
         $this->deduplicarRotaciones($sucursalId, $turno);
@@ -441,7 +441,7 @@ class RotacionMeseroService
         ?int $sucursalId = null,
         string $turno = 'general'
     ): ?User {
-        $sucursalId = $sucursalId ?? 1;
+        $sucursalId ??= 1;
         $zonaSlug = strtolower(trim($zonaSlug));
 
         $modo = $this->obtenerModoRotacion($sucursalId);
@@ -612,7 +612,7 @@ class RotacionMeseroService
      */
     public function obtenerModoRotacion(?int $sucursalId = null): string
     {
-        $sucursalId = $sucursalId ?? 1;
+        $sucursalId ??= 1;
         $clave = "modo_rotacion_meseros_{$sucursalId}";
         $configService = app(ConfiguracionService::class);
         $valor = $configService->obtener('operaciones', $clave)
@@ -626,7 +626,7 @@ class RotacionMeseroService
      */
     public function guardarModoRotacion(?int $sucursalId = null, string $modo = 'round_robin'): void
     {
-        $sucursalId = $sucursalId ?? 1;
+        $sucursalId ??= 1;
         $clave = "modo_rotacion_meseros_{$sucursalId}";
         app(ConfiguracionService::class)->guardar('operaciones', $clave, $modo);
 

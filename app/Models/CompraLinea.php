@@ -2,23 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'compra_id',
+    'insumo_id',
+    'cantidad',
+    'costo_unitario',
+    'subtotal',
+])]
+#[Table(name: 'compra_lineas')]
 class CompraLinea extends Model
 {
     use HasFactory;
-
-    protected $table = 'compra_lineas';
-
-    protected $fillable = [
-        'compra_id',
-        'insumo_id',
-        'cantidad',
-        'costo_unitario',
-        'subtotal',
-    ];
 
     protected function casts(): array
     {

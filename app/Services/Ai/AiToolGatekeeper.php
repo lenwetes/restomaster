@@ -85,7 +85,7 @@ class AiToolGatekeeper
      */
     public function obtenerNombresToolsAutorizadas(?CrmIaPlantillaPrivilegio $plantilla = null): array
     {
-        $plantilla = $plantilla ?? $this->obtenerPlantillaActiva();
+        $plantilla ??= $this->obtenerPlantillaActiva();
         $tools = [];
 
         if ($plantilla->permitir_menu) {
@@ -132,7 +132,7 @@ class AiToolGatekeeper
      */
     public function excedeLimiteComensales(int $personas, ?CrmIaPlantillaPrivilegio $plantilla = null): bool
     {
-        $plantilla = $plantilla ?? $this->obtenerPlantillaActiva();
+        $plantilla ??= $this->obtenerPlantillaActiva();
         $max = $plantilla->max_personas_reserva;
 
         return $max > 0 && $personas > $max;
@@ -143,7 +143,7 @@ class AiToolGatekeeper
      */
     public function construirSystemPrompt(?CrmIaPlantillaPrivilegio $plantilla = null, ?Cliente $cliente = null): string
     {
-        $plantilla = $plantilla ?? $this->obtenerPlantillaActiva();
+        $plantilla ??= $this->obtenerPlantillaActiva();
         $tools = $this->obtenerNombresToolsAutorizadas($plantilla);
 
         $prompt = "Eres el asistente inteligente oficial de RestoMaster. Atiendes de manera cordial, profesional y segura.\n\n";

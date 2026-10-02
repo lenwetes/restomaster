@@ -91,7 +91,6 @@ class BackupDatabaseCommand extends Command
         }
 
         if (! $filepath) {
-
             // Respaldo streaming mediante cursores (bajo uso de memoria y sin desbordamiento)
             $tablasPorDefecto = self::TABLAS;
 

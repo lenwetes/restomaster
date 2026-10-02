@@ -4,17 +4,17 @@ namespace App\Console\Commands;
 
 use App\Models\Insumo;
 use App\Models\Producto;
+use Illuminate\Console\Attributes\Aliases;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
+#[Aliases(['db:seed-demo'])]
+#[Description('Carga todo lo necesario para una demo lista para clientes: esenciales, catálogo parrilla, mesas, cajas, inventario, operación de ejemplo e imágenes de platos')]
+#[Signature('restomaster:seed-demo')]
 class CargarDatosDemoCommand extends Command
 {
-    protected $signature = 'restomaster:seed-demo';
-
-    protected $aliases = ['db:seed-demo'];
-
-    protected $description = 'Carga todo lo necesario para una demo lista para clientes: esenciales, catálogo parrilla, mesas, cajas, inventario, operación de ejemplo e imágenes de platos';
-
     public function handle(): int
     {
         $this->info('==========================================================');

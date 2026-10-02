@@ -1,19 +1,19 @@
 <?php
 
-use Livewire\Volt\Component;
-use Livewire\Attributes\Layout;
-use Livewire\Attributes\Title;
-use App\Models\Insumo;
-use App\Models\Proveedor;
 use App\Models\CategoriaInsumo;
-use App\Models\Producto;
-use App\Models\Receta;
+use App\Models\Insumo;
 use App\Models\MovimientoInventario;
+use App\Models\Producto;
+use App\Models\Proveedor;
+use App\Models\Receta;
 use App\Services\InventarioService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Volt\Component;
 
 new
 #[Layout('layouts.app')]
@@ -440,7 +440,7 @@ class extends Component {
             ->orderBy('nombre')
             ->get();
 
-        $selectedInsumo = $this->selectedInsumoId 
+        $selectedInsumo = $this->selectedInsumoId
             ? Insumo::with(['categoriaInsumo', 'proveedor', 'recetas.producto', 'movimientos.pedido', 'movimientos.user'])->find($this->selectedInsumoId)
             : $insumos->first();
 

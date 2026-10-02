@@ -6,8 +6,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     // Modo de visualización: 'calendario' (estilo Google Calendar) o 'diario' (agenda del día)
     public string $modoVista = 'calendario';
 
@@ -471,7 +470,7 @@ new class extends Component
         $validated = $this->validate([
             'crearForm.nombre_contacto' => ['required', 'string', 'max:255'],
             'crearForm.telefono_contacto' => ['required', 'string', 'max:30'],
-            'crearForm.fecha' => ['required', 'date', 'after_or_equal:'.now()->toDateString()],
+            'crearForm.fecha' => ['required', 'date', 'after_or_equal:' . now()->toDateString()],
             'crearForm.hora_llegada' => ['required', 'date_format:H:i'],
             'crearForm.personas' => ['required', 'integer', 'min:1'],
             'crearForm.mesa_ids' => ['nullable', 'array'],

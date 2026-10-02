@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,39 +13,38 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 
+#[Fillable([
+    'sucursal_id',
+    'titulo',
+    'slug',
+    'subtitulo',
+    'descripcion',
+    'terminos_condiciones',
+    'tipo_beneficio',
+    'descuento_porcentaje',
+    'precio_promocional',
+    'precio_original',
+    'imagen_url',
+    'fecha_inicio',
+    'fecha_fin',
+    'dias_semana',
+    'aplica_salon',
+    'aplica_delivery',
+    'mostrar_en_portada',
+    'activo',
+    'orden',
+    'cupo_maximo',
+    'veces_canjeada',
+    'total_notificados_whatsapp',
+    'total_notificados_email',
+    'ultimo_lanzamiento_at',
+    'created_by',
+])]
+#[Table(name: 'promociones')]
 class Promocion extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $table = 'promociones';
-
-    protected $fillable = [
-        'sucursal_id',
-        'titulo',
-        'slug',
-        'subtitulo',
-        'descripcion',
-        'terminos_condiciones',
-        'tipo_beneficio',
-        'descuento_porcentaje',
-        'precio_promocional',
-        'precio_original',
-        'imagen_url',
-        'fecha_inicio',
-        'fecha_fin',
-        'dias_semana',
-        'aplica_salon',
-        'aplica_delivery',
-        'mostrar_en_portada',
-        'activo',
-        'orden',
-        'cupo_maximo',
-        'veces_canjeada',
-        'total_notificados_whatsapp',
-        'total_notificados_email',
-        'ultimo_lanzamiento_at',
-        'created_by',
-    ];
+    use HasFactory;
+    use SoftDeletes;
 
     protected function casts(): array
     {
@@ -89,7 +91,8 @@ class Promocion extends Model
     /**
      * Scope para promociones activas y en período de vigencia.
      */
-    public function scopeVigentes(Builder $query): Builder
+    #[Scope]
+    protected function vigentes(Builder $query): Builder
     {
         $hoy = Carbon::today();
 
@@ -105,7 +108,8 @@ class Promocion extends Model
     /**
      * Scope para promociones destacadas en la portada web.
      */
-    public function scopeEnPortada(Builder $query): Builder
+    #[Scope]
+    protected function enPortada(Builder $query): Builder
     {
         return $query->vigentes()
             ->where('mostrar_en_portada', true)

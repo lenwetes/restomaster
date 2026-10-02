@@ -2,23 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'sucursal_id',
+    'zona_id',
+    'activa',
+    'modo',
+])]
+#[Table(name: 'rotaciones_zona')]
 class RotacionZona extends Model
 {
     use HasFactory;
-
-    protected $table = 'rotaciones_zona';
-
-    protected $fillable = [
-        'sucursal_id',
-        'zona_id',
-        'activa',
-        'modo',
-    ];
 
     protected function casts(): array
     {

@@ -3,18 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Attributes\WithoutTimestamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['user_id', 'tipo', 'titulo', 'cuerpo', 'datos', 'leida', 'leida_en', 'created_at'])]
+#[Table(name: 'notificaciones_usuario')]
+#[WithoutTimestamps]
 class NotificacionUsuario extends Model
 {
     use HasFactory;
-
-    protected $table = 'notificaciones_usuario';
-
-    public $timestamps = false;
 
     protected function casts(): array
     {

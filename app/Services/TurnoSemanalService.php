@@ -164,7 +164,7 @@ class TurnoSemanalService
         if (! is_array($diasAlta)) {
             $diasAlta = [5, 6, 7];
         }
-        $diasAlta = array_values(array_unique(array_filter(array_map('intval', $diasAlta), fn ($d) => $d >= 1 && $d <= 7)));
+        $diasAlta = array_values(array_unique(array_filter(array_map(intval(...), $diasAlta), fn ($d) => $d >= 1 && $d <= 7)));
         sort($diasAlta);
 
         return [
@@ -198,7 +198,7 @@ class TurnoSemanalService
 
         if (array_key_exists('dias_alta_demanda', $datos)) {
             $dias = is_array($datos['dias_alta_demanda']) ? $datos['dias_alta_demanda'] : [];
-            $dias = array_values(array_unique(array_filter(array_map('intval', $dias), fn ($d) => $d >= 1 && $d <= 7)));
+            $dias = array_values(array_unique(array_filter(array_map(intval(...), $dias), fn ($d) => $d >= 1 && $d <= 7)));
             if ($dias === []) {
                 throw new \InvalidArgumentException('Debes marcar al menos un día de alta demanda.');
             }
@@ -319,8 +319,12 @@ class TurnoSemanalService
      *
      * @return array<string, array<int, array{user_id: int, zona_id: ?int, plantilla_turno_id: ?int, es_descanso: bool}>>
      */
-    public function calcularSemana(\Illuminate\Database\Eloquent\Collection $meseros, \Illuminate\Database\Eloquent\Collection $zonas, \Illuminate\Database\Eloquent\Collection $plantillas, int $semanaIso, Carbon $inicio, Carbon $domingo, array $reglas, array $historial): array
+    public function calcularSemana(Collection $meseros, Collection $zonas, Collection $plantillas, int $semanaIso, Carbon $inicio, Carbon $domingo, array $reglas, array $historial): array
     {
+        if ($meseros->isEmpty() || $zonas->isEmpty()) {
+            return [];
+        }
+
         $numZonas = $zonas->count();
         $numPlantillas = max(1, $plantillas->count());
         $lunes = Carbon::now()->setISODate($inicio->isoWeekYear, $inicio->isoWeek)->startOfDay();
@@ -422,6 +426,10 @@ class TurnoSemanalService
 
         $porId = $zonas->keyBy('id');
         $resultado = [];
+
+        if ($meseros->isEmpty() || $zonas->isEmpty()) {
+            return [];
+        }
 
         // Calcular historial UNA sola vez (aplica a todos los meseros por igual)
         $historialBase = $reglas['impedir_zona_repetida']
@@ -706,7 +714,7 @@ class TurnoSemanalService
                 if (! is_array($mesas)) {
                     throw new \InvalidArgumentException('mesas_especificas debe ser un arreglo de IDs.');
                 }
-                $ids = array_values(array_unique(array_map('intval', $mesas)));
+                $ids = array_values(array_unique(array_map(intval(...), $mesas)));
                 if (! empty($ids)) {
                     $existentes = Mesa::whereIn('id', $ids)->count();
                     if ($existentes !== count($ids)) {

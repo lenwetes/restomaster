@@ -42,9 +42,7 @@ Route::post('reservas/crear', [ReservaPublicaController::class, 'store'])->middl
 Route::post('api/reservas', [ReservaWebhookController::class, 'crear'])->middleware('throttle:20,1')->name('reservas.webhook');
 
 // Menú público interactivo para autoservicio por código QR en mesa
-Route::get('m/{numero}', function ($numero) {
-    return redirect()->route('mesa.menu', ['numero' => $numero]);
-})->name('mesa.qr.short');
+Route::get('m/{numero}', fn ($numero) => redirect()->route('mesa.menu', ['numero' => $numero]))->name('mesa.qr.short');
 Volt::route('mesa/{numero}/menu', 'mesa.menu-publico')->middleware('throttle:30,1')->name('mesa.menu');
 
 // Servicios públicos: Delivery en línea, Carta general y Promociones

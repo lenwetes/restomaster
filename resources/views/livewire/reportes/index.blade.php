@@ -6,8 +6,7 @@ use App\Services\ReporteService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public string $desde = '';
 
     public string $hasta = '';
@@ -216,7 +215,7 @@ new class extends Component
 
     protected function heatmapApex(array $heatmap): array
     {
-        $horas = array_map(fn ($h) => $h.'h', range(0, 23));
+        $horas = array_map(fn ($h) => $h . 'h', range(0, 23));
         $series = [];
         foreach ($heatmap['dias'] as $i => $dia) {
             $series[] = ['name' => $dia, 'data' => array_map(fn ($v) => round((float) $v, 2), $heatmap['matriz'][$i] ?? array_fill(0, 24, 0.0))];

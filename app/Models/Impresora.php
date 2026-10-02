@@ -2,37 +2,31 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Throwable;
 
+#[Fillable([
+    'nombre',
+    'tipo_conexion',
+    'driver_nombre',
+    'ip_address',
+    'puerto',
+    'area',
+    'ancho_columnas',
+    'copias',
+    'activa',
+    'descripcion',
+])]
+#[Table(name: 'impresoras')]
 class Impresora extends Model
 {
     use HasFactory;
-
-    protected $table = 'impresoras';
-
-    protected $fillable = [
-        'nombre',
-        'tipo_conexion',
-        'driver_nombre',
-        'ip_address',
-        'puerto',
-        'area',
-        'ancho_columnas',
-        'copias',
-        'activa',
-        'descripcion',
-    ];
-
-    protected $casts = [
-        'puerto' => 'integer',
-        'ancho_columnas' => 'integer',
-        'copias' => 'integer',
-        'activa' => 'boolean',
-    ];
 
     public function trabajos(): HasMany
     {
@@ -44,12 +38,14 @@ class Impresora extends Model
         return $this->hasMany(TrabajoImpresion::class, 'impresora_id')->where('estado', 'pendiente');
     }
 
-    public function scopeActivas(Builder $query): Builder
+    #[Scope]
+    protected function activas(Builder $query): Builder
     {
         return $query->where('activa', true);
     }
 
-    public function scopePorArea(Builder $query, string $area): Builder
+    #[Scope]
+    protected function porArea(Builder $query, string $area): Builder
     {
         return $query->where(function ($q) use ($area) {
             $q->where('area', $area)
@@ -198,5 +194,15 @@ class Impresora extends Model
     public function probarConexionSocket(float $timeout = 1.0): array
     {
         return $this->probarConexion($timeout);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'puerto' => 'integer',
+            'ancho_columnas' => 'integer',
+            'copias' => 'integer',
+            'activa' => 'boolean',
+        ];
     }
 }

@@ -2,38 +2,30 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'sucursal_id',
+    'insumo_id',
+    'tipo',
+    'cantidad',
+    'saldo_anterior',
+    'saldo_posterior',
+    'costo_unitario',
+    'costo_total',
+    'pedido_id',
+    'user_id',
+    'motivo',
+    'referencia_documento',
+])]
+#[Table(name: 'movimientos_inventario')]
 class MovimientoInventario extends Model
 {
     use HasFactory;
-
-    protected $table = 'movimientos_inventario';
-
-    protected $fillable = [
-        'sucursal_id',
-        'insumo_id',
-        'tipo',
-        'cantidad',
-        'saldo_anterior',
-        'saldo_posterior',
-        'costo_unitario',
-        'costo_total',
-        'pedido_id',
-        'user_id',
-        'motivo',
-        'referencia_documento',
-    ];
-
-    protected $casts = [
-        'cantidad' => 'decimal:3',
-        'saldo_anterior' => 'decimal:3',
-        'saldo_posterior' => 'decimal:3',
-        'costo_unitario' => 'decimal:2',
-        'costo_total' => 'decimal:2',
-    ];
 
     public function insumo(): BelongsTo
     {
@@ -53,5 +45,16 @@ class MovimientoInventario extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'cantidad' => 'decimal:3',
+            'saldo_anterior' => 'decimal:3',
+            'saldo_posterior' => 'decimal:3',
+            'costo_unitario' => 'decimal:2',
+            'costo_total' => 'decimal:2',
+        ];
     }
 }

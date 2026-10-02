@@ -109,8 +109,11 @@ class RemediacionDineroTurnosTest extends TestCase
         app(PedidoService::class)->cobrarPedido($pedido, 'datafono', (float) $pedido->total);
 
         $turno->refresh();
-        $this->assertEquals((float) $pedido->total, (float) $turno->total_ventas_tarjeta,
-            'datafono debe sumar a ventas_tarjeta (antes caía en transferencia).');
+        $this->assertEquals(
+            (float) $pedido->total,
+            (float) $turno->total_ventas_tarjeta,
+            'datafono debe sumar a ventas_tarjeta (antes caía en transferencia).'
+        );
         $this->assertEquals(0.0, (float) $turno->total_ventas_transferencia);
     }
 
@@ -155,8 +158,11 @@ class RemediacionDineroTurnosTest extends TestCase
         app(PedidoService::class)->cobrarPedido($pedido, 'efectivo', (float) $pedido->total);
 
         $pedido->refresh();
-        $this->assertEquals($turnoA->id, $pedido->turno_caja_id,
-            'Debe vincularse al turno abierto de la sucursal del pedido, no al último global.');
+        $this->assertEquals(
+            $turnoA->id,
+            $pedido->turno_caja_id,
+            'Debe vincularse al turno abierto de la sucursal del pedido, no al último global.'
+        );
         $turnoA->refresh();
         $turnoB->refresh();
         $this->assertEquals((float) $pedido->total, (float) $turnoA->total_ventas_efectivo);
@@ -204,8 +210,11 @@ class RemediacionDineroTurnosTest extends TestCase
         $this->assertEquals((float) $pagado->total, (float) $resultado->monto_pagado);
 
         $turno->refresh();
-        $this->assertEquals((float) $pagado->total, (float) $turno->total_ventas_efectivo,
-            'El cobro no debe registrarse dos veces en el turno.');
+        $this->assertEquals(
+            (float) $pagado->total,
+            (float) $turno->total_ventas_efectivo,
+            'El cobro no debe registrarse dos veces en el turno.'
+        );
     }
 
     public function test_cobro_contra_entrega_se_vincula_al_turno_de_la_sucursal(): void
@@ -250,8 +259,11 @@ class RemediacionDineroTurnosTest extends TestCase
 
         $entregado->refresh();
         $this->assertEquals('pagado', $entregado->estado);
-        $this->assertSame($turno->id, $entregado->turno_caja_id,
-            'El cobro contra entrega debe quedar vinculado al turno abierto de la sucursal.');
+        $this->assertSame(
+            $turno->id,
+            $entregado->turno_caja_id,
+            'El cobro contra entrega debe quedar vinculado al turno abierto de la sucursal.'
+        );
         $this->assertEquals((float) $pedido->total, (float) $entregado->monto_pagado);
 
         $turno->refresh();
@@ -429,15 +441,24 @@ class RemediacionDineroTurnosTest extends TestCase
         $totalLiquidado = app(DeliveryService::class)->liquidarRecaudoRepartidor($user, $turno);
 
         $this->assertSame((float) $pedido->total, (float) $totalLiquidado);
-        $this->assertSame($asientosAntes, AsientoContable::where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->count(),
-            'La liquidación no debe sumar asientos de venta (doble conteo COD).');
-        $this->assertSame(0, AsientoContable::where('concepto', 'like', '%Liquidación recaudo delivery%')->count(),
-            'No debe crearse un movimiento ingreso extra por el recaudo ya contado como venta.');
+        $this->assertSame(
+            $asientosAntes,
+            AsientoContable::where('referencia_tipo', 'pedido')->where('referencia_id', $pedido->id)->count(),
+            'La liquidación no debe sumar asientos de venta (doble conteo COD).'
+        );
+        $this->assertSame(
+            0,
+            AsientoContable::where('concepto', 'like', '%Liquidación recaudo delivery%')->count(),
+            'No debe crearse un movimiento ingreso extra por el recaudo ya contado como venta.'
+        );
 
         $turno->refresh();
         $entregado->refresh();
-        $this->assertSame((float) $pedido->total, (float) $turno->total_ventas_efectivo,
-            'El efectivo del COD se cuenta una sola vez en el turno.');
+        $this->assertSame(
+            (float) $pedido->total,
+            (float) $turno->total_ventas_efectivo,
+            'El efectivo del COD se cuenta una sola vez en el turno.'
+        );
         $this->assertTrue($entregado->recaudo_liquidado);
     }
 

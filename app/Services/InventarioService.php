@@ -102,6 +102,23 @@ class InventarioService
     }
 
     /**
+     * Descuenta insumos correspondientes a las recetas de todos los items pendientes de un Pedido.
+     */
+    public function descontarStockPorPedido(Pedido $pedido): int
+    {
+        $pedido->loadMissing('items');
+        $descontados = 0;
+
+        foreach ($pedido->items as $item) {
+            if ($this->descontarPorItemPedido($item)) {
+                $descontados++;
+            }
+        }
+
+        return $descontados;
+    }
+
+    /**
      * Revierte los insumos correspondientes a la receta de un ItemPedido que fue devuelto.
      */
     public function revertirPorItemDevuelto(ItemPedido $item, int $cantidadDevuelta, ?User $usuario = null): bool

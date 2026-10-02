@@ -11,8 +11,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new #[Layout('layouts.app')] class extends Component
-{
+new #[Layout('layouts.app')] class extends Component {
     use WithPagination;
 
     // Filtros y Pestañas
@@ -61,10 +60,10 @@ new #[Layout('layouts.app')] class extends Component
     public function abrirModalCrear(): void
     {
         $this->reset([
-            'promocionEditandoId', 'titulo', 'slug', 'subtitulo', 'descripcion', 
-            'terminos_condiciones', 'tipo_beneficio', 'descuento_porcentaje', 
-            'precio_promocional', 'precio_original', 'imagen_url', 'fecha_inicio', 
-            'fecha_fin', 'dias_semana', 'aplica_salon', 'aplica_delivery', 
+            'promocionEditandoId', 'titulo', 'slug', 'subtitulo', 'descripcion',
+            'terminos_condiciones', 'tipo_beneficio', 'descuento_porcentaje',
+            'precio_promocional', 'precio_original', 'imagen_url', 'fecha_inicio',
+            'fecha_fin', 'dias_semana', 'aplica_salon', 'aplica_delivery',
             'mostrar_en_portada', 'activo', 'orden'
         ]);
         $this->tipo_beneficio = 'porcentaje_descuento';
@@ -214,10 +213,10 @@ new #[Layout('layouts.app')] class extends Component
         foreach ($clientes as $cli) {
             if (in_array($this->canalLanzamiento, ['whatsapp', 'ambos']) && ! empty($cli->telefono)) {
                 $mensaje = "🔥 *¡Promoción Exclusiva en RestoMaster Provenza!* \n\n"
-                    ."*{$promo->titulo}*\n"
-                    .($promo->subtitulo ? "_{$promo->subtitulo}_\n\n" : "\n")
-                    ."Conoce todos los detalles y reserva aquí:\n{$urlPromo}\n\n"
-                    ."_RestoMaster · Cra 35 # 8A-12, Provenza_";
+                    . "*{$promo->titulo}*\n"
+                    . ($promo->subtitulo ? "_{$promo->subtitulo}_\n\n" : "\n")
+                    . "Conoce todos los detalles y reserva aquí:\n{$urlPromo}\n\n"
+                    . "_RestoMaster · Cra 35 # 8A-12, Provenza_";
 
                 $whatsAppService->enviarMensaje(
                     telefono: $cli->telefono,

@@ -2,8 +2,7 @@
 
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public bool $mostrar = false;
     public float $total = 0.0;
     public float $subtotal = 0.0;

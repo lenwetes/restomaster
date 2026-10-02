@@ -1,12 +1,12 @@
 <?php
 
-use App\Models\Categoria;
 use App\Models\Producto;
+
+use App\Models\Categoria;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('layouts.publico')] class extends Component
-{
+new #[Layout('layouts.publico')] class extends Component {
     public string $categoriaSeleccionada = 'todas';
     public string $busqueda = '';
 
@@ -34,7 +34,13 @@ new #[Layout('layouts.publico')] class extends Component
                 'slug' => $c['slug'],
                 'icono' => $c['icono'],
                 'color' => $c['color'] ?? '#e0442e',
-                'productos' => collect($c['productos'])->map(fn ($p) => (object) $p),
+                'productos' => collect($c['productos'])->map(function ($p) {
+                    $obj = (object) $p;
+                    if (empty($obj->imagen_url) && ! empty($obj->imagen)) {
+                        $obj->imagen_url = str_starts_with($obj->imagen, 'http') ? $obj->imagen : asset(ltrim($obj->imagen, '/'));
+                    }
+                    return $obj;
+                }),
                 'productos_count' => count($c['productos']),
             ]);
 
@@ -125,9 +131,9 @@ new #[Layout('layouts.publico')] class extends Component
     </div>
 
     <!-- ============================================================= -->
-    <!-- BARRA STICKY: NAVEGACIÓN DE CATEGORÍAS 2-TIER SIN CORTES      -->
+    <!-- BARRA DE CATEGORÍAS: NAVEGACIÓN 2-TIER                        -->
     <!-- ============================================================= -->
-    <div class="sticky top-20 z-30 bg-[#0e0907]/95 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-[#432f26]/80 shadow-2xl space-y-3.5">
+    <div class="relative z-20 bg-[#0e0907]/95 backdrop-blur-xl p-4 sm:p-5 rounded-3xl border border-[#432f26]/80 shadow-2xl space-y-3.5">
         
         <!-- TIER 1: Título de Estado + Buscador -->
         <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-[#432f26]/50">
@@ -335,16 +341,22 @@ new #[Layout('layouts.publico')] class extends Component
                             >
                                 
                                 <!-- Dish Photography Thumbnail -->
-                                @if (!empty($producto->imagen_url))
+                                @php
+                                    $imgUrl = $producto->imagen_url ?? (!empty($producto->imagen) ? (str_starts_with($producto->imagen, 'http') ? $producto->imagen : asset(ltrim($producto->imagen, '/'))) : null);
+                                @endphp
+                                @if (!empty($imgUrl))
                                     <div class="relative h-48 sm:h-52 w-full overflow-hidden bg-[#140e0b]">
                                         <img 
-                                            src="{{ $producto->imagen_url }}" 
+                                            src="{{ $imgUrl }}" 
                                             alt="{{ $producto->nombre }}" 
                                             loading="lazy"
                                             class="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 brightness-95 group-hover:brightness-105"
-                                            onerror="this.parentElement.style.display='none'"
+                                            onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';"
                                         />
-                                        <div class="absolute inset-0 bg-gradient-to-t from-[#1e1410] via-transparent to-transparent"></div>
+                                        <div class="hidden absolute inset-0 items-center justify-center bg-[#1e1410] text-[#7a5a52]">
+                                            <span class="material-symbols-outlined text-4xl">restaurant</span>
+                                        </div>
+                                        <div class="absolute inset-0 bg-gradient-to-t from-[#1e1410] via-transparent to-transparent pointer-events-none"></div>
                                         
                                         <!-- Culinary Station Badge Floating on Image -->
                                         <span class="absolute top-3 right-3 px-2.5 py-1 rounded-xl text-[9px] font-black font-mono uppercase tracking-wider backdrop-blur-md shadow-md {{ $isBarra ? 'bg-purple-900/80 text-purple-200 border border-purple-400/40' : ($isFria ? 'bg-[#2eb8b4]/80 text-white border border-[#2eb8b4]/40' : 'bg-[#e0442e]/80 text-white border border-[#e0442e]/40') }}">

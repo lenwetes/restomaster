@@ -1,7 +1,8 @@
 <?php
 
-use App\Models\Cliente;
 use App\Models\DireccionCliente;
+
+use App\Models\Cliente;
 use App\Models\MovimientoPuntos;
 use App\Services\ClienteService;
 use App\Services\FidelizacionService;
@@ -9,8 +10,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new class extends Component
-{
+new class () extends Component {
     use WithPagination;
 
     public string $busqueda = '';

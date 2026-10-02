@@ -118,9 +118,7 @@ class EncuestaService
                 if (is_numeric($valor) && (int) $valor >= 1 && (int) $valor <= 5) {
                     $tipo = 'estrellas';
                     $valEstrellas = (int) $valor;
-                    if ($estrellasGeneral === null) {
-                        $estrellasGeneral = $valEstrellas;
-                    }
+                    $estrellasGeneral ??= $valEstrellas;
                 } elseif (is_bool($valor)) {
                     $tipo = 'si_no';
                     $valBool = $valor;

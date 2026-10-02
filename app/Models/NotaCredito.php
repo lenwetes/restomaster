@@ -2,33 +2,33 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 
+#[Fillable([
+    'numero_nc',
+    'pedido_id',
+    'pedido_devolucion_id',
+    'motivo',
+    'descripcion',
+    'autorizado_por',
+    'sucursal_id',
+    'monto',
+])]
+#[Table(name: 'notas_credito')]
 class NotaCredito extends Model
 {
     use HasFactory;
-
-    protected $table = 'notas_credito';
 
     public const MOTIVOS = [
         'error_cargo',
         'producto_defectuoso',
         'cambio_pedido',
         'otro',
-    ];
-
-    protected $fillable = [
-        'numero_nc',
-        'pedido_id',
-        'pedido_devolucion_id',
-        'motivo',
-        'descripcion',
-        'autorizado_por',
-        'sucursal_id',
-        'monto',
     ];
 
     protected function casts(): array

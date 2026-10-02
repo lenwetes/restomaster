@@ -2,27 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+#[Fillable([
+    'proveedor_id',
+    'numero_factura',
+    'fecha',
+    'subtotal',
+    'forma_pago',
+    'estado',
+    'user_id',
+])]
+#[Table(name: 'compras')]
 class Compra extends Model
 {
     use HasFactory;
-
-    protected $table = 'compras';
-
-    protected $fillable = [
-        'proveedor_id',
-        'numero_factura',
-        'fecha',
-        'subtotal',
-        'forma_pago',
-        'estado',
-        'user_id',
-    ];
 
     protected function casts(): array
     {

@@ -13,6 +13,8 @@ services:
       dockerfile: Dockerfile
     image: restomaster-app:latest
     restart: unless-stopped
+    labels:
+      - "coolify.managed=true"
     expose:
       - "80"
     ports:

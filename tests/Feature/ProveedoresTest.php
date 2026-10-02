@@ -192,7 +192,9 @@ class ProveedoresTest extends TestCase
         );
 
         app(CuentasPorPagarService::class)->registrarPago(
-            CuentaPorPagar::where('compra_id', $compra->id)->first(), 5000.0, $admin
+            CuentaPorPagar::where('compra_id', $compra->id)->first(),
+            5000.0,
+            $admin
         );
 
         $this->expectException(DomainException::class);

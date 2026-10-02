@@ -19,12 +19,10 @@ class NotificacionService
      */
     public function obtenerResumen(?User $usuario = null): array
     {
-        $usuario = $usuario ?? auth()->user();
+        $usuario ??= auth()->user();
         $clave = 'notif.resumen.'.($usuario?->id ?? 'anon');
 
-        $data = Cache::remember($clave, now()->addSeconds(15), function () use ($usuario) {
-            return $this->consultarResumen($usuario);
-        });
+        $data = Cache::remember($clave, now()->addSeconds(15), fn () => $this->consultarResumen($usuario));
 
         return [
             'total' => $data['total'] ?? 0,

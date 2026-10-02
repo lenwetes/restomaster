@@ -23,34 +23,33 @@ class MenuService
      */
     public function obtenerMenuPublico(): Collection
     {
-        $menu = Cache::remember(self::CACHE_KEY_PUBLICO, self::CACHE_TTL_PUBLICO, function (): array {
-            return Categoria::where('activo', true)
-                ->orderBy('orden')
-                ->with(['productos' => function ($query) {
-                    $query->where('activo', true)->orderBy('nombre');
-                }])
-                ->get()
-                ->map(fn (Categoria $categoria) => [
-                    'id' => $categoria->id,
-                    'nombre' => $categoria->nombre,
-                    'slug' => $categoria->slug,
-                    'icono' => $categoria->icono,
-                    'color' => $categoria->color ?? '#e11d48',
-                    'productos' => $categoria->productos
-                        ->map(fn (Producto $producto) => [
-                            'id' => $producto->id,
-                            'nombre' => $producto->nombre,
-                            'descripcion' => $producto->descripcion,
-                            'precio' => (float) $producto->precio,
-                            'area_cocina' => $producto->area_cocina,
-                            'imagen' => $producto->imagen,
-                        ])
-                        ->values()
-                        ->all(),
-                ])
-                ->values()
-                ->all();
-        });
+        $menu = Cache::remember(self::CACHE_KEY_PUBLICO, self::CACHE_TTL_PUBLICO, fn (): array => Categoria::where('activo', true)
+            ->orderBy('orden')
+            ->with(['productos' => function ($query) {
+                $query->where('activo', true)->orderBy('nombre');
+            }])
+            ->get()
+            ->map(fn (Categoria $categoria) => [
+                'id' => $categoria->id,
+                'nombre' => $categoria->nombre,
+                'slug' => $categoria->slug,
+                'icono' => $categoria->icono,
+                'color' => $categoria->color ?? '#e11d48',
+                'productos' => $categoria->productos
+                    ->map(fn (Producto $producto) => [
+                        'id' => $producto->id,
+                        'nombre' => $producto->nombre,
+                        'descripcion' => $producto->descripcion,
+                        'precio' => (float) $producto->precio,
+                        'area_cocina' => $producto->area_cocina,
+                        'imagen' => $producto->imagen,
+                        'imagen_url' => $producto->imagen_url,
+                    ])
+                    ->values()
+                    ->all(),
+            ])
+            ->values()
+            ->all());
 
         return collect($menu);
     }

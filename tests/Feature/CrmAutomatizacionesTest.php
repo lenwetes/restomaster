@@ -280,7 +280,13 @@ class CrmAutomatizacionesTest extends TestCase
             ],
         ];
 
-        $response = $this->postJson('/api/webhooks/whatsapp', $payload);
+        $raw = json_encode($payload);
+        $secret = 'restomaster_crm_webhook_secret';
+        $signature = 'sha256='.hash_hmac('sha256', $raw, $secret);
+
+        $response = $this->postJson('/api/webhooks/whatsapp', $payload, [
+            'X-Hub-Signature-256' => $signature,
+        ]);
 
         $response->assertOk();
         $this->assertDatabaseHas('crm_mensajes_log', [

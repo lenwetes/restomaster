@@ -6,8 +6,7 @@ use App\Services\ImpresionService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public string $filtroTipo = 'todos'; // 'todos', 'comanda_cocina', 'ticket_venta', 'reporte_z', 'error'
     public ?int $trabajoSeleccionadoId = null;
 

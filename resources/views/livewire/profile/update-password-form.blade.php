@@ -6,8 +6,7 @@ use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public string $current_password = '';
     public string $password = '';
     public string $password_confirmation = '';

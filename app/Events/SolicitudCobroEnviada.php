@@ -10,7 +10,8 @@ use Illuminate\Queue\SerializesModels;
 
 class SolicitudCobroEnviada implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable;
+    use SerializesModels;
 
     public int $pedidoId;
 

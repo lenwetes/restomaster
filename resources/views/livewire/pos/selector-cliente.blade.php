@@ -4,8 +4,7 @@ use App\Models\Cliente;
 use App\Services\ClienteService;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public ?int $clienteId = null;
     public string $nombreCliente = '';
     public string $telefonoCliente = '';

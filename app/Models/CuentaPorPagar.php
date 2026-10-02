@@ -2,32 +2,32 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'proveedor_nombre',
+    'proveedor_nit',
+    'numero_factura',
+    'compra_id',
+    'insumo_id',
+    'concepto',
+    'monto_total',
+    'saldo_pendiente',
+    'fecha_emision',
+    'fecha_vencimiento',
+    'estado',
+    'notas',
+    'user_id',
+])]
+#[Table(name: 'cuentas_por_pagar')]
 class CuentaPorPagar extends Model
 {
     use HasFactory;
-
-    protected $table = 'cuentas_por_pagar';
-
-    protected $fillable = [
-        'proveedor_nombre',
-        'proveedor_nit',
-        'numero_factura',
-        'compra_id',
-        'insumo_id',
-        'concepto',
-        'monto_total',
-        'saldo_pendiente',
-        'fecha_emision',
-        'fecha_vencimiento',
-        'estado',
-        'notas',
-        'user_id',
-    ];
 
     protected function casts(): array
     {

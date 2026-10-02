@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,32 +12,31 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+#[Fillable([
+    'categoria_id',
+    'nombre',
+    'codigo',
+    'categoria',
+    'unidad_medida',
+    'stock_actual',
+    'stock_minimo',
+    'capacidad_maxima',
+    'costo_unitario',
+    'proveedor_nombre',
+    'proveedor_nit',
+    'proveedor_telefono',
+    'proveedor_id',
+    'precio_referencia_mercado',
+    'ubicacion_almacen',
+    'temperatura_almacen',
+    'imagen',
+    'activo',
+])]
+#[Table(name: 'insumos')]
 class Insumo extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $table = 'insumos';
-
-    protected $fillable = [
-        'categoria_id',
-        'nombre',
-        'codigo',
-        'categoria',
-        'unidad_medida',
-        'stock_actual',
-        'stock_minimo',
-        'capacidad_maxima',
-        'costo_unitario',
-        'proveedor_nombre',
-        'proveedor_nit',
-        'proveedor_telefono',
-        'proveedor_id',
-        'precio_referencia_mercado',
-        'ubicacion_almacen',
-        'temperatura_almacen',
-        'imagen',
-        'activo',
-    ];
+    use HasFactory;
+    use SoftDeletes;
 
     protected function casts(): array
     {
@@ -108,22 +110,24 @@ class Insumo extends Model
     /**
      * Indica si el insumo está en nivel crítico de stock.
      */
-    public function getEsCriticoAttribute(): bool
+    protected function esCritico(): Attribute
     {
-        return (float) $this->stock_actual <= (float) $this->stock_minimo;
+        return Attribute::make(get: fn () => (float) $this->stock_actual <= (float) $this->stock_minimo);
     }
 
     /**
      * Porcentaje de llenado vs capacidad máxima (o 2x stock mínimo).
      */
-    public function getPorcentajeStockAttribute(): float
+    protected function porcentajeStock(): Attribute
     {
-        $max = (float) $this->capacidad_maxima > 0 ? (float) $this->capacidad_maxima : (float) $this->stock_minimo * 2;
-        if ($max <= 0) {
-            return 0;
-        }
+        return Attribute::make(get: function () {
+            $max = (float) $this->capacidad_maxima > 0 ? (float) $this->capacidad_maxima : (float) $this->stock_minimo * 2;
+            if ($max <= 0) {
+                return 0;
+            }
 
-        return min(100, round(((float) $this->stock_actual / $max) * 100, 1));
+            return min(100, round(((float) $this->stock_actual / $max) * 100, 1));
+        });
     }
 
     /**
@@ -137,32 +141,32 @@ class Insumo extends Model
     /**
      * Ícono visual heredado de la categoría o fallback neutro.
      */
-    public function getIconoAttribute(): string
+    protected function icono(): Attribute
     {
-        return $this->categoriaInsumo?->icono ?: 'inventory_2';
+        return Attribute::make(get: fn () => $this->categoriaInsumo?->icono ?: 'inventory_2');
     }
 
     /**
      * Color cromático heredado de la categoría o fallback neutro.
      */
-    public function getColorAttribute(): string
+    protected function color(): Attribute
     {
-        return $this->categoriaInsumo?->color ?: '#6366f1';
+        return Attribute::make(get: fn () => $this->categoriaInsumo?->color ?: '#6366f1');
     }
 
     /**
      * Nombre legible de la categoría.
      */
-    public function getNombreCategoriaAttribute(): string
+    protected function nombreCategoria(): Attribute
     {
-        return $this->categoriaInsumo?->nombre ?: ($this->categoria ?: 'Sin categoría');
+        return Attribute::make(get: fn () => $this->categoriaInsumo?->nombre ?: ($this->categoria ?: 'Sin categoría'));
     }
 
     /**
      * Valor total monetario del stock actual de este insumo.
      */
-    public function getValorStockAttribute(): float
+    protected function valorStock(): Attribute
     {
-        return round((float) $this->stock_actual * (float) $this->costo_unitario, 2);
+        return Attribute::make(get: fn () => round((float) $this->stock_actual * (float) $this->costo_unitario, 2));
     }
 }

@@ -2,26 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'promocion_id',
+    'cliente_id',
+    'pedido_id',
+    'reserva_id',
+    'canal',
+    'codigo_cupon',
+    'monto_descuento',
+    'canjeado_at',
+])]
+#[Table(name: 'promocion_canjes')]
 class PromocionCanje extends Model
 {
     use HasFactory;
-
-    protected $table = 'promocion_canjes';
-
-    protected $fillable = [
-        'promocion_id',
-        'cliente_id',
-        'pedido_id',
-        'reserva_id',
-        'canal',
-        'codigo_cupon',
-        'monto_descuento',
-        'canjeado_at',
-    ];
 
     protected function casts(): array
     {

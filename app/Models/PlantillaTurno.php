@@ -2,24 +2,24 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'nombre',
+    'hora_inicio',
+    'hora_fin',
+    'zona_default_id',
+    'sucursal_id',
+    'activo',
+])]
+#[Table(name: 'plantillas_turnos')]
 class PlantillaTurno extends Model
 {
     use HasFactory;
-
-    protected $table = 'plantillas_turnos';
-
-    protected $fillable = [
-        'nombre',
-        'hora_inicio',
-        'hora_fin',
-        'zona_default_id',
-        'sucursal_id',
-        'activo',
-    ];
 
     protected function casts(): array
     {

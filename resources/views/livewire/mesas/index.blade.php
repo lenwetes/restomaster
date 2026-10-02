@@ -8,8 +8,7 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public string $filtroZona = 'todas';
 
     public string $filtroEstado = 'todas';
@@ -119,7 +118,7 @@ new class extends Component
 
         $reglaUnica = 'unique:mesas,numero';
         if ($this->mesaEditandoId) {
-            $reglaUnica .= ','.$this->mesaEditandoId;
+            $reglaUnica .= ',' . $this->mesaEditandoId;
         }
 
         $this->validate([
@@ -255,7 +254,7 @@ new class extends Component
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->mensajeFlash = 'Error al tomar pedido: '.$e->getMessage();
+            $this->mensajeFlash = 'Error al tomar pedido: ' . $e->getMessage();
             $this->tipoFlash = 'error';
         }
     }
@@ -393,7 +392,7 @@ new class extends Component
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->mensajeFlash = 'Error al cancelar la mesa: '.$e->getMessage();
+            $this->mensajeFlash = 'Error al cancelar la mesa: ' . $e->getMessage();
             $this->tipoFlash = 'error';
             $this->modalCancelarOpen = false;
         }

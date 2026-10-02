@@ -2,30 +2,31 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'pedido_id',
+    'item_pedido_id',
+    'producto_id',
+    'cantidad',
+    'monto_devuelto',
+    'motivo',
+    'metodo_reembolso',
+    'turno_caja_id',
+    'movimiento_caja_id',
+    'asiento_contable_id',
+    'autorizado_por',
+    'user_id',
+])]
+#[Table(name: 'pedido_devoluciones')]
 class PedidoDevolucion extends Model
 {
     use HasFactory;
-
-    protected $table = 'pedido_devoluciones';
-
-    protected $fillable = [
-        'pedido_id',
-        'item_pedido_id',
-        'producto_id',
-        'cantidad',
-        'monto_devuelto',
-        'motivo',
-        'metodo_reembolso',
-        'turno_caja_id',
-        'movimiento_caja_id',
-        'asiento_contable_id',
-        'autorizado_por',
-        'user_id',
-    ];
 
     protected function casts(): array
     {
@@ -70,8 +71,8 @@ class PedidoDevolucion extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function getMontoReembolsadoAttribute(): float
+    protected function montoReembolsado(): Attribute
     {
-        return (float) $this->monto_devuelto;
+        return Attribute::make(get: fn () => (float) $this->monto_devuelto);
     }
 }

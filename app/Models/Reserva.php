@@ -2,24 +2,24 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
+#[Fillable([
+    'sucursal_id', 'cliente_id', 'mesero_id', 'zona_preferida_id', 'asignacion_automatica',
+    'nombre_contacto', 'telefono_contacto', 'email_contacto',
+    'fecha', 'hora_llegada', 'duracion_min', 'personas', 'estado', 'origen',
+    'notas', 'anticipo', 'confirmado_por', 'token_publico', 'created_by',
+])]
+#[Table(name: 'reservas')]
 class Reserva extends Model
 {
     use HasFactory;
-
-    protected $table = 'reservas';
-
-    protected $fillable = [
-        'sucursal_id', 'cliente_id', 'mesero_id', 'zona_preferida_id', 'asignacion_automatica',
-        'nombre_contacto', 'telefono_contacto', 'email_contacto',
-        'fecha', 'hora_llegada', 'duracion_min', 'personas', 'estado', 'origen',
-        'notas', 'anticipo', 'confirmado_por', 'token_publico', 'created_by',
-    ];
 
     protected function casts(): array
     {

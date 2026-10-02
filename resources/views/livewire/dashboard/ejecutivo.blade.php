@@ -3,8 +3,7 @@
 use App\Services\DashboardService;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public string $periodo = 'hoy';
 
     public function setPeriodo(string $periodo): void

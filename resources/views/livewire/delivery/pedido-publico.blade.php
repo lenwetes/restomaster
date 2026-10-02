@@ -11,8 +11,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 
-new #[Layout('layouts.publico')] class extends Component
-{
+new #[Layout('layouts.publico')] class extends Component {
     public string $categoriaSeleccionada = 'todas';
     public string $busqueda = '';
     public array $carrito = []; // [producto_id => ['producto_id' => X, 'nombre' => Y, 'precio' => Z, 'cantidad' => N, 'subtotal' => S, 'area_cocina' => A]]

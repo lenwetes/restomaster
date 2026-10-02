@@ -2,25 +2,25 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'sucursal_id',
+    'nombre',
+    'activa',
+    'disparador',
+    'delay_horas',
+    'preguntas',
+])]
+#[Table(name: 'encuestas')]
 class Encuesta extends Model
 {
     use HasFactory;
-
-    protected $table = 'encuestas';
-
-    protected $fillable = [
-        'sucursal_id',
-        'nombre',
-        'activa',
-        'disparador',
-        'delay_horas',
-        'preguntas',
-    ];
 
     protected function casts(): array
     {

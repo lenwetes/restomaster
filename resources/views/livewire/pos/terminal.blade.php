@@ -1,5 +1,7 @@
 <?php
 
+use App\Livewire\Concerns\ManejaClientePos;
+use App\Livewire\Concerns\ManejaCobroPos;
 use App\Models\Categoria;
 use App\Models\Mesa;
 use App\Models\Pedido;
@@ -9,15 +11,12 @@ use App\Services\PedidoService;
 use App\Services\TurnoSemanalService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Volt\Component;
-use App\Livewire\Concerns\ManejaClientePos;
-use App\Livewire\Concerns\ManejaCobroPos;
 
-new class extends Component
-{
-    use ManejaClientePos, ManejaCobroPos;
+new class () extends Component {
+    use ManejaClientePos;
+    use ManejaCobroPos;
 
     public ?string $idempotenciaUuid = null;
 
@@ -222,7 +221,7 @@ new class extends Component
         }
 
         $programacion = $pendiente['programacion'];
-        $this->turnoSemanalEtiqueta = 'SEMANA '.$programacion->semana_iso.' / '.$programacion->anio;
+        $this->turnoSemanalEtiqueta = 'SEMANA ' . $programacion->semana_iso . ' / ' . $programacion->anio;
         $this->turnoSemanalDias = $pendiente['turnos']->map(fn ($t) => [
             'fecha' => $t->fecha->toDateString(),
             'dia' => Str::upper($t->fecha->locale('es')->dayName),
@@ -748,7 +747,7 @@ new class extends Component
             } catch (\DomainException $e) {
                 session()->flash('error', $e->getMessage());
             } catch (\Throwable $e) {
-                session()->flash('error', 'Error al asignar pedido: '.$e->getMessage());
+                session()->flash('error', 'Error al asignar pedido: ' . $e->getMessage());
             }
         }
     }
@@ -762,7 +761,7 @@ new class extends Component
         }
 
         if (! empty($this->busqueda)) {
-            $query->where('nombre', 'ilike', '%'.$this->busqueda.'%');
+            $query->where('nombre', 'ilike', '%' . $this->busqueda . '%');
         }
 
         $pedidoQrPendiente = ($this->tipo === 'mesa' && $this->mesaId)
@@ -776,7 +775,7 @@ new class extends Component
 
         $clientesQuery = \App\Models\Cliente::where('activo', true);
         if (! empty(trim($this->busquedaCliente))) {
-            $term = '%'.trim($this->busquedaCliente).'%';
+            $term = '%' . trim($this->busquedaCliente) . '%';
             $clientesQuery->where(function ($q) use ($term) {
                 $q->where('nombre', 'ilike', $term)
                     ->orWhere('telefono', 'ilike', $term);
@@ -803,11 +802,11 @@ new class extends Component
                         'productos_count' => (int) $c->productos_count,
                     ])
                     ->all();
-            }))->map(fn (array $c) => (new Categoria)->forceFill($c))->all()
+            }))->map(fn (array $c) => (new Categoria())->forceFill($c))->all()
         );
 
         $userSucursalId = Auth::user()?->sucursal_id;
-        $cacheKey = 'pos.terminal.mesas.sucursal.'.($userSucursalId ?? 'all');
+        $cacheKey = 'pos.terminal.mesas.sucursal.' . ($userSucursalId ?? 'all');
         $mesasCache = Cache::remember($cacheKey, 60, function () use ($userSucursalId): array {
             return Mesa::with('mesero:id,name')
                 ->when($userSucursalId, fn ($q) => $q->where('sucursal_id', $userSucursalId))
@@ -830,7 +829,7 @@ new class extends Component
 
         $mesasColeccion = collect($mesasCache);
         $mesas = new \Illuminate\Database\Eloquent\Collection(
-            $mesasColeccion->map(fn (array $m) => (new Mesa)->forceFill($m))->all()
+            $mesasColeccion->map(fn (array $m) => (new Mesa())->forceFill($m))->all()
         );
 
         $turnoActivo = \App\Models\TurnoCaja::where('estado', 'abierto')

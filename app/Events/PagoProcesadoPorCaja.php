@@ -9,7 +9,8 @@ use Illuminate\Queue\SerializesModels;
 
 class PagoProcesadoPorCaja implements ShouldBroadcast
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable;
+    use SerializesModels;
 
     public function __construct(
         public int $pedidoId,

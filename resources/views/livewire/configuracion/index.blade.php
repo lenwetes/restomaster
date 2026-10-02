@@ -1,16 +1,16 @@
 <?php
 
+use Illuminate\Support\Facades\DB;
+
 use App\Models\Impresora;
 use App\Services\ConfiguracionService;
 use App\Services\ImpresionService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
 
-new class extends Component
-{
+new class () extends Component {
     use WithFileUploads;
 
     public string $tabActiva = 'factura'; // 'factura', 'pasarelas', 'dian', 'database', 'impresoras', 'empresa', 'reservas', 'seguridad', 'ia', 'reset'
@@ -286,7 +286,7 @@ new class extends Component
         } catch (\Throwable $e) {
             $this->testWompiResultado = [
                 'ok' => false,
-                'mensaje' => 'Error de red conectando a Wompi: '.$e->getMessage(),
+                'mensaje' => 'Error de red conectando a Wompi: ' . $e->getMessage(),
             ];
             $this->dispatch('notificacion', ['mensaje' => 'No se pudo contactar a Wompi', 'tipo' => 'error']);
         }
@@ -313,7 +313,7 @@ new class extends Component
         $this->testBoldResultado = [
             'ok' => true,
             'mensaje' => 'Credenciales Bold validadas sintácticamente. Algoritmo SHA-256 operativo para Smart Links & Datáfono.',
-            'firma_muestra' => substr($firmaTest, 0, 16).'...',
+            'firma_muestra' => substr($firmaTest, 0, 16) . '...',
         ];
         $this->dispatch('notificacion', ['mensaje' => 'Credenciales Bold verificadas', 'tipo' => 'success']);
     }
@@ -357,15 +357,15 @@ new class extends Component
             } catch (\Throwable $e) {
                 $this->testDianResultado = [
                     'ok' => false,
-                    'mensaje' => 'Error de comunicación con proveedor DIAN: '.$e->getMessage(),
+                    'mensaje' => 'Error de comunicación con proveedor DIAN: ' . $e->getMessage(),
                 ];
             }
         } else {
-            $cufeTest = hash('sha384', "POS-99992026-01-0112:00:0050000.00010.000.000{$nit}222222222222{$clave}".($ambiente === 'produccion' ? '1' : '2'));
+            $cufeTest = hash('sha384', "POS-99992026-01-0112:00:0050000.00010.000.000{$nit}222222222222{$clave}" . ($ambiente === 'produccion' ? '1' : '2'));
             $this->testDianResultado = [
                 'ok' => true,
                 'mensaje' => "Motor criptográfico DIAN listo. Algoritmo CUFE SHA-384 verificado con clave técnica ({$ambiente}).",
-                'cufe_muestra' => substr($cufeTest, 0, 24).'...',
+                'cufe_muestra' => substr($cufeTest, 0, 24) . '...',
             ];
         }
 
@@ -495,7 +495,7 @@ new class extends Component
             session()->flash('status', 'Copia de seguridad completa generada con éxito (base de datos + archivos).');
             $this->dispatch('notificacion', ['mensaje' => 'Copia completa generada: BD + archivos', 'tipo' => 'success']);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Fallo al generar copia de seguridad: '.$e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Fallo al generar copia de seguridad: ' . $e->getMessage());
             session()->flash('error', 'No se pudo completar la copia de seguridad. Revisa los registros del sistema.');
             $this->dispatch('notificacion', ['mensaje' => 'Fallo al generar la copia de seguridad.', 'tipo' => 'error']);
         }
@@ -534,8 +534,8 @@ new class extends Component
             session()->flash('status', 'Base de datos restaurada exitosamente desde el archivo de respaldo.');
             $this->dispatch('notificacion', ['mensaje' => 'Respaldo importado y restaurado', 'tipo' => 'success']);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Fallo al restaurar respaldo: '.$e->getMessage());
-            session()->flash('error', 'Error al restaurar: '.$e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Fallo al restaurar respaldo: ' . $e->getMessage());
+            session()->flash('error', 'Error al restaurar: ' . $e->getMessage());
             $this->dispatch('notificacion', ['mensaje' => 'Fallo al restaurar: archivo inválido o corrupto.', 'tipo' => 'error']);
         }
     }
@@ -547,11 +547,11 @@ new class extends Component
         try {
             $svc = app(ConfiguracionService::class);
             $mensaje = $svc->restaurarCopia($nombre);
-            session()->flash('status', $mensaje.' El sistema quedó operativo.');
+            session()->flash('status', $mensaje . ' El sistema quedó operativo.');
             $this->dispatch('notificacion', ['mensaje' => $mensaje, 'tipo' => 'success']);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Fallo al restaurar copia: '.$e->getMessage());
-            session()->flash('error', 'No se pudo restaurar: '.$e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Fallo al restaurar copia: ' . $e->getMessage());
+            session()->flash('error', 'No se pudo restaurar: ' . $e->getMessage());
             $this->dispatch('notificacion', ['mensaje' => 'Fallo al restaurar la copia.', 'tipo' => 'error']);
         }
 
@@ -605,7 +605,7 @@ new class extends Component
         $this->impresorasDetectadasSO = $svc->obtenerImpresorasInstaladasSO();
 
         if (! empty($this->impresorasDetectadasSO)) {
-            $this->dispatch('notificacion', ['mensaje' => 'Se detectaron '.count($this->impresorasDetectadasSO).' impresoras en el equipo', 'tipo' => 'success']);
+            $this->dispatch('notificacion', ['mensaje' => 'Se detectaron ' . count($this->impresorasDetectadasSO) . ' impresoras en el equipo', 'tipo' => 'success']);
             if (empty($this->impresoraForm['driver_nombre'])) {
                 $this->impresoraForm['driver_nombre'] = $this->impresorasDetectadasSO[0];
             }
@@ -840,7 +840,7 @@ new class extends Component
         $this->iaForm['modelo'] = $config->ia_modelo ?: 'gemini-2.5-flash';
         $this->iaForm['api_key'] = '';
         $this->iaTieneClave = ! empty($clave);
-        $this->iaClaveEnmascarada = $this->iaTieneClave ? '••••••••'.substr((string) $clave, -4) : '';
+        $this->iaClaveEnmascarada = $this->iaTieneClave ? '••••••••' . substr((string) $clave, -4) : '';
         $this->iaEstado = $this->iaTieneClave && $this->iaForm['activo'] ? $this->iaEstado : 'no_configurado';
         if (! $this->iaTieneClave) {
             $this->iaLatencia = null;
@@ -893,7 +893,7 @@ new class extends Component
             $this->iaLatencia = $resultado['latencia_ms'];
             $this->iaModeloActivo = $resultado['modelo'];
             $this->iaUltimoError = '';
-            session()->flash('status', 'Conexión con IA verificada ('.$resultado['latencia_ms'].' ms · '.$resultado['modelo'].').');
+            session()->flash('status', 'Conexión con IA verificada (' . $resultado['latencia_ms'] . ' ms · ' . $resultado['modelo'] . ').');
             $this->dispatch('notificacion', ['mensaje' => 'IA conectada correctamente', 'tipo' => 'success']);
         } else {
             $this->iaEstado = ($this->iaTieneClave || ! empty($this->iaForm['api_key'])) ? 'error' : 'no_configurado';

@@ -8,6 +8,7 @@ use App\Models\Producto;
 use App\Models\Sucursal;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PostgresConstraintsTest extends TestCase
@@ -75,11 +76,12 @@ class PostgresConstraintsTest extends TestCase
         ]);
     }
 
-    /**
-     * Test de recreación de slug en Producto tras soft-delete.
-     */
     public function test_recreacion_de_producto_con_mismo_slug_tras_soft_delete(): void
     {
+        if (DB::getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('El índice parcial WHERE deleted_at IS NULL es específico de PostgreSQL.');
+        }
+
         $producto1 = Producto::create([
             'nombre' => 'Maki Tempura Audit',
             'slug' => 'maki-tempura-audit',

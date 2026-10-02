@@ -30,17 +30,13 @@ class ImpresionService
         $pedido->loadMissing(['items.producto', 'mesa']);
 
         // Solo despachar a comandera térmica items pendientes o en preparación
-        $itemsCocina = $pedido->items->filter(function ($item) {
-            return in_array($item->estado_cocina, ['pendiente', 'en_preparacion'], true);
-        });
+        $itemsCocina = $pedido->items->filter(fn ($item) => in_array($item->estado_cocina, ['pendiente', 'en_preparacion'], true));
 
         if ($itemsCocina->isEmpty()) {
             return [];
         }
 
-        $itemsPorArea = $itemsCocina->groupBy(function ($item) {
-            return $item->area_cocina ?: 'sushi';
-        });
+        $itemsPorArea = $itemsCocina->groupBy(fn ($item) => $item->area_cocina ?: 'sushi');
 
         $trabajosCreados = [];
 
@@ -582,7 +578,7 @@ class ImpresionService
 
     public function formatearComandaTexto(Pedido $pedido, string $area, $items = null): string
     {
-        $items = $items ?? $pedido->items;
+        $items ??= $pedido->items;
         $ancho = self::ANCHO_80MM;
         $fecha = Carbon::now()->format('d/m/Y H:i');
 
@@ -700,7 +696,8 @@ class ImpresionService
 
         foreach ($pedido->items as $item) {
             $nombre = mb_substr($item->nombre_producto, 0, 25);
-            $salida .= sprintf("%-4s %-26s %8s %8s\n",
+            $salida .= sprintf(
+                "%-4s %-26s %8s %8s\n",
                 $item->cantidad,
                 $nombre,
                 number_format($item->precio_unitario, 0),

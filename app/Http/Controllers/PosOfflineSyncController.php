@@ -57,18 +57,16 @@ class PosOfflineSyncController extends Controller
                     $mesa = $mesaId ? Mesa::find($mesaId) : null;
                     $sucursalId = $c['sucursal_id'] ?? $mesa?->sucursal_id ?? $usuario?->sucursal_id ?? 1;
 
-                    $items = array_map(function ($it) {
-                        return [
-                            'producto_id' => $it['producto_id'],
-                            'nombre_producto' => $it['nombre'] ?? $it['nombre_producto'] ?? 'Plato',
-                            'cantidad' => (int) ($it['cantidad'] ?? 1),
-                            'precio_unitario' => (float) ($it['precio'] ?? $it['precio_unitario'] ?? 0),
-                            'subtotal' => (float) (($it['cantidad'] ?? 1) * ($it['precio'] ?? 0)),
-                            'notas' => $it['notas'] ?? null,
-                            'area_cocina' => $it['area_cocina'] ?? 'cocina',
-                            'estado_cocina' => 'pendiente',
-                        ];
-                    }, $c['items'] ?? []);
+                    $items = array_map(fn ($it) => [
+                        'producto_id' => $it['producto_id'],
+                        'nombre_producto' => $it['nombre'] ?? $it['nombre_producto'] ?? 'Plato',
+                        'cantidad' => (int) ($it['cantidad'] ?? 1),
+                        'precio_unitario' => (float) ($it['precio'] ?? $it['precio_unitario'] ?? 0),
+                        'subtotal' => (float) (($it['cantidad'] ?? 1) * ($it['precio'] ?? 0)),
+                        'notas' => $it['notas'] ?? null,
+                        'area_cocina' => $it['area_cocina'] ?? 'cocina',
+                        'estado_cocina' => 'pendiente',
+                    ], $c['items'] ?? []);
 
                     $pedidoData = [
                         'tipo' => 'mesa',

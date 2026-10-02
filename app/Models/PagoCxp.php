@@ -2,24 +2,24 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'cuenta_por_pagar_id',
+    'user_id',
+    'monto',
+    'metodo_pago',
+    'fecha_pago',
+    'concepto',
+])]
+#[Table(name: 'pagos_cxps')]
 class PagoCxp extends Model
 {
     use HasFactory;
-
-    protected $table = 'pagos_cxps';
-
-    protected $fillable = [
-        'cuenta_por_pagar_id',
-        'user_id',
-        'monto',
-        'metodo_pago',
-        'fecha_pago',
-        'concepto',
-    ];
 
     protected function casts(): array
     {

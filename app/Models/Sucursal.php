@@ -2,33 +2,24 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'nombre',
+    'direccion',
+    'telefono',
+    'nit_ruc',
+    'activo',
+])]
+#[Table(name: 'sucursales')]
 class Sucursal extends Model
 {
     use HasFactory;
-
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
-    protected $table = 'sucursales';
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'nombre',
-        'direccion',
-        'telefono',
-        'nit_ruc',
-        'activo',
-    ];
 
     /**
      * Get the attributes that should be cast.
@@ -42,34 +33,25 @@ class Sucursal extends Model
         ];
     }
 
-    public function setActivaAttribute(mixed $value): void
+    protected function activa(): Attribute
     {
-        $this->attributes['activo'] = (bool) $value;
+        return Attribute::make(get: fn () => (bool) ($this->attributes['activo'] ?? true), set: fn (mixed $value) => ['activo' => (bool) $value]);
     }
 
-    public function getActivaAttribute(): bool
+    protected function codigo(): Attribute
     {
-        return (bool) ($this->attributes['activo'] ?? true);
+        return Attribute::make(get: fn () => null, set: function (mixed $value) {
+            // sucursales no tiene columna codigo en BD
+            return [];
+        });
     }
 
-    public function setCodigoAttribute(mixed $value): void
+    protected function ciudad(): Attribute
     {
-        // sucursales no tiene columna codigo en BD
-    }
-
-    public function getCodigoAttribute(): ?string
-    {
-        return null;
-    }
-
-    public function setCiudadAttribute(mixed $value): void
-    {
-        // sucursales no tiene columna ciudad en BD
-    }
-
-    public function getCiudadAttribute(): ?string
-    {
-        return null;
+        return Attribute::make(get: fn () => null, set: function (mixed $value) {
+            // sucursales no tiene columna ciudad en BD
+            return [];
+        });
     }
 
     /**

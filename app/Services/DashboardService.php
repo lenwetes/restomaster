@@ -340,17 +340,15 @@ class DashboardService
 
         $totalTopVentas = max(1.0, (float) $items->sum('total_ventas'));
 
-        return $items->map(function ($it, $idx) use ($totalTopVentas) {
-            return [
-                'posicion' => $idx + 1,
-                'producto' => $it->producto,
-                'area_cocina' => $it->area_cocina ?? 'cocina',
-                'cantidad' => (int) $it->cantidad,
-                'total_ventas' => (float) $it->total_ventas,
-                'margen_total' => (float) $it->margen_total,
-                'pct_aporte' => $totalTopVentas > 0 ? round(((float) $it->total_ventas / $totalTopVentas) * 100, 1) : 0.0,
-            ];
-        })->all();
+        return $items->map(fn ($it, $idx) => [
+            'posicion' => $idx + 1,
+            'producto' => $it->producto,
+            'area_cocina' => $it->area_cocina ?? 'cocina',
+            'cantidad' => (int) $it->cantidad,
+            'total_ventas' => (float) $it->total_ventas,
+            'margen_total' => (float) $it->margen_total,
+            'pct_aporte' => $totalTopVentas > 0 ? round(((float) $it->total_ventas / $totalTopVentas) * 100, 1) : 0.0,
+        ])->all();
     }
 
     /**
@@ -371,9 +369,7 @@ class DashboardService
             ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
             ->get(['id', 'codigo', 'estado', 'created_at', 'total']);
 
-        $comandasDemoradas = $comandasActivas->filter(function ($c) {
-            return $c->created_at && abs(now()->diffInMinutes($c->created_at)) > 20;
-        })->count();
+        $comandasDemoradas = $comandasActivas->filter(fn ($c) => $c->created_at && abs(now()->diffInMinutes($c->created_at)) > 20)->count();
 
         // 3. Mesas y Aforo en sala
         $mesas = Mesa::query()

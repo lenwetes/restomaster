@@ -31,3 +31,7 @@ Thumbs.db
 *.sql
 !database/dumps/*.sql
 *.bak
+/storage/debugbar
+/reports
+reports_*
+_ide_helper_custom.php

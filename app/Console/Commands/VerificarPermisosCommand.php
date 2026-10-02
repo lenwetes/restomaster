@@ -2,15 +2,15 @@
 
 namespace App\Console\Commands;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
+#[Description('Lista usuarios con permisos explícitos y sus grants/denies (dry-run de revisión).')]
+#[Signature('permisos:verificar')]
 class VerificarPermisosCommand extends Command
 {
-    protected $signature = 'permisos:verificar';
-
-    protected $description = 'Lista usuarios con permisos explícitos y sus grants/denies (dry-run de revisión).';
-
     public function handle(): int
     {
         $filas = DB::table('permission_user as pu')

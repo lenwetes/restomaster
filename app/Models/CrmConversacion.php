@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,29 +12,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
+#[Fillable([
+    'ticket_codigo',
+    'sucursal_id',
+    'canal',
+    'identificador_remoto',
+    'session_token',
+    'cliente_id',
+    'user_id_asignado',
+    'modo_atencion',
+    'estado',
+    'nombre_contacto',
+    'ultimo_mensaje_texto',
+    'ultimo_mensaje_at',
+    'resumen_contexto',
+    'no_leidos_staff',
+    'no_leidos_cliente',
+])]
+#[Table(name: 'crm_conversaciones')]
 class CrmConversacion extends Model
 {
     use HasFactory;
-
-    protected $table = 'crm_conversaciones';
-
-    protected $fillable = [
-        'ticket_codigo',
-        'sucursal_id',
-        'canal',
-        'identificador_remoto',
-        'session_token',
-        'cliente_id',
-        'user_id_asignado',
-        'modo_atencion',
-        'estado',
-        'nombre_contacto',
-        'ultimo_mensaje_texto',
-        'ultimo_mensaje_at',
-        'resumen_contexto',
-        'no_leidos_staff',
-        'no_leidos_cliente',
-    ];
 
     protected static function booted(): void
     {
@@ -44,13 +45,6 @@ class CrmConversacion extends Model
             }
         });
     }
-
-    protected $casts = [
-        'ultimo_mensaje_at' => 'datetime',
-        'no_leidos_staff' => 'integer',
-        'no_leidos_cliente' => 'integer',
-        'resumen_contexto' => 'array',
-    ];
 
     /**
      * Recupera el estado o borrador del flujo activo (p. ej. reserva en curso).
@@ -107,18 +101,21 @@ class CrmConversacion extends Model
         return $this->belongsTo(User::class, 'user_id_asignado');
     }
 
-    public function scopeActivas(Builder $query): Builder
+    #[Scope]
+    protected function activas(Builder $query): Builder
     {
         return $query->where('estado', '!=', 'cerrada');
     }
 
-    public function scopeRequierenHumano(Builder $query): Builder
+    #[Scope]
+    protected function requierenHumano(Builder $query): Builder
     {
         return $query->where('estado', 'esperando_humano')
             ->orWhere('modo_atencion', 'humano');
     }
 
-    public function scopePorCanal(Builder $query, string $canal): Builder
+    #[Scope]
+    protected function porCanal(Builder $query, string $canal): Builder
     {
         return $query->where('canal', $canal);
     }
@@ -185,5 +182,15 @@ class CrmConversacion extends Model
     {
         $this->mensajes()->delete();
         $this->delete();
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'ultimo_mensaje_at' => 'datetime',
+            'no_leidos_staff' => 'integer',
+            'no_leidos_cliente' => 'integer',
+            'resumen_contexto' => 'array',
+        ];
     }
 }

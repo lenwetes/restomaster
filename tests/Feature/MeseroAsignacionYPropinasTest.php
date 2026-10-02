@@ -596,7 +596,12 @@ class MeseroAsignacionYPropinasTest extends TestCase
         $pedido->update(['estado' => 'entregado']);
 
         $pedidoCobrado = $pedidoService->cobrarPedido(
-            $pedido->fresh(), 'efectivo', (float) $pedido->fresh()->total, null, 0.0, 0.0
+            $pedido->fresh(),
+            'efectivo',
+            (float) $pedido->fresh()->total,
+            null,
+            0.0,
+            0.0
         );
 
         $this->assertSame('pagado', $pedidoCobrado->estado);
@@ -616,7 +621,12 @@ class MeseroAsignacionYPropinasTest extends TestCase
         );
 
         $pedidoCobrado = $pedidoService->cobrarPedido(
-            $pedido, 'efectivo', (float) $pedido->total, null, 0.0, 0.0
+            $pedido,
+            'efectivo',
+            (float) $pedido->total,
+            null,
+            0.0,
+            0.0
         );
 
         $this->assertSame('pagado', $pedidoCobrado->estado);
@@ -674,7 +684,12 @@ class MeseroAsignacionYPropinasTest extends TestCase
         $this->actingAs($this->cajero);
 
         $pedidoCobrado = $pedidoService->cobrarPedido(
-            $pedido->fresh(), 'efectivo', (float) $pedido->fresh()->total, null, 0.0, 0.0
+            $pedido->fresh(),
+            'efectivo',
+            (float) $pedido->fresh()->total,
+            null,
+            0.0,
+            0.0
         );
 
         $this->assertSame('pagado', $pedidoCobrado->estado);

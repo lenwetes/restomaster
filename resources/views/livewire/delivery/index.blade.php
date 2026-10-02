@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Cliente;
+
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\TurnoCaja;
@@ -11,8 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new class extends Component
-{
+new class () extends Component {
     use WithPagination;
 
     public string $filtroEstado = 'todos'; // 'todos', 'en_cocina', 'listo', 'en_ruta', 'entregado'

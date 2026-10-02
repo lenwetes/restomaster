@@ -2,11 +2,22 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'sucursal_id',
+    'nombre',
+    'slug',
+    'color',
+    'icono',
+    'orden',
+    'activa',
+])]
 class Zona extends Model
 {
     use HasFactory;
@@ -38,16 +49,6 @@ class Zona extends Model
         'privado' => 'meeting_room',
     ];
 
-    protected $fillable = [
-        'sucursal_id',
-        'nombre',
-        'slug',
-        'color',
-        'icono',
-        'orden',
-        'activa',
-    ];
-
     protected function casts(): array
     {
         return [
@@ -71,14 +72,16 @@ class Zona extends Model
         return $this->hasMany(TurnoMeseroZona::class, 'zona_id')->orderBy('orden', 'asc');
     }
 
-    public function scopeDeSucursal(Builder $query, ?int $sucursalId = null): Builder
+    #[Scope]
+    protected function deSucursal(Builder $query, ?int $sucursalId = null): Builder
     {
         $id = $sucursalId ?? auth()->user()?->sucursal_id ?? 1;
 
         return $query->where('sucursal_id', $id);
     }
 
-    public function scopeActivas(Builder $query): Builder
+    #[Scope]
+    protected function activas(Builder $query): Builder
     {
         return $query->where('activa', true);
     }

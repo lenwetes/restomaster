@@ -7,16 +7,12 @@ use App\Models\CrmAutomatizacion;
 use App\Models\EncuestaEnvio;
 use App\Services\CrmEmailService;
 use App\Services\CrmWhatsAppService;
-use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 class DespacharMensajeCrmJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use \Illuminate\Foundation\Queue\Queueable;
 
     public function __construct(
         public string $canal,

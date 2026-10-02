@@ -2,29 +2,25 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'sucursal_id',
+    'numero',
+    'capacidad',
+    'zona',
+    'estado',
+    'mesero_id',
+])]
 class Mesa extends Model
 {
     use HasFactory;
-
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'sucursal_id',
-        'numero',
-        'capacidad',
-        'zona',
-        'estado',
-        'mesero_id',
-    ];
 
     /**
      * Get the attributes that should be cast.
@@ -38,44 +34,36 @@ class Mesa extends Model
         ];
     }
 
-    public function setActivaAttribute(mixed $value): void
+    protected function activa(): Attribute
     {
-        // La tabla mesas no almacena columna activa por separado
+        return Attribute::make(get: fn () => true, set: function (mixed $value) {
+            // La tabla mesas no almacena columna activa por separado
+            return [];
+        });
     }
 
-    public function getActivaAttribute(): bool
+    protected function activo(): Attribute
     {
-        return true;
+        return Attribute::make(get: fn () => true, set: function (mixed $value) {
+            // La tabla mesas no almacena columna activo por separado
+            return [];
+        });
     }
 
-    public function setActivoAttribute(mixed $value): void
+    protected function nombre(): Attribute
     {
-        // La tabla mesas no almacena columna activo por separado
+        return Attribute::make(get: fn () => 'Mesa '.($this->numero ?? ''), set: function (mixed $value) {
+            // La tabla mesas no almacena columna nombre (usa numero)
+            return [];
+        });
     }
 
-    public function getActivoAttribute(): bool
+    protected function zonaId(): Attribute
     {
-        return true;
-    }
-
-    public function setNombreAttribute(mixed $value): void
-    {
-        // La tabla mesas no almacena columna nombre (usa numero)
-    }
-
-    public function getNombreAttribute(): string
-    {
-        return 'Mesa '.($this->numero ?? '');
-    }
-
-    public function setZonaIdAttribute(mixed $value): void
-    {
-        // La tabla mesas usa columna string zona, no FK zona_id
-    }
-
-    public function getZonaIdAttribute(): ?int
-    {
-        return null;
+        return Attribute::make(get: fn () => null, set: function (mixed $value) {
+            // La tabla mesas usa columna string zona, no FK zona_id
+            return [];
+        });
     }
 
     /**
@@ -112,21 +100,25 @@ class Mesa extends Model
      * la zona ("Barra 1", "Mesa 1"), así que solo se antepone "Mesa"
      * cuando el número es pelado ("4").
      */
-    public function getNombreSalaAttribute(): string
+    protected function nombreSala(): Attribute
     {
-        $numero = trim((string) $this->numero);
+        return Attribute::make(get: function () {
+            $numero = trim((string) $this->numero);
 
-        return preg_match('/^(mesa|barra|terraza|vip|patio|sal[oó]n)\b/i', $numero) ? $numero : 'Mesa '.$numero;
+            return preg_match('/^(mesa|barra|terraza|vip|patio|sal[oó]n)\b/i', $numero) ? $numero : 'Mesa '.$numero;
+        });
     }
 
     /**
      * Etiqueta corta para insignias y círculos: último token del número
      * ("Barra 1" → "1", "4" → "4").
      */
-    public function getNombreCortoAttribute(): string
+    protected function nombreCorto(): Attribute
     {
-        $partes = preg_split('/\s+/', trim((string) $this->numero)) ?: [];
+        return Attribute::make(get: function () {
+            $partes = preg_split('/\s+/', trim((string) $this->numero)) ?: [];
 
-        return count($partes) > 1 ? (string) end($partes) : (string) $this->numero;
+            return count($partes) > 1 ? (string) end($partes) : (string) $this->numero;
+        });
     }
 }

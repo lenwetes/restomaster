@@ -5,8 +5,7 @@ use App\Services\CuentasPorPagarService;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public ?int $cuentaPagoId = null;
 
     public array $pagoForm = [

@@ -3,39 +3,34 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'tipo',
+    'pedido_id',
+    'turno_caja_id',
+    'impresora_id',
+    'area',
+    'contenido_texto',
+    'contenido_raw',
+    'estado',
+    'intentos',
+    'error_mensaje',
+    'impreso_en',
+    'usuario_id',
+    'reimpreso_por_id',
+    'veces_reimpreso',
+])]
+#[Table(name: 'trabajos_impresion')]
 class TrabajoImpresion extends Model
 {
     use HasFactory;
-
-    protected $table = 'trabajos_impresion';
-
-    protected $fillable = [
-        'tipo',
-        'pedido_id',
-        'turno_caja_id',
-        'impresora_id',
-        'area',
-        'contenido_texto',
-        'contenido_raw',
-        'estado',
-        'intentos',
-        'error_mensaje',
-        'impreso_en',
-        'usuario_id',
-        'reimpreso_por_id',
-        'veces_reimpreso',
-    ];
-
-    protected $casts = [
-        'impreso_en' => 'datetime',
-        'intentos' => 'integer',
-        'veces_reimpreso' => 'integer',
-    ];
 
     public function impresora(): BelongsTo
     {
@@ -62,17 +57,20 @@ class TrabajoImpresion extends Model
         return $this->belongsTo(User::class, 'reimpreso_por_id');
     }
 
-    public function scopePendientes(Builder $query): Builder
+    #[Scope]
+    protected function pendientes(Builder $query): Builder
     {
         return $query->where('estado', 'pendiente');
     }
 
-    public function scopeFallidos(Builder $query): Builder
+    #[Scope]
+    protected function fallidos(Builder $query): Builder
     {
         return $query->where('estado', 'error');
     }
 
-    public function scopeHoy(Builder $query): Builder
+    #[Scope]
+    protected function hoy(Builder $query): Builder
     {
         return $query->whereDate('created_at', Carbon::today());
     }
@@ -87,5 +85,14 @@ class TrabajoImpresion extends Model
             'cancelado' => ['bg' => 'bg-surface-container', 'text' => 'text-on-surface-variant', 'border' => 'border-outline-variant/30', 'label' => 'Cancelado'],
             default => ['bg' => 'bg-surface-container', 'text' => 'text-on-surface-variant', 'border' => 'border-outline-variant/30', 'label' => ucfirst($this->estado)],
         };
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'impreso_en' => 'datetime',
+            'intentos' => 'integer',
+            'veces_reimpreso' => 'integer',
+        ];
     }
 }

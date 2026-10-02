@@ -113,8 +113,13 @@ class NotificacionPagoProcesadoTest extends TestCase
     public function test_evento_emite_en_canal_privado_del_mesero(): void
     {
         $evento = new PagoProcesadoPorCaja(
-            pedidoId: 1, meseroId: $this->mesero->id, mesa: 'Mesa 7',
-            total: 85000.0, metodoPago: 'efectivo', ticketUrl: '/caja', mensaje: 'test'
+            pedidoId: 1,
+            meseroId: $this->mesero->id,
+            mesa: 'Mesa 7',
+            total: 85000.0,
+            metodoPago: 'efectivo',
+            ticketUrl: '/caja',
+            mensaje: 'test'
         );
 
         $canales = $evento->broadcastOn();

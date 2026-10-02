@@ -1,17 +1,17 @@
 <?php
 
+use App\Models\User;
+
 use App\Models\Caja;
 use App\Models\ItemPedido;
 use App\Models\NotaCredito;
 use App\Models\Pedido;
 use App\Models\TurnoCaja;
-use App\Models\User;
 use App\Services\CajaService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     // Shift selection and active shift
     public ?int $turnoId = null;
 
@@ -418,7 +418,7 @@ new class extends Component
 
         $this->validate([
             'formEditarCaja.nombre' => 'required|string|max:60',
-            'formEditarCaja.codigo' => 'required|string|max:20|unique:cajas,codigo,'.$caja->id,
+            'formEditarCaja.codigo' => 'required|string|max:20|unique:cajas,codigo,' . $caja->id,
             'formEditarCaja.tipo' => 'nullable|string|in:principal,barra,delivery',
             'formEditarCaja.descripcion' => 'nullable|string|max:255',
         ]);
@@ -440,7 +440,7 @@ new class extends Component
         app(CajaService::class)->alternarEstadoCaja($caja, Auth::user());
 
         $this->dispatch('notificacion', [
-            'mensaje' => "Terminal {$caja->nombre} ahora está ".($caja->fresh()->activa ? 'activa' : 'inactiva').'.',
+            'mensaje' => "Terminal {$caja->nombre} ahora está " . ($caja->fresh()->activa ? 'activa' : 'inactiva') . '.',
             'tipo' => 'info',
         ]);
     }

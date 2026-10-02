@@ -102,7 +102,11 @@ class ReportesComparativosTest extends TestCase
         $this->crearVenta(Carbon::create(2026, 8, 11, 13), 50000, 'CMP-B2');
 
         $comp = app(ReportesComparativosService::class)->comparar(
-            '2026-09-10', '2026-09-10', '2026-08-10', '2026-08-11', $this->sucursal->id
+            '2026-09-10',
+            '2026-09-10',
+            '2026-08-10',
+            '2026-08-11',
+            $this->sucursal->id
         );
 
         $this->assertEquals(100000.0, $comp['a']['ventas']);
@@ -156,7 +160,11 @@ class ReportesComparativosTest extends TestCase
         $this->crearVenta(Carbon::create(2026, 9, 10, 13), 100000, 'CMP-C1');
 
         $comp = app(ReportesComparativosService::class)->comparar(
-            '2026-09-10', '2026-09-10', '2026-09-09', '2026-09-09', $this->sucursal->id
+            '2026-09-10',
+            '2026-09-10',
+            '2026-09-09',
+            '2026-09-09',
+            $this->sucursal->id
         );
         $csv = app(ReportesComparativosService::class)->exportarCsv($comp);
 
@@ -177,7 +185,11 @@ class ReportesComparativosTest extends TestCase
         ]);
 
         $comp = app(ReportesComparativosService::class)->comparar(
-            '2026-09-10', '2026-09-10', '2026-09-09', '2026-09-09', $this->sucursal->id
+            '2026-09-10',
+            '2026-09-10',
+            '2026-09-09',
+            '2026-09-09',
+            $this->sucursal->id
         );
 
         $this->assertEquals(20000.0, $comp['a']['devoluciones']);

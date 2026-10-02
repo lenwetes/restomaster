@@ -106,8 +106,12 @@ class NotaCreditoAuditoriaTest extends TestCase
 
         $this->expectException(\DomainException::class);
         app(PedidoService::class)->devolverItemPedido(
-            item: $item, cantidad: 1, motivo: 'Error de digitación',
-            autorizadoPor: 'Cajero', usuario: $this->cajero, notaCreditoId: null
+            item: $item,
+            cantidad: 1,
+            motivo: 'Error de digitación',
+            autorizadoPor: 'Cajero',
+            usuario: $this->cajero,
+            notaCreditoId: null
         );
     }
 
@@ -137,14 +141,22 @@ class NotaCreditoAuditoriaTest extends TestCase
         $svc = app(PedidoService::class);
 
         $svc->devolverItemPedido(
-            item: $item, cantidad: 1, motivo: 'error_cargo',
-            autorizadoPor: 'Cajero', usuario: $this->cajero, notaCreditoId: $nc->id
+            item: $item,
+            cantidad: 1,
+            motivo: 'error_cargo',
+            autorizadoPor: 'Cajero',
+            usuario: $this->cajero,
+            notaCreditoId: $nc->id
         );
 
         $this->expectException(\DomainException::class);
         $svc->devolverItemPedido(
-            item: $item, cantidad: 1, motivo: 'error_cargo',
-            autorizadoPor: 'Cajero', usuario: $this->cajero, notaCreditoId: $nc->id
+            item: $item,
+            cantidad: 1,
+            motivo: 'error_cargo',
+            autorizadoPor: 'Cajero',
+            usuario: $this->cajero,
+            notaCreditoId: $nc->id
         );
     }
 

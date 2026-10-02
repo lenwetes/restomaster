@@ -3,21 +3,21 @@
 namespace App\Console\Commands;
 
 use Carbon\Carbon;
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ZipArchive;
 
-class BackupStorageCommand extends Command
-{
-    protected $signature = 'restomaster:backup-storage
+#[Description('Respalda los archivos públicos del sistema (imágenes de platos) en un ZIP versionado con rotación')]
+#[Signature('restomaster:backup-storage
                             {--fuente= : Directorio a respaldar (por defecto storage/app/public)}
                             {--destino= : Directorio de salida (por defecto config backup.path)}
-                            {--keep=14 : Cantidad de respaldos recientes a conservar en rotación}';
-
-    protected $description = 'Respalda los archivos públicos del sistema (imágenes de platos) en un ZIP versionado con rotación';
-
+                            {--keep=14 : Cantidad de respaldos recientes a conservar en rotación}')]
+class BackupStorageCommand extends Command
+{
     public function handle(): int
     {
         $this->info('Iniciando respaldo de archivos públicos RestoMaster...');

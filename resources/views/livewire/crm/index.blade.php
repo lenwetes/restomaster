@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Carbon;
+
 use App\Models\CrmAutomatizacion;
 use App\Models\CrmConfiguracion;
 use App\Models\CrmIaPlantillaPrivilegio;
@@ -8,12 +10,10 @@ use App\Models\CrmPlantilla;
 use App\Services\Ai\CrmAiAgentService;
 use App\Services\CrmEstadisticasService;
 use App\Services\CrmWhatsAppService;
-use Illuminate\Support\Carbon;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new class extends Component
-{
+new class () extends Component {
     use WithPagination;
 
     public string $tab = 'satisfaccion'; // satisfaccion, automatizaciones, plantillas, logs, configuracion, ia
@@ -266,7 +266,7 @@ new class extends Component
                 }
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Error cargando configuración CRM: '.$e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('Error cargando configuración CRM: ' . $e->getMessage());
         }
     }
 
@@ -385,7 +385,7 @@ new class extends Component
             return;
         }
 
-        $this->mensajeAlerta = '¡Conexión verificada! El proveedor '.strtoupper($this->ia_proveedor).' está listo para operar.';
+        $this->mensajeAlerta = '¡Conexión verificada! El proveedor ' . strtoupper($this->ia_proveedor) . ' está listo para operar.';
         $this->tipoAlerta = 'success';
     }
 
@@ -480,7 +480,7 @@ new class extends Component
             return;
         }
 
-        $contenido = '👋 ¡Hola! Este es un mensaje de prueba oficial de RestoMaster CRM a través de la API de WhatsApp. Conexión establecida correctamente a las '.now()->format('H:i:s').'.';
+        $contenido = '👋 ¡Hola! Este es un mensaje de prueba oficial de RestoMaster CRM a través de la API de WhatsApp. Conexión establecida correctamente a las ' . now()->format('H:i:s') . '.';
 
         $log = $whatsAppService->enviarMensaje(
             telefono: $this->whatsapp_telefono_pruebas,
@@ -489,10 +489,10 @@ new class extends Component
         );
 
         if ($log->estado === 'fallido') {
-            $this->mensajeAlerta = 'Error al enviar prueba WhatsApp: '.($log->error_mensaje ?? 'Error desconocido');
+            $this->mensajeAlerta = 'Error al enviar prueba WhatsApp: ' . ($log->error_mensaje ?? 'Error desconocido');
             $this->tipoAlerta = 'error';
         } else {
-            $this->mensajeAlerta = '¡Mensaje de prueba enviado exitosamente! (ID: '.($log->mensaje_id_externo ?? 'Simulado').')';
+            $this->mensajeAlerta = '¡Mensaje de prueba enviado exitosamente! (ID: ' . ($log->mensaje_id_externo ?? 'Simulado') . ')';
             $this->tipoAlerta = 'success';
         }
     }
@@ -501,7 +501,7 @@ new class extends Component
     {
         $auto = CrmAutomatizacion::findOrFail($id);
         $auto->update(['activa' => ! $auto->activa]);
-        $this->mensajeAlerta = "Automatización '{$auto->nombre}' ".($auto->activa ? 'activada' : 'pausada').'.';
+        $this->mensajeAlerta = "Automatización '{$auto->nombre}' " . ($auto->activa ? 'activada' : 'pausada') . '.';
         $this->tipoAlerta = 'info';
     }
 
@@ -528,7 +528,7 @@ new class extends Component
 
     public function insertarVariable(string $variable): void
     {
-        $this->plantillaContenido .= ' {'.$variable.'}';
+        $this->plantillaContenido .= ' {' . $variable . '}';
     }
 
     public function guardarPlantilla(): void
@@ -675,7 +675,7 @@ new class extends Component
                 reservaId: $log->reserva_id,
                 automatizacionId: $log->automatizacion_id
             );
-            $this->mensajeAlerta = 'Reintento completado: '.$nuevoLog->estado;
+            $this->mensajeAlerta = 'Reintento completado: ' . $nuevoLog->estado;
             $this->tipoAlerta = $nuevoLog->estado === 'fallido' ? 'error' : 'success';
         }
     }

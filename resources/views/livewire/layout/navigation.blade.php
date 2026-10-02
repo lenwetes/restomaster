@@ -6,8 +6,7 @@ use App\Services\PedidoService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public ?string $notificacionFlash = null;
 
     public ?string $tipoNotificacionFlash = 'info';
@@ -34,7 +33,7 @@ new class extends Component
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->notificacionFlash = 'Error al atender pedido: '.$e->getMessage();
+            $this->notificacionFlash = 'Error al atender pedido: ' . $e->getMessage();
             $this->tipoNotificacionFlash = 'error';
         }
     }

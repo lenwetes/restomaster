@@ -2,28 +2,24 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'producto_id',
+    'insumo_id',
+    'cantidad',
+    'merma_esperada_pct',
+    'notas',
+])]
+#[Table(name: 'recetas')]
 class Receta extends Model
 {
     use HasFactory;
-
-    protected $table = 'recetas';
-
-    protected $fillable = [
-        'producto_id',
-        'insumo_id',
-        'cantidad',
-        'merma_esperada_pct',
-        'notas',
-    ];
-
-    protected $casts = [
-        'cantidad' => 'decimal:3',
-        'merma_esperada_pct' => 'decimal:2',
-    ];
 
     public function producto(): BelongsTo
     {
@@ -38,12 +34,22 @@ class Receta extends Model
     /**
      * Costo teórico del insumo en esta receta (cantidad * costo_unitario * (1 + merma/100))
      */
-    public function getCostoTeoricoAttribute(): float
+    protected function costoTeorico(): Attribute
     {
-        $this->loadMissing('insumo');
-        $costoBase = (float) $this->cantidad * (float) ($this->insumo->costo_unitario ?? 0);
-        $factorMerma = 1 + ((float) $this->merma_esperada_pct / 100);
+        return Attribute::make(get: function () {
+            $this->loadMissing('insumo');
+            $costoBase = (float) $this->cantidad * (float) ($this->insumo->costo_unitario ?? 0);
+            $factorMerma = 1 + ((float) $this->merma_esperada_pct / 100);
 
-        return round($costoBase * $factorMerma, 2);
+            return round($costoBase * $factorMerma, 2);
+        });
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'cantidad' => 'decimal:3',
+            'merma_esperada_pct' => 'decimal:2',
+        ];
     }
 }

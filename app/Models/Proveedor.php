@@ -2,26 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'nombre',
+    'nit',
+    'telefono',
+    'email',
+    'direccion',
+    'contacto',
+    'dias_credito',
+    'activo',
+])]
+#[Table(name: 'proveedores')]
 class Proveedor extends Model
 {
     use HasFactory;
-
-    protected $table = 'proveedores';
-
-    protected $fillable = [
-        'nombre',
-        'nit',
-        'telefono',
-        'email',
-        'direccion',
-        'contacto',
-        'dias_credito',
-        'activo',
-    ];
 
     protected function casts(): array
     {

@@ -8,7 +8,8 @@ use Illuminate\Queue\SerializesModels;
 
 class HorarioSemanalPublicado
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable;
+    use SerializesModels;
 
     public function __construct(
         public ProgramacionSemanal $programacion,

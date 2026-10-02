@@ -2,18 +2,18 @@
 
 namespace App\Console\Commands;
 
+use Illuminate\Console\Attributes\Description;
+use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
 
+#[Description('Ejecuta las suites de pruebas integrales y compila el reporte de métricas de calidad de código de RestoMaster')]
+#[Signature('restomaster:qa-report
+                            {--suites= : Comma-separated list of suites to execute (Unit,Component,Integration)}
+                            {--no-exec : Skip running test suites and use previous or mock metrics}')]
 class GenerateQualityReportCommand extends Command
 {
-    protected $signature = 'restomaster:qa-report
-                            {--suites= : Comma-separated list of suites to execute (Unit,Component,Integration)}
-                            {--no-exec : Skip running test suites and use previous or mock metrics}';
-
-    protected $description = 'Ejecuta las suites de pruebas integrales y compila el reporte de métricas de calidad de código de RestoMaster';
-
     public function handle(): int
     {
         $this->newLine();

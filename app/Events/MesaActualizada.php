@@ -11,7 +11,9 @@ use Illuminate\Queue\SerializesModels;
 
 class MesaActualizada implements ShouldBroadcast
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable;
+    use InteractsWithSockets;
+    use SerializesModels;
 
     public int $mesaId;
 

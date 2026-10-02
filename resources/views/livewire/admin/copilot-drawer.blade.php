@@ -2,12 +2,12 @@
 
 use App\Models\Encuesta;
 use App\Models\Promocion;
+
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public bool $abierto = false;
 
     public string $input = '';
@@ -28,7 +28,7 @@ new class extends Component
                 'id' => 'bienvenida',
                 'emisor' => 'copiloto',
                 'tipo' => 'orientacion',
-                'texto' => '👋 **¡Hola '.(Auth::user()?->name ? explode(' ', Auth::user()->name)[0] : 'Administrador')."!** Soy tu **Copiloto Ejecutivo IA** de RestoMaster.\n\nTengo acceso en tiempo real a la base de datos de tu restaurante: puedo auditar ventas por caja, analizar períodos específicos (días, semanas, meses), comparar formas de pago, rankear platos estrella o diseñar estrategias de fidelización.",
+                'texto' => '👋 **¡Hola ' . (Auth::user()?->name ? explode(' ', Auth::user()->name)[0] : 'Administrador') . "!** Soy tu **Copiloto Ejecutivo IA** de RestoMaster.\n\nTengo acceso en tiempo real a la base de datos de tu restaurante: puedo auditar ventas por caja, analizar períodos específicos (días, semanas, meses), comparar formas de pago, rankear platos estrella o diseñar estrategias de fidelización.",
                 'sugerencias' => [
                     '📊 Ventas en Caja 1',
                     '📅 Ventas del martes de esta semana',
@@ -117,7 +117,7 @@ new class extends Component
                 'id' => uniqid('msg_ia_'),
                 'emisor' => 'copiloto',
                 'tipo' => 'error',
-                'texto' => '⚠️ Ocurrió un error al procesar la solicitud: '.$e->getMessage(),
+                'texto' => '⚠️ Ocurrió un error al procesar la solicitud: ' . $e->getMessage(),
                 'hora' => now()->format('H:i'),
             ];
         } finally {

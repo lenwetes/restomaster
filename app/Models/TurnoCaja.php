@@ -2,28 +2,30 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Scope;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable([
+    'caja_id',
+    'user_id',
+    'apertura_en',
+    'cierre_en',
+    'monto_inicial',
+    'notas_apertura',
+    'notas_cierre',
+    'cerrado_por_user_id',
+])]
+#[Table(name: 'turnos_caja')]
 class TurnoCaja extends Model
 {
     use HasFactory;
-
-    protected $table = 'turnos_caja';
-
-    protected $fillable = [
-        'caja_id',
-        'user_id',
-        'apertura_en',
-        'cierre_en',
-        'monto_inicial',
-        'notas_apertura',
-        'notas_cierre',
-        'cerrado_por_user_id',
-    ];
 
     protected function casts(): array
     {
@@ -78,14 +80,15 @@ class TurnoCaja extends Model
         return $this->hasMany(Pedido::class);
     }
 
-    public function scopeAbiertos(Builder $query): Builder
+    #[Scope]
+    protected function abiertos(Builder $query): Builder
     {
         return $query->where('estado', 'abierto');
     }
 
-    public function getTotalVentasAttribute(): float
+    protected function totalVentas(): Attribute
     {
-        return (float) $this->total_ventas_efectivo + (float) $this->total_ventas_tarjeta + (float) $this->total_ventas_transferencia;
+        return Attribute::make(get: fn () => (float) $this->total_ventas_efectivo + (float) $this->total_ventas_tarjeta + (float) $this->total_ventas_transferencia);
     }
 
     public function getFillable(): array

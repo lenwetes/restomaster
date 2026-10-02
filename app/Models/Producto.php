@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,23 +12,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+#[Fillable([
+    'categoria_id',
+    'nombre',
+    'slug',
+    'descripcion',
+    'precio',
+    'costo',
+    'area_cocina',
+    'activo',
+    'imagen',
+])]
+#[Table(name: 'productos')]
 class Producto extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $table = 'productos';
-
-    protected $fillable = [
-        'categoria_id',
-        'nombre',
-        'slug',
-        'descripcion',
-        'precio',
-        'costo',
-        'area_cocina',
-        'activo',
-        'imagen',
-    ];
+    use HasFactory;
+    use SoftDeletes;
 
     protected function casts(): array
     {
@@ -82,44 +84,48 @@ class Producto extends Model
     /**
      * Calcula el costo teórico total del plato sumando todos sus insumos con merma.
      */
-    public function getCostoRecetaAttribute(): float
+    protected function costoReceta(): Attribute
     {
-        $this->loadMissing('recetas.insumo');
+        return Attribute::make(get: function () {
+            $this->loadMissing('recetas.insumo');
 
-        return round($this->recetas->sum(fn ($receta) => $receta->costo_teorico), 2);
+            return round($this->recetas->sum(fn ($receta) => $receta->costo_teorico), 2);
+        });
     }
 
     /**
      * Resuelve el path de imagen, con fallback a imagen demo por slug si es nula.
      */
-    public function getImagenAttribute(?string $value): ?string
+    protected function imagen(): Attribute
     {
-        if (! empty($value)) {
-            return $value;
-        }
+        return Attribute::make(get: function (?string $value) {
+            if (! empty($value)) {
+                return $value;
+            }
 
-        return $this->resolverRutaImagenDemo();
+            return $this->resolverRutaImagenDemo();
+        });
     }
 
     /**
      * Resuelve la URL pública de la imagen del producto (URL absoluta, path relativo o storage).
      */
-    public function getImagenUrlAttribute(): ?string
+    protected function imagenUrl(): Attribute
     {
-        $img = $this->imagen;
-        if (empty($img)) {
-            return null;
-        }
+        return Attribute::make(get: function () {
+            $img = $this->imagen;
+            if (empty($img)) {
+                return null;
+            }
+            if (str_starts_with($img, 'http://') || str_starts_with($img, 'https://')) {
+                return $img;
+            }
+            if (str_starts_with($img, '/')) {
+                return asset(ltrim($img, '/'));
+            }
 
-        if (str_starts_with($img, 'http://') || str_starts_with($img, 'https://')) {
-            return $img;
-        }
-
-        if (str_starts_with($img, '/')) {
-            return asset(ltrim($img, '/'));
-        }
-
-        return asset('storage/'.$img);
+            return asset('storage/'.$img);
+        });
     }
 
     /**

@@ -2,27 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'programacion_semanal_id',
+    'user_id',
+    'fecha',
+    'zona_id',
+    'plantilla_turno_id',
+    'mesas_especificas',
+    'es_descanso',
+    'notificado_login_en',
+    'confirmado_por_mesero_en',
+])]
+#[Table(name: 'turnos_meseros_semana')]
 class TurnoMeseroSemana extends Model
 {
     use HasFactory;
-
-    protected $table = 'turnos_meseros_semana';
-
-    protected $fillable = [
-        'programacion_semanal_id',
-        'user_id',
-        'fecha',
-        'zona_id',
-        'plantilla_turno_id',
-        'mesas_especificas',
-        'es_descanso',
-        'notificado_login_en',
-        'confirmado_por_mesero_en',
-    ];
 
     protected function casts(): array
     {

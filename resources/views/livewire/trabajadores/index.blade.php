@@ -12,8 +12,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public bool $mostrarModalNuevo = false;
 
     public bool $mostrarModalEditar = false;

@@ -639,7 +639,7 @@ PROMPT;
             }
 
             return ['ok' => false, 'latencia_ms' => $latencia, 'modelo' => $modelo, 'error' => 'La API respondió con error HTTP '.$response->status().'.'];
-        } catch (\Throwable $e) {
+        } catch (\Throwable) {
             $latencia = (int) round((microtime(true) - $inicio) * 1000);
 
             return ['ok' => false, 'latencia_ms' => $latencia, 'modelo' => $modelo, 'error' => 'No se pudo conectar con Gemini.'];
@@ -1034,14 +1034,14 @@ PROMPT;
             $colores = ['#e0442e', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
             $etiquetas = array_column($filas, $columnaEtiqueta);
             $valores = array_column($filas, $columnaValor);
-            $maxVal = max(1, max(array_map('floatval', $valores)));
+            $maxVal = max(1, max(array_map(floatval(...), $valores)));
 
             $esMoneda = (bool) preg_match('/\b(total|monto|venta|precio|costo|ingreso|egreso|propina|subtotal|descuento|recaudo)\b/i', $columnaValor);
 
             $grafColores = [];
             $grafValoresFmt = [];
             $grafPorcentajes = [];
-            $totalVal = array_sum(array_map('floatval', $valores));
+            $totalVal = array_sum(array_map(floatval(...), $valores));
 
             foreach ($valores as $idx => $v) {
                 $grafColores[] = $colores[$idx % count($colores)];
@@ -1054,8 +1054,8 @@ PROMPT;
             $grafico = [
                 'tipo' => $tipoGrafico,
                 'titulo' => $titulo,
-                'etiquetas' => array_map('strval', $etiquetas),
-                'valores' => array_map('floatval', $valores),
+                'etiquetas' => array_map(strval(...), $etiquetas),
+                'valores' => array_map(floatval(...), $valores),
                 'valores_formateados' => $grafValoresFmt,
                 'porcentajes' => $grafPorcentajes,
                 'colores' => $grafColores,
@@ -1103,7 +1103,7 @@ PROMPT;
                 $pcts = [];
                 $cols = [];
                 $fmts = [];
-                $total = array_sum(array_map('floatval', $datos['desglose_metodo_pago'] ?? []));
+                $total = array_sum(array_map(floatval(...), $datos['desglose_metodo_pago'] ?? []));
                 foreach (($datos['desglose_metodo_pago'] ?? []) as $metodo => $monto) {
                     $labels[] = Str::headline((string) $metodo);
                     $valores[] = (float) $monto;
@@ -1150,7 +1150,7 @@ PROMPT;
                 'titulo' => "Evolución de Ventas — {$etiqueta}",
                 'subtitulo' => $sub,
                 'etiquetas' => array_column($serie, 'etiqueta'),
-                'valores' => array_map('floatval', array_column($serie, 'valor')),
+                'valores' => array_map(floatval(...), array_column($serie, 'valor')),
                 'valores_formateados' => array_column($serie, 'valor_fmt'),
                 'colores' => array_map(fn ($s) => (float) ($s['valor'] ?? 0) > 0 ? '#e0442e' : '#6b7280', $serie),
                 'unidad' => 'COP',
@@ -1255,7 +1255,7 @@ PROMPT;
             } else {
                 // Construir tabla Markdown con máximo 15 filas visibles
                 $visible = array_slice($filas, 0, 15);
-                $cabecera = '| '.implode(' | ', array_map('ucwords', $columnas)).' |';
+                $cabecera = '| '.implode(' | ', array_map(ucwords(...), $columnas)).' |';
                 $separador = '| '.implode(' | ', array_fill(0, count($columnas), '---')).' |';
                 $filasMd = array_map(function ($fila) use ($columnas) {
                     $celdas = array_map(function ($col) use ($fila) {
@@ -1835,9 +1835,7 @@ PROMPT;
             'etiquetas' => $diasSemanaLabels,
             'valores' => $valoresDiasSemana,
             'valores_formateados' => array_map(fn ($v) => '$'.number_format($v, 0, ',', '.'), $valoresDiasSemana),
-            'colores' => array_map(function ($idx, $val) {
-                return $val > 0 ? '#10b981' : '#6b7280';
-            }, array_keys($valoresDiasSemana), $valoresDiasSemana),
+            'colores' => array_map(fn ($idx, $val) => $val > 0 ? '#10b981' : '#6b7280', array_keys($valoresDiasSemana), $valoresDiasSemana),
             'unidad' => 'COP',
         ];
 
@@ -2871,7 +2869,7 @@ PROMPT;
             ."• **Nombre:** {$nombre}\n"
             ."• **Cupón:** `{$codigo}`\n"
             .'• **Tipo:** '.Str::headline($tipoDescuento)." ({$valorDescuento}% de beneficio)\n"
-            .'• **Días Activos:** '.implode(', ', array_map('ucfirst', $diasSemana))."\n"
+            .'• **Días Activos:** '.implode(', ', array_map(ucfirst(...), $diasSemana))."\n"
             ."• **Descripción:** {$descripcion}\n\n"
             .'Puedes guardarla directamente para que aparezca en el Portal de Promociones y la Portada Web.';
 

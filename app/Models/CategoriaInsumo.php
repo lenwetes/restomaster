@@ -2,26 +2,26 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
+#[Fillable([
+    'nombre',
+    'slug',
+    'icono',
+    'color',
+    'descripcion',
+    'orden',
+    'activo',
+])]
+#[Table(name: 'categoria_insumos')]
 class CategoriaInsumo extends Model
 {
     use HasFactory;
-
-    protected $table = 'categoria_insumos';
-
-    protected $fillable = [
-        'nombre',
-        'slug',
-        'icono',
-        'color',
-        'descripcion',
-        'orden',
-        'activo',
-    ];
 
     protected function casts(): array
     {

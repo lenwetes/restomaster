@@ -11,7 +11,7 @@ use Illuminate\Http\Response;
 
 class ReporteExportController extends Controller
 {
-    private const REPORTES_VALIDOS = ['estado', 'ventas', 'meseros', 'clientes', 'reservas'];
+    private const array REPORTES_VALIDOS = ['estado', 'ventas', 'meseros', 'clientes', 'reservas'];
 
     public function pdf(Request $request): Response
     {

@@ -7,8 +7,7 @@ use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public bool $abierto = false;
 
     public string $session_token = '';
@@ -86,7 +85,7 @@ new class extends Component
         }
 
         // Freno de rate limit por comensal en widget público (15 mensajes por minuto)
-        $rateKey = 'public_chat_widget:'.$this->session_token;
+        $rateKey = 'public_chat_widget:' . $this->session_token;
         if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($rateKey, 15)) {
             $this->js("alert('Estás enviando mensajes muy rápido. Por favor espera un momento.');");
 

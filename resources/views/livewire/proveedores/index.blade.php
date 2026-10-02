@@ -9,8 +9,7 @@ use App\Services\ProveedorService;
 use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
 
-new class extends Component
-{
+new class () extends Component {
     public string $busqueda = '';
 
     public bool $soloActivos = true;
