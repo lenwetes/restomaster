@@ -6,6 +6,20 @@
 ---
 
 ## Última Actualización
+2026-10-01 | Antigravity | 🚀 **SINCRONIZACIÓN DE RAMAS EN GITHUB & ACTUALIZACIÓN DE DESPLIEGUE EN COOLIFY:**
+- **Ramas en GitHub 100% Sincronizadas:**
+  - `main` -> `origin/main` actualizado con commit `fb7d302`.
+  - `master` -> `origin/master` actualizado con commit `fb7d302`.
+  - `feat/gestor-zonas-drag-drop` -> `origin/feat/gestor-zonas-drag-drop` actualizado con commit `fb7d302`.
+- **Configuración Coolify para Deploy Actualizada:**
+  - Actualizados [`docker-compose.coolify.yml`](file:///d:/Proyectos/restomaster/docker-compose.coolify.yml), [`docker-compose.yaml`](file:///d:/Proyectos/restomaster/docker-compose.yaml) y [`docker-compose.yml`](file:///d:/Proyectos/restomaster/docker-compose.yml).
+  - Integrada la etiqueta `coolify.managed=true` en el servicio principal `app`.
+  - Configurado healthcheck extendido (`start_period: 180s`, 5 reintentos) para permitir la ejecución autónoma y segura de migraciones y carga demo en frío.
+  - Proxy inverso Nginx con soporte directo de WebSockets (Laravel Reverb) en puerto 80/443 sin colisión de puertos.
+
+---
+
+## Actualización previa
 2026-10-01 | Antigravity | 📋 **AUDITORÍA INTEGRAL COMPLETA DEL PROYECTO (SEGURIDAD, BD, RENDIMIENTO Y DEPENDENCIAS):**
 - **Alcance & Reglas:** Entorno Demo — Se respetan e ignoran las credenciales y llaves API demo preconfiguradas para la demostración del sistema (`adminresto`, `admin`, `restomaster2026`, seeders).
 - **Resultados de la Auditoría:**
