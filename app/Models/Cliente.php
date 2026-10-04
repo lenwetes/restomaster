@@ -16,8 +16,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'nombre',
     'telefono',
     'email',
+    'fecha_nacimiento',
+    'password',
+    'email_verificado_at',
     'documento',
     'tier',
+    'vip_estado',
+    'vip_elegible_at',
+    'vip_desde',
+    'vip_aprobado_por',
     'puntos_fidelidad',
     'total_gastado',
     'visitas_count',
@@ -38,6 +45,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'encuestas_respondidas',
 ])]
 #[Table(name: 'clientes')]
+/**
+ * @method static \Illuminate\Database\Eloquent\Builder<Cliente>|Cliente vipActivos()
+ * @method static \Illuminate\Database\Eloquent\Builder<Cliente>|Cliente vipElegibles()
+ * @method static \Illuminate\Database\Eloquent\Builder<Cliente>|Cliente vipPendientes()
+ * @method static \Illuminate\Database\Eloquent\Builder<Cliente>|Cliente vip()
+ * @method static \Illuminate\Database\Eloquent\Builder<Cliente>|Cliente frecuentes()
+ * @method static \Illuminate\Database\Eloquent\Builder<Cliente>|Cliente ocasionales()
+ */
 class Cliente extends Model
 {
     use HasFactory;
@@ -48,6 +63,18 @@ class Cliente extends Model
     public const TIER_FRECUENTE = 'frecuente';
 
     public const TIER_VIP = 'vip';
+
+    public const VIP_ESTADO_NINGUNO = 'ninguno';
+
+    public const VIP_ESTADO_ELEGIBLE = 'elegible';
+
+    public const VIP_ESTADO_INVITADO = 'invitado';
+
+    public const VIP_ESTADO_PENDIENTE = 'pendiente';
+
+    public const VIP_ESTADO_ACTIVO = 'activo';
+
+    public const VIP_ESTADO_SUSPENDIDO = 'suspendido';
 
     public function socialAccounts(): HasMany
     {
@@ -151,12 +178,35 @@ class Cliente extends Model
     #[Scope]
     protected function vip(Builder $query): Builder
     {
-        return $query->whereIn('tier', [self::TIER_VIP, 'black', 'imperial', 'gold', 'oro']);
+        return $query->where(function (Builder $q) {
+            $q->where('vip_estado', self::VIP_ESTADO_ACTIVO)
+                ->orWhereIn('tier', [self::TIER_VIP, 'black', 'imperial', 'gold', 'oro']);
+        });
+    }
+
+    public function scopeVipActivos(Builder $query): Builder
+    {
+        return $query->where('vip_estado', self::VIP_ESTADO_ACTIVO);
+    }
+
+    public function scopeVipElegibles(Builder $query): Builder
+    {
+        return $query->where('vip_estado', self::VIP_ESTADO_ELEGIBLE);
+    }
+
+    public function scopeVipPendientes(Builder $query): Builder
+    {
+        return $query->where('vip_estado', self::VIP_ESTADO_PENDIENTE);
     }
 
     protected function casts(): array
     {
         return [
+            'fecha_nacimiento' => 'date',
+            'password' => 'hashed',
+            'email_verificado_at' => 'datetime',
+            'vip_elegible_at' => 'datetime',
+            'vip_desde' => 'datetime',
             'puntos_fidelidad' => 'integer',
             'total_gastado' => 'decimal:2',
             'visitas_count' => 'integer',

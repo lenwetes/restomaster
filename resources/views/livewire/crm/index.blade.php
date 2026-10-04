@@ -1,19 +1,21 @@
 <?php
 
-use Illuminate\Support\Carbon;
-
+use App\Models\Cliente;
 use App\Models\CrmAutomatizacion;
 use App\Models\CrmConfiguracion;
 use App\Models\CrmIaPlantillaPrivilegio;
 use App\Models\CrmMensajeLog;
 use App\Models\CrmPlantilla;
+use App\Models\Promocion;
 use App\Services\Ai\CrmAiAgentService;
 use App\Services\CrmEstadisticasService;
 use App\Services\CrmWhatsAppService;
+use Illuminate\Support\Carbon;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new class () extends Component {
+new class extends Component
+{
     use WithPagination;
 
     public string $tab = 'satisfaccion'; // satisfaccion, automatizaciones, plantillas, logs, configuracion, ia
@@ -137,6 +139,164 @@ new class () extends Component {
     public string $chatBusqueda = '';
 
     public string $chatRespuestaInput = '';
+
+    // Difusión Exclusiva de Promociones a Clientes VIP desde el Chat
+    public bool $mostrarModalDifusionVip = false;
+
+    public string $difusionSegmento = 'todos'; // todos, cumpleaneros, inactivos30, top20
+
+    public string $difusionCanal = 'whatsapp'; // whatsapp, email, ambos
+
+    public ?int $difusionPromocionId = null;
+
+    public string $difusionMensajeCustom = '';
+
+    public ?int $difusionClienteIndividualId = null;
+
+    public function abrirModalDifusionVip(?int $clienteId = null): void
+    {
+        $this->difusionClienteIndividualId = $clienteId;
+        $this->difusionSegmento = $clienteId ? 'individual' : 'todos';
+        $this->difusionCanal = 'whatsapp';
+        $this->difusionPromocionId = Promocion::where('activo', true)->first()?->id;
+        $this->difusionMensajeCustom = '';
+        $this->mostrarModalDifusionVip = true;
+    }
+
+    public function enviarDifusionVip(): void
+    {
+        $query = Cliente::where('vip_estado', Cliente::VIP_ESTADO_ACTIVO);
+
+        if ($this->difusionSegmento === 'individual' && $this->difusionClienteIndividualId) {
+            $query->where('id', $this->difusionClienteIndividualId);
+        } elseif ($this->difusionSegmento === 'cumpleaneros') {
+            $query->whereMonth('fecha_nacimiento', now()->month);
+        } elseif ($this->difusionSegmento === 'inactivos30') {
+            $query->where('updated_at', '<=', now()->subDays(30));
+        }
+
+        $destinatarios = $query->get();
+
+        if ($destinatarios->isEmpty()) {
+            $this->mensajeAlerta = 'No se encontraron clientes VIP que coincidan con el segmento seleccionado.';
+            $this->tipoAlerta = 'error';
+
+            return;
+        }
+
+        $promo = $this->difusionPromocionId ? Promocion::find($this->difusionPromocionId) : null;
+        $textoPromo = $promo ? "⭐ *Promoción Exclusiva Club VIP:* {$promo->titulo}. Código: *{$promo->codigo}*." : '⭐ Novedades exclusivas para miembros de nuestro Club VIP.';
+
+        $enviados = 0;
+        foreach ($destinatarios as $vip) {
+            // Canal WhatsApp (respetando autorización de WhatsApp)
+            if (in_array($this->difusionCanal, ['whatsapp', 'ambos']) && $vip->autoriza_whatsapp && ! empty($vip->telefono)) {
+                $mensajeWa = "¡Hola {$vip->nombre}! 🥂 {$textoPromo}\n\n".($this->difusionMensajeCustom ?: 'Válido en tu próxima visita a RestoMaster.');
+                dispatch(new \App\Jobs\DespacharMensajeCrmJob(
+                    canal: 'whatsapp',
+                    destinatario: $vip->telefono,
+                    contenido: $mensajeWa,
+                    clienteId: $vip->id,
+                    sucursalId: null
+                ));
+                $enviados++;
+            }
+
+            // Canal Correo (respetando autorización de Email)
+            if (in_array($this->difusionCanal, ['email', 'ambos']) && $vip->autoriza_email && ! empty($vip->email)) {
+                $asuntoEmail = $promo ? "⭐ Invitación VIP: {$promo->titulo}" : '⭐ Beneficio Exclusivo Club VIP RestoMaster';
+                $htmlEmail = "<p>Hola <strong>{$vip->nombre}</strong>,</p><p>{$textoPromo}</p><p>".e($this->difusionMensajeCustom).'</p>';
+                dispatch(new \App\Jobs\DespacharMensajeCrmJob(
+                    canal: 'email',
+                    destinatario: $vip->email,
+                    contenido: $htmlEmail,
+                    asunto: $asuntoEmail,
+                    clienteId: $vip->id,
+                    sucursalId: null
+                ));
+                $enviados++;
+            }
+        }
+
+        $this->mostrarModalDifusionVip = false;
+        $this->mensajeAlerta = "¡Difusión VIP programada con éxito para {$destinatarios->count()} miembros ({$enviados} despachos generados)!";
+        $this->tipoAlerta = 'success';
+    }
+
+    // Asistente IA para creación de automatizaciones estilo n8n
+    public bool $mostrarModalAsistenteAutomatizacion = false;
+
+    public string $promptAutomatizacion = '';
+
+    public bool $generandoAutomatizacionIa = false;
+
+    public ?array $flujoGeneradoIa = null;
+
+    public ?string $errorAsistenteIa = null;
+
+    public ?string $exitoAsistenteIa = null;
+
+    public function abrirAsistenteAutomatizacion(?string $plantillaPrompt = null): void
+    {
+        $this->promptAutomatizacion = $plantillaPrompt ?? '';
+        $this->flujoGeneradoIa = null;
+        $this->generandoAutomatizacionIa = false;
+        $this->errorAsistenteIa = null;
+        $this->exitoAsistenteIa = null;
+        $this->mostrarModalAsistenteAutomatizacion = true;
+    }
+
+    public function cerrarAsistenteAutomatizacion(): void
+    {
+        $this->mostrarModalAsistenteAutomatizacion = false;
+        $this->flujoGeneradoIa = null;
+        $this->errorAsistenteIa = null;
+        $this->exitoAsistenteIa = null;
+    }
+
+    public function generarAutomatizacionConIa(): void
+    {
+        $this->errorAsistenteIa = null;
+        $this->exitoAsistenteIa = null;
+
+        if (trim($this->promptAutomatizacion) === '') {
+            $this->errorAsistenteIa = 'Por favor escribe qué deseas que haga la automatización antes de generar.';
+
+            return;
+        }
+
+        $this->generandoAutomatizacionIa = true;
+
+        try {
+            $generator = app(\App\Services\Ai\AutomatizacionIaGeneratorService::class);
+            $this->flujoGeneradoIa = $generator->interpretarYGenerar($this->promptAutomatizacion, null);
+            $this->exitoAsistenteIa = '¡Flujo diseñado con éxito! Revisa los nodos conectados estilo n8n y presiona "Activar y Guardar en Base de Datos".';
+        } catch (\Throwable $e) {
+            $this->errorAsistenteIa = 'Error al generar automatización: '.$e->getMessage();
+        } finally {
+            $this->generandoAutomatizacionIa = false;
+        }
+    }
+
+    public function guardarAutomatizacionGenerada(): void
+    {
+        if (! $this->flujoGeneradoIa) {
+            return;
+        }
+
+        try {
+            $generator = app(\App\Services\Ai\AutomatizacionIaGeneratorService::class);
+            $generator->persistirAutomatizacion($this->flujoGeneradoIa, Auth::user());
+
+            $nombre = $this->flujoGeneradoIa['nombre'] ?? 'Automatización';
+            $this->mensajeAlerta = "¡Automatización '{$nombre}' activada y guardada en base de datos con éxito!";
+            $this->tipoAlerta = 'success';
+            $this->tab = 'automatizaciones';
+            $this->cerrarAsistenteAutomatizacion();
+        } catch (\Throwable $e) {
+            $this->errorAsistenteIa = 'Error al guardar la automatización: '.$e->getMessage();
+        }
+    }
 
     // Filtros de logs
     public string $filtroCanal = '';
@@ -266,7 +426,7 @@ new class () extends Component {
                 }
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Error cargando configuración CRM: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('Error cargando configuración CRM: '.$e->getMessage());
         }
     }
 
@@ -385,7 +545,7 @@ new class () extends Component {
             return;
         }
 
-        $this->mensajeAlerta = '¡Conexión verificada! El proveedor ' . strtoupper($this->ia_proveedor) . ' está listo para operar.';
+        $this->mensajeAlerta = '¡Conexión verificada! El proveedor '.strtoupper($this->ia_proveedor).' está listo para operar.';
         $this->tipoAlerta = 'success';
     }
 
@@ -480,7 +640,7 @@ new class () extends Component {
             return;
         }
 
-        $contenido = '👋 ¡Hola! Este es un mensaje de prueba oficial de RestoMaster CRM a través de la API de WhatsApp. Conexión establecida correctamente a las ' . now()->format('H:i:s') . '.';
+        $contenido = '👋 ¡Hola! Este es un mensaje de prueba oficial de RestoMaster CRM a través de la API de WhatsApp. Conexión establecida correctamente a las '.now()->format('H:i:s').'.';
 
         $log = $whatsAppService->enviarMensaje(
             telefono: $this->whatsapp_telefono_pruebas,
@@ -489,10 +649,10 @@ new class () extends Component {
         );
 
         if ($log->estado === 'fallido') {
-            $this->mensajeAlerta = 'Error al enviar prueba WhatsApp: ' . ($log->error_mensaje ?? 'Error desconocido');
+            $this->mensajeAlerta = 'Error al enviar prueba WhatsApp: '.($log->error_mensaje ?? 'Error desconocido');
             $this->tipoAlerta = 'error';
         } else {
-            $this->mensajeAlerta = '¡Mensaje de prueba enviado exitosamente! (ID: ' . ($log->mensaje_id_externo ?? 'Simulado') . ')';
+            $this->mensajeAlerta = '¡Mensaje de prueba enviado exitosamente! (ID: '.($log->mensaje_id_externo ?? 'Simulado').')';
             $this->tipoAlerta = 'success';
         }
     }
@@ -501,7 +661,7 @@ new class () extends Component {
     {
         $auto = CrmAutomatizacion::findOrFail($id);
         $auto->update(['activa' => ! $auto->activa]);
-        $this->mensajeAlerta = "Automatización '{$auto->nombre}' " . ($auto->activa ? 'activada' : 'pausada') . '.';
+        $this->mensajeAlerta = "Automatización '{$auto->nombre}' ".($auto->activa ? 'activada' : 'pausada').'.';
         $this->tipoAlerta = 'info';
     }
 
@@ -528,7 +688,7 @@ new class () extends Component {
 
     public function insertarVariable(string $variable): void
     {
-        $this->plantillaContenido .= ' {' . $variable . '}';
+        $this->plantillaContenido .= ' {'.$variable.'}';
     }
 
     public function guardarPlantilla(): void
@@ -675,7 +835,7 @@ new class () extends Component {
                 reservaId: $log->reserva_id,
                 automatizacionId: $log->automatizacion_id
             );
-            $this->mensajeAlerta = 'Reintento completado: ' . $nuevoLog->estado;
+            $this->mensajeAlerta = 'Reintento completado: '.$nuevoLog->estado;
             $this->tipoAlerta = $nuevoLog->estado === 'fallido' ? 'error' : 'success';
         }
     }
@@ -1447,14 +1607,92 @@ new class () extends Component {
     <!-- PESTAÑA 2: AUTOMATIZACIONES & DISPARADORES -->
     @if($tab === 'automatizaciones')
         <div class="space-y-6">
+            <!-- BANNER DEL ASISTENTE INTELIGENTE GEMINI ESTILO N8N -->
+            <div class="bg-gradient-to-r from-[#20130c] via-[#1a0f09] to-[#120905] p-6 rounded-3xl border border-amber-500/30 shadow-2xl space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 text-stone-950 flex items-center justify-center font-black shadow-lg shadow-amber-500/20 shrink-0">
+                            <span class="material-symbols-outlined text-[32px]">schema</span>
+                        </div>
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider">
+                                    Motor Inteligente Gemini & PostgreSQL
+                                </span>
+                                <span class="text-xs text-[#c4a89e]">• Estilo n8n integrado</span>
+                            </div>
+                            <h2 class="text-xl font-black text-white tracking-tight">
+                                Diseñador de Automatizaciones y Flujos con IA
+                            </h2>
+                            <p class="text-xs text-[#c4a89e] max-w-2xl">
+                                Describe lo que deseas en lenguaje natural y la IA de Gemini creará el disparador, filtros, esperas y acciones conectadas en base de datos.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="shrink-0">
+                        <button wire:click="abrirAsistenteAutomatizacion()"
+                                class="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-stone-950 font-black text-xs uppercase tracking-wider shadow-xl shadow-amber-500/25 hover:from-amber-400 hover:to-amber-500 active:scale-95 transition-all">
+                            <span class="material-symbols-outlined text-[22px]">smart_toy</span>
+                            <span>✨ Crear Automatización con IA</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Plantillas Rápidas de 1 Clic -->
+                <div class="pt-3 border-t border-[#3e2920]/60">
+                    <span class="text-[11px] font-bold text-[#c4a89e] uppercase tracking-wider block mb-2.5">
+                        Plantillas Populares para Crear en 1 Clic:
+                    </span>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                        <button wire:click="abrirAsistenteAutomatizacion('Cuando un cliente cumpla años, enviarle felicitación por WhatsApp con postre de cortesía')"
+                                class="p-3 rounded-2xl bg-[#160d08] hover:bg-[#22140d] border border-amber-900/30 hover:border-amber-500/50 text-left transition-all group">
+                            <div class="flex items-center gap-2 text-xs font-bold text-amber-300 group-hover:text-amber-200">
+                                <span class="material-symbols-outlined text-[18px]">cake</span>
+                                <span>Cumpleaños VIP</span>
+                            </div>
+                            <p class="text-[10px] text-[#a88d84] mt-1 line-clamp-1">Postre cortesía a cumpleañeros</p>
+                        </button>
+
+                        <button wire:click="abrirAsistenteAutomatizacion('Cuando un cliente gaste más de 500 mil pesos en 60 días, esperar 1 hora y enviarle invitación al Club VIP por WhatsApp')"
+                                class="p-3 rounded-2xl bg-[#160d08] hover:bg-[#22140d] border border-amber-900/30 hover:border-amber-500/50 text-left transition-all group">
+                            <div class="flex items-center gap-2 text-xs font-bold text-amber-300 group-hover:text-amber-200">
+                                <span class="material-symbols-outlined text-[18px]">stars</span>
+                                <span>Invitación Club VIP</span>
+                            </div>
+                            <p class="text-[10px] text-[#a88d84] mt-1 line-clamp-1">Consumo >= $500.000 COP en 60 días</p>
+                        </button>
+
+                        <button wire:click="abrirAsistenteAutomatizacion('Detectar clientes inactivos por más de 30 días y enviar copa de vino de cortesía por WhatsApp y Email')"
+                                class="p-3 rounded-2xl bg-[#160d08] hover:bg-[#22140d] border border-amber-900/30 hover:border-amber-500/50 text-left transition-all group">
+                            <div class="flex items-center gap-2 text-xs font-bold text-amber-300 group-hover:text-amber-200">
+                                <span class="material-symbols-outlined text-[18px]">history</span>
+                                <span>Reactivación +30 Días</span>
+                            </div>
+                            <p class="text-[10px] text-[#a88d84] mt-1 line-clamp-1">Reconquistar clientes inactivos</p>
+                        </button>
+
+                        <button wire:click="abrirAsistenteAutomatizacion('Cuando un cliente califique con 1 o 2 estrellas en una encuesta, alertar a gerencia y enviar mensaje de disculpa')"
+                                class="p-3 rounded-2xl bg-[#160d08] hover:bg-[#22140d] border border-amber-900/30 hover:border-amber-500/50 text-left transition-all group">
+                            <div class="flex items-center gap-2 text-xs font-bold text-amber-300 group-hover:text-amber-200">
+                                <span class="material-symbols-outlined text-[18px]">warning</span>
+                                <span>Alerta Encuesta Mala</span>
+                            </div>
+                            <p class="text-[10px] text-[#a88d84] mt-1 line-clamp-1">Alerta inmediata ante 1-2 estrellas</p>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LISTADO DE REGLAS ACTIVAS -->
             <div class="bg-[#140c08] p-6 rounded-3xl border border-amber-900/35 shadow-2xl space-y-4">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#3e2920]/80 pb-4">
                     <div>
-                        <h2 class="text-lg font-black text-white flex items-center gap-2">
+                        <h2 class="text-base font-black text-white flex items-center gap-2">
                             <span class="material-symbols-outlined text-amber-500">bolt</span>
-                            <span>Reglas de Automatización Activas</span>
+                            <span>Reglas de Automatización en Ejecución</span>
                         </h2>
-                        <p class="text-xs text-[#c4a89e]">Configura qué eventos desencadenan despachos automáticos de cortesía, encuestas y confirmaciones.</p>
+                        <p class="text-xs text-[#c4a89e]">Disparadores automáticos activos en el restaurante.</p>
                     </div>
                 </div>
 
@@ -2289,9 +2527,19 @@ new class () extends Component {
                         <span class="material-symbols-outlined text-[#e8a348] text-[20px]">forum</span>
                         <h2 class="font-serif font-bold text-sm text-[#f0e6df] tracking-wide">Bandeja Omnicanal</h2>
                     </div>
-                    <span class="text-[11px] font-mono font-bold text-[#e8a348] bg-[#22130c] px-2.5 py-0.5 rounded-full border border-[#3d2417]">
-                        {{ $conversaciones->count() }} tickets
-                    </span>
+                    <div class="flex items-center gap-1.5">
+                        <button
+                            wire:click="abrirModalDifusionVip"
+                            class="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-900 font-black text-[11px] flex items-center gap-1 shadow-sm transition-all"
+                            title="Difundir promoción a clientes VIP"
+                        >
+                            <span class="material-symbols-outlined text-[15px]">stars</span>
+                            <span>⭐ Enviar a VIP</span>
+                        </button>
+                        <span class="text-[11px] font-mono font-bold text-[#e8a348] bg-[#22130c] px-2.5 py-0.5 rounded-full border border-[#3d2417]">
+                            {{ $conversaciones->count() }}
+                        </span>
+                    </div>
                 </div>
 
                 <!-- Buscador en español con iconos -->
@@ -2753,4 +3001,340 @@ new class () extends Component {
             </div>
         </div>
     @endif
+    <!-- Modal: Difusión VIP desde el Chat -->
+    @if($mostrarModalDifusionVip)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div class="w-full max-w-lg rounded-3xl bg-[#140c08] border border-amber-500/40 p-6 shadow-2xl space-y-4">
+                <div class="flex items-center justify-between border-b border-[#3e2920] pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-amber-500 text-[24px]">stars</span>
+                        <h3 class="text-base font-extrabold text-white">Difusión Exclusiva a Miembros VIP</h3>
+                    </div>
+                    <button wire:click="$set('mostrarModalDifusionVip', false)" class="text-[#c4a89e] hover:text-white">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <div class="space-y-4 text-xs">
+                    <!-- Segmento de Audiencia -->
+                    <div>
+                        <label class="block font-bold text-[#c4a89e] uppercase tracking-wider mb-1.5">Segmento VIP de Destino:</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <button
+                                type="button"
+                                wire:click="$set('difusionSegmento', 'todos')"
+                                class="p-2 rounded-xl border text-[11px] font-bold text-center transition-all {{ $difusionSegmento === 'todos' ? 'bg-amber-500 text-stone-900 border-amber-400 font-black' : 'bg-[#1a0f0a] border-[#3e2920] text-stone-300' }}"
+                            >
+                                Todos los VIP
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="$set('difusionSegmento', 'cumpleaneros')"
+                                class="p-2 rounded-xl border text-[11px] font-bold text-center transition-all {{ $difusionSegmento === 'cumpleaneros' ? 'bg-amber-500 text-stone-900 border-amber-400 font-black' : 'bg-[#1a0f0a] border-[#3e2920] text-stone-300' }}"
+                            >
+                                🎂 Cumpleañeros
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="$set('difusionSegmento', 'inactivos30')"
+                                class="p-2 rounded-xl border text-[11px] font-bold text-center transition-all {{ $difusionSegmento === 'inactivos30' ? 'bg-amber-500 text-stone-900 border-amber-400 font-black' : 'bg-[#1a0f0a] border-[#3e2920] text-stone-300' }}"
+                            >
+                                Inactivos 30d
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="$set('difusionSegmento', 'individual')"
+                                class="p-2 rounded-xl border text-[11px] font-bold text-center transition-all {{ $difusionSegmento === 'individual' ? 'bg-amber-500 text-stone-900 border-amber-400 font-black' : 'bg-[#1a0f0a] border-[#3e2920] text-stone-300' }}"
+                            >
+                                Individual
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Canal de Despacho -->
+                    <div>
+                        <label class="block font-bold text-[#c4a89e] uppercase tracking-wider mb-1.5">Canal de Envío:</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                wire:click="$set('difusionCanal', 'whatsapp')"
+                                class="p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all {{ $difusionCanal === 'whatsapp' ? 'bg-emerald-600 text-white border-emerald-500 font-black' : 'bg-[#1a0f0a] border-[#3e2920] text-stone-300' }}"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">chat</span>
+                                <span>WhatsApp</span>
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="$set('difusionCanal', 'email')"
+                                class="p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all {{ $difusionCanal === 'email' ? 'bg-sky-600 text-white border-sky-500 font-black' : 'bg-[#1a0f0a] border-[#3e2920] text-stone-300' }}"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">mail</span>
+                                <span>Correo</span>
+                            </button>
+                            <button
+                                type="button"
+                                wire:click="$set('difusionCanal', 'ambos')"
+                                class="p-2 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all {{ $difusionCanal === 'ambos' ? 'bg-purple-600 text-white border-purple-500 font-black' : 'bg-[#1a0f0a] border-[#3e2920] text-stone-300' }}"
+                            >
+                                <span class="material-symbols-outlined text-[16px]">hub</span>
+                                <span>Ambos</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Promoción Seleccionada -->
+                    <div>
+                        <label class="block font-bold text-[#c4a89e] uppercase tracking-wider mb-1">Promoción Especial Asignada:</label>
+                        <select wire:model="difusionPromocionId" class="w-full px-3 py-2 rounded-xl border border-[#3e2920] bg-[#1a0f0a] text-stone-100 text-xs focus:ring-1 focus:ring-amber-500">
+                            <option value="">-- Sin promoción vinculada (Solo mensaje) --</option>
+                            @foreach(Promocion::where('activo', true)->get() as $p)
+                                <option value="{{ $p->id }}">{{ $p->titulo }} (Código: {{ $p->codigo }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Mensaje Opcional de Acompañamiento -->
+                    <div>
+                        <label class="block font-bold text-[#c4a89e] uppercase tracking-wider mb-1">Mensaje de Cortesía Adicional:</label>
+                        <textarea
+                            wire:model="difusionMensajeCustom"
+                            rows="3"
+                            placeholder="Ej: Te reservamos una mesa especial en la terraza con copa de espumante de bienvenida..."
+                            class="w-full p-2.5 rounded-xl border border-[#3e2920] bg-[#1a0f0a] text-stone-100 text-xs focus:ring-1 focus:ring-amber-500"
+                        ></textarea>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-[#c4a89e] flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-amber-500 shrink-0">shield</span>
+                        <span>Se respetarán estrictamente las autorizaciones de WhatsApp y Correo de cada miembro VIP para cumplimiento de Habeas Data.</span>
+                    </div>
+
+                    <button
+                        wire:click="enviarDifusionVip"
+                        class="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-900 text-xs font-black shadow-lg shadow-amber-500/25 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">send</span>
+                        <span>Despachar Difusión a Miembros VIP</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL DEL ASISTENTE IA PARA CREACIÓN DE AUTOMATIZACIONES ESTILO N8N -->
+    @if($mostrarModalAsistenteAutomatizacion)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-6 overflow-hidden">
+            <div class="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-3xl bg-[#140c08] border border-amber-500/50 shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+                <!-- Cabecera fija del Asistente -->
+                <div class="flex items-start justify-between border-b border-[#3e2920] p-6 pb-4 shrink-0 bg-[#160e0a]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 via-amber-500 to-amber-400 text-stone-950 flex items-center justify-center shadow-lg shadow-amber-500/25 shrink-0">
+                            <span class="material-symbols-outlined text-[28px] font-black">smart_toy</span>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-black text-white">Asistente IA: Creador de Automatizaciones</h3>
+                                <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-black uppercase tracking-wider border border-amber-500/30">
+                                    Gemini + PostgreSQL
+                                </span>
+                            </div>
+                            <p class="text-xs text-[#c4a89e]">
+                                Describe lo que deseas en lenguaje natural y la IA diseñará los nodos, filtros y disparadores de tu flujo estilo n8n.
+                            </p>
+                        </div>
+                    </div>
+                    <button wire:click="cerrarAsistenteAutomatizacion" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-[#c4a89e] hover:text-white flex items-center justify-center transition-colors">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                <!-- Cuerpo con scroll interno -->
+                <div class="p-6 overflow-y-auto space-y-5 flex-1 divide-y divide-[#3e2920]/40">
+                    <!-- Alertas de Error y Éxito dentro del Modal -->
+                    @if($errorAsistenteIa)
+                        <div class="p-4 rounded-2xl bg-rose-950/80 border border-rose-500/50 text-rose-200 text-xs font-bold flex items-center gap-3 shadow-lg">
+                            <span class="material-symbols-outlined text-rose-400 text-[22px] shrink-0">error</span>
+                            <span class="flex-1">{{ $errorAsistenteIa }}</span>
+                        </div>
+                    @endif
+
+                    @if($exitoAsistenteIa)
+                        <div class="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-200 text-xs font-bold flex items-center gap-3 shadow-lg">
+                            <span class="material-symbols-outlined text-emerald-400 text-[22px] shrink-0">check_circle</span>
+                            <span class="flex-1">{{ $exitoAsistenteIa }}</span>
+                        </div>
+                    @endif
+
+                    <!-- Input del Prompt en Lenguaje Natural -->
+                    <div class="space-y-2 pt-2">
+                        <label class="block text-xs font-black text-amber-300 uppercase tracking-wider">
+                            ¿Qué deseas que haga esta automatización?
+                        </label>
+                        <div class="relative">
+                            <textarea
+                                wire:model.live="promptAutomatizacion"
+                                rows="3"
+                                placeholder="Ej: Cuando un cliente califique con 1 o 2 estrellas en una encuesta, alertar a gerencia y enviar mensaje de disculpa..."
+                                class="w-full p-4 rounded-2xl border border-amber-900/60 bg-[#1c110b] text-stone-100 text-xs leading-relaxed focus:border-amber-500 focus:ring-1 focus:ring-amber-500 placeholder-stone-500 transition-all"
+                            ></textarea>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                            <div class="flex flex-wrap items-center gap-1.5 text-[11px] text-[#a88d84]">
+                                <span class="font-bold">Ejemplos:</span>
+                                <button type="button" wire:click="$set('promptAutomatizacion', 'Cuando un cliente gaste más de $500.000 COP en 60 días, enviar invitación al Club VIP por WhatsApp')" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-stone-300 text-[10px] font-semibold transition-colors">
+                                    ⭐ Invitación VIP $500k
+                                </button>
+                                <button type="button" wire:click="$set('promptAutomatizacion', 'Detectar clientes inactivos por más de 30 días y enviar copa de cortesía por WhatsApp y Email')" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-stone-300 text-[10px] font-semibold transition-colors">
+                                    🔄 Reactivación 30d
+                                </button>
+                                <button type="button" wire:click="$set('promptAutomatizacion', 'Cuando una encuesta se califique con 1 o 2 estrellas, notificar de inmediato al gerente y enviar mensaje de disculpa')" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-stone-300 text-[10px] font-semibold transition-colors">
+                                    ⚠️ Alerta Calificación Baja
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                wire:click="generarAutomatizacionConIa"
+                                wire:loading.attr="disabled"
+                                class="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-stone-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
+                            >
+                                <span class="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                                <span wire:loading.remove wire:target="generarAutomatizacionConIa">Generar Flujo con Gemini</span>
+                                <span wire:loading wire:target="generarAutomatizacionConIa" class="flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[16px] animate-spin">sync</span>
+                                    <span>Diseñando nodos...</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PREVISUALIZACIÓN DEL FLUJO GENERADO ESTILO N8N -->
+                    @if($flujoGeneradoIa)
+                        <div class="space-y-4 pt-5">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#1b100a] p-4 rounded-2xl border border-amber-500/40 shadow-inner">
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-amber-400 text-[22px]">account_tree</span>
+                                        <h4 class="text-sm font-black text-white">{{ $flujoGeneradoIa['nombre'] }}</h4>
+                                    </div>
+                                    <p class="text-xs text-[#c4a89e] mt-1">{{ $flujoGeneradoIa['descripcion'] }}</p>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                                    <span class="px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[10px] font-bold">
+                                        ⚡ Trigger: {{ $flujoGeneradoIa['evento_disparador'] }}
+                                    </span>
+                                    <span class="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[10px] font-bold uppercase">
+                                        📡 Canal: {{ $flujoGeneradoIa['canal'] }}
+                                    </span>
+                                    <span class="px-2.5 py-1 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 font-mono text-[10px] font-bold">
+                                        ⏱️ Delay: {{ $flujoGeneradoIa['delay_minutos'] }} min
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Diagrama Visual de Nodos estilo n8n -->
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">
+                                        Flujo de Nodos Conectados (Pipeline de Ejecución estilo n8n):
+                                    </span>
+                                    <span class="text-[10px] text-stone-400 font-mono">{{ count($flujoGeneradoIa['nodos']) }} nodos en serie</span>
+                                </div>
+                                <div class="p-4 rounded-2xl bg-[#0e0704] border border-[#3e2920] overflow-x-auto shadow-inner">
+                                    <div class="flex flex-col md:flex-row items-center gap-3 min-w-max py-2">
+                                        @foreach($flujoGeneradoIa['nodos'] as $idx => $nodo)
+                                            <div class="p-3.5 rounded-2xl bg-[#1c110b] border border-amber-500/40 min-w-[210px] max-w-[230px] space-y-1.5 shadow-lg relative hover:border-amber-400 hover:bg-[#23150e] transition-all">
+                                                <div class="flex items-center gap-2">
+                                                    <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                                                        <span class="material-symbols-outlined text-[18px]">{{ $nodo['icono'] ?? 'bolt' }}</span>
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <span class="text-xs font-black text-white truncate block">{{ $nodo['titulo'] }}</span>
+                                                        <span class="text-[9px] font-mono text-amber-400/80 uppercase font-bold">{{ $nodo['tipo'] }}</span>
+                                                    </div>
+                                                </div>
+                                                <p class="text-[11px] text-[#c4a89e] leading-snug">{{ $nodo['subtitulo'] }}</p>
+                                                <div class="text-[9px] font-mono uppercase font-black text-stone-400 pt-1 border-t border-white/5 flex items-center justify-between">
+                                                    <span>Paso #{{ $idx + 1 }}</span>
+                                                    <span class="text-emerald-400 flex items-center gap-0.5">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Listo
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            @if(! $loop->last)
+                                                <div class="flex items-center text-amber-500 font-black rotate-90 md:rotate-0 my-1 md:my-0">
+                                                    <span class="material-symbols-outlined text-[24px] animate-pulse">arrow_forward</span>
+                                                </div>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Condiciones Validadas -->
+                            @if(! empty($flujoGeneradoIa['condiciones']))
+                                <div class="p-3.5 rounded-2xl bg-[#120a06] border border-[#3e2920] space-y-1.5">
+                                    <span class="text-[11px] font-bold text-stone-300 uppercase tracking-wider block">
+                                        Condiciones de Activación:
+                                    </span>
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach($flujoGeneradoIa['condiciones'] as $cond)
+                                            <span class="px-2.5 py-1 rounded-lg bg-stone-900 border border-white/10 text-stone-300 text-xs font-medium flex items-center gap-1.5">
+                                                <span class="material-symbols-outlined text-amber-400 text-[14px]">tune</span>
+                                                {{ $cond }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Plantilla de Mensaje Sugerida -->
+                            @if(! empty($flujoGeneradoIa['mensaje_sugerido']))
+                                <div class="p-3.5 rounded-2xl bg-[#1c110b] border border-amber-900/40 space-y-1.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-[11px] font-bold text-amber-300 uppercase tracking-wider block">
+                                            Plantilla de Mensaje Generada:
+                                        </span>
+                                        <span class="text-[10px] text-stone-400 font-mono">Variables: &#123;&#123;nombre&#125;&#125;, &#123;&#123;restaurante&#125;&#125;</span>
+                                    </div>
+                                    <p class="text-xs text-stone-200 font-mono bg-black/50 p-3.5 rounded-xl border border-white/5 leading-relaxed">
+                                        {{ $flujoGeneradoIa['mensaje_sugerido'] }}
+                                    </p>
+                                </div>
+                            @endif
+
+                            <!-- Botón de Confirmación y Persistencia -->
+                            <div class="pt-4 border-t border-[#3e2920] flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <button
+                                    type="button"
+                                    wire:click="cerrarAsistenteAutomatizacion"
+                                    class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-bold transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="button"
+                                    wire:click="guardarAutomatizacionGenerada"
+                                    wire:loading.attr="disabled"
+                                    wire:target="guardarAutomatizacionGenerada"
+                                    class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                >
+                                    <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                                    <span wire:loading.remove wire:target="guardarAutomatizacionGenerada">Activar y Guardar en Base de Datos</span>
+                                    <span wire:loading wire:target="guardarAutomatizacionGenerada" class="flex items-center gap-1">
+                                        <span class="material-symbols-outlined text-[16px] animate-spin">sync</span>
+                                        <span>Guardando flujo...</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
+

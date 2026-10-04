@@ -197,6 +197,14 @@ if [ "${AUTO_MIGRATE:-true}" = "true" ]; then
     echo "==> Ensuring default Colombian Waiters and Rotation Queues are seeded..."
     php /var/www/html/artisan db:seed --class=MeseroPruebaSeeder --force || true
 
+    # Always ensure default CRM Automations exist (idempotent updateOrCreate)
+    echo "==> Ensuring default CRM Automations are seeded..."
+    php /var/www/html/artisan db:seed --class=CrmSeeder --force || true
+
+    # Always ensure Club VIP demo profiles exist (idempotent updateOrCreate)
+    echo "==> Ensuring Club VIP demo profiles are seeded..."
+    php /var/www/html/artisan db:seed --class=ClubVipDemoSeeder --force || true
+
     # Run database seeds (AUTO_SEED_DEMO loads full client-ready catalog, operations, and images)
     if [ "${AUTO_SEED_DEMO:-true}" = "true" ]; then
         echo "==> AUTO_SEED_DEMO is enabled. Loading full demo (php artisan restomaster:seed-demo)..."

@@ -18,6 +18,7 @@ use App\Models\Role;
 use App\Models\Sucursal;
 use App\Models\TurnoCaja;
 use App\Models\User;
+use App\Services\Ai\AutomatizacionIaGeneratorService;
 use App\Services\CrmEstadisticasService;
 use App\Services\CrmWhatsAppService;
 use App\Services\PedidoService;
@@ -327,5 +328,69 @@ class CrmAutomatizacionesTest extends TestCase
         $this->assertStringContainsString('¡Hola Carlos Mendoza!', $render);
         $this->assertStringContainsString('RestoMaster', $render);
         $this->assertStringContainsString('https://restomaster.test/e/abc', $render);
+    }
+
+    public function test_asistente_ia_interpreta_prompt_y_genera_flujo_estilo_n8n(): void
+    {
+        $generator = app(AutomatizacionIaGeneratorService::class);
+        $flujo = $generator->interpretarYGenerar('Cuando un cliente cumpla años enviarle postre de cortesía por WhatsApp');
+
+        $this->assertArrayHasKey('nombre', $flujo);
+        $this->assertArrayHasKey('evento_disparador', $flujo);
+        $this->assertArrayHasKey('nodos', $flujo);
+        $this->assertEquals('cumpleanos_cliente', $flujo['evento_disparador']);
+        $this->assertEquals('whatsapp', $flujo['canal']);
+        $this->assertNotEmpty($flujo['nodos']);
+    }
+
+    public function test_asistente_ia_persiste_automatizacion_en_base_de_datos(): void
+    {
+        $generator = app(AutomatizacionIaGeneratorService::class);
+        $flujo = $generator->interpretarYGenerar('Cuando un cliente gaste más de $500.000 COP en 60 días, enviar invitación al Club VIP');
+
+        $resultado = $generator->persistirAutomatizacion($flujo, $this->gerente);
+
+        $this->assertDatabaseHas('crm_automatizaciones', [
+            'evento_disparador' => 'cliente_elegible_vip',
+            'canal' => 'whatsapp',
+        ]);
+
+        $this->assertDatabaseHas('automatizacion_flujos', [
+            'nombre' => $flujo['nombre'],
+            'estado' => 'activo',
+        ]);
+
+        $this->assertDatabaseHas('automatizacion_pasos', [
+            'flujo_id' => $resultado['flujo']->id,
+        ]);
+
+        $this->assertDatabaseHas('automatizacion_auditoria', [
+            'flujo_id' => $resultado['flujo']->id,
+            'accion' => 'crear',
+        ]);
+    }
+
+    public function test_componente_livewire_asistente_ia_genera_flujo_en_pantalla(): void
+    {
+        Volt::actingAs($this->gerente)
+            ->test('crm.index')
+            ->call('abrirAsistenteAutomatizacion')
+            ->assertSet('mostrarModalAsistenteAutomatizacion', true)
+            ->set('promptAutomatizacion', 'Cuando un cliente califique con 1 o 2 estrellas en una encuesta, alertar a gerencia y enviar mensaje de disculpa')
+            ->call('generarAutomatizacionConIa')
+            ->assertSet('generandoAutomatizacionIa', false)
+            ->assertSee('Flujo de Nodos Conectados')
+            ->assertSee('Alerta Inmediata por Encuesta Negativa')
+            ->call('guardarAutomatizacionGenerada')
+            ->assertSet('mostrarModalAsistenteAutomatizacion', false);
+
+        $this->assertDatabaseHas('automatizacion_flujos', [
+            'nombre' => 'Alerta Inmediata por Encuesta Negativa',
+            'estado' => 'activo',
+        ]);
+
+        $this->assertDatabaseHas('crm_automatizaciones', [
+            'evento_disparador' => 'encuesta_negativa',
+        ]);
     }
 }

@@ -6,6 +6,45 @@
 ---
 
 ## Última Actualización
+2026-10-03 | Antigravity | 🤖 **CORRECCIÓN INTEGRAL DEL ASISTENTE IA PARA CREACIÓN DE AUTOMATIZACIONES (GEMINI / POSTGRESQL):**
+- **Causa Raíz Identificada:**
+  - En `resources/views/livewire/crm/index.blade.php`, `generarAutomatizacionConIa()` intentaba acceder a la propiedad inexistente `$this->sucursal_seleccionada_id`. En Livewire Volt esto lanzaba `Livewire\Exceptions\PropertyNotFoundException: Property [$sucursal_seleccionada_id] not found on component: [crm.index]`.
+  - La excepción era capturada en `catch`, asignándose a `$mensajeAlerta`, pero el modal no tenía un contenedor de alertas y tapaba la pantalla con `backdrop-blur`, impidiendo al usuario ver el error o el resultado.
+  - El textarea no utilizaba sincronización en vivo (`wire:model.live`), y el modal no contaba con contención de scroll interno (`max-h-[92vh] flex flex-col`) para visualizar cómodamente los nodos del pipeline n8n generados.
+- **Solución Implementada:**
+  - Corregido parámetro de sucursal en `generarAutomatizacionConIa()` para pasar `null` de forma segura.
+  - Implementadas propiedades reactivas `$errorAsistenteIa` y `$exitoAsistenteIa` renderizadas directamente dentro del modal con alertas de estado de alto impacto visual.
+  - Activado `wire:model.live="promptAutomatizacion"` en el `<textarea>` del asistente.
+  - Reestructurado el modal con contenedor `max-h-[92vh] flex flex-col overflow-hidden` y cuerpo con `overflow-y-auto`, garantizando que el diagrama de nodos estilo n8n, condiciones, plantilla generada y botón "Activar y Guardar en Base de Datos" sean inmediatamente visibles.
+  - Al guardar la automatización, redirige de forma automática a la pestaña de automatizaciones (`$this->tab = 'automatizaciones'`) para confirmar visualmente la regla activa.
+- **Validación:**
+  - Suite `tests/Feature/CrmAutomatizacionesTest.php` ampliada con `test_componente_livewire_asistente_ia_genera_flujo_en_pantalla`: 11/11 tests pasando en verde (42 aserciones).
+  - Suite `tests/Feature/ClubVipTest.php`: 10/10 tests pasando en verde (45 aserciones).
+  - Laravel Pint validado.
+
+---
+
+## Actualización previa
+2026-10-03 | Antigravity | ⭐ **CLUB VIP POR INVITACIÓN, MOTOR DE AUTOMATIZACIONES Y SEEDER DEMO:**
+- **1. Restauración de Automatizaciones CRM:**
+  - `CrmSeeder` registrado y validado en `DatabaseSeeder.php` (`tests/Feature/CrmAutomatizacionesTest.php` 8/8 tests, 25 aserciones en verde).
+- **2. Club VIP Exclusivo por Invitación:**
+  - Migración `2026_10_03_190000_add_club_vip_fields_and_invitaciones_table.php` (`fecha_nacimiento`, `password`, `vip_estado`, `vip_desde`, `vip_aprobado_por`, tabla `vip_invitaciones`).
+  - Lógica en [`ClubVipService.php`](file:///d:/Proyectos/restomaster/app/Services/ClubVipService.php): elegibilidad por consumo acumulado en pedidos pagados (ventana 60 días, tope configurable $500.000 COP), tokens seguros SHA-256 de invitación.
+  - Autorización en [`ClienteVipPolicy.php`](file:///d:/Proyectos/restomaster/app/Policies/ClienteVipPolicy.php): aprobación y gestión exclusiva para roles `admin` y `gerente` (403 para meseros/cajeros).
+  - Formulario público de registro: controller [`RegistroVipPublicoController.php`](file:///d:/Proyectos/restomaster/app/Http/Controllers/Cliente/RegistroVipPublicoController.php), vistas `vip-registro-publico.blade.php`, `vip-registro-completado.blade.php` y validación de mayores de 18 años con password y consentimiento Habeas Data.
+  - Consola Club VIP en Livewire Clientes ([`clientes/index.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/clientes/index.blade.php)) y botón "⭐ Enviar a VIP" en chat CRM ([`crm/index.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/crm/index.blade.php)) respetando `autoriza_whatsapp` y `autoriza_email`.
+- **3. Motor de Automatizaciones en Base de Datos (Persistencia estilo n8n):**
+  - Migración `2026_10_03_200000_create_motor_automatizaciones_tables.php` con 9 tablas (`automatizacion_flujos`, `automatizacion_pasos`, `automatizacion_flujo_versiones`, `automatizacion_programaciones`, `automatizacion_ejecuciones`, `automatizacion_ejecucion_pasos`, `automatizacion_ia_solicitudes`, `automatizacion_auditoria`, `crm_difusiones`).
+  - Modelos Eloquent creados con casts JSONB e índices B-Tree en todas las claves foráneas.
+- **4. Seeder Demo & Tests:**
+  - [`ClubVipDemoSeeder.php`](file:///d:/Proyectos/restomaster/database/seeders/ClubVipDemoSeeder.php): 20 clientes demo en diferentes estados (activos, elegibles, invitados, pendientes, suspendidos, normales) con historial real de pedidos pagados en ventana de 60 días.
+  - [`ClubVipTest.php`](file:///d:/Proyectos/restomaster/tests/Feature/ClubVipTest.php): 9/9 tests pasando (41 aserciones).
+  - PostgreSQL 18: 100% de Foreign Keys indexadas verificado.
+
+---
+
+## Actualización previa
 2026-10-01 | Antigravity | 🚀 **SINCRONIZACIÓN DE RAMAS EN GITHUB & ACTUALIZACIÓN DE DESPLIEGUE EN COOLIFY:**
 - **Ramas en GitHub 100% Sincronizadas:**
   - `main` -> `origin/main` actualizado con commit `fb7d302`.

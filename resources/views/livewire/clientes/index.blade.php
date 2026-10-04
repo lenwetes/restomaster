@@ -1,21 +1,26 @@
 <?php
 
-use App\Models\DireccionCliente;
-
 use App\Models\Cliente;
+use App\Models\DireccionCliente;
 use App\Models\MovimientoPuntos;
+use App\Models\VipInvitacion;
 use App\Services\ClienteService;
+use App\Services\ClubVipService;
 use App\Services\FidelizacionService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 
-new class () extends Component {
+new class extends Component
+{
     use WithPagination;
 
     public string $busqueda = '';
+
     public string $filtroTier = 'todos';
+
     public bool $filtroAlergias = false;
+
     public ?int $clienteSeleccionadoId = null;
 
     public function updatedBusqueda(): void
@@ -28,10 +33,39 @@ new class () extends Component {
         $this->resetPage();
     }
 
+    public string $pestanaActiva = 'directorio'; // directorio, club_vip
+
+    public string $subPestanaVip = 'elegibles'; // elegibles, pendientes, activos, suspendidos
+
+    public string $motivoRechazo = '';
+
+    public bool $mostrarModalInvitarVip = false;
+
+    public ?int $clienteAInvitarId = null;
+
+    public string $canalInvitacion = 'whatsapp';
+
+    public ?string $urlInvitacionGenerada = null;
+
+    public function setPestana(string $pestana): void
+    {
+        $this->pestanaActiva = $pestana;
+        $this->resetPage();
+    }
+
+    public function setSubPestanaVip(string $sub): void
+    {
+        $this->subPestanaVip = $sub;
+        $this->resetPage();
+    }
+
     // Modales
     public bool $mostrarModalNuevo = false;
+
     public bool $mostrarModalEditar = false;
+
     public bool $mostrarModalPuntos = false;
+
     public bool $mostrarModalDireccion = false;
 
     // Form Nuevo Cliente
@@ -71,7 +105,9 @@ new class () extends Component {
 
     // Form Ajuste Puntos
     public int $puntosAjuste = 100;
+
     public string $tipoAjuste = 'suma'; // 'suma' o 'resta'
+
     public string $motivoAjuste = 'Cortesía de fidelización / Ajuste manual';
 
     // Form Nueva Dirección
@@ -257,6 +293,62 @@ new class () extends Component {
         $this->dispatch('notificacion', ['mensaje' => 'Dirección agregada exitosamente.', 'tipo' => 'success']);
     }
 
+    public function abrirModalInvitarVip(int $clienteId): void
+    {
+        $this->authorize('invitar', Cliente::class);
+        $this->clienteAInvitarId = $clienteId;
+        $this->canalInvitacion = 'whatsapp';
+        $this->urlInvitacionGenerada = null;
+        $this->mostrarModalInvitarVip = true;
+    }
+
+    public function enviarInvitacionVip(): void
+    {
+        $this->authorize('invitar', Cliente::class);
+        $cliente = Cliente::findOrFail($this->clienteAInvitarId);
+
+        $invitacion = app(ClubVipService::class)->generarInvitacion($cliente, Auth::user(), $this->canalInvitacion);
+        $this->urlInvitacionGenerada = route('vip.registro', ['token' => $invitacion->token_plano]);
+
+        $this->dispatch('notificacion', ['mensaje' => "Invitación generada para {$cliente->nombre}.", 'tipo' => 'success']);
+    }
+
+    public function aprobarVip(int $clienteId): void
+    {
+        $this->authorize('aprobar', Cliente::class);
+        $cliente = Cliente::findOrFail($clienteId);
+
+        app(ClubVipService::class)->aprobarVip($cliente, Auth::user());
+        $this->dispatch('notificacion', ['mensaje' => "Membresía VIP aprobada para {$cliente->nombre}!", 'tipo' => 'success']);
+    }
+
+    public function rechazarVip(int $clienteId, string $motivo): void
+    {
+        $this->authorize('rechazar', Cliente::class);
+        $cliente = Cliente::findOrFail($clienteId);
+
+        app(ClubVipService::class)->rechazarVip($cliente, Auth::user(), $motivo ?: 'No cumple con los criterios de membresía.');
+        $this->dispatch('notificacion', ['mensaje' => "Postulación de {$cliente->nombre} rechazada.", 'tipo' => 'info']);
+    }
+
+    public function suspenderVip(int $clienteId): void
+    {
+        $this->authorize('suspender', Cliente::class);
+        $cliente = Cliente::findOrFail($clienteId);
+
+        app(ClubVipService::class)->suspenderVip($cliente, Auth::user(), 'Suspendido administrativamente');
+        $this->dispatch('notificacion', ['mensaje' => "Membresía VIP de {$cliente->nombre} suspendida.", 'tipo' => 'warning']);
+    }
+
+    public function reactivarVip(int $clienteId): void
+    {
+        $this->authorize('reactivar', Cliente::class);
+        $cliente = Cliente::findOrFail($clienteId);
+
+        app(ClubVipService::class)->reactivarVip($cliente, Auth::user());
+        $this->dispatch('notificacion', ['mensaje' => "Membresía VIP de {$cliente->nombre} reactivada.", 'tipo' => 'success']);
+    }
+
     public function with(): array
     {
         $query = Cliente::with(['direcciones', 'direccionPredeterminada'])->where('activo', true);
@@ -292,11 +384,21 @@ new class () extends Component {
             }
         }
 
-        // Métricas Bento Flash
+        // Datos Club VIP
+        $elegiblesVip = Cliente::where('vip_estado', Cliente::VIP_ESTADO_ELEGIBLE)->orderByDesc('total_gastado')->get();
+        $pendientesVip = Cliente::where('vip_estado', Cliente::VIP_ESTADO_PENDIENTE)->latest()->get();
+        $activosVip = Cliente::where('vip_estado', Cliente::VIP_ESTADO_ACTIVO)->orderByDesc('total_gastado')->get();
+        $suspendidosVip = Cliente::where('vip_estado', Cliente::VIP_ESTADO_SUSPENDIDO)->get();
+        $totalElegibles = $elegiblesVip->count();
+        $totalPendientes = $pendientesVip->count();
+
+        // KPIs Globales
         $totalRegistrados = Cliente::where('activo', true)->count();
-        $totalVip = Cliente::where('activo', true)->whereIn('tier', ['vip', 'black'])->count();
+        $totalVip = Cliente::where('vip_estado', Cliente::VIP_ESTADO_ACTIVO)
+            ->orWhereIn('tier', [Cliente::TIER_VIP, 'black', 'imperial', 'gold', 'oro'])
+            ->count();
         $puntosTotales = (int) Cliente::where('activo', true)->sum('puntos_fidelidad');
-        $respaldoCanjesCop = $puntosTotales * 10; // $10 COP por punto
+        $respaldoCanjesCop = $puntosTotales * 10;
 
         return [
             'clientes' => $clientes,
@@ -307,6 +409,13 @@ new class () extends Component {
             'totalVip' => $totalVip,
             'puntosTotales' => $puntosTotales,
             'respaldoCanjesCop' => $respaldoCanjesCop,
+            'elegiblesVip' => $elegiblesVip,
+            'pendientesVip' => $pendientesVip,
+            'activosVip' => $activosVip,
+            'suspendidosVip' => $suspendidosVip,
+            'totalElegibles' => $totalElegibles,
+            'totalPendientes' => $totalPendientes,
+            'consumoMinimoVip' => app(ClubVipService::class)->obtenerConsumoMinimo(),
         ];
     }
 }; ?>
@@ -334,6 +443,35 @@ new class () extends Component {
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+            <!-- Selector de Modo / Pestañas Principales -->
+            <div class="inline-flex rounded-2xl bg-surface-container-low p-1 border border-outline-variant/30">
+                <button
+                    wire:click="setPestana('directorio')"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all {{ $pestanaActiva === 'directorio' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
+                >
+                    <span class="material-symbols-outlined text-[18px]">group</span>
+                    <span>Directorio</span>
+                </button>
+                @can('viewAny', App\Models\Cliente::class)
+                    <button
+                        wire:click="setPestana('club_vip')"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all {{ $pestanaActiva === 'club_vip' ? 'bg-amber-500 text-stone-900 shadow-sm' : 'text-on-surface-variant hover:text-on-surface' }}"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">stars</span>
+                        <span>⭐ Club VIP</span>
+                        @if($totalPendientes > 0)
+                            <span class="px-1.5 py-0.2 rounded-full bg-error text-white text-[10px] font-black animate-pulse">
+                                {{ $totalPendientes }}
+                            </span>
+                        @elseif($totalElegibles > 0)
+                            <span class="px-1.5 py-0.2 rounded-full bg-amber-400 text-stone-900 text-[10px] font-bold">
+                                {{ $totalElegibles }}
+                            </span>
+                        @endif
+                    </button>
+                @endcan
+            </div>
+
             <button
                 wire:click="abrirModalNuevo"
                 class="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-xs font-black text-on-primary shadow-md shadow-primary/25 hover:bg-primary-container active:scale-95 transition-all"
@@ -423,6 +561,286 @@ new class () extends Component {
         </div>
     </div>
 
+    @if($pestanaActiva === 'club_vip')
+        <!-- ========================================== -->
+        <!-- PANTALLA GESTIÓN CLUB VIP EXCLUSIVO        -->
+        <!-- ========================================== -->
+        <div class="space-y-6">
+            <!-- Barra Superior Sub-Pestañas VIP -->
+            <div class="bg-surface-container-lowest rounded-3xl p-4 border border-outline-variant/20 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                    <button
+                        wire:click="setSubPestanaVip('elegibles')"
+                        class="px-4 py-2 rounded-2xl text-xs font-extrabold flex items-center gap-2 transition-all {{ $subPestanaVip === 'elegibles' ? 'bg-amber-500 text-stone-900 shadow-md' : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface' }}"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">verified</span>
+                        <span>Elegibles por Consumo</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $subPestanaVip === 'elegibles' ? 'bg-stone-900 text-amber-400' : 'bg-surface-container-high text-on-surface' }}">
+                            {{ $totalElegibles }}
+                        </span>
+                    </button>
+
+                    <button
+                        wire:click="setSubPestanaVip('pendientes')"
+                        class="px-4 py-2 rounded-2xl text-xs font-extrabold flex items-center gap-2 transition-all {{ $subPestanaVip === 'pendientes' ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface' }}"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">pending_actions</span>
+                        <span>Por Confirmar / Aprobar</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $subPestanaVip === 'pendientes' ? 'bg-white text-primary' : 'bg-surface-container-high text-on-surface' }}">
+                            {{ $totalPendientes }}
+                        </span>
+                    </button>
+
+                    <button
+                        wire:click="setSubPestanaVip('activos')"
+                        class="px-4 py-2 rounded-2xl text-xs font-extrabold flex items-center gap-2 transition-all {{ $subPestanaVip === 'activos' ? 'bg-emerald-600 text-white shadow-md' : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface' }}"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">stars</span>
+                        <span>Membresías Activas</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $subPestanaVip === 'activos' ? 'bg-emerald-950 text-emerald-200' : 'bg-surface-container-high text-on-surface' }}">
+                            {{ $activosVip->count() }}
+                        </span>
+                    </button>
+
+                    <button
+                        wire:click="setSubPestanaVip('suspendidos')"
+                        class="px-4 py-2 rounded-2xl text-xs font-extrabold flex items-center gap-2 transition-all {{ $subPestanaVip === 'suspendidos' ? 'bg-stone-700 text-white shadow-md' : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface' }}"
+                    >
+                        <span class="material-symbols-outlined text-[18px]">pause_circle</span>
+                        <span>Suspendidos</span>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-black {{ $subPestanaVip === 'suspendidos' ? 'bg-stone-900 text-stone-300' : 'bg-surface-container-high text-on-surface' }}">
+                            {{ $suspendidosVip->count() }}
+                        </span>
+                    </button>
+                </div>
+
+                <div class="text-xs font-medium text-on-surface-variant flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px] text-amber-500">info</span>
+                    <span>Criterio actual: <strong>$ {{ number_format($consumoMinimoVip) }} COP</strong> en los últimos 60 días</span>
+                </div>
+            </div>
+
+            <!-- Contenido según Sub-Pestaña VIP -->
+            @if($subPestanaVip === 'elegibles')
+                <div class="rounded-3xl bg-surface-container-lowest p-6 border border-outline-variant/20 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between pb-3 border-b border-outline-variant/15">
+                        <div>
+                            <h3 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                                <span class="material-symbols-outlined text-amber-500">workspace_premium</span>
+                                Comensales Elegibles para Ingresar al Club VIP
+                            </h3>
+                            <p class="text-xs text-on-surface-variant mt-0.5">
+                                Clientes con historial de compra igual o superior a $ {{ number_format($consumoMinimoVip) }} COP en la ventana de 60 días. Invítalos a completar su registro VIP.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @forelse($elegiblesVip as $elegible)
+                            <div class="rounded-2xl bg-surface-container-low p-4 border border-outline-variant/20 flex flex-col justify-between space-y-4 hover:border-amber-500/40 transition-colors">
+                                <div>
+                                    <div class="flex items-start justify-between">
+                                        <div>
+                                            <h4 class="text-sm font-extrabold text-on-surface">{{ $elegible->nombre }}</h4>
+                                            <span class="text-xs text-on-surface-variant font-mono">{{ $elegible->telefono }}</span>
+                                        </div>
+                                        <span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] font-black border border-amber-500/30">
+                                            Elegible
+                                        </span>
+                                    </div>
+
+                                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs bg-surface-container-lowest p-2.5 rounded-xl border border-outline-variant/15">
+                                        <div>
+                                            <span class="text-[10px] text-on-surface-variant uppercase font-bold block">Consumo 60d</span>
+                                            <span class="font-black text-amber-600 dark:text-amber-400 font-mono">$ {{ number_format($elegible->total_gastado) }}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-[10px] text-on-surface-variant uppercase font-bold block">Visitas</span>
+                                            <span class="font-bold text-on-surface">{{ $elegible->visitas_count }} pedidos</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-2 flex items-center gap-2 text-[11px] text-on-surface-variant">
+                                        <span class="flex items-center gap-1 {{ $elegible->autoriza_whatsapp ? 'text-emerald-500 font-bold' : 'text-stone-400' }}">
+                                            <span class="material-symbols-outlined text-[14px]">chat</span> WA
+                                        </span>
+                                        <span>•</span>
+                                        <span class="flex items-center gap-1 {{ $elegible->autoriza_email ? 'text-emerald-500 font-bold' : 'text-stone-400' }}">
+                                            <span class="material-symbols-outlined text-[14px]">mail</span> Email
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    wire:click="abrirModalInvitarVip({{ $elegible->id }})"
+                                    class="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-900 text-xs font-black shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <span class="material-symbols-outlined text-[18px]">send</span>
+                                    <span>Enviar Invitación VIP</span>
+                                </button>
+                            </div>
+                        @empty
+                            <div class="col-span-full py-12 text-center text-on-surface-variant">
+                                <span class="material-symbols-outlined text-4xl mb-2">person_search</span>
+                                <p class="text-xs font-bold text-on-surface">No hay comensales con estatus elegible pendiente de invitar.</p>
+                                <p class="text-[11px] mt-0.5">A medida que los clientes superen el consumo mínimo en caja o delivery, se listarán automáticamente aquí.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            @elseif($subPestanaVip === 'pendientes')
+                <div class="rounded-3xl bg-surface-container-lowest p-6 border border-outline-variant/20 shadow-sm space-y-4">
+                    <div class="pb-3 border-b border-outline-variant/15">
+                        <h3 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">fact_check</span>
+                            Comensales con Registro Completado — Pendientes de Aprobación
+                        </h3>
+                        <p class="text-xs text-on-surface-variant mt-0.5">
+                            Estos comensales recibieron la invitación y completaron su formulario con contraseña y fecha de nacimiento. Revisa sus datos y confirma su membresía.
+                        </p>
+                    </div>
+
+                    <div class="space-y-3">
+                        @forelse($pendientesVip as $pendiente)
+                            <div class="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-sm font-extrabold text-on-surface">{{ $pendiente->nombre }}</h4>
+                                        <span class="px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[10px] font-black border border-primary/30">
+                                            Formulario Enviado
+                                        </span>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
+                                        <span class="font-mono">📱 {{ $pendiente->telefono }}</span>
+                                        <span>•</span>
+                                        <span class="font-mono">✉️ {{ $pendiente->email }}</span>
+                                        <span>•</span>
+                                        <span>🎂 Cumpleaños: <strong>{{ $pendiente->fecha_nacimiento?->format('d/m/Y') ?? 'No registrada' }}</strong></span>
+                                        <span>•</span>
+                                        <span>Total: <strong>$ {{ number_format($pendiente->total_gastado) }}</strong></span>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-2 w-full md:w-auto">
+                                    <button
+                                        wire:click="aprobarVip({{ $pendiente->id }})"
+                                        class="flex-1 md:flex-initial px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black active:scale-95 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px]">verified</span>
+                                        <span>Aprobar Membresía VIP</span>
+                                    </button>
+                                    <button
+                                        wire:click="rechazarVip({{ $pendiente->id }}, 'No cumple los requisitos')"
+                                        class="px-3 py-2 rounded-xl bg-surface-container-high hover:bg-error/20 text-error text-xs font-bold transition-all flex items-center gap-1"
+                                    >
+                                        <span class="material-symbols-outlined text-[16px]">close</span>
+                                        <span>Rechazar</span>
+                                    </button>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="py-12 text-center text-on-surface-variant">
+                                <span class="material-symbols-outlined text-4xl mb-2">task_alt</span>
+                                <p class="text-xs font-bold text-on-surface">No hay postulaciones VIP pendientes de confirmación.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            @elseif($subPestanaVip === 'activos')
+                <div class="rounded-3xl bg-surface-container-lowest p-6 border border-outline-variant/20 shadow-sm space-y-4">
+                    <div class="pb-3 border-b border-outline-variant/15 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                                <span class="material-symbols-outlined text-emerald-500">stars</span>
+                                Padrón Oficial de Miembros VIP Activos ({{ $activosVip->count() }})
+                            </h3>
+                            <p class="text-xs text-on-surface-variant mt-0.5">
+                                Clientes con membresía vigente, acceso a promociones exclusivas y atención preferencial.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        @forelse($activosVip as $vip)
+                            <div class="rounded-2xl bg-surface-container-low p-4 border border-outline-variant/20 space-y-3">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <h4 class="text-sm font-extrabold text-on-surface flex items-center gap-1.5">
+                                            {{ $vip->nombre }}
+                                            <span class="material-symbols-outlined text-amber-500 text-[18px]">verified</span>
+                                        </h4>
+                                        <span class="text-xs text-on-surface-variant font-mono">{{ $vip->telefono }}</span>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black border border-emerald-500/30">
+                                        Activo
+                                    </span>
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-2 text-xs bg-surface-container-lowest p-2.5 rounded-xl border border-outline-variant/15">
+                                    <div>
+                                        <span class="text-[10px] text-on-surface-variant uppercase font-bold block">Puntos Acumulados</span>
+                                        <span class="font-black text-on-surface font-mono">{{ number_format($vip->puntos_fidelidad) }} pts</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-[10px] text-on-surface-variant uppercase font-bold block">Cumpleaños</span>
+                                        <span class="font-bold text-on-surface">{{ $vip->fecha_nacimiento?->format('d/m') ?? 'N/D' }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="pt-2 flex items-center justify-between border-t border-outline-variant/15 text-xs">
+                                    <span class="text-[11px] text-on-surface-variant">VIP desde: {{ $vip->vip_desde?->format('d/m/Y') ?? 'N/D' }}</span>
+                                    <button
+                                        wire:click="suspenderVip({{ $vip->id }})"
+                                        class="text-xs font-bold text-error hover:underline flex items-center gap-1"
+                                    >
+                                        <span class="material-symbols-outlined text-[14px]">pause</span>
+                                        Suspender
+                                    </button>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="col-span-full py-12 text-center text-on-surface-variant">
+                                <p class="text-xs font-bold text-on-surface">No hay miembros VIP activos en el momento.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            @elseif($subPestanaVip === 'suspendidos')
+                <div class="rounded-3xl bg-surface-container-lowest p-6 border border-outline-variant/20 shadow-sm space-y-4">
+                    <div class="pb-3 border-b border-outline-variant/15">
+                        <h3 class="text-base font-extrabold text-on-surface flex items-center gap-2">
+                            <span class="material-symbols-outlined text-stone-500">pause_circle</span>
+                            Membresías VIP Suspendidas
+                        </h3>
+                    </div>
+
+                    <div class="space-y-3">
+                        @forelse($suspendidosVip as $susp)
+                            <div class="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-between">
+                                <div>
+                                    <h4 class="text-sm font-extrabold text-on-surface">{{ $susp->nombre }}</h4>
+                                    <span class="text-xs text-on-surface-variant font-mono">{{ $susp->telefono }}</span>
+                                </div>
+                                <button
+                                    wire:click="reactivarVip({{ $susp->id }})"
+                                    class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-black active:scale-95 transition-all"
+                                >
+                                    Reactivar Membresía
+                                </button>
+                            </div>
+                        @empty
+                            <div class="py-12 text-center text-on-surface-variant">
+                                <p class="text-xs font-bold text-on-surface">No hay miembros VIP suspendidos.</p>
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            @endif
+        </div>
+    @else
+        <!-- ========================================== -->
+        <!-- PANTALLA DIRECTORIO GENERAL DE COMENSALES  -->
+        <!-- ========================================== -->
     <!-- Barra de Búsqueda y Filtros de Segmentación -->
     <div class="bg-surface-container-lowest rounded-3xl p-5 border border-outline-variant/20 shadow-sm space-y-3">
         <div class="flex flex-col md:flex-row items-center gap-3">
@@ -754,6 +1172,75 @@ new class () extends Component {
             @endif
         </aside>
     </div>
+    @endif
+
+    <!-- Modal: Invitar al Club VIP -->
+    @if($mostrarModalInvitarVip)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 backdrop-blur-sm p-4">
+            <div class="w-full max-w-md rounded-3xl bg-surface-container-lowest p-6 shadow-2xl border border-outline-variant/20 space-y-4">
+                <div class="flex items-center justify-between border-b border-outline-variant/15 pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[24px] text-amber-500">mail</span>
+                        <h3 class="text-base font-extrabold text-on-surface">Invitar al Club VIP</h3>
+                    </div>
+                    <button wire:click="$set('mostrarModalInvitarVip', false)" class="text-on-surface-variant hover:text-on-surface">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
+
+                @if($urlInvitacionGenerada)
+                    <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs space-y-3">
+                        <div class="flex items-center gap-2 text-emerald-600 font-extrabold">
+                            <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                            <span>¡Invitación VIP generada exitosamente!</span>
+                        </div>
+                        <p class="text-on-surface-variant">
+                            Comparte este enlace exclusivo de registro con el comensal. Válido por 7 días:
+                        </p>
+                        <div class="p-2.5 rounded-xl bg-surface-container-low font-mono text-[11px] text-primary break-all border border-outline-variant/20 select-all">
+                            {{ $urlInvitacionGenerada }}
+                        </div>
+                    </div>
+                @else
+                    <div class="space-y-3 text-xs">
+                        <p class="text-on-surface-variant">
+                            Se creará un pase digital de acceso para que el cliente ingrese su contraseña personal y fecha de nacimiento.
+                        </p>
+
+                        <div>
+                            <label class="font-bold text-on-surface-variant block mb-1">Canal de Notificación:</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    wire:click="$set('canalInvitacion', 'whatsapp')"
+                                    class="p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all {{ $canalInvitacion === 'whatsapp' ? 'bg-emerald-500 text-stone-900 border-emerald-400 font-black' : 'bg-surface-container-low border-outline-variant/30 text-on-surface-variant' }}"
+                                >
+                                    <span class="material-symbols-outlined text-[18px]">chat</span>
+                                    <span>WhatsApp</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    wire:click="$set('canalInvitacion', 'email')"
+                                    class="p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 transition-all {{ $canalInvitacion === 'email' ? 'bg-primary text-white border-primary font-black' : 'bg-surface-container-low border-outline-variant/30 text-on-surface-variant' }}"
+                                >
+                                    <span class="material-symbols-outlined text-[18px]">mail</span>
+                                    <span>Correo Electrónico</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            wire:click="enviarInvitacionVip"
+                            class="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-stone-900 text-xs font-black shadow-md shadow-amber-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 mt-4"
+                        >
+                            <span class="material-symbols-outlined text-[18px]">send</span>
+                            <span>Generar & Despachar Invitación</span>
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </div>
+    @endif
 
     <!-- Modal: Nuevo Comensal -->
     @if($mostrarModalNuevo)

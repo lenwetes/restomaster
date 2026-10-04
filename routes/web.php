@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Cliente\AuthClienteController;
 use App\Http\Controllers\Cliente\PerfilClienteController;
+use App\Http\Controllers\Cliente\RegistroVipPublicoController;
 use App\Http\Controllers\CrmWebhookController;
 use App\Http\Controllers\EncuestaPublicaController;
 use App\Http\Controllers\ExportacionContableController;
@@ -145,6 +146,8 @@ Route::prefix('cliente')->name('cliente.')->group(function () {
 
 // Encuestas Públicas de Experiencia (F7-07)
 Route::get('encuesta/{token}', [EncuestaPublicaController::class, 'mostrar'])->name('encuesta.responder');
-Route::post('encuesta/{token}', [EncuestaPublicaController::class, 'guardar'])->middleware('throttle:10,1')->name('encuesta.guardar');
+// Registro y Activación Pública del Club VIP
+Route::get('vip/registro/{token}', [RegistroVipPublicoController::class, 'mostrar'])->name('vip.registro');
+Route::post('vip/registro/{token}', [RegistroVipPublicoController::class, 'procesar'])->middleware('throttle:10,1')->name('vip.registro.guardar');
 
 require __DIR__.'/auth.php';

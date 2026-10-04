@@ -71,9 +71,7 @@ class FidelizacionService
 
             // Actualización de Tier automática (Ocasional -> Frecuente -> VIP)
             $nuevoTier = $clienteLocked->tier;
-            if ($nuevoTotalGastado >= 2000000) {
-                $nuevoTier = Cliente::TIER_VIP;
-            } elseif ($visitas >= 2 && ($nuevoTier === Cliente::TIER_OCASIONAL || empty($nuevoTier))) {
+            if ($visitas >= 2 && ($nuevoTier === Cliente::TIER_OCASIONAL || empty($nuevoTier))) {
                 $nuevoTier = Cliente::TIER_FRECUENTE;
             }
 
@@ -83,6 +81,9 @@ class FidelizacionService
                 'visitas_count' => $visitas,
                 'tier' => $nuevoTier,
             ]);
+
+            // Evaluar elegibilidad VIP por invitación (tope de consumo en ventana de 60 días)
+            app(ClubVipService::class)->evaluarElegibilidad($clienteLocked);
 
             $pedido->forceFill(['puntos_ganados' => $puntosAGanar])->save();
 

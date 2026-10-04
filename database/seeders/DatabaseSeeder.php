@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             ConfiguracionSeeder::class,
             AdminUserSeeder::class,
             CrmIaPlantillaSeeder::class,
+            CrmSeeder::class,
             MeseroPruebaSeeder::class,
         ]);
 
@@ -25,6 +26,7 @@ class DatabaseSeeder extends Seeder
             $this->call([
                 DatosPruebaRealistasSeeder::class,
                 OperacionesMesCompletoSeeder::class,
+                ClubVipDemoSeeder::class,
             ]);
         }
     }
