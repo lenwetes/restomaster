@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
                 DatosPruebaRealistasSeeder::class,
                 OperacionesMesCompletoSeeder::class,
                 ClubVipDemoSeeder::class,
+                DemoColombiaMedellinSeeder::class,
             ]);
         }
     }

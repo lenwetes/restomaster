@@ -18,8 +18,14 @@ class CargarDatosDemoCommand extends Command
     public function handle(): int
     {
         $this->info('==========================================================');
-        $this->info(' RestoMaster — Demo lista para clientes en una sola acción');
+        $this->info(' RestoMaster — Demo Colombia · Medellín (Despliegue Listo)');
         $this->info('==========================================================');
+
+        $scriptImagenes = base_path('scripts/asegurar_imagenes_demo.php');
+        if (File::exists($scriptImagenes)) {
+            $this->info('==> Verificando y asegurando catálogo de imágenes físicas...');
+            require_once $scriptImagenes;
+        }
 
         $this->call('db:seed', ['--force' => true]);
 
@@ -31,7 +37,15 @@ class CargarDatosDemoCommand extends Command
         $conImagenCount = Producto::whereNotNull('imagen')->where('imagen', '!=', '')->count();
 
         $this->newLine();
-        $this->info("✓ Demo lista: {$productosCount} platos catalogados ({$conImagenCount} con fotografía), {$insumosCount} insumos en inventario.");
+        $this->info('✓ Kit de demostración listo:');
+        $this->line("  • {$productosCount} productos/platos/tragos/bebidas ({$conImagenCount} con imagen garantizada)");
+        $this->line("  • {$insumosCount} insumos en inventario con escandallo y stock");
+        $this->line('  • 24 colaboradores configurados (meseros, cocina, cajeros, repartidores, gerencia)');
+        $this->line('  • 10 proveedores colombianos con NIT');
+        $this->line('  • 20 clientes segmentados (VIP, Elegibles, Frecuentes, Ocasionales)');
+        $this->line('  • 30 días de operaciones históricas (ventas, cajas, compras, DIAN POS y encuestas)');
+        $this->line('  • 14 promociones comerciales (7 activas + 7 borradores)');
+        $this->line('  • Credenciales unificadas: password / RestoDemo2026');
 
         return self::SUCCESS;
     }

@@ -430,6 +430,8 @@ new class () extends Component {
                             Servicio en Salón
                         @elseif(in_array(Auth::user()?->role?->slug, ['cocina', 'barra'], true))
                             Producción & KDS
+                        @elseif(in_array(Auth::user()?->role?->slug, ['delivery', 'repartidor'], true))
+                            Despacho & Rutas
                         @else
                             Módulos de Servicio
                         @endif
@@ -524,6 +526,33 @@ new class () extends Component {
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="material-symbols-outlined text-[22px] shrink-0">restaurant</span>
                             <span class="font-extrabold sidebar-text truncate">Pantalla KDS Cocina</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20 sidebar-badge">ACTIVO</span>
+                    </a>
+                @elseif(in_array(Auth::user()?->role?->slug, ['delivery', 'repartidor'], true))
+                    <!-- Card de Repartidor Delivery -->
+                    <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20 shadow-xs sidebar-card">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">two_wheeler</span>
+                            </div>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-xs font-black text-on-surface leading-tight truncate">Repartidor Delivery</span>
+                                <span class="text-[10px] text-primary font-bold uppercase tracking-wider truncate">Despacho & Rutas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Despacho Delivery (DLV-01) -->
+                    <a 
+                        href="{{ route('delivery') }}" 
+                        wire:navigate
+                        title="Despacho Delivery"
+                        class="flex items-center justify-between rounded-xl px-3 h-12 text-sm font-bold transition-all duration-150 bg-primary text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)] font-extrabold"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[22px] shrink-0">two_wheeler</span>
+                            <span class="sidebar-text truncate">Despacho Delivery</span>
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider opacity-90 px-1.5 py-0.5 rounded bg-white/20 sidebar-badge">ACTIVO</span>
                     </a>
@@ -658,19 +687,21 @@ new class () extends Component {
                     <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">INV</span>
                 </a>
 
-                <!-- Proveedores (PRV-01) -->
-                <a
-                    href="{{ route('proveedores') }}"
-                    wire:navigate
-                    title="Proveedores"
-                    class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('proveedores') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
-                >
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="material-symbols-outlined text-[20px] shrink-0">local_shipping</span>
-                        <span class="sidebar-text truncate">Proveedores</span>
-                    </div>
-                    <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">PRV</span>
-                </a>
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Proveedores (PRV-01) -->
+                    <a
+                        href="{{ route('proveedores') }}"
+                        wire:navigate
+                        title="Proveedores"
+                        class="flex items-center justify-between rounded-xl px-3 h-10 text-sm font-bold transition-all duration-150 {{ request()->routeIs('proveedores') ? 'bg-primary-container text-on-primary shadow-[0_2px_8px_rgba(205,70,48,0.25)]' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface' }}"
+                    >
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-outlined text-[20px] shrink-0">local_shipping</span>
+                            <span class="sidebar-text truncate">Proveedores</span>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 sidebar-badge">PRV</span>
+                    </a>
+                @endif
 
                 <!-- Reservas (RES-01) -->
                 <a 
@@ -989,6 +1020,31 @@ new class () extends Component {
                         </div>
                         <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
                     </a>
+                @elseif(in_array(Auth::user()?->role?->slug, ['delivery', 'repartidor'], true))
+                    <div class="mb-2 p-3 rounded-2xl bg-primary-container/20 border border-primary/20">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-xl bg-primary text-on-primary flex items-center justify-center font-bold text-sm shadow-sm">
+                                <span class="material-symbols-outlined text-[18px]">two_wheeler</span>
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-black text-on-surface leading-tight">Repartidor Delivery</span>
+                                <span class="text-[10px] text-primary font-bold uppercase tracking-wider">Despacho & Rutas</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a 
+                        href="{{ route('delivery') }}" 
+                        @click="mobileMenuOpen = false" 
+                        wire:navigate 
+                        class="flex items-center justify-between rounded-xl px-3.5 py-3 text-sm font-extrabold bg-primary text-on-primary shadow-sm"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[22px]">two_wheeler</span>
+                            <span>Despacho Delivery</span>
+                        </div>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/20">ACTIVO</span>
+                    </a>
                 @else
                 <!-- ============================================== -->
                 <!-- 1. GRUPO: OPERACIÓN DIARIA                      -->
@@ -1112,19 +1168,21 @@ new class () extends Component {
                     <span class="text-[10px] font-bold">INV</span>
                 </a>
 
-                <!-- Proveedores (PRV-01) -->
-                <a
-                    href="{{ route('proveedores') }}"
-                    @click="mobileMenuOpen = false"
-                    wire:navigate
-                    class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('proveedores') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
-                >
-                    <div class="flex items-center gap-3">
-                        <span class="material-symbols-outlined text-[20px]">local_shipping</span>
-                        <span>Proveedores</span>
-                    </div>
-                    <span class="text-[10px] font-bold">PRV</span>
-                </a>
+                @if (in_array(Auth::user()?->role?->slug, ['admin', 'gerente']))
+                    <!-- Proveedores (PRV-01) -->
+                    <a
+                        href="{{ route('proveedores') }}"
+                        @click="mobileMenuOpen = false"
+                        wire:navigate
+                        class="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold {{ request()->routeIs('proveedores') ? 'bg-primary-container text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container' }}"
+                    >
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-[20px]">local_shipping</span>
+                            <span>Proveedores</span>
+                        </div>
+                        <span class="text-[10px] font-bold">PRV</span>
+                    </a>
+                @endif
 
                 <a 
                     href="{{ route('reservas') }}" 

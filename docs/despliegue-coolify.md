@@ -46,7 +46,8 @@ En la pestaña **Environment Variables** de tu aplicación en Coolify, puedes co
 | `DB_PASSWORD` | *(generar con `openssl rand -base64 42`)* | Contraseña de base de datos — obligatoria, sin valor por defecto |
 | `AUTO_MIGRATE` | `true` | Ejecuta migraciones automáticamente al iniciar |
 | `AUTO_SEED` | `true` | Crea usuarios principales y configuración inicial |
-| `DEMO_USERS_PASSWORD`| *(vacío = aleatoria segura)* | Contraseña unificada para los 4 usuarios base |
+| `AUTO_SEED_DEMO` | `true` | Carga el Kit Maestro Colombia · Medellín (24 colaboradores, 10 proveedores, 20 clientes, 71 platos/bebidas con fotos, 30 días de operaciones, DIAN POS y encuestas) |
+| `DEMO_USERS_PASSWORD`| `RestoDemo2026` / `password` | Contraseña unificada para los colaboradores del sistema |
 | `APP_PORT` | `8004` | Puerto directo en el VPS (http://IP_VPS:8004) |
 | `GEMINI_API_KEY` | *(opcional)* | Clave de Google Gemini API para asistente de IA y chat en vivo |
 | `WHATSAPP_ACCESS_TOKEN` | *(opcional)* | Token Bearer permanente de Meta Cloud API para WhatsApp Business |
@@ -56,18 +57,20 @@ En la pestaña **Environment Variables** de tu aplicación en Coolify, puedes co
 
 ---
 
-## 3. Usuarios y Credenciales Creados Automáticamente
+## 3. Usuarios y Credenciales del Kit Maestro de Demostración
 
-Al arrancar con `AUTO_SEED=true`, el sistema genera los 4 usuarios iniciales del restaurante:
+Al arrancar con `AUTO_SEED_DEMO=true` (o `php artisan restomaster:seed-demo`), el sistema configura 24 colaboradores listos para operar cada área:
 
-| Rol | Correo Electrónico | Contraseña Inicial |
-|---|---|---|
-| **Administrador** | `admin@restomaster.com` | `password` *(o la definida en `DEMO_USERS_PASSWORD`)* |
-| **Cajero** | `cajero@restomaster.com` | `password` *(o la definida en `DEMO_USERS_PASSWORD`)* |
-| **Mesero** | `mesero@restomaster.com` | `password` *(o la definida en `DEMO_USERS_PASSWORD`)* |
-| **Cocina (KDS)** | `cocina@restomaster.com` | `password` *(o la definida en `DEMO_USERS_PASSWORD`)* |
+| Rol | Correo Electrónico Principal | Ejemplos Adicionales de Colaboradores | Contraseña |
+|---|---|---|---|
+| **Administrador** | `admin@restomaster.com` | `admin` del sistema | `password` / `RestoDemo2026` |
+| **Gerente General** | `gerente@restomaster.com` | Supervisión integral y compras | `password` / `RestoDemo2026` |
+| **Cajeros (3)** | `cajero@restomaster.com` | `mariana.caja@restomaster.com`, `david.caja@restomaster.com` | `password` / `RestoDemo2026` |
+| **Cocina KDS (4)** | `cocina@restomaster.com` | `andres.cocina@...`, `laura.sushi@...`, `mateo.parrilla@...` | `password` / `RestoDemo2026` |
+| **Meseros (10)** | `mesero@restomaster.com` | `carlos.restrepo@...`, `valentina.morales@...`, `mateo.echeverry@...` | `password` / `RestoDemo2026` |
+| **Repartidores (5)** | `delivery@restomaster.com` | `brayan.moto@...`, `yeison.moto@...`, `kevin.moto@...` | `password` / `RestoDemo2026` |
 
-> 🔒 **Recomendación de Seguridad:** Una vez que inicies sesión en tu VPS por primera vez, cambia la contraseña del administrador desde la pantalla de perfil (`/profile`) o define `DEMO_USERS_PASSWORD` con una contraseña personalizada en las variables de Coolify antes del primer despliegue.
+> 🔒 **Recomendación de Seguridad:** Una vez que inicies sesión en tu VPS por primera vez, puedes cambiar la contraseña del administrador desde la pantalla de perfil (`/profile`) o definir `DEMO_USERS_PASSWORD` con una contraseña personalizada en las variables de Coolify antes del primer despliegue.
 
 ---
 

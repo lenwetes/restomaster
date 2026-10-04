@@ -30,6 +30,9 @@ Route::get('dashboard', function () {
     if (in_array($user?->role?->slug, ['cocina', 'barra'], true)) {
         return redirect()->route('cocina');
     }
+    if (in_array($user?->role?->slug, ['delivery', 'repartidor'], true)) {
+        return redirect()->route('delivery');
+    }
 
     return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');

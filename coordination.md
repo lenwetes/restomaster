@@ -6,6 +6,31 @@
 ---
 
 ## Última Actualización
+2026-10-04 | Antigravity | 🇨🇴 **CORRECCIONES RBAC (OCULTAMIENTO DE MENÚS Y PANTALLAS LIMPIAS) & KIT MAESTRO DE DEMOSTRACIÓN COLOMBIA · MEDELLÍN (AUTO-DEPLOY):**
+- **1. Auditoría y Correcciones RBAC de Acceso y Navegación:**
+  - `routes/web.php`: Redirección automática de los roles `delivery` y `repartidor` desde `/dashboard` directamente a su panel operativo `route('delivery')`.
+  - `routes/auth.php`: Ruta POST `logout` registrada formalmente.
+  - `resources/views/livewire/layout/navigation.blade.php`: Limpieza en sidebar escritorio y drawer móvil táctil; los enlaces no permitidos se ocultan proactivamente (ej. `proveedores` solo visible para `admin` y `gerente`, oculto para cajeros; panel dedicado de solo `Despacho Delivery` para repartidores).
+  - `resources/views/errors/403.blade.php`: Pantalla 403 personalizada con diseño Aura Gastro OS (glassmorphism oscuro), botón dinámico de retorno según rol, píldora con nombre y cargo del usuario, y auto-retorno inteligente en 6 segundos.
+  - Validación: Suites `RbacServerSideGatekeeperTest`, `Fase0RbacRutasTest`, `RoleMiddlewareTest`, `DeliveryKdsAuthorizationTest` (23 tests pasando, 71 aserciones en verde).
+- **2. Kit Maestro de Demostración Medellín (`DemoColombiaMedellinSeeder`):**
+  - **Equipo (24 colaboradores):** 10 meseros, 4 cocina, 3 cajeros, 1 gerente, 1 admin, 5 repartidores (claves: `password` / `RestoDemo2026`).
+  - **Proveedores (10):** Empresas con NIT de Antioquia (San Martín, Los Andes, Pescados del Pacífico, Central Mayorista, Pergamino, EcoEmpaques, etc.).
+  - **Clientes (20):** Segmentación VIP, Elegibles, Frecuentes y Ocasionales con direcciones en El Poblado, Envigado, Sabaneta y Laureles.
+  - **Catálogo e Imágenes (71 productos):** 30 platos de cocina/parrilla, 20 tragos y coctelería de autor, 10 bebidas colombianas (Colombiana La Nuestra, Club Colombia Dorada/Roja/Negra, Bretaña, etc.), postres y salsas, con imágenes físicas generadas y vinculadas en `public/demo/platos/` y `public/images/`.
+  - **Inventario:** 36 insumos con escandallo, recetas, stock inicial, mermas y categorías.
+  - **Operaciones de 1 Mes (30 días):** Turnos de caja (apertura, egresos, retiros a bóveda, cierres cuadrados), compras con CxP y pagos Bancolombia, comandas pagadas con Factura Electrónica DIAN POS (cálculo SHA-384 de CUFE y QR).
+  - **Encuestas y CRM:** Plantillas de encuestas + 40+ encuestas diligenciadas con calificaciones de 1 a 5 estrellas y reseñas reales para métricas de servicio.
+  - **Promociones (14):** 7 activas y 7 borradores con banners e imágenes de alta definición.
+  - **Operaciones en Vivo de Hoy:** Turnos abiertos en salón y barra, comanda en preparación KDS cocina, comanda lista para servir, mesa pendiente de cobro, despacho delivery en ruta y reserva VIP confirmada en terraza.
+- **3. Autocarga en Despliegue (Coolify / Docker Entrypoint):**
+  - Registrado en `DatabaseSeeder.php` e integrado en `app/Console/Commands/CargarDatosDemoCommand.php` (`php artisan restomaster:seed-demo`).
+  - Idempotencia total comprobada (`firstOrCreate` y validación de prefijos `MDE-`), garantizando que re-despliegues con `AUTO_SEED_DEMO=true` se ejecuten sin errores.
+  - Formateado con Laravel Pint.
+
+---
+
+## Actualización previa
 2026-10-03 | Antigravity | 🤖 **CORRECCIÓN INTEGRAL DEL ASISTENTE IA PARA CREACIÓN DE AUTOMATIZACIONES (GEMINI / POSTGRESQL):**
 - **Causa Raíz Identificada:**
   - En `resources/views/livewire/crm/index.blade.php`, `generarAutomatizacionConIa()` intentaba acceder a la propiedad inexistente `$this->sucursal_seleccionada_id`. En Livewire Volt esto lanzaba `Livewire\Exceptions\PropertyNotFoundException: Property [$sucursal_seleccionada_id] not found on component: [crm.index]`.

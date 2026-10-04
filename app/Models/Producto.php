@@ -12,6 +12,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property int|null $categoria_id
+ * @property string $nombre
+ * @property string $slug
+ * @property string|null $descripcion
+ * @property float $precio
+ * @property float|null $costo
+ * @property string|null $area_cocina
+ * @property bool $activo
+ * @property string|null $imagen
+ */
 #[Fillable([
     'categoria_id',
     'nombre',
