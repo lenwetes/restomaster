@@ -54,6 +54,9 @@ En la pestaña **Environment Variables** de tu aplicación en Coolify, puedes co
 | `WHATSAPP_PHONE_NUMBER_ID`| *(opcional)* | ID de número de teléfono en Meta Cloud API |
 | `WHATSAPP_VERIFY_TOKEN` | *(opcional)* | Token secreto de verificación del Webhook de WhatsApp |
 | `WHATSAPP_SIMULADO` | `true` | Modo seguro de pruebas sin despachar mensajes reales a Meta |
+| `PHP_MEMORY_LIMIT` | `512M` | Límite de memoria PHP para reportes y exportaciones masivas |
+| `PHP_POST_MAX_SIZE` | `64M` | Límite máximo de payload HTTP POST (evita warnings de 8MB) |
+| `PHP_UPLOAD_MAX_FILESIZE` | `64M` | Tamaño máximo de subida para fotos de platos, soportes y backups |
 
 ---
 

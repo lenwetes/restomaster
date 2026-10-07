@@ -6,6 +6,20 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | 🚀 **ACTUALIZACIÓN DE DESPLIEGUE COOLIFY (DOCKER COMPOSE + ENTRYPOINT + LÍMITES PHP) & SINCRONIZACIÓN MULTI-RAMA:**
+- **1. Actualización de Archivos de Despliegue Coolify:**
+  - En `docker-compose.coolify.yml` (y sus espejos `docker-compose.yml` y `docker-compose.yaml`): agregadas variables de entorno configurables `PHP_MEMORY_LIMIT: "${PHP_MEMORY_LIMIT:-512M}"`, `PHP_POST_MAX_SIZE: "${PHP_POST_MAX_SIZE:-64M}"` y `PHP_UPLOAD_MAX_FILESIZE: "${PHP_UPLOAD_MAX_FILESIZE:-64M}"`.
+  - En `docker/php.ini`: límites base elevados a `memory_limit = 512M`, `post_max_size = 64M` y `upload_max_filesize = 64M`.
+  - En `docker/nginx.conf`: `client_max_body_size` configurado en `64M`.
+  - En `docker/entrypoint.sh`: agregada inyección dinámica de variables de entorno de límites PHP en tiempo de arranque del contenedor.
+  - En `docs/despliegue-coolify.md`: documentadas las nuevas variables en la tabla de configuración.
+  - Verificado con test de infraestructura `RemediacionInfraSeguridadTest` pasando al 100% (4 tests, 27 aserciones).
+- **2. Sincronización Multi-Rama en GitHub:**
+  - Sincronizadas las ramas remotas de GitHub: `main`, `master` y `feat/gestor-zonas-drag-drop`.
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 🛠️ **CORRECCIÓN DE ÍTEMS EN TERMINAL DE COBRO, RUTA DE RESERVAS (404) & LÍMITES PHP POST:**
 - **1. Visualización de Productos en Verificación de Ticket (Terminal Maestro de Cobro):**
   - **Causa raíz:** En `OperacionesMesCompletoSeeder.php`, la orden `ORD-HOY-104` (Mesa 4) se creaba con `subtotal` $145.000 pero sin registrar sus `ItemPedido`s correspondientes.

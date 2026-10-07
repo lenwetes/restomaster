@@ -44,6 +44,15 @@ export AUTO_SEED="${AUTO_SEED:-true}"
 export AUTO_SEED_DEMO="${AUTO_SEED_DEMO:-true}"
 export DEMO_USERS_PASSWORD="${DEMO_USERS_PASSWORD:-RestoDemo2026}"
 export OPTIMIZE_CACHE="${OPTIMIZE_CACHE:-true}"
+export PHP_MEMORY_LIMIT="${PHP_MEMORY_LIMIT:-512M}"
+export PHP_POST_MAX_SIZE="${PHP_POST_MAX_SIZE:-64M}"
+export PHP_UPLOAD_MAX_FILESIZE="${PHP_UPLOAD_MAX_FILESIZE:-64M}"
+
+if [ -f /usr/local/etc/php/conf.d/custom.ini ]; then
+    sed -i "s/memory_limit = .*/memory_limit = ${PHP_MEMORY_LIMIT}/" /usr/local/etc/php/conf.d/custom.ini
+    sed -i "s/post_max_size = .*/post_max_size = ${PHP_POST_MAX_SIZE}/" /usr/local/etc/php/conf.d/custom.ini
+    sed -i "s/upload_max_filesize = .*/upload_max_filesize = ${PHP_UPLOAD_MAX_FILESIZE}/" /usr/local/etc/php/conf.d/custom.ini
+fi
 
 # 2. Write runtime environment variables to /var/www/html/.env so PHP-FPM workers and Dotenv always have them
 echo "==> Writing runtime configuration to /var/www/html/.env..."
