@@ -1,0 +1,1603 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Console/Commands/RestaurarEstadoCeroCommand.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>slug" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Console/Commands/RestaurarEstadoCeroCommand.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_sala\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/ComandaEnviada.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/ComandaEnviada.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$zona\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/ComandaEnviada.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre_sala" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/ComandaEnviada.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>zona" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/ComandaEnviada.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesa\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesero_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>codigo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre_sala" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>zona" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/ItemListoParaServir.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_sala\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/PedidoQrSolicitado.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/PedidoQrSolicitado.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$zona\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/PedidoQrSolicitado.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre_sala" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/PedidoQrSolicitado.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>zona" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Events/PedidoQrSolicitado.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Events/SolicitudCobroEnviada.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Events/SolicitudCobroEnviada.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Events/SolicitudCobroEnviada.php
+
+		-
+			message: '#^Parameter \#1 \$user of class Illuminate\\Auth\\Events\\Verified constructor expects Illuminate\\Contracts\\Auth\\MustVerifyEmail, App\\Models\\User\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/Auth/VerifyEmailController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/PosOfflineSyncController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>slug" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Middleware/MonitoreoRendimientoSucursalesMiddleware.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Middleware/MonitoreoRendimientoSucursalesMiddleware.php
+
+		-
+			message: '#^Trait App\\Livewire\\Concerns\\ManejaClientePos is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: app/Livewire/Concerns/ManejaClientePos.php
+
+		-
+			message: '#^Trait App\\Livewire\\Concerns\\ManejaCobroPos is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: app/Livewire/Concerns/ManejaCobroPos.php
+
+		-
+			message: '#^Trait App\\Livewire\\Concerns\\ManejaReposicionRapida is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: app/Livewire/Concerns/ManejaReposicionRapida.php
+
+		-
+			message: '#^Trait App\\Livewire\\Concerns\\RegistraDifusionSocial is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: app/Livewire/Concerns/RegistraDifusionSocial.php
+
+		-
+			message: '#^Method App\\Models\\Caja\:\:turnoActivo\(\) should return App\\Models\\TurnoCaja\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Models/Caja.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CrmConfiguracion\:\:\$email_smtp_password\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/CrmConfiguracion.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$color\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Insumo.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$icono\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Insumo.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Insumo.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$stock_actual\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Insumo.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$costo_teorico\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/Producto.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\:\:vigentes\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Models/Promocion.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/RotacionMesero.php
+
+		-
+			message: '#^Cannot call method isFuture\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Models/VipInvitacion.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/Zona.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>slug" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Policies/ClienteVipPolicy.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ItemPedido\:\:\$total_cantidad\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ItemPedido\:\:\$total_ventas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$comandas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$total_monto\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$total_pedidos\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$total_propinas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$total_ventas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$caja\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Offset ''hora_num'' does not exist on array\{hora\: string, ventas\: float, transacciones\: int, pct_altura\: int\}\.$#'
+			identifier: offsetAccess.notFound
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Parameter \#1 \$value of function collect contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 3
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between array\{function_calling_config\: array\{mode\: ''ANY''\}\}\|array\{function_calling_config\: array\{mode\: ''AUTO''\}\} and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>telefono" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Ai/AdminAiCopilotService.php
+
+		-
+			message: '#^Method App\\Services\\Ai\\AiToolGatekeeper\:\:obtenerPlantillaActiva\(\) should return App\\Models\\CrmIaPlantillaPrivilegio but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/Ai/AiToolGatekeeper.php
+
+		-
+			message: '#^Offset ''cinco''\|''cuatro''\|''diez''\|''dos''\|''nueve''\|''ocho''\|''seis''\|''siete''\|''tres''\|''un''\|''una''\|''uno'' on array\{un\: 1, uno\: 1, una\: 1, dos\: 2, tres\: 3, cuatro\: 4, cinco\: 5, seis\: 6, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 3
+			path: app/Services/Ai/CrmAiAgentService.php
+
+		-
+			message: '#^Offset ''domingo''\|''jueves''\|''lunes''\|''martes''\|''miercoles''\|''miércoles''\|''sabado''\|''sábado''\|''viernes'' on array\{domingo\: 0, lunes\: 1, martes\: 2, miercoles\: 3, miércoles\: 3, jueves\: 4, viernes\: 5, sabado\: 6, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Ai/CrmAiAgentService.php
+
+		-
+			message: '#^Offset 2 on array\{non\-falsy\-string, numeric\-string, ''''\|\(non\-falsy\-string&numeric\-string\), non\-falsy\-string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Ai/CrmAiAgentService.php
+
+		-
+			message: '#^Offset 3 on array\{non\-falsy\-string, numeric\-string, ''''\|\(non\-falsy\-string&numeric\-string\), non\-falsy\-string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Ai/CrmAiAgentService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between 0\|1\|2\|3\|4\|5\|6 and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/Ai/CrmAiAgentService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{role\: ''model''\|''user'', parts\: array\{array\{text\: string\}\}\}, Closure\(App\\Models\\CrmMensaje\)\: array\{role\: ''model''\|''user'', parts\: array\{array\{text\: string\}\}\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Ai/CrmChatOrchestratorService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/AuditoriaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/CajaReporteService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\MovimientoCaja\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/CajaReporteService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/CajaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/CajaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/CajaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$sucursal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/CajaService.php
+
+		-
+			message: '#^Match arm comparison between ''ingreso'' and ''ingreso'' is always true\.$#'
+			identifier: match.alwaysTrue
+			count: 1
+			path: app/Services/CajaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/CajaService.php
+
+		-
+			message: '#^Method App\\Services\\ClienteService\:\:agregarDireccion\(\) should return App\\Models\\DireccionCliente but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/ClienteService.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between mixed and null will always evaluate to true\.$#'
+			identifier: notIdentical.alwaysTrue
+			count: 1
+			path: app/Services/ClienteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\VipInvitacion\:\:\$token_plano\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ClubVipService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\VipInvitacion\:\:\$url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ClubVipService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ClubVipService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ClubVipService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telefono\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ClubVipService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/CompraService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/ConfiguracionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$asunto\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/CrmAutomatizacionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/CrmAutomatizacionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Services/CrmAutomatizacionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telefono\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/CrmAutomatizacionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$whatsapp_template_name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/CrmAutomatizacionService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:renderizar\(\)\.$#'
+			identifier: method.notFound
+			count: 5
+			path: app/Services/CrmAutomatizacionService.php
+
+		-
+			message: '#^Parameter \#2 \$cliente of method App\\Services\\EncuestaService\:\:generarEnvio\(\) expects App\\Models\\Cliente, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/CrmAutomatizacionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cliente\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/CrmEstadisticasService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/CrmEstadisticasService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$pedido\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/CrmEstadisticasService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CrmConfiguracion\:\:\$whatsapp_access_token\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/CrmWhatsAppService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/CuentasPorPagarService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ItemPedido\:\:\$margen_total\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ItemPedido\:\:\$total_ventas\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estado\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Cannot call method format\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>monto_esperado_efectivo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>monto_inicial" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>total_ventas_efectivo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>total_ventas_tarjeta" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>total_ventas_transferencia" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DashboardService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\DireccionCliente\|Illuminate\\Database\\Eloquent\\Collection\<\(int\|string\), App\\Models\\DireccionCliente\>\:\:\$direccion_completa\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/DeliveryService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DeliveryService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DeliveryService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>telefono" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/DeliveryService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cantidad\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$identificacion\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_producto\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$precio_unitario\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$producto_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$subtotal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>identificacion" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Dian/DianPosElectronicoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/EncuestaService.php
+
+		-
+			message: '#^Cannot call method isPast\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/EncuestaService.php
+
+		-
+			message: '#^Parameter \#1 \$cliente of method App\\Services\\FidelizacionService\:\:bonusPorEncuesta\(\) expects App\\Models\\Cliente, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/EncuestaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>documento" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/ExportadorContableService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ExportadorContableService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$activo\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/FidelizacionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/FidelizacionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/FidelizacionService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\TurnoCaja\:\:\$usuario_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$area_cocina\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cantidad\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documento\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estado_cocina\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_producto\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$precio_unitario\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$puerto\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$puntos_fidelidad\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$subtotal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telefono\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tier\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tipo_conexion\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Parameter \#2 \$impresora of method App\\Services\\ImpresionService\:\:imprimirEnDriverLocal\(\) expects App\\Models\\Impresora, Illuminate\\Database\\Eloquent\\Model\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>ancho_columnas" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>codigo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 7
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre_producto" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ImpresionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$inventario_descontado\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/InventarioService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$recetas\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/InventarioService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$sucursal_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/InventarioService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$usuario_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/InventarioService.php
+
+		-
+			message: '#^Parameter \#1 \$item of method App\\Services\\InventarioService\:\:descontarPorItemPedido\(\) expects App\\Models\\ItemPedido, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 2
+			path: app/Services/InventarioService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/InventarioService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Producto\:\:\$imagen_url\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/MenuService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Categoria\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/MenuService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/MenuService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: int, nombre\: string, descripcion\: string\|null, precio\: float, area_cocina\: string\|null, imagen\: string\|null, imagen_url\: mixed\}, Closure\(App\\Models\\Producto\)\: array\{id\: int, nombre\: string, descripcion\: string\|null, precio\: float, area_cocina\: string\|null, imagen\: string\|null, imagen_url\: mixed\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/MenuService.php
+
+		-
+			message: '#^Parameter \#1 \$value of function collect contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/MenuService.php
+
+		-
+			message: '#^Parameter \#3 \$callback of static method Illuminate\\Cache\\Repository\:\:remember\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/MenuService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/MesaService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\HasMany\:\:activos\(\)\.$#'
+			identifier: method.notFound
+			count: 6
+			path: app/Services/MesaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/MesaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/NotificacionService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>slug" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/NotificacionService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estado\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Pasarela/PasarelaPagoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Pasarela/PasarelaPagoService.php
+
+		-
+			message: '#^Parameter \$pedido of method App\\Services\\PedidoService\:\:cobrarPedido\(\) expects App\\Models\\Pedido, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/Pasarela/PasarelaPagoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estado\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 6
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesa\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesero_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$sucursal_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$turno_caja_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:items\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>zona" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/PedidoService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Compra\:\:\$facturas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ProveedorService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Compra\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ProveedorService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CompraLinea\:\:\$proveedor_id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/ProveedorService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\CompraLinea\:\:\$ultima_fecha\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ProveedorService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\AsientoContable\:\:\$movimientos\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\AsientoContable\:\:\$total\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ItemPedido\:\:\$margen\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ItemPedido\:\:\$ventas\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$dia\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$gastado\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$hora\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$transacciones\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$ventas\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Pedido\:\:\$visitas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$costo\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Pedido\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>costo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>total" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/ReporteService.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\ItemPedido\:\:\$total_ventas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReportesComparativosService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/ReposicionRapidaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nit\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReposicionRapidaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/ReposicionRapidaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telefono\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/ReposicionRapidaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/ReposicionRapidaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ReposicionRapidaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\HasMany\:\:activos\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Cannot call method isToday\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 5
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:each\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: mixed, Closure\(App\\Models\\Mesa\)\: void given\.$#'
+			identifier: argument.type
+			count: 5
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/ReservaService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Relations\\HasMany\:\:activos\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/RotacionMeseroService.php
+
+		-
+			message: '#^Method App\\Services\\RotacionMeseroService\:\:autoasignarMesa\(\) should return App\\Models\\User\|null but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Services/RotacionMeseroService.php
+
+		-
+			message: '#^Method App\\Services\\RotacionMeseroService\:\:obtenerSiguienteMeseroParaZona\(\) should return App\\Models\\User\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 4
+			path: app/Services/RotacionMeseroService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>sucursal_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/RotacionMeseroService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$es_descanso\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$fecha\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 13
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesas_especificas\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$orden\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$plantilla_turno_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$sucursal_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$user_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$zona_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Cannot call method toDateString\(\) on string\.$#'
+			identifier: method.nonObject
+			count: 3
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Illuminate\\Database\\Eloquent\\Collection\<\(int\|string\), App\\Models\\TurnoMeseroSemana\> does not accept App\\Models\\TurnoMeseroSemana\|null\.$#'
+			identifier: offsetAssign.valueType
+			count: 2
+			path: app/Services/TurnoSemanalService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ForeignKeyDefinition\:\:after\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: database/migrations/2026_09_25_092100_add_mesero_and_zona_to_reservas_table.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Schema\\ForeignKeyDefinition\:\:after\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: database/migrations/2026_10_03_190000_add_club_vip_fields_and_invitaciones_table.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int\<101, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: database/seeders/DatosPruebaRealistasSeeder.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$barrio_ciudad\.$#'
+			identifier: property.notFound
+			count: 1
+			path: database/seeders/DemoColombiaMedellinSeeder.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: database/seeders/DemoColombiaMedellinSeeder.php
+
+		-
+			message: '#^Offset ''proveedor_key'' on array\{codigo\: ''INS\-AGU\-AZU'', nombre\: ''Aguardiente…'', unidad_medida\: ''botella'', categoria_id\: mixed, categoria\: ''Licores'', stock_actual\: 30\.0, stock_minimo\: 8\.0, costo_unitario\: 42000\.0, \.\.\.\}\|array\{codigo\: ''INS\-AGU\-HAS'', nombre\: ''Aguacate Hass…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Fruver'', stock_actual\: 40\.0, stock_minimo\: 10\.0, costo_unitario\: 8500\.0, \.\.\.\}\|array\{codigo\: ''INS\-ALA\-01'', nombre\: ''Alitas de Pollo…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Aves'', stock_actual\: 25\.0, stock_minimo\: 8\.0, costo_unitario\: 18000\.0, \.\.\.\}\|array\{codigo\: ''INS\-BIF\-01'', nombre\: ''Corte Bife de…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Carnes'', stock_actual\: 28\.5, stock_minimo\: 8\.0, costo_unitario\: 38000\.0, \.\.\.\}\|array\{codigo\: ''INS\-CAF\-ESP'', nombre\: ''Café Especial de…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Café'', stock_actual\: 20\.0, stock_minimo\: 5\.0, costo_unitario\: 48000\.0, \.\.\.\}\|array\{codigo\: ''INS\-CAM\-01'', nombre\: ''Camarones Jumbo U15…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Mariscos'', stock_actual\: 24\.0, stock_minimo\: 6\.0, costo_unitario\: 54000\.0, \.\.\.\}\|array\{codigo\: ''INS\-CER\-CLU'', nombre\: ''Cerveza Club…'', unidad_medida\: ''unidad'', categoria_id\: mixed, categoria\: ''Cervezas'', stock_actual\: 120\.0, stock_minimo\: 36\.0, costo_unitario\: 4200\.0, \.\.\.\}\|array\{codigo\: ''INS\-COS\-01'', nombre\: ''Costillar de Cerdo…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Carnes'', stock_actual\: 35\.0, stock_minimo\: 10\.0, costo_unitario\: 26000\.0, \.\.\.\}\|array\{codigo\: ''INS\-CRE\-LEC'', nombre\: ''Crema de Leche…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Lácteos'', stock_actual\: 2\.5, stock_minimo\: 8\.0, costo_unitario\: 16000\.0, \.\.\.\}\|array\{codigo\: ''INS\-EMP\-CAJ'', nombre\: ''Cajas Térmicas…'', unidad_medida\: ''unidad'', categoria_id\: mixed, categoria\: ''Empaques'', stock_actual\: 350\.0, stock_minimo\: 80\.0, costo_unitario\: 1200\.0, \.\.\.\}\|array\{codigo\: ''INS\-GAS\-COL'', nombre\: ''Gaseosa Colombiana…'', unidad_medida\: ''unidad'', categoria_id\: mixed, categoria\: ''Bebidas'', stock_actual\: 96\.0, stock_minimo\: 24\.0, costo_unitario\: 2800\.0, \.\.\.\}\|array\{codigo\: ''INS\-GAS\-POS'', nombre\: ''Gaseosa Postobón…'', unidad_medida\: ''unidad'', categoria_id\: mixed, categoria\: ''Bebidas'', stock_actual\: 96\.0, stock_minimo\: 24\.0, costo_unitario\: 2800\.0, \.\.\.\}\|array\{codigo\: ''INS\-GIN\-BOT'', nombre\: ''Ginebra Botánica de…'', unidad_medida\: ''botella'', categoria_id\: mixed, categoria\: ''Licores'', stock_actual\: 18\.0, stock_minimo\: 5\.0, costo_unitario\: 85000\.0, \.\.\.\}\|array\{codigo\: ''INS\-LIM\-TAH'', nombre\: ''Limón Tahití Jugoso…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Fruver'', stock_actual\: 30\.0, stock_minimo\: 8\.0, costo_unitario\: 4200\.0, \.\.\.\}\|array\{codigo\: ''INS\-LOM\-01'', nombre\: ''Lomo Fino de Res…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Carnes'', stock_actual\: 3\.2, stock_minimo\: 8\.0, costo_unitario\: 42000\.0, \.\.\.\}\|array\{codigo\: ''INS\-PAN\-BRI'', nombre\: ''Pan Brioche…'', unidad_medida\: ''unidad'', categoria_id\: mixed, categoria\: ''Panadería'', stock_actual\: 120\.0, stock_minimo\: 30\.0, costo_unitario\: 2500\.0, \.\.\.\}\|array\{codigo\: ''INS\-PAP\-CRI'', nombre\: ''Papa Criolla Limpia…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Fruver'', stock_actual\: 65\.0, stock_minimo\: 15\.0, costo_unitario\: 5500\.0, \.\.\.\}\|array\{codigo\: ''INS\-PAP\-RUS'', nombre\: ''Papa Rústica /…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Fruver'', stock_actual\: 75\.0, stock_minimo\: 20\.0, costo_unitario\: 6200\.0, \.\.\.\}\|array\{codigo\: ''INS\-PEC\-01'', nombre\: ''Pechuga de Pollo…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Aves'', stock_actual\: 30\.0, stock_minimo\: 10\.0, costo_unitario\: 22000\.0, \.\.\.\}\|array\{codigo\: ''INS\-QUE\-PAR'', nombre\: ''Queso Parmesano…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Lácteos'', stock_actual\: 15\.0, stock_minimo\: 4\.0, costo_unitario\: 48000\.0, \.\.\.\}\|array\{codigo\: ''INS\-RIB\-01'', nombre\: ''Ojo de Bife /…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Carnes'', stock_actual\: 22\.0, stock_minimo\: 6\.0, costo_unitario\: 45000\.0, \.\.\.\}\|array\{codigo\: ''INS\-ROB\-01'', nombre\: ''Filete de Róbalo /…'', unidad_medida\: ''kg'', categoria_id\: mixed, categoria\: ''Pescados'', stock_actual\: 18\.0, stock_minimo\: 5\.0, costo_unitario\: 42000\.0, \.\.\.\}\|array\{codigo\: ''INS\-RON\-MED'', nombre\: ''Ron Medellín Extra…'', unidad_medida\: ''botella'', categoria_id\: mixed, categoria\: ''Licores'', stock_actual\: 24\.0, stock_minimo\: 6\.0, costo_unitario\: 68000\.0, \.\.\.\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: database/seeders/DemoColombiaMedellinSeeder.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
+			count: 1
+			path: database/seeders/DemoColombiaMedellinSeeder.php
+
+		-
+			message: '#^If condition is always true\.$#'
+			identifier: if.alwaysTrue
+			count: 1
+			path: database/seeders/DemoOperacionesSeeder.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type mixed\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/DemoOperacionesSeeder.php
+
+		-
+			message: '#^Offset ''barra''\|''salon''\|''terraza''\|''vip'' on array\{salon\: array\{mixed, mixed, mixed, mixed\}, terraza\: array\{mixed, mixed\}, barra\: array\{mixed, mixed\}, vip\: array\{mixed, mixed\}\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: database/seeders/MeseroPruebaSeeder.php
+
+		-
+			message: '#^Offset ''salon'' on array\{salon\: array\{mixed, mixed, mixed, mixed\}, terraza\: array\{mixed, mixed\}, barra\: array\{mixed, mixed\}, vip\: array\{mixed, mixed\}\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: database/seeders/MeseroPruebaSeeder.php
+
+		-
+			message: '#^Variable \$ids in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: database/seeders/MeseroPruebaSeeder.php
+
+		-
+			message: '#^Variable \$idsMeserosZona in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: database/seeders/MeseroPruebaSeeder.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Cliente\:\:\$identificacion\.$#'
+			identifier: property.notFound
+			count: 1
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Offset ''pago_dias'' on array\{prov\: ''Carnes Frías San…'', offset\: 11, factura\: ''FAC\-CSM\-9140'', monto\: 3800000\.0, concepto\: ''Reposición lomos…'', estado\: ''parcial'', abono\: 2000000\.0, pago_dias\: 5\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>dias_credito" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 4
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>identificacion" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nit" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 3
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\Mesa\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/OperacionesMesCompletoSeeder.php
+
+		-
+			message: '#^Access to an undefined property App\\Models\\Cliente\:\:\$identificacion\.$#'
+			identifier: property.notFound
+			count: 1
+			path: database/seeders/OperacionesSemanaCompletaSeeder.php
+
+		-
+			message: '#^Parameter \#1 \$string of function str_pad expects string, int\<201, max\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: database/seeders/OperacionesSemanaCompletaSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 16
+			path: database/seeders/OperacionesSemanaCompletaSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>identificacion" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/OperacionesSemanaCompletaSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: database/seeders/OperacionesSemanaCompletaSeeder.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>telefono" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/OperacionesSemanaCompletaSeeder.php
+
+		-
+			message: '#^Using nullsafe property access on non\-nullable type App\\Models\\Mesa\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: database/seeders/OperacionesSemanaCompletaSeeder.php

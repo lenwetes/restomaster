@@ -25,7 +25,7 @@ class AdminUserSeeder extends Seeder
 
         $sucursal = Sucursal::first();
 
-        $rawPassword = env('DEMO_USERS_PASSWORD') ?: 'password';
+        $rawPassword = config('auth.demo_password') ?: 'password';
 
         if ($this->command && app()->isLocal()) {
             $this->command->info('Usuarios del sistema configurados correctamente para cada rol.');

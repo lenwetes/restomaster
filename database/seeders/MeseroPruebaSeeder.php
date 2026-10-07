@@ -32,7 +32,7 @@ class MeseroPruebaSeeder extends Seeder
             ['nombre' => 'Mesero']
         );
 
-        $rawPassword = env('DEMO_USERS_PASSWORD') ?: 'password';
+        $rawPassword = config('auth.demo_password') ?: 'password';
         $hashedPassword = Hash::make($rawPassword);
 
         // 10 Meseros con perfiles colombianos representativos

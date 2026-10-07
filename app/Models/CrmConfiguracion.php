@@ -50,30 +50,30 @@ class CrmConfiguracion extends Model
      */
     protected function whatsappAccessToken(): Attribute
     {
-        return Attribute::make(get: function (?string $value) {
-            if (empty($value)) {
-                return null;
-            }
-            try {
-                return Crypt::decryptString($value);
-            } catch (\Throwable) {
-                return $value;
-            }
-        }, set: function (?string $value) {
-            if (empty($value)) {
-                $this->attributes['whatsapp_access_token'] = null;
+        return Attribute::make(
+            get: function (?string $value) {
+                if (empty($value)) {
+                    return null;
+                }
+                try {
+                    return Crypt::decryptString($value);
+                } catch (\Throwable) {
+                    return $value;
+                }
+            },
+            set: function (?string $value) {
+                if (empty($value)) {
+                    return null;
+                }
+                try {
+                    Crypt::decryptString($value);
 
-                return;
+                    return $value;
+                } catch (\Throwable) {
+                    return Crypt::encryptString($value);
+                }
             }
-            try {
-                Crypt::decryptString($value);
-                $this->attributes['whatsapp_access_token'] = $value;
-            } catch (\Throwable) {
-                $this->attributes['whatsapp_access_token'] = Crypt::encryptString($value);
-            }
-
-            return ['whatsapp_access_token' => null, 'whatsapp_access_token' => $value, 'whatsapp_access_token' => Crypt::encryptString($value)];
-        });
+        );
     }
 
     /**
@@ -81,30 +81,30 @@ class CrmConfiguracion extends Model
      */
     protected function iaApiKey(): Attribute
     {
-        return Attribute::make(get: function (?string $value) {
-            if (empty($value)) {
-                return null;
-            }
-            try {
-                return Crypt::decryptString($value);
-            } catch (\Throwable) {
-                return $value;
-            }
-        }, set: function (?string $value) {
-            if (empty($value)) {
-                $this->attributes['ia_api_key'] = null;
+        return Attribute::make(
+            get: function (?string $value) {
+                if (empty($value)) {
+                    return null;
+                }
+                try {
+                    return Crypt::decryptString($value);
+                } catch (\Throwable) {
+                    return $value;
+                }
+            },
+            set: function (?string $value) {
+                if (empty($value)) {
+                    return null;
+                }
+                try {
+                    Crypt::decryptString($value);
 
-                return;
+                    return $value;
+                } catch (\Throwable) {
+                    return Crypt::encryptString($value);
+                }
             }
-            try {
-                Crypt::decryptString($value);
-                $this->attributes['ia_api_key'] = $value;
-            } catch (\Throwable) {
-                $this->attributes['ia_api_key'] = Crypt::encryptString($value);
-            }
-
-            return ['ia_api_key' => null, 'ia_api_key' => $value, 'ia_api_key' => Crypt::encryptString($value)];
-        });
+        );
     }
 
     /**
@@ -112,30 +112,30 @@ class CrmConfiguracion extends Model
      */
     protected function emailSmtpPassword(): Attribute
     {
-        return Attribute::make(get: function (?string $value) {
-            if (empty($value)) {
-                return null;
-            }
-            try {
-                return Crypt::decryptString($value);
-            } catch (\Throwable) {
-                return $value;
-            }
-        }, set: function (?string $value) {
-            if (empty($value)) {
-                $this->attributes['email_smtp_password'] = null;
+        return Attribute::make(
+            get: function (?string $value) {
+                if (empty($value)) {
+                    return null;
+                }
+                try {
+                    return Crypt::decryptString($value);
+                } catch (\Throwable) {
+                    return $value;
+                }
+            },
+            set: function (?string $value) {
+                if (empty($value)) {
+                    return null;
+                }
+                try {
+                    Crypt::decryptString($value);
 
-                return;
+                    return $value;
+                } catch (\Throwable) {
+                    return Crypt::encryptString($value);
+                }
             }
-            try {
-                Crypt::decryptString($value);
-                $this->attributes['email_smtp_password'] = $value;
-            } catch (\Throwable) {
-                $this->attributes['email_smtp_password'] = Crypt::encryptString($value);
-            }
-
-            return ['email_smtp_password' => null, 'email_smtp_password' => $value, 'email_smtp_password' => Crypt::encryptString($value)];
-        });
+        );
     }
 
     public function sucursal(): BelongsTo
@@ -214,8 +214,8 @@ class CrmConfiguracion extends Model
         }
 
         return match ($this->ia_proveedor) {
-            'openai' => config('services.openai.key', env('OPENAI_API_KEY')),
-            default => config('services.gemini.key', env('GEMINI_API_KEY')),
+            'openai' => (string) config('services.openai.key', ''),
+            default => (string) config('services.gemini.key', ''),
         };
     }
 

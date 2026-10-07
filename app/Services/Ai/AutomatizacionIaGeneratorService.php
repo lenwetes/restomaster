@@ -33,7 +33,7 @@ class AutomatizacionIaGeneratorService
     public function interpretarYGenerar(string $prompt, ?int $sucursalId = null): array
     {
         $config = CrmConfiguracion::activa($sucursalId);
-        $apiKey = $config->obtenerApiKeyIa() ?: env('GEMINI_API_KEY');
+        $apiKey = $config->obtenerApiKeyIa() ?: config('services.gemini.key');
 
         if (! empty($apiKey) && ! app()->environment('testing')) {
             try {

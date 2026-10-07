@@ -42,7 +42,7 @@ class CrmWebhookController extends Controller
     public function recibir(Request $request): JsonResponse
     {
         $config = CrmConfiguracion::activa();
-        $appSecret = $config->whatsapp_webhook_secret ?: config('services.whatsapp.app_secret', env('WHATSAPP_APP_SECRET', ''));
+        $appSecret = $config->whatsapp_webhook_secret ?: config('services.whatsapp.app_secret', '');
         $signature = $request->header('X-Hub-Signature-256');
 
         if (! empty($appSecret)) {

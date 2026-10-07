@@ -54,7 +54,7 @@ class DemoColombiaMedellinSeeder extends Seeder
     {
         $this->command?->info('Iniciando Seeder Maestro Colombia · Medellín (RestoMaster Gastro-OS)...');
 
-        $rawPassword = env('DEMO_USERS_PASSWORD') ?: 'password';
+        $rawPassword = config('auth.demo_password') ?: 'password';
         $unifiedPassword = Hash::make($rawPassword);
 
         // 1. SUCURSAL PRINCIPAL

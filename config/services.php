@@ -79,6 +79,14 @@ return [
         'api_url' => env('BOLD_API_URL', 'https://api.bold.co'),
     ],
 
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY', ''),
+    ],
+
+    'openai' => [
+        'key' => env('OPENAI_API_KEY', ''),
+    ],
+
     'sentry' => [
         'dsn' => env('SENTRY_LARAVEL_DSN', ''),
         'traces_sample_rate' => (float) env('SENTRY_TRACES_SAMPLE_RATE', 1.0),
