@@ -6,6 +6,19 @@
 ---
 
 ## Última Actualización
+2026-10-06 | Antigravity | 🚀 **SINCRONIZACIÓN GITHUB + DESPLIEGUE COOLIFY (DOCKER COMPOSE + ENTRYPOINT + MULTI-RAMA):**
+- **1. Sincronización Multi-Rama a GitHub:**
+  - Actualizadas y sincronizadas las ramas `main`, `master` y `feat/gestor-zonas-drag-drop` en remoto `origin` (`https://github.com/lenwetes/restomaster.git`).
+  - Todas las ramas sincronizadas idénticamente en el commit de producción.
+- **2. Archivos de Despliegue para Coolify:**
+  - `docker-compose.coolify.yml` (y sus alias `docker-compose.yml` / `docker-compose.yaml`) actualizados y listos para auto-arranque en VPS con PostgreSQL 18, Redis 7 y proxy Traefik/Caddy.
+  - `docker/entrypoint.sh`: asegurada la regeneración forzada de enlaces simbólicos (`storage:link --force`) y auto-ejecución del Kit Maestro de Demostración (`restomaster:seed-demo`).
+  - `scripts/asegurar_imagenes_demo.php`: generador automático integrado de `storage/app/public/facturas_proveedores/soporte_demo_factura.png` mediante GD para garantizar que los soportes existan siempre en contenedores efímeros o limpios.
+  - Actualizada la guía `docs/despliegue-coolify.md`.
+- **3. Archivos de Ignorados:**
+  - `.dockerignore` y `.gitignore` actualizados para ignorar artefactos de prueba de Playwright (`playwright-report/`, `test-results/`) y permitir el rastreo de carpetas de facturas de proveedores.
+
+---
 2026-10-06 | Antigravity | 🌱 **AUTO-SEED MAESTRO (DemoColombiaMedellinSeeder): VINCULACIÓN COMPLETA DE INSUMOS A PROVEEDORES + FACTURAS CON LÍNEAS + CUENTAS POR PAGAR (CxP) Y ABONOS REALISTAS:**
 - **1. Insumos Vinculados Directamente a Proveedores:**
   - En `DemoColombiaMedellinSeeder.php`, se actualizaron los 23 insumos con su `proveedor_id`, `proveedor_nombre`, `proveedor_nit`, `proveedor_telefono` y `categoria`.
