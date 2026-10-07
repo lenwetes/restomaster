@@ -307,7 +307,7 @@ class CrmAiAgentService
             $pregunta = "Perfecto, {$draft['nombre']}. ¿Para **qué fecha** prefieres la reserva?";
         } else {
             $lista = implode(', ', array_values($faltantes));
-            $pregunta = "Por favor indícanos {$lista} para confirmar tu mesa.";
+            $pregunta = "Por favor indícanos {$lista} para agendar tu mesa.";
         }
 
         return $resumenEstado.$pregunta;
@@ -714,7 +714,7 @@ class CrmAiAgentService
     }
 
     /**
-     * Ejecuta la persistencia de la reserva y su posterior intento de autoasignación/confirmación.
+     * Ejecuta la persistencia de la reserva en estado solicitada/agendada (sin auto-confirmar).
      */
     protected function ejecutarCreacionReserva(
         array $datos,
@@ -729,6 +729,7 @@ class CrmAiAgentService
 
         $telefonoFinal = $datos['telefono'] ?: ($telefono ?: ($cliente?->telefono ?: 'Canal Web'));
 
+        // La reserva se agenda en estado 'solicitada' sin confirmarse automáticamente
         $reserva = $reservaService->crear([
             'sucursal_id' => $sucursalFinal,
             'cliente_id' => $cliente?->id,
@@ -738,19 +739,10 @@ class CrmAiAgentService
             'hora_llegada' => $datos['hora'],
             'personas' => (int) $datos['personas'],
             'duracion_min' => 120,
-            'notas' => 'Reserva agendada automáticamente por IA Concierge desde el chat.',
+            'notas' => 'Reserva agendada por IA Concierge desde el chat (pendiente de confirmación por el restaurante).',
         ], 'ia_concierge');
 
-        $mesaTexto = 'Asignación automática al llegar';
-        try {
-            $reservaConfirmada = $reservaService->confirmar($reserva);
-            $mesa = $reservaConfirmada->mesas->first();
-            if ($mesa) {
-                $mesaTexto = "Mesa #{$mesa->numero}";
-            }
-        } catch (\Throwable) {
-            // Se mantiene en solicitada si no hay mesa inmediata
-        }
+        $mesaTexto = 'Asignación al ser confirmada en el restaurante';
 
         // Actualizar el nombre de contacto en la conversación si aún era genérico
         if ($conversacion && $datos['nombre']) {
@@ -766,16 +758,17 @@ class CrmAiAgentService
 
         $horaFormatted = Carbon::createFromFormat('H:i', $datos['hora'])->format('g:i A');
 
-        $texto = "🎉 **¡Tu reserva ha sido confirmada con éxito!**\n".
+        $texto = "📅 **¡Tu reserva ha sido agendada con éxito!**\n".
             "━━━━━━━━━━━━━━━━━━━━━━\n".
             "📋 **Detalles de la Reserva (#{$reserva->id}):**\n".
             "• 👤 **Titular:** {$datos['nombre']}\n".
             "• 👥 **Comensales:** {$datos['personas']} personas\n".
             "• 📅 **Fecha:** {$fechaDesc}\n".
             "• ⏰ **Hora:** {$horaFormatted}\n".
+            "• 📌 **Estado:** Agendada (Pendiente de confirmación)\n".
             "• 📍 **Mesa:** {$mesaTexto}\n".
             "━━━━━━━━━━━━━━━━━━━━━━\n".
-            '¡Te esperamos con los brazos abiertos en RestoMaster para una experiencia gastronómica inolvidable! Si necesitas modificar algún detalle, solo avísanos por este chat.';
+            'Tu solicitud ha sido registrada en nuestro sistema de reservas. El equipo de RestoMaster revisará la disponibilidad y confirmará tu mesa a la brevedad. Si necesitas modificar algún detalle, solo avísanos por este chat.';
 
         return [
             'texto' => $texto,

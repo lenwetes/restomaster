@@ -104,12 +104,13 @@ class CrmChatReservaAutomaticaTest extends TestCase
         $this->assertEquals(today()->toDateString(), $reserva->fecha->toDateString());
         $this->assertEquals('18:00', substr((string) $reserva->hora_llegada, 0, 5));
         $this->assertEquals('ia_concierge', $reserva->origen);
+        $this->assertEquals('solicitada', $reserva->estado);
 
-        // 4. El mensaje del bot debe confirmar la reserva con su ID y estado
+        // 4. El mensaje del bot debe agendar la reserva con su ID y estado (sin auto-confirmar)
         $ultimoMensaje = $conv->mensajes()->latest('id')->first();
         $this->assertEquals('bot', $ultimoMensaje->emisor);
         $this->assertStringContainsString('Luis Eduardo', $ultimoMensaje->contenido);
-        $this->assertStringContainsString('confirmada con éxito', $ultimoMensaje->contenido);
+        $this->assertStringContainsString('agendada con éxito', $ultimoMensaje->contenido);
         $this->assertStringContainsString("Reserva (#{$reserva->id})", $ultimoMensaje->contenido);
     }
 
@@ -151,12 +152,13 @@ class CrmChatReservaAutomaticaTest extends TestCase
 
         $conv->refresh();
         $msg3 = $conv->mensajes()->latest('id')->first();
-        $this->assertStringContainsString('confirmada con éxito', $msg3->contenido);
+        $this->assertStringContainsString('agendada con éxito', $msg3->contenido);
 
         $reserva = Reserva::where('nombre_contacto', 'Luis Eduardo')->first();
         $this->assertNotNull($reserva);
         $this->assertEquals(4, $reserva->personas);
         $this->assertEquals('20:00', substr((string) $reserva->hora_llegada, 0, 5));
+        $this->assertEquals('solicitada', $reserva->estado);
     }
 
     public function test_completa_reserva_en_flujo_multiturn(): void
@@ -183,6 +185,7 @@ class CrmChatReservaAutomaticaTest extends TestCase
         $this->assertEquals(2, $reserva->personas);
         $this->assertEquals(today()->toDateString(), $reserva->fecha->toDateString());
         $this->assertEquals('20:00', substr((string) $reserva->hora_llegada, 0, 5));
+        $this->assertEquals('solicitada', $reserva->estado);
     }
 
     public function test_cancela_reserva_en_curso_si_el_usuario_lo_solicita(): void

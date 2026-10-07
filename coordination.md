@@ -6,6 +6,20 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | 📅 **CORRECCIÓN FLUJO RESERVAS IA: AGENDAMIENTO SIN AUTO-CONFIRMACIÓN:**
+- **1. Corrección en Creación de Reservas por IA Concierge (`CrmAiAgentService.php`):**
+  - **Requerimiento:** Las reservas procesadas por la IA deben agendarse/registrarse en el sistema pero NO auto-confirmarse; deben quedar en estado `solicitada` para ser revisadas y confirmadas por el personal del restaurante (anfitrión/mesero/gerente).
+  - **Ajuste:** En `ejecutarCreacionReserva`, se eliminó la llamada a `$reservaService->confirmar($reserva)`.
+  - La reserva se crea mediante `ReservaService::crear` quedando en estado `solicitada` (origen: `ia_concierge`).
+  - El mensaje al comensal se actualizó para indicar que su reserva ha sido **agendada con éxito** (estado: Agendada, pendiente de confirmación por el restaurante) y que el equipo revisará la disponibilidad para confirmar la mesa.
+- **2. Verificación de Suites de Pruebas:**
+  - En `CrmChatReservaAutomaticaTest.php`: actualizadas aserciones verificando que la reserva se crea en estado `solicitada` y el mensaje notifica agendamiento exitoso.
+  - Suites `CrmChatReservaAutomaticaTest`, `ReservaAsignacionMesaMeseroTest` y `Fase5PublicoReservasTest` ejecutadas con **18 tests y 85 aserciones pasando al 100%**.
+  - Laravel Pint validado.
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 🚀 **ACTUALIZACIÓN DE DESPLIEGUE COOLIFY (DOCKER COMPOSE + ENTRYPOINT + LÍMITES PHP) & SINCRONIZACIÓN MULTI-RAMA:**
 - **1. Actualización de Archivos de Despliegue Coolify:**
   - En `docker-compose.coolify.yml` (y sus espejos `docker-compose.yml` y `docker-compose.yaml`): agregadas variables de entorno configurables `PHP_MEMORY_LIMIT: "${PHP_MEMORY_LIMIT:-512M}"`, `PHP_POST_MAX_SIZE: "${PHP_POST_MAX_SIZE:-64M}"` y `PHP_UPLOAD_MAX_FILESIZE: "${PHP_UPLOAD_MAX_FILESIZE:-64M}"`.
