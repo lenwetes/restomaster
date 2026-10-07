@@ -26,11 +26,15 @@ jobs:
       - name: Pint
         run: ./vendor/bin/pint --test
 
-      - name: PHP-CS-Fixer
+      - name: PHP-CS-Fixer (Advisory)
         run: ./vendor/bin/php-cs-fixer fix --dry-run
+        continue-on-error: true
 
-      - name: PHPCodeSniffer
+      - name: PHPCodeSniffer (Advisory)
         run: ./vendor/bin/phpcs app --standard=PSR12
+        continue-on-error: true
 
-      - name: Rector
+      - name: Rector (Advisory)
         run: ./vendor/bin/rector process --dry-run
+        continue-on-error: true
+

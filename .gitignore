@@ -37,3 +37,5 @@ reports_*
 _ide_helper_custom.php
 /playwright-report
 /test-results
+.php-cs-fixer.cache
+
