@@ -1,4 +1,4 @@
-# Reporte de Remediación — Sushixpress (para Antigravity)
+﻿# Reporte de Remediación — RESTOMASTER (para Antigravity)
 
 - **Autor:** OpenCode · **Fecha:** 2026-09-10
 - **Fuente:** Auditoría integral 2ª pasada (solo lectura) — `docs/auditoria/auditoria-2026-09-10.md`

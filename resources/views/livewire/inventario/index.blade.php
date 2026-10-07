@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Concerns\ManejaReposicionRapida;
 use App\Models\CategoriaInsumo;
 use App\Models\Insumo;
 use App\Models\MovimientoInventario;
@@ -18,59 +19,93 @@ use Livewire\Volt\Component;
 new
 #[Layout('layouts.app')]
 #[Title('INV-01 · Gestión de Inventario y Stock Crítico')]
-class extends Component {
+class extends Component
+{
+    use ManejaReposicionRapida;
+
     public string $search = '';
+
     public string $selectedCategoria = 'todas';
+
     public string $selectedFiltro = 'todos'; // todos, criticos, por_agotar, optimo
+
     public ?int $selectedInsumoId = null;
 
     // Modales Operativos
     public bool $modalMermaOpen = false;
+
     public bool $modalCompraOpen = false;
+
     public bool $modalAjusteOpen = false;
+
     public bool $modalNuevoInsumoOpen = false;
+
     public bool $modalRecetaOpen = false;
+
     public bool $modalRestriccionOpen = false;
+
     public string $mensajeRestriccion = '';
 
     // Modal Gestión de Categorías de Insumos
     public bool $modalCategoriasOpen = false;
+
     public ?int $categoriaInsumoId = null;
+
     public string $catNombre = '';
+
     public string $catIcono = 'inventory_2';
+
     public string $catColor = '#6366f1';
+
     public string $catDescripcion = '';
 
     // Formulario Merma
     public float $mermaCantidad = 0.5;
+
     public string $mermaMotivo = 'Merma operativa por corte y preparación';
 
     // Formulario Compra
     public float $compraCantidad = 5.0;
+
     public float $compraCostoUnitario = 50.0;
+
     public string $compraProveedor = '';
+
     public string $compraFactura = '';
 
     // Formulario Ajuste
     public float $ajusteNuevoStock = 0.0;
+
     public string $ajusteMotivo = 'Ajuste por conteo físico de inventario';
 
     // Formulario Nuevo Insumo
     public string $nuevoNombre = '';
+
     public string $nuevoCodigo = '';
+
     public ?int $nuevoCategoriaId = null;
+
     public string $nuevaCategoria = '';
+
     public string $nuevaUnidad = 'kg';
+
     public float $nuevoStockActual = 0.0;
+
     public float $nuevoStockMinimo = 5.0;
+
     public float $nuevoCostoUnitario = 10.0;
+
     public string $nuevoProveedor = '';
+
     public ?int $nuevoProveedorId = null;
+
     public ?float $nuevoPrecioReferencia = null;
 
     // Formulario Editar Insumo (proveedor + referencia de mercado)
     public array $edicion = ['proveedor_id' => null, 'precio_referencia_mercado' => null];
+
     public ?int $editandoInsumoId = null;
+
     public bool $mostrarModalEditarInsumo = false;
 
     // Mensajes flash
@@ -99,7 +134,7 @@ class extends Component {
 
     public function notificarAccesoRestringido(string $accion): void
     {
-        $this->mensajeRestriccion = "Acción reservada exclusivamente para el Administrador o Gerente de Sucursal. Como cajero con facultades de consulta, puedes revisar existencias, costos y movimientos, pero los registros de compras, mermas y ajustes deben ser ejecutados o autorizados por un Gerente.";
+        $this->mensajeRestriccion = 'Acción reservada exclusivamente para el Administrador o Gerente de Sucursal. Como cajero con facultades de consulta, puedes revisar existencias, costos y movimientos, pero los registros de compras, mermas y ajustes deben ser ejecutados o autorizados por un Gerente.';
         $this->modalRestriccionOpen = true;
 
         $this->dispatch('notificacion', [
@@ -118,6 +153,7 @@ class extends Component {
     {
         if (Gate::denies('create', Insumo::class)) {
             $this->notificarAccesoRestringido('gestionar categorías de inventario');
+
             return;
         }
         $this->cancelarEdicionCategoria();
@@ -128,6 +164,7 @@ class extends Component {
     {
         if (Gate::denies('create', Insumo::class)) {
             $this->notificarAccesoRestringido('gestionar categorías de inventario');
+
             return;
         }
         $cat = CategoriaInsumo::findOrFail($id);
@@ -151,6 +188,7 @@ class extends Component {
     {
         if (Gate::denies('create', Insumo::class)) {
             $this->notificarAccesoRestringido('gestionar categorías de inventario');
+
             return;
         }
 
@@ -188,6 +226,7 @@ class extends Component {
     {
         if (Gate::denies('delete', Insumo::class)) {
             $this->notificarAccesoRestringido('eliminar categorías de inventario');
+
             return;
         }
         $cat = CategoriaInsumo::findOrFail($id);
@@ -226,7 +265,7 @@ class extends Component {
         $this->compraCantidad = max(5.0, round(((float) $insumo->stock_minimo * 2) - (float) $insumo->stock_actual, 1));
         $this->compraCostoUnitario = (float) $insumo->costo_unitario;
         $this->compraProveedor = $insumo->proveedor_nombre ?? '';
-        $this->compraFactura = 'FAC-' . rand(1000, 9999);
+        $this->compraFactura = 'FAC-'.rand(1000, 9999);
         $this->modalCompraOpen = true;
     }
 
@@ -416,15 +455,15 @@ class extends Component {
             $like = DB::connection()->getDriverName() === 'pgsql' ? 'ilike' : 'like';
             $query->where(function ($q) use ($like) {
                 $q->where('nombre', $like, "%{$this->search}%")
-                  ->orWhere('codigo', $like, "%{$this->search}%")
-                  ->orWhere('proveedor_nombre', $like, "%{$this->search}%");
+                    ->orWhere('codigo', $like, "%{$this->search}%")
+                    ->orWhere('proveedor_nombre', $like, "%{$this->search}%");
             });
         }
 
         if ($this->selectedCategoria !== 'todas') {
             $query->where(function ($q) {
                 $q->where('categoria_id', $this->selectedCategoria)
-                  ->orWhere('categoria', $this->selectedCategoria);
+                    ->orWhere('categoria', $this->selectedCategoria);
             });
         }
 
@@ -732,25 +771,109 @@ class extends Component {
         </div>
 
         @if (count($categorias) > 1)
-            <!-- Categories Scrollable Pills con Color e Ícono Personalizados -->
-            <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                @foreach ($categorias as $key => $catData)
-                    @php
-                        $isSelected = (string) $selectedCategoria === (string) $key;
-                        $catColor = $catData['color'] ?? '#6366f1';
-                        $catIcon = $catData['icono'] ?? 'category';
-                    @endphp
-                    <button wire:click="$set('selectedCategoria', '{{ $key }}')"
-                            @style(['background-color: ' . $catColor => $isSelected, 'color: #ffffff' => $isSelected, 'border-color: ' . $catColor => $isSelected, 'border-color: ' . $catColor . '35' => !$isSelected])
-                            class="h-9 px-4 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 border
-                            {{ $isSelected 
-                                ? 'shadow-sm' 
-                                : 'bg-surface-container-low text-on-surface hover:bg-surface-container' }}">
-                        <span class="material-symbols-outlined text-[16px] {{ $isSelected ? 'text-white' : '' }}" 
-                              @style(['color: ' . $catColor => !$isSelected])>{{ $catIcon }}</span>
-                        <span>{{ $catData['label'] }}</span>
+            <!-- Categories Scrollable Pills con Controles de Desplazamiento PC & Arrastre -->
+            <div x-data="{
+                canScrollLeft: false,
+                canScrollRight: false,
+                isDown: false,
+                startX: 0,
+                scrollLeft: 0,
+                checkScroll() {
+                    const el = this.$refs.catContainer;
+                    if (!el) return;
+                    this.canScrollLeft = el.scrollLeft > 6;
+                    this.canScrollRight = el.scrollLeft < (el.scrollWidth - el.clientWidth - 6);
+                },
+                scrollPrev() {
+                    this.$refs.catContainer.scrollBy({ left: -260, behavior: 'smooth' });
+                },
+                scrollNext() {
+                    this.$refs.catContainer.scrollBy({ left: 260, behavior: 'smooth' });
+                },
+                onMouseDown(e) {
+                    this.isDown = true;
+                    this.startX = e.pageX - this.$refs.catContainer.offsetLeft;
+                    this.scrollLeft = this.$refs.catContainer.scrollLeft;
+                },
+                onMouseLeave() {
+                    this.isDown = false;
+                },
+                onMouseUp() {
+                    this.isDown = false;
+                },
+                onMouseMove(e) {
+                    if (!this.isDown) return;
+                    e.preventDefault();
+                    const x = e.pageX - this.$refs.catContainer.offsetLeft;
+                    const walk = (x - this.startX) * 1.5;
+                    this.$refs.catContainer.scrollLeft = this.scrollLeft - walk;
+                }
+            }" 
+            x-init="$nextTick(() => { checkScroll(); }); window.addEventListener('resize', () => checkScroll())"
+            class="relative group w-full">
+
+                <!-- Botón scroll Izquierda con gradiente sutil -->
+                <div x-show="canScrollLeft" 
+                     x-cloak
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 -translate-x-1"
+                     x-transition:enter-end="opacity-100 translate-x-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-x-0"
+                     x-transition:leave-end="opacity-0 -translate-x-1"
+                     class="absolute left-0 top-0 bottom-1 z-10 flex items-center pr-6 bg-gradient-to-r from-surface-container-lowest via-surface-container-lowest/90 to-transparent pointer-events-none">
+                    <button type="button" 
+                            @click="scrollPrev()" 
+                            class="pointer-events-auto h-8 w-8 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface flex items-center justify-center shadow-md border border-surface-container-highest transition-transform active:scale-95"
+                            title="Desplazar hacia la izquierda">
+                        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
                     </button>
-                @endforeach
+                </div>
+
+                <!-- Contenedor scroll de categorías -->
+                <div x-ref="catContainer"
+                     @scroll.passive="checkScroll()"
+                     @mousedown="onMouseDown($event)"
+                     @mouseleave="onMouseLeave()"
+                     @mouseup="onMouseUp()"
+                     @mousemove="onMouseMove($event)"
+                     class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none select-none cursor-grab active:cursor-grabbing">
+                    @foreach ($categorias as $key => $catData)
+                        @php
+                            $isSelected = (string) $selectedCategoria === (string) $key;
+                            $catColor = $catData['color'] ?? '#6366f1';
+                            $catIcon = $catData['icono'] ?? 'category';
+                        @endphp
+                        <button wire:click="$set('selectedCategoria', '{{ $key }}')"
+                                @style(['background-color: ' . $catColor => $isSelected, 'color: #ffffff' => $isSelected, 'border-color: ' . $catColor => $isSelected, 'border-color: ' . $catColor . '35' => !$isSelected])
+                                class="h-9 px-4 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shadow-2xs active:scale-95 border
+                                {{ $isSelected 
+                                    ? 'shadow-sm' 
+                                    : 'bg-surface-container-low text-on-surface hover:bg-surface-container' }}">
+                            <span class="material-symbols-outlined text-[16px] {{ $isSelected ? 'text-white' : '' }}" 
+                                  @style(['color: ' . $catColor => !$isSelected])>{{ $catIcon }}</span>
+                            <span>{{ $catData['label'] }}</span>
+                        </button>
+                    @endforeach
+                </div>
+
+                <!-- Botón scroll Derecha con gradiente sutil -->
+                <div x-show="canScrollRight" 
+                     x-cloak
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 translate-x-1"
+                     x-transition:enter-end="opacity-100 translate-x-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 translate-x-0"
+                     x-transition:leave-end="opacity-0 translate-x-1"
+                     class="absolute right-0 top-0 bottom-1 z-10 flex items-center pl-6 bg-gradient-to-l from-surface-container-lowest via-surface-container-lowest/90 to-transparent pointer-events-none">
+                    <button type="button" 
+                            @click="scrollNext()" 
+                            class="pointer-events-auto h-8 w-8 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface flex items-center justify-center shadow-md border border-surface-container-highest transition-transform active:scale-95"
+                            title="Desplazar hacia la derecha">
+                        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                    </button>
+                </div>
             </div>
         @endif
     </section>
@@ -870,11 +993,20 @@ class extends Component {
 
                                 <td class="py-3.5 px-4 text-right rounded-r-xl">
                                     <div class="flex items-center justify-end gap-1.5" @click.stop>
-                                        <button wire:click="abrirModalCompra({{ $insumo->id }})"
-                                                class="p-2 rounded-xl bg-surface-container hover:bg-secondary hover:text-on-secondary text-on-surface-variant transition-colors"
-                                                title="Comprar / Reabastecer">
-                                            <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-                                        </button>
+                                        @if ($isCritico || $isPorAgotar)
+                                            <button wire:click="abrirModalReponer({{ $insumo->id }})"
+                                                    class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl {{ $isCritico ? 'bg-error text-on-error hover:bg-error/90' : 'bg-amber-500 text-black hover:bg-amber-600' }} font-black text-xs shadow-xs transition-all active:scale-95"
+                                                    title="Reposición rápida de insumo">
+                                                <span class="material-symbols-outlined text-[15px]">bolt</span>
+                                                <span>Reponer</span>
+                                            </button>
+                                        @else
+                                            <button wire:click="abrirModalReponer({{ $insumo->id }})"
+                                                    class="p-2 rounded-xl bg-surface-container hover:bg-secondary hover:text-on-secondary text-on-surface-variant transition-colors"
+                                                    title="Reponer / Reabastecer">
+                                                <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                                            </button>
+                                        @endif
                                         <button wire:click="abrirModalMerma({{ $insumo->id }})"
                                                 class="p-2 rounded-xl bg-surface-container hover:bg-error hover:text-on-error text-on-surface-variant transition-colors"
                                                 title="Registrar Merma">
@@ -1682,4 +1814,7 @@ class extends Component {
             </div>
         </div>
     @endif
+
+    <!-- MODAL RÁPIDO DE REPOSICIÓN DE INSUMOS -->
+    @include('livewire.partials.modal-reponer-insumo')
 </div>

@@ -1,9 +1,13 @@
 <?php
 
+use App\Livewire\Concerns\ManejaReposicionRapida;
 use App\Services\DashboardService;
 use Livewire\Volt\Component;
 
-new class () extends Component {
+new class extends Component
+{
+    use ManejaReposicionRapida;
+
     public string $periodo = 'hoy';
 
     public function setPeriodo(string $periodo): void
@@ -345,122 +349,142 @@ new class () extends Component {
     <!-- SECCIÓN OPERATIVA: INVENTARIO, PLATOS ESTRELLA & RANKING DE PERSONAL (3 COLUMNAS) -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- MÓDULO PRIMARIO DE INVENTARIO: INSUMOS AGOTADOS & STOCK CRÍTICO (1 COLUMNA) -->
-        <div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between">
-            <div>
-                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <div class="flex items-center gap-2.5">
-                        <span class="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 border border-rose-500/20">
-                            <span class="material-symbols-outlined text-[22px]">inventory_2</span>
+        @php
+            $todasAlertas = collect($inventarioAlertas['agotados'] ?? [])->map(fn($item) => ['item' => $item, 'tipo' => 'agotado'])
+                ->concat(collect($inventarioAlertas['criticos'] ?? [])->map(fn($item) => ['item' => $item, 'tipo' => 'critico']))
+                ->values();
+        @endphp
+        <div 
+            x-data="{ 
+                pagina: 1, 
+                porPagina: 4, 
+                total: {{ $todasAlertas->count() }}, 
+                get totalPaginas() { return Math.max(1, Math.ceil(this.total / this.porPagina)); },
+                siguiente() { if (this.pagina < this.totalPaginas) this.pagina++; },
+                anterior() { if (this.pagina > 1) this.pagina--; }
+            }"
+            class="bg-surface-container-lowest rounded-3xl p-5 sm:p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between h-[480px]"
+        >
+            <div class="flex flex-col min-h-0 flex-1">
+                <!-- Header del Módulo -->
+                <div class="flex items-center justify-between gap-2 mb-3 shrink-0">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                            <span class="material-symbols-outlined text-[20px]">inventory_2</span>
                         </span>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h2 class="text-base font-black text-on-surface tracking-tight">Alerta Primaria de Inventario</h2>
+                        <div class="min-w-0">
+                            <h2 class="text-xs sm:text-sm font-black text-on-surface tracking-tight leading-tight">Alerta Primaria de Inventario</h2>
+                            <div class="flex items-center gap-1.5 mt-0.5">
                                 @if ($inventarioAlertas['total_alertas'] > 0)
-                                    <span class="px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[11px] font-black animate-pulse">
+                                    <span class="px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-black animate-pulse">
                                         {{ $inventarioAlertas['total_alertas'] }} en Riesgo
                                     </span>
                                 @else
-                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold">
-                                        Stock Óptimo
+                                    <span class="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[9px] font-bold">
+                                        Óptimo
                                     </span>
                                 @endif
+                                <span class="text-[10px] text-on-surface-variant truncate">Bajo stock crítico</span>
                             </div>
-                            <p class="text-xs text-on-surface-variant mt-0.5">Insumos agotados y bajo stock mínimo con impacto directo en recetas</p>
                         </div>
                     </div>
 
-                    <a 
-                        href="{{ route('inventario') }}" 
-                        wire:navigate
-                        class="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-xs flex items-center gap-1 border border-surface-container-highest transition-colors"
-                    >
-                        <span>Abrir Kardex</span>
-                        <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
-                    </a>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <!-- Botones de Paginado -->
+                        <div class="flex items-center gap-0.5 bg-surface-container-low px-1.5 py-0.5 rounded-xl border border-surface-container-highest shadow-xs" x-show="totalPaginas > 1">
+                            <button 
+                                type="button" 
+                                @click="anterior()" 
+                                :disabled="pagina === 1"
+                                class="p-0.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Página anterior"
+                            >
+                                <span class="material-symbols-outlined text-[15px] block">chevron_left</span>
+                            </button>
+                            <span class="text-[10px] font-mono text-on-surface font-bold px-1" x-text="pagina + '/' + totalPaginas"></span>
+                            <button 
+                                type="button" 
+                                @click="siguiente()" 
+                                :disabled="pagina === totalPaginas"
+                                class="p-0.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Página siguiente"
+                            >
+                                <span class="material-symbols-outlined text-[15px] block">chevron_right</span>
+                            </button>
+                        </div>
+
+                        <a 
+                            href="{{ route('inventario') }}" 
+                            wire:navigate
+                            class="px-2.5 py-1 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-bold text-[11px] flex items-center gap-1 border border-surface-container-highest transition-colors"
+                        >
+                            <span>Kardex</span>
+                            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                        </a>
+                    </div>
                 </div>
 
-                <!-- Lista de Insumos Críticos -->
-                @if ($inventarioAlertas['total_alertas'] > 0)
-                    <div class="overflow-x-auto">
+                <!-- Lista / Tabla con Barra de Desplazamiento y Paginado -->
+                @if ($todasAlertas->count() > 0)
+                    <div class="overflow-x-auto overflow-y-auto flex-1 min-h-0 resto-scrollbar pr-0.5 rounded-xl border border-surface-container-high/50">
                         <table class="w-full text-left text-xs">
-                            <thead>
-                                <tr class="border-b border-surface-container-highest text-on-surface-variant uppercase text-[10px] tracking-wider bg-surface-container-low/60">
-                                    <th class="py-2.5 px-3 rounded-l-xl">Insumo</th>
-                                    <th class="py-2.5 px-3">Estado</th>
-                                    <th class="py-2.5 px-3 text-right">Stock Actual</th>
-                                    <th class="py-2.5 px-3 text-right">Mínimo</th>
-                                    <th class="py-2.5 px-3">Proveedor Habitual</th>
-                                    <th class="py-2.5 px-3 text-right rounded-r-xl">Acción</th>
+                            <thead class="sticky top-0 z-10 bg-surface-container-low/95 backdrop-blur-xs">
+                                <tr class="border-b border-surface-container-highest text-on-surface-variant uppercase text-[9px] tracking-wider font-bold">
+                                    <th class="py-2 px-2.5">Insumo</th>
+                                    <th class="py-2 px-1.5">Estado</th>
+                                    <th class="py-2 px-1.5 text-right">Actual</th>
+                                    <th class="py-2 px-1.5 text-right">Mín.</th>
+                                    <th class="py-2 px-1.5">Proveedor</th>
+                                    <th class="py-2 px-2.5 text-right">Acción</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-surface-container font-medium">
-                                <!-- 1. Insumos Agotados (Stock 0) -->
-                                @foreach ($inventarioAlertas['agotados'] as $ag)
-                                    <tr class="hover:bg-rose-50/40 transition-colors">
-                                        <td class="py-2.5 px-3 font-bold text-on-surface">
-                                            <div class="flex items-center gap-2">
-                                                <span class="h-2 w-2 rounded-full bg-rose-600"></span>
-                                                <span>{{ $ag->nombre }}</span>
+                                @foreach ($todasAlertas as $idx => $alerta)
+                                    @php
+                                        $ins = $alerta['item'];
+                                        $esAgotado = $alerta['tipo'] === 'agotado';
+                                    @endphp
+                                    <tr 
+                                        x-show="Math.floor({{ $idx }} / porPagina) + 1 === pagina"
+                                        x-transition:enter="transition ease-out duration-150"
+                                        x-transition:enter-start="opacity-0 translate-y-1"
+                                        x-transition:enter-end="opacity-100 translate-y-0"
+                                        class="hover:bg-surface-container-high/40 transition-colors"
+                                    >
+                                        <td class="py-2 px-2.5 font-bold text-on-surface">
+                                            <div class="flex items-center gap-1.5 min-w-[100px]">
+                                                <span class="h-2 w-2 shrink-0 rounded-full {{ $esAgotado ? 'bg-rose-600' : 'bg-amber-500' }}"></span>
+                                                <span class="truncate text-[11px] max-w-[120px]" title="{{ $ins->nombre }}">{{ $ins->nombre }}</span>
                                             </div>
                                         </td>
-                                        <td class="py-2.5 px-3">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black uppercase">
-                                                <span class="material-symbols-outlined text-[12px]">warning</span>
-                                                Agotado
-                                            </span>
+                                        <td class="py-2 px-1.5 whitespace-nowrap">
+                                            @if ($esAgotado)
+                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-rose-600 text-white text-[9px] font-black uppercase">
+                                                    Agotado
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-amber-500/20 text-amber-400 text-[9px] font-bold uppercase border border-amber-500/30">
+                                                    Bajo
+                                                </span>
+                                            @endif
                                         </td>
-                                        <td class="py-2.5 px-3 text-right font-mono font-black text-rose-700">
-                                            0.00 {{ $ag->unidad_medida }}
+                                        <td class="py-2 px-1.5 text-right font-mono font-bold whitespace-nowrap {{ $esAgotado ? 'text-rose-500' : 'text-amber-400' }}">
+                                            {{ $esAgotado ? '0.00' : $ins->stock_actual }} <span class="text-[9px] opacity-70">{{ $ins->unidad_medida }}</span>
                                         </td>
-                                        <td class="py-2.5 px-3 text-right font-mono text-on-surface-variant">
-                                            {{ $ag->stock_minimo }} {{ $ag->unidad_medida }}
+                                        <td class="py-2 px-1.5 text-right font-mono text-on-surface-variant whitespace-nowrap">
+                                            {{ $ins->stock_minimo }} <span class="text-[9px] opacity-70">{{ $ins->unidad_medida }}</span>
                                         </td>
-                                        <td class="py-2.5 px-3 text-on-surface-variant text-[11px]">
-                                            {{ $ag->proveedor?->nombre_contacto ?? ($ag->proveedor_nombre ?: 'Sin proveedor') }}
+                                        <td class="py-2 px-1.5 text-on-surface-variant text-[10px] truncate max-w-[90px]" title="{{ $ins->proveedor?->nombre_contacto ?? ($ins->proveedor_nombre ?: 'Sin proveedor') }}">
+                                            {{ $ins->proveedor?->nombre_contacto ?? ($ins->proveedor_nombre ?: 'Sin proveedor') }}
                                         </td>
-                                        <td class="py-2.5 px-3 text-right">
-                                            <a 
-                                                href="{{ route('proveedores') }}" 
-                                                wire:navigate 
-                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 font-bold text-[11px] transition-colors"
+                                        <td class="py-2 px-2.5 text-right whitespace-nowrap">
+                                            <button 
+                                                type="button" 
+                                                wire:click="abrirModalReponer({{ $ins->id }})" 
+                                                class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg {{ $esAgotado ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-amber-500 hover:bg-amber-600 text-black' }} font-bold text-[10px] shadow-xs transition-colors cursor-pointer active:scale-95"
                                             >
-                                                Pedir
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @endforeach
-
-                                <!-- 2. Insumos en Riesgo (Stock <= Mínimo) -->
-                                @foreach ($inventarioAlertas['criticos'] as $cr)
-                                    <tr class="hover:bg-amber-50/40 transition-colors">
-                                        <td class="py-2.5 px-3 font-bold text-on-surface">
-                                            <div class="flex items-center gap-2">
-                                                <span class="h-2 w-2 rounded-full bg-amber-500"></span>
-                                                <span>{{ $cr->nombre }}</span>
-                                            </div>
-                                        </td>
-                                        <td class="py-2.5 px-3">
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-extrabold uppercase border border-amber-200">
-                                                Stock Bajo
-                                            </span>
-                                        </td>
-                                        <td class="py-2.5 px-3 text-right font-mono font-bold text-amber-800">
-                                            {{ $cr->stock_actual }} {{ $cr->unidad_medida }}
-                                        </td>
-                                        <td class="py-2.5 px-3 text-right font-mono text-on-surface-variant">
-                                            {{ $cr->stock_minimo }} {{ $cr->unidad_medida }}
-                                        </td>
-                                        <td class="py-2.5 px-3 text-on-surface-variant text-[11px]">
-                                            {{ $cr->proveedor?->nombre_contacto ?? ($cr->proveedor_nombre ?: 'Sin proveedor') }}
-                                        </td>
-                                        <td class="py-2.5 px-3 text-right">
-                                            <a 
-                                                href="{{ route('proveedores') }}" 
-                                                wire:navigate 
-                                                class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[11px] transition-colors"
-                                            >
-                                                Reponer
-                                            </a>
+                                                <span>Reponer</span>
+                                            </button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -468,68 +492,114 @@ new class () extends Component {
                         </table>
                     </div>
                 @else
-                    <div class="py-10 text-center text-on-surface-variant flex flex-col items-center justify-center">
-                        <span class="material-symbols-outlined text-[38px] text-emerald-600 mb-1">verified</span>
-                        <p class="font-bold text-sm text-on-surface">Inventario en Nivel Óptimo</p>
-                        <p class="text-xs text-on-surface-variant">No hay insumos agotados ni por debajo del stock de seguridad.</p>
+                    <div class="flex-1 flex flex-col items-center justify-center text-center text-on-surface-variant p-4">
+                        <span class="material-symbols-outlined text-[32px] text-emerald-500 mb-1 opacity-70">verified</span>
+                        <p class="font-bold text-xs text-on-surface">Inventario en Nivel Óptimo</p>
+                        <p class="text-[11px] opacity-70">Sin insumos críticos o bajo stock mínimo.</p>
                     </div>
                 @endif
             </div>
 
             <!-- Footer con Costo de Reposición Estimado -->
-            @if ($inventarioAlertas['total_alertas'] > 0)
-                <div class="mt-4 pt-3 border-t border-surface-container flex flex-wrap items-center justify-between text-xs gap-2">
-                    <span class="text-on-surface-variant">
-                        Costo estimado para reabastecer stock de seguridad: <strong class="font-mono text-on-surface">${{ number_format($inventarioAlertas['costo_reposicion_estimado'], 0, ',', '.') }} COP</strong>
+            <div class="mt-3 pt-2.5 border-t border-surface-container flex items-center justify-between text-xs gap-2 shrink-0">
+                @if ($inventarioAlertas['total_alertas'] > 0)
+                    <span class="text-[11px] text-on-surface-variant truncate">
+                        Reponer seguridad: <strong class="font-mono text-on-surface">${{ number_format($inventarioAlertas['costo_reposicion_estimado'], 0, ',', '.') }}</strong>
                     </span>
                     <a 
                         href="{{ route('proveedores') }}" 
                         wire:navigate 
-                        class="text-primary font-bold hover:underline flex items-center gap-1"
+                        class="text-primary font-bold hover:underline flex items-center gap-0.5 text-[11px] shrink-0"
                     >
-                        <span>Gestionar Órdenes con Proveedores</span>
-                        <span class="material-symbols-outlined text-[15px]">open_in_new</span>
+                        <span>Proveedores</span>
+                        <span class="material-symbols-outlined text-[13px]">open_in_new</span>
                     </a>
-                </div>
-            @endif
+                @else
+                    <span class="text-[11px] text-on-surface-variant">Stock seguro verificado</span>
+                    <a href="{{ route('inventario') }}" wire:navigate class="text-primary font-bold hover:underline text-[11px]">Ver Kardex</a>
+                @endif
+            </div>
         </div>
 
         <!-- TOP 5 PLATOS MÁS VENDIDOS (1 COLUMNA) -->
-        <div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between">
-            <div>
-                <div class="flex items-center justify-between mb-4">
+        <div 
+            x-data="{ 
+                pagina: 1, 
+                porPagina: 3, 
+                total: {{ count($topPlatos) }}, 
+                get totalPaginas() { return Math.max(1, Math.ceil(this.total / this.porPagina)); },
+                siguiente() { if (this.pagina < this.totalPaginas) this.pagina++; },
+                anterior() { if (this.pagina > 1) this.pagina--; }
+            }"
+            class="bg-surface-container-lowest rounded-3xl p-5 sm:p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between h-[480px]"
+        >
+            <div class="flex flex-col min-h-0 flex-1">
+                <div class="flex items-center justify-between mb-3 shrink-0">
                     <div class="flex items-center gap-2">
-                        <span class="material-symbols-outlined text-primary text-[22px]">military_tech</span>
-                        <h2 class="text-base font-black text-on-surface tracking-tight">Top Platos Vendidos</h2>
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary border border-primary/20">
+                            <span class="material-symbols-outlined text-[20px]">military_tech</span>
+                        </span>
+                        <div>
+                            <h2 class="text-sm sm:text-base font-black text-on-surface tracking-tight">Top Platos Vendidos</h2>
+                            <p class="text-[11px] text-on-surface-variant font-medium font-mono">Ranking {{ $kpis['periodo_etiqueta'] }}</p>
+                        </div>
                     </div>
-                    <span class="text-[11px] font-bold text-on-surface-variant font-mono">Ranking en {{ $kpis['periodo_etiqueta'] }}</span>
+
+                    <!-- Botones de Paginado -->
+                    <div class="flex items-center gap-0.5 bg-surface-container-low px-1.5 py-0.5 rounded-xl border border-surface-container-highest shadow-xs" x-show="totalPaginas > 1">
+                        <button 
+                            type="button" 
+                            @click="anterior()" 
+                            :disabled="pagina === 1"
+                            class="p-0.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Página anterior"
+                        >
+                            <span class="material-symbols-outlined text-[15px] block">chevron_left</span>
+                        </button>
+                        <span class="text-[10px] font-mono text-on-surface font-bold px-1" x-text="pagina + '/' + totalPaginas"></span>
+                        <button 
+                            type="button" 
+                            @click="siguiente()" 
+                            :disabled="pagina === totalPaginas"
+                            class="p-0.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Página siguiente"
+                        >
+                            <span class="material-symbols-outlined text-[15px] block">chevron_right</span>
+                        </button>
+                    </div>
                 </div>
 
-                <div class="space-y-3">
+                <div class="flex-1 min-h-0 overflow-y-auto resto-scrollbar space-y-2.5 pr-0.5 flex flex-col justify-start">
                     @forelse ($topPlatos as $tp)
                         @php
                             $medalColor = match ($tp['posicion']) {
-                                1 => 'bg-amber-400 text-amber-950 font-black ring-2 ring-amber-300',
+                                1 => 'bg-amber-400 text-amber-950 font-black ring-1 ring-amber-300',
                                 2 => 'bg-stone-300 text-stone-900 font-bold',
                                 3 => 'bg-amber-700/80 text-white font-bold',
                                 default => 'bg-surface-container-high text-on-surface-variant font-bold',
                             };
                             $barPlatoStyle = "width: {$tp['pct_aporte']}%;";
                         @endphp
-                        <div class="p-3 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col gap-1.5">
+                        <div 
+                            x-show="Math.floor({{ $loop->index }} / porPagina) + 1 === pagina"
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 translate-y-1"
+                            x-transition:enter-end="opacity-100 translate-y-0"
+                            class="p-2.5 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col gap-1.5"
+                        >
                             <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <span class="flex h-6 w-6 items-center justify-center rounded-full text-xs shrink-0 {{ $medalColor }}">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full text-[10px] shrink-0 {{ $medalColor }}">
                                         {{ $tp['posicion'] }}
                                     </span>
                                     <div class="min-w-0">
                                         <span class="text-xs font-bold text-on-surface truncate block">{{ $tp['producto'] }}</span>
-                                        <span class="text-[10px] text-on-surface-variant uppercase font-semibold">{{ $tp['area_cocina'] }}</span>
+                                        <span class="text-[9px] text-on-surface-variant uppercase font-semibold">{{ $tp['area_cocina'] }}</span>
                                     </div>
                                 </div>
                                 <div class="text-right shrink-0">
                                     <span class="font-mono text-xs font-black text-on-surface">${{ number_format($tp['total_ventas'], 0, ',', '.') }}</span>
-                                    <span class="text-[10px] font-bold text-on-surface-variant block">{{ $tp['cantidad'] }} uds</span>
+                                    <span class="text-[9px] font-bold text-on-surface-variant block">{{ $tp['cantidad'] }} uds</span>
                                 </div>
                             </div>
                             <!-- Barra de Aporte -->
@@ -538,60 +608,100 @@ new class () extends Component {
                             </div>
                         </div>
                     @empty
-                        <div class="py-8 text-center text-on-surface-variant italic text-xs">
-                            Sin ventas registradas en el período seleccionado.
+                        <div class="my-auto py-8 text-center text-on-surface-variant flex flex-col items-center justify-center">
+                            <span class="material-symbols-outlined text-[30px] opacity-40 mb-1 text-primary">restaurant_menu</span>
+                            <p class="font-bold text-xs text-on-surface">Sin ventas registradas</p>
+                            <p class="text-[11px] opacity-70">En el período seleccionado.</p>
                         </div>
                     @endforelse
                 </div>
             </div>
 
-            <div class="mt-4 pt-3 border-t border-surface-container flex items-center justify-between text-xs text-on-surface-variant">
-                <span>Calculado por volumen de facturación</span>
-                <a href="{{ route('menu') }}" wire:navigate class="text-primary font-bold hover:underline">Ver Carta</a>
+            <div class="mt-3 pt-2.5 border-t border-surface-container flex items-center justify-between text-xs text-on-surface-variant shrink-0">
+                <span class="text-[11px]">Por volumen facturado</span>
+                <a href="{{ route('menu') }}" wire:navigate class="text-primary font-bold hover:underline text-[11px] flex items-center gap-0.5">
+                    <span>Ver Carta</span>
+                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
             </div>
         </div>
 
         <!-- 3. RENDIMIENTO DE MESEROS & EQUIPO EN TURNO (1 COLUMNA) -->
-        <div class="bg-surface-container-lowest rounded-3xl p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between">
-            <div>
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <span class="flex h-9 w-9 items-center justify-center rounded-2xl bg-secondary/15 text-secondary border border-secondary/20">
+        <div 
+            x-data="{ 
+                pagina: 1, 
+                porPagina: 4, 
+                total: {{ count($rankingMeseros['meseros']) }}, 
+                get totalPaginas() { return Math.max(1, Math.ceil(this.total / this.porPagina)); },
+                siguiente() { if (this.pagina < this.totalPaginas) this.pagina++; },
+                anterior() { if (this.pagina > 1) this.pagina--; }
+            }"
+            class="bg-surface-container-lowest rounded-3xl p-5 sm:p-6 shadow-sm border border-surface-container-highest flex flex-col justify-between h-[480px]"
+        >
+            <div class="flex flex-col min-h-0 flex-1">
+                <div class="flex items-center justify-between gap-2 mb-3 shrink-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary border border-secondary/20">
                             <span class="material-symbols-outlined text-[20px]">badge</span>
                         </span>
-                        <div>
-                            <h2 class="text-base font-black text-on-surface tracking-tight">Rendimiento de Meseros</h2>
-                            <p class="text-[11px] text-on-surface-variant font-medium">Ventas, comensales y propinas</p>
+                        <div class="min-w-0">
+                            <h2 class="text-xs sm:text-sm font-black text-on-surface tracking-tight leading-tight">Rendimiento de Meseros</h2>
+                            <div class="flex items-center gap-1.5 mt-0.5">
+                                <span class="inline-flex items-center gap-1 text-[9px] font-bold text-secondary bg-secondary-container/20 px-1.5 py-0.2 rounded-full border border-secondary/30 shrink-0">
+                                    <span class="h-1 w-1 rounded-full bg-secondary animate-pulse"></span>
+                                    {{ $rankingMeseros['total_meseros'] }} en Turno
+                                </span>
+                                <span class="text-[10px] text-on-surface-variant truncate">Ventas & propinas</span>
+                            </div>
                         </div>
                     </div>
-                    <span class="inline-flex items-center gap-1 text-[11px] font-bold text-secondary bg-secondary-container/20 px-2 py-0.5 rounded-full border border-secondary/30">
-                        <span class="h-1.5 w-1.5 rounded-full bg-secondary animate-pulse"></span>
-                        {{ $rankingMeseros['total_meseros'] }} en Turno
-                    </span>
+
+                    <!-- Botones de Paginado de Meseros -->
+                    <div class="flex items-center gap-0.5 bg-surface-container-low px-1.5 py-0.5 rounded-xl border border-surface-container-highest shadow-xs shrink-0" x-show="totalPaginas > 1">
+                        <button 
+                            type="button" 
+                            @click="anterior()" 
+                            :disabled="pagina === 1"
+                            class="p-0.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Página anterior"
+                        >
+                            <span class="material-symbols-outlined text-[15px] block">chevron_left</span>
+                        </button>
+                        <span class="text-[10px] font-mono text-on-surface font-bold px-1" x-text="pagina + '/' + totalPaginas"></span>
+                        <button 
+                            type="button" 
+                            @click="siguiente()" 
+                            :disabled="pagina === totalPaginas"
+                            class="p-0.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Página siguiente"
+                        >
+                            <span class="material-symbols-outlined text-[15px] block">chevron_right</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Resumen Rápido de Personal -->
-                <div class="grid grid-cols-2 gap-2 mb-4">
-                    <div class="p-2.5 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col">
-                        <span class="text-[10px] uppercase font-bold text-on-surface-variant">Promedio / Mesero</span>
-                        <span class="font-mono text-sm font-black text-on-surface mt-0.5">
+                <div class="grid grid-cols-2 gap-2 mb-2.5 shrink-0">
+                    <div class="p-2 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col">
+                        <span class="text-[9px] uppercase font-bold text-on-surface-variant">Promedio / Mesero</span>
+                        <span class="font-mono text-xs sm:text-sm font-black text-on-surface mt-0.5 truncate">
                             ${{ number_format($rankingMeseros['promedio_venta'], 0, ',', '.') }}
                         </span>
                     </div>
-                    <div class="p-2.5 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col">
-                        <span class="text-[10px] uppercase font-bold text-on-surface-variant">Propinas Período</span>
-                        <span class="font-mono text-sm font-black text-secondary mt-0.5">
+                    <div class="p-2 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col">
+                        <span class="text-[9px] uppercase font-bold text-on-surface-variant">Propinas Período</span>
+                        <span class="font-mono text-xs sm:text-sm font-black text-secondary mt-0.5 truncate">
                             ${{ number_format($rankingMeseros['total_propinas'], 0, ',', '.') }}
                         </span>
                     </div>
                 </div>
 
-                <!-- Ranking Podio de Meseros -->
-                <div class="space-y-3">
+                <!-- Ranking Podio de Meseros con Desplazamiento y Paginado -->
+                <div class="flex-1 min-h-0 overflow-y-auto resto-scrollbar space-y-2 pr-0.5">
                     @forelse ($rankingMeseros['meseros'] as $m)
                         @php
                             $medalColor = match ($m['posicion']) {
-                                1 => 'bg-amber-400 text-amber-950 font-black ring-2 ring-amber-300',
+                                1 => 'bg-amber-400 text-amber-950 font-black ring-1 ring-amber-300',
                                 2 => 'bg-stone-300 text-stone-900 font-bold',
                                 3 => 'bg-amber-700/80 text-white font-bold',
                                 default => 'bg-surface-container-high text-on-surface-variant font-bold',
@@ -599,22 +709,28 @@ new class () extends Component {
                             $barMeseroWidth = max(4, $m['pct_aporte']);
                             $barMeseroStyle = "width: {$barMeseroWidth}%;";
                         @endphp
-                        <div class="p-3 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col gap-2">
+                        <div 
+                            x-show="Math.floor({{ $loop->index }} / porPagina) + 1 === pagina"
+                            x-transition:enter="transition ease-out duration-150"
+                            x-transition:enter-start="opacity-0 translate-y-1"
+                            x-transition:enter-end="opacity-100 translate-y-0"
+                            class="p-2.5 rounded-2xl bg-surface-container-low border border-surface-container-highest/60 flex flex-col gap-1.5"
+                        >
                             <div class="flex items-center justify-between gap-2">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <span class="flex h-6 w-6 items-center justify-center rounded-full text-xs shrink-0 {{ $medalColor }}">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full text-[10px] shrink-0 {{ $medalColor }}">
                                         {{ $m['posicion'] }}
                                     </span>
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-1.5">
-                                            <span class="text-xs font-bold text-on-surface truncate">{{ $m['nombre'] }}</span>
+                                            <span class="text-xs font-bold text-on-surface truncate max-w-[130px]">{{ $m['nombre'] }}</span>
                                             @if ($m['mesas_activas'] > 0)
-                                                <span class="px-1.5 py-0.2 text-[9px] font-extrabold rounded-full bg-primary/10 text-primary border border-primary/20">
+                                                <span class="px-1.5 py-0.2 text-[8px] font-extrabold rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
                                                     {{ $m['mesas_activas'] }} {{ $m['mesas_activas'] === 1 ? 'mesa' : 'mesas' }}
                                                 </span>
                                             @endif
                                         </div>
-                                        <span class="text-[10px] text-on-surface-variant block truncate">
+                                        <span class="text-[9px] text-on-surface-variant block truncate">
                                             {{ $m['total_pedidos'] }} {{ $m['total_pedidos'] === 1 ? 'comanda' : 'comandas' }} · Prom. ${{ number_format($m['ticket_promedio'], 0, ',', '.') }}
                                         </span>
                                     </div>
@@ -622,7 +738,7 @@ new class () extends Component {
                                 <div class="text-right shrink-0">
                                     <span class="font-mono text-xs font-black text-on-surface">${{ number_format($m['total_ventas'], 0, ',', '.') }}</span>
                                     @if ($m['total_propinas'] > 0)
-                                        <span class="text-[10px] font-mono font-bold text-secondary block">+${{ number_format($m['total_propinas'], 0, ',', '.') }} prop.</span>
+                                        <span class="text-[9px] font-mono font-bold text-secondary block">+${{ number_format($m['total_propinas'], 0, ',', '.') }} prop.</span>
                                     @endif
                                 </div>
                             </div>
@@ -632,16 +748,22 @@ new class () extends Component {
                             </div>
                         </div>
                     @empty
-                        <div class="py-8 text-center text-on-surface-variant italic text-xs">
+                        <div class="my-auto py-8 text-center text-on-surface-variant italic text-xs">
                             No hay meseros registrados en esta sucursal.
                         </div>
                     @endforelse
                 </div>
             </div>
 
-            <div class="mt-4 pt-3 border-t border-surface-container flex items-center justify-between text-xs text-on-surface-variant">
-                <span>Gestión de servicio y propinas</span>
-                <a href="{{ route('mesas') }}" wire:navigate class="text-primary font-bold hover:underline">Ver Salón</a>
+            <div class="mt-3 pt-2.5 border-t border-surface-container flex items-center justify-between text-xs text-on-surface-variant shrink-0">
+                <span class="text-[11px]" x-show="total > 0">
+                    Meseros <span class="font-mono text-on-surface" x-text="((pagina - 1) * porPagina + 1) + '-' + Math.min(pagina * porPagina, total)"></span> de <span class="font-mono text-on-surface" x-text="total"></span>
+                </span>
+                <span class="text-[11px]" x-show="total === 0">Gestión de servicio</span>
+                <a href="{{ route('mesas') }}" wire:navigate class="text-primary font-bold hover:underline text-[11px] flex items-center gap-0.5">
+                    <span>Ver Salón</span>
+                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
             </div>
         </div>
     </div>
@@ -848,4 +970,7 @@ new class () extends Component {
             </a>
         </div>
     </div>
+
+    <!-- MODAL RÁPIDO DE REPOSICIÓN DE INSUMOS -->
+    @include('livewire.partials.modal-reponer-insumo')
 </div>

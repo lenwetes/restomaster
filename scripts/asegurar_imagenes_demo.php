@@ -4,14 +4,13 @@
  * Asegura que todas las imágenes requeridas para los 30 platos, 20 tragos,
  * 10 bebidas colombianas y 14 promociones existan físicamente en disco.
  */
+$platosDir = __DIR__.'/../public/demo/platos';
+$imagesDir = __DIR__.'/../public/images';
 
-$platosDir = __DIR__ . '/../public/demo/platos';
-$imagesDir = __DIR__ . '/../public/images';
-
-if (!is_dir($platosDir)) {
+if (! is_dir($platosDir)) {
     mkdir($platosDir, 0755, true);
 }
-if (!is_dir($imagesDir)) {
+if (! is_dir($imagesDir)) {
     mkdir($imagesDir, 0755, true);
 }
 
@@ -97,10 +96,10 @@ $platosYTragos = [
 
 $creadas = 0;
 foreach ($platosYTragos as $slug => $fuente) {
-    $destino = $platosDir . '/' . $slug . '.jpg';
-    $origen = $platosDir . '/' . $fuente;
+    $destino = $platosDir.'/'.$slug.'.jpg';
+    $origen = $platosDir.'/'.$fuente;
 
-    if (!file_exists($destino) && file_exists($origen)) {
+    if (! file_exists($destino) && file_exists($origen)) {
         copy($origen, $destino);
         $creadas++;
     }
@@ -126,12 +125,46 @@ $promos = [
 
 $promosCreadas = 0;
 foreach ($promos as $promoArchivo => $fuenteImagen) {
-    $destino = $imagesDir . '/' . $promoArchivo;
-    $origen = $imagesDir . '/' . $fuenteImagen;
-    if (!file_exists($destino) && file_exists($origen)) {
+    $destino = $imagesDir.'/'.$promoArchivo;
+    $origen = $imagesDir.'/'.$fuenteImagen;
+    if (! file_exists($destino) && file_exists($origen)) {
         copy($origen, $destino);
         $promosCreadas++;
     }
+}
+
+// Soporte digital demo de facturas de proveedores
+$facturasDir = __DIR__.'/../storage/app/public/facturas_proveedores';
+if (! is_dir($facturasDir)) {
+    mkdir($facturasDir, 0755, true);
+}
+$soporteDemoPath = $facturasDir.'/soporte_demo_factura.png';
+if (! file_exists($soporteDemoPath) && function_exists('imagecreatetruecolor')) {
+    $width = 800;
+    $height = 1000;
+    $im = imagecreatetruecolor($width, $height);
+    $bg = imagecolorallocate($im, 250, 250, 252);
+    $dark = imagecolorallocate($im, 30, 41, 59);
+    $muted = imagecolorallocate($im, 100, 116, 139);
+    $border = imagecolorallocate($im, 226, 232, 240);
+    $primary = imagecolorallocate($im, 194, 65, 12);
+    $green = imagecolorallocate($im, 16, 185, 129);
+
+    imagefilledrectangle($im, 0, 0, $width, $height, $bg);
+    imagerectangle($im, 20, 20, $width - 20, $height - 20, $border);
+    imagestring($im, 5, 50, 50, 'FACTURA DE VENTA COMERCIAL / SUMINISTROS', $primary);
+    imagestring($im, 4, 50, 80, 'PROVEEDOR CERTIFICADO - REGISTRO DIAN', $dark);
+    imagestring($im, 3, 50, 110, 'NIT: 890.123.456-1 | Regimen Comun | Medellin, Antioquia', $muted);
+    imagestring($im, 3, 50, 130, 'Cliente: RestoMaster SAS - Sede El Poblado', $dark);
+    imageline($im, 50, 160, $width - 50, 160, $border);
+    imagestring($im, 4, 50, 180, 'DETALLE DE INSUMOS SUMINISTRADOS:', $dark);
+    imagestring($im, 3, 50, 220, '1. Lote Materias Primas Seleccionadas Frescas ........... $ 1.250.000', $dark);
+    imageline($im, 50, 320, $width - 50, 320, $border);
+    imagestring($im, 5, 50, 340, 'SUBTOTAL: $ 1.250.000 COP', $dark);
+    imagestring($im, 5, 50, 400, 'TOTAL FACTURA: $ 1.250.000 COP', $primary);
+    imagestring($im, 5, 50, 460, '[ SOPORTE FISICO DIGITALIZADO - VALIDO PARA AUDITORIA ]', $green);
+    imagepng($im, $soporteDemoPath);
+    imagedestroy($im);
 }
 
 echo "Proceso completado. Platos/Tragos asegurados: {$creadas}, Promociones aseguradas: {$promosCreadas}.\n";

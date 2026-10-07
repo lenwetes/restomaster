@@ -84,13 +84,13 @@ class CocinaRoleRestrictionTest extends TestCase
         Volt::actingAs($admin)
             ->test('configuracion.index')
             ->set('tabActiva', 'factura')
-            ->set('ticketForm.nombre_comercial', 'Sushixpress Master')
+            ->set('ticketForm.nombre_comercial', 'RESTOMASTER Master')
             ->set('ticketForm.pie_pagina', '¡Gracias por su compra!')
             ->call('guardarTicket')
             ->assertHasNoErrors()
             ->assertSee('Diseño de ticket térmico 80mm guardado.');
 
         $service = app(ConfiguracionService::class);
-        $this->assertEquals('Sushixpress Master', $service->obtener('ticket_80mm', 'nombre_comercial'));
+        $this->assertEquals('RESTOMASTER Master', $service->obtener('ticket_80mm', 'nombre_comercial'));
     }
 }

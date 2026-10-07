@@ -28,7 +28,7 @@ class AntiNPlusOneTest extends TestCase
 
         $roleMesero = Role::create(['nombre' => 'Mesero', 'slug' => 'mesero']);
         $this->sucursal = Sucursal::create([
-            'nombre' => 'SushiXpress N+1 Audit',
+            'nombre' => 'RESTOMASTER N+1 Audit',
             'codigo' => 'NP1-01',
             'activa' => true,
         ]);

@@ -18,7 +18,7 @@ class GenerateQualityReportCommand extends Command
     {
         $this->newLine();
         $this->info('╔══════════════════════════════════════════════════════════════╗');
-        $this->info('║  RESTOMASTER / SUSHIXPRESS — QA & CODE QUALITY ENGINE        ║');
+        $this->info('║  RESTOMASTER GASTRO OS — QA & CODE QUALITY ENGINE            ║');
         $this->info('╚══════════════════════════════════════════════════════════════╝');
         $this->newLine();
 

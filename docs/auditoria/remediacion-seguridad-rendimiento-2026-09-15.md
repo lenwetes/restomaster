@@ -1,4 +1,4 @@
-# Plan de Remediación — Auditoría Seguridad, Rendimiento y Robustez (2026-09-15)
+﻿# Plan de Remediación — Auditoría Seguridad, Rendimiento y Robustez (2026-09-15)
 
 - **Fecha:** 2026-09-15
 - **Autor:** OpenCode (auditoría solo lectura; 4 subagentes paralelos + verificación manual de críticos)
@@ -40,7 +40,7 @@ La calificación ponderada global es **~55/100**. La app tiene buenos cimientos 
 
 **Ubicación:** `docker-compose.yml:14,26,37,59` — idénticos en `docker-compose.yaml` y `compose.yml` (3 archivos duplicados, ver L8).
 
-**Problema:** `APP_KEY`, `DB_PASSWORD` y `DEMO_USERS_PASSWORD=sushixpress2026` tienen valores por defecto reales y conocidos, más `APP_DEBUG=true`. Cualquiera con acceso al repo puede:
+**Problema:** `APP_KEY`, `DB_PASSWORD` y `DEMO_USERS_PASSWORD=RESTOMASTER2026` tienen valores por defecto reales y conocidos, más `APP_DEBUG=true`. Cualquiera con acceso al repo puede:
 - Descifrar/forjar cookies y sesiones (EncryptCookies usa `APP_KEY`).
 - Conectarse a Postgres (mapeado a `0.0.0.0:5434`).
 - Loguearse como admin con la contraseña demo.
@@ -57,7 +57,7 @@ POSTGRES_EXTERNAL_PORT: "${POSTGRES_EXTERNAL_PORT:-127.0.0.1:5434}"  # no expone
 - Exigir las variables: fallar el arranque si `APP_KEY / DB_PASSWORD` están vacías (USAR: `command: ${APP_KEY:?APP_KEY no definida}` no aplica a environment; validar en el entrypoint).
 - Si el stack ya se desplegó con estos valores: **rotar APP_KEY, DB_PASSWORD y contraseñas demo de inmediato** (los historial git los conserva para siempre).
 
-**Criterio de aceptación:** `rg "sushixpress2026|ryJ8oRftsst90c9" .` → 0 resultados fuera de `.env`/historital; arranque falla con mensaje si falta `DB_PASSWORD`.
+**Criterio de aceptación:** `rg "RESTOMASTER2026|ryJ8oRftsst90c9" .` → 0 resultados fuera de `.env`/historital; arranque falla con mensaje si falta `DB_PASSWORD`.
 
 ## R2 (CRÍTICO) — Auto-seed resetea contraseñas en cada boot
 
@@ -290,7 +290,7 @@ validar `$pago <= $cuenta->saldo_pendiente` dentro de la tx, recalcular `saldo_p
 3. **Scheduler en `routes/console.php`**:
    ```php
    use Illuminate\Support\Facades\Schedule;
-   Schedule::command('sushixpress:backup')->dailyAt('03:00')
+   Schedule::command('RESTOMASTER:backup')->dailyAt('03:00')
        ->withoutOverlapping(120)->onOneServer()->runInBackground();
    ```
 4. Supervisor: `php artisan schedule:run` cada minuto + `schedule:work` en dev.
@@ -483,7 +483,7 @@ Schema::table('items_pedido', fn($t) => $t->index('producto_id'));
 - [x] Suite completa verde (286/286 pasados, 0 fallos).
 - [x] Pint 0 violaciones (`vendor/bin/pint --test` limpio).
 - [x] `composer audit` → 0; `npm audit --omit=dev` → 0.
-- [x] `secrets-scan` final: `rg "sushixpress2026|APP_KEY|DB_PASSWORD"` sobre el diff → 0.
+- [x] `secrets-scan` final: `rg "RESTOMASTER2026|APP_KEY|DB_PASSWORD"` sobre el diff → 0.
 - [x] Reporte Z impreso con montos reales (verificado con esquema real y total_ingresos).
 - [x] No existen `wire:submit/click` hacia métodos inexistentes (métodos alineados en CXP y POS).
 - [x] 403 verificado para usuarios inactivos y para IDs de otra sucursal.

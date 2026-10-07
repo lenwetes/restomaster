@@ -1,4 +1,4 @@
-# Auditoría de Verificación de la Remediación — Sushixpress
+﻿# Auditoría de Verificación de la Remediación — RESTOMASTER
 
 - **Fecha:** 2026-09-10
 - **Autor:** OpenCode (solo lectura, 4 auditores: seguridad, integridad BD, rendimiento, calidad)

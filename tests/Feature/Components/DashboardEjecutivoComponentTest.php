@@ -25,7 +25,7 @@ class DashboardEjecutivoComponentTest extends TestCase
         $roleGerente = Role::create(['nombre' => 'Gerente', 'slug' => 'gerente']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'SushiXpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'activa' => true,
         ]);

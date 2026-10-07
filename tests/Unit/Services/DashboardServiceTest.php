@@ -23,7 +23,7 @@ class DashboardServiceTest extends TestCase
         $this->service = app(DashboardService::class);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'SushiXpress Principal',
+            'nombre' => 'RESTOMASTER Principal',
             'codigo' => 'PRV-01',
             'activa' => true,
         ]);

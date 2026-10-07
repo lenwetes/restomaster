@@ -32,7 +32,7 @@ class ImpresorasLocalesUsbTest extends TestCase
         $roleAdmin = Role::create(['nombre' => 'Administrador', 'slug' => 'admin']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,
@@ -121,7 +121,7 @@ class ImpresorasLocalesUsbTest extends TestCase
             $impresora,
             'ticket_venta',
             'TICK-TEST-001',
-            "================================\n   SUSHIXPRESS TICKET USB PRUEBA\n================================\n",
+            "================================\n   RESTOMASTER TICKET USB PRUEBA\n================================\n",
             1
         );
 

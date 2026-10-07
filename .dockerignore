@@ -25,6 +25,8 @@ tests
 phpunit.xml
 .phpunit.result.cache
 *.log
+playwright-report
+test-results
 
 docs
 *.md

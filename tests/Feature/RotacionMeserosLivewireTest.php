@@ -33,14 +33,14 @@ class RotacionMeserosLivewireTest extends TestCase
     {
         parent::setUp();
 
-        $this->sucursal = Sucursal::create(['nombre' => 'Sushixpress Centro']);
+        $this->sucursal = Sucursal::create(['nombre' => 'RESTOMASTER Centro']);
 
         $roleAdmin = Role::firstOrCreate(['slug' => 'admin'], ['nombre' => 'Administrador']);
         $roleMesero = Role::firstOrCreate(['slug' => 'mesero'], ['nombre' => 'Mesero']);
 
         $this->admin = User::create([
             'name' => 'Admin General',
-            'email' => 'admin@sushixpress.com',
+            'email' => 'admin@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $roleAdmin->id,
             'sucursal_id' => $this->sucursal->id,
@@ -49,7 +49,7 @@ class RotacionMeserosLivewireTest extends TestCase
 
         $this->mesero = User::create([
             'name' => 'Mateo Mesero',
-            'email' => 'mateo@sushixpress.com',
+            'email' => 'mateo@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $roleMesero->id,
             'sucursal_id' => $this->sucursal->id,
@@ -140,7 +140,7 @@ class RotacionMeserosLivewireTest extends TestCase
 
         $otroMesero = User::create([
             'name' => 'Sara Mesera',
-            'email' => 'sara@sushixpress.com',
+            'email' => 'sara@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $this->mesero->role_id,
             'sucursal_id' => $this->sucursal->id,
@@ -282,7 +282,7 @@ class RotacionMeserosLivewireTest extends TestCase
     {
         $otroMesero = User::create([
             'name' => 'Otro Mesero',
-            'email' => 'otro@sushixpress.com',
+            'email' => 'otro@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $this->mesero->role_id,
             'sucursal_id' => $this->sucursal->id,
@@ -355,7 +355,7 @@ class RotacionMeserosLivewireTest extends TestCase
         // 3. Auto-distribuir varios meseros
         $otroMesero = User::create([
             'name' => 'Segundo Mesero',
-            'email' => 'segundo@sushixpress.com',
+            'email' => 'segundo@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $this->mesero->role_id,
             'sucursal_id' => $this->sucursal->id,

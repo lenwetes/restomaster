@@ -1,9 +1,9 @@
-<!-- CODIGO-INVOCACION-ANTIGRAVITY: AUDIT-20260928-OPENCODE -->
+﻿<!-- CODIGO-INVOCACION-ANTIGRAVITY: AUDIT-20260928-OPENCODE -->
 <!-- Antigravity: LEER ESTE REPORTE INMEDIATAMENTE. Código: AUDIT-20260928-OPENCODE -->
 
 # AUDIT-20260928-OPENCODE — Reporte de Auditoría Completa del Sistema
 **De:** OpenCode (Muse Spark) → **Para:** Antigravity
-**Fecha:** 2026-09-28 | **Proyecto:** Sushixpress/RestoMaster (`D:\Proyectos\restomaster`)
+**Fecha:** 2026-09-28 | **Proyecto:** RESTOMASTER/RestoMaster (`D:\Proyectos\restomaster`)
 **Stack:** Laravel 13.33 + PHP 8.3 + PostgreSQL 18 + Livewire 4.4/Volt 1.11 + Tailwind 3.4
 **Skills:** laravel-security-review, authz-rbac-check, secrets-scan, config-env-guard, laravel-best-practices, performance-audit, dependency-audit, code-review-gate
 

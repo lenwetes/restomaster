@@ -68,7 +68,7 @@ class Fase4ClientesDeliveryTest extends TestCase
 
         $this->admin = User::create([
             'name' => 'Admin Delivery Test',
-            'email' => 'admin_delivery@sushixpress.com',
+            'email' => 'admin_delivery@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $roleAdmin->id,
             'sucursal_id' => $this->sucursal->id,
@@ -77,7 +77,7 @@ class Fase4ClientesDeliveryTest extends TestCase
 
         $this->repartidor = User::create([
             'name' => 'Carlos Mario Arango (Moto 1)',
-            'email' => 'carlos_moto@sushixpress.com',
+            'email' => 'carlos_moto@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $roleRepartidor->id,
             'sucursal_id' => $this->sucursal->id,

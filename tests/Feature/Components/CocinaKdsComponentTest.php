@@ -41,7 +41,7 @@ class CocinaKdsComponentTest extends TestCase
         $roleCocina = Role::create(['nombre' => 'Cocina', 'slug' => 'cocina']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Laureles',
+            'nombre' => 'RESTOMASTER Laureles',
             'codigo' => 'LAU-01',
             'activa' => true,
         ]);

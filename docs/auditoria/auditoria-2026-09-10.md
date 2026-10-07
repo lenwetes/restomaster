@@ -1,4 +1,4 @@
-# Auditoría Integral — Sushixpress (2ª pasada)
+﻿# Auditoría Integral — RESTOMASTER (2ª pasada)
 
 - **Fecha:** 2026-09-10 (segunda pasada de re-verificación)
 - **Agente:** OpenCode

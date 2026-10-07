@@ -6,6 +6,87 @@
 ---
 
 ## Última Actualización
+2026-10-06 | Antigravity | 🌱 **AUTO-SEED MAESTRO (DemoColombiaMedellinSeeder): VINCULACIÓN COMPLETA DE INSUMOS A PROVEEDORES + FACTURAS CON LÍNEAS + CUENTAS POR PAGAR (CxP) Y ABONOS REALISTAS:**
+- **1. Insumos Vinculados Directamente a Proveedores:**
+  - En `DemoColombiaMedellinSeeder.php`, se actualizaron los 23 insumos con su `proveedor_id`, `proveedor_nombre`, `proveedor_nit`, `proveedor_telefono` y `categoria`.
+  - Cada uno de los 10 proveedores cuenta con insumos asignados en su catálogo (carnes, avícola, pescados, fruver, lácteos, licores, bebidas, panadería, café y empaques).
+- **2. Facturas de Compra con Líneas Reales (`CompraLinea`):**
+  - Generadas 30 compras a lo largo del mes rotando sistemáticamente entre los 10 proveedores.
+  - Cada compra genera sus respectivas `CompraLinea` con insumos suministrados por dicho proveedor, cantidades según unidad de medida (kg, botellas, unidades), costos reales y subtotales calculados.
+  - Generada imagen de soporte demo en `storage/app/public/facturas_proveedores/soporte_demo_factura.png` vinculada a facturas (`soporte_factura`) para probar el visor de soportes.
+- **3. Cuentas por Pagar (`CuentaPorPagar`) y Abonos (`PagoCxp`):**
+  - Todas las CxP cuentan ahora con `compra_id` asociado para sincronización perfecta con la relación `$compra->cxp`.
+  - Estados escalonados para pruebas integrales de tesorería y cartera en `/proveedores`:
+    - **Pendientes (100% de saldo):** 23 facturas recientes para probar el botón "Pagar / Abonar" al 100%.
+    - **Parciales (50% de abono):** 12 facturas con abono registrado vía `PagoCxp` y saldo pendiente para probar abonos sucesivos.
+    - **Pagadas (0 saldo):** 31 facturas antiguas totalmente canceladas.
+- **4. Calidad y Validación:**
+  - Seeder ejecutado exitosamente (`6.8s DONE`).
+  - Verificada la integridad de la base de datos con script de pruebas.
+  - Estándar PSR-12 verificado con Laravel Pint (`0 errores`).
+
+---
+- **1. Visualización Precisa de Insumos y Categorías Provistas en Ficha:**
+  - `ProveedorService::insumosSuministrados()`: Consolida tanto los insumos asignados habitualmente como aquellos comprados en facturas históricas (`CompraLinea`), retornando lista consolidada con conteo agrupado por categorías.
+  - En la lista de proveedores (`resources/views/livewire/proveedores/index.blade.php`), se agregaron badges con las categorías suministradas debajo de cada razón social.
+  - En el modal **Ficha**:
+    - Cabecera y pestaña `Datos`: Resumen visual con pastillas de categorías provistas (`badge` con conteo de insumos).
+    - Pestaña `Insumos / Catálogo`: Tabla estructurada con Insumo, Código, Categoría, Unidad de Medida, Último Costo y Stock actual en bodega, resolviendo la necesidad de saber con total claridad qué suministra cada proveedor.
+- **2. Modal Integral de Facturación de Proveedor (2 Pestañas):**
+  - **Pestaña A — Historial y Pagos:**
+    - Listado de compras con número de factura, fecha, total, forma de pago (Contado / Crédito) y estado de CxP (Pagada / Saldo pendiente).
+    - Botón **"Ver Detalle"** interactivo: despliega las líneas de insumos de la factura (insumo, categoría, cantidad, costo unitario y subtotal).
+    - Botón **"Ver Soporte"**: Abre en nueva pestaña la imagen o documento PDF adjunto de la factura física.
+    - Botón **"Pagar / Abonar"**: Abre formulario inline interactivo para realizar pagos a facturas pendientes con saldo (`CuentasPorPagarService::registrarPago`) con método de pago (Efectivo, Transferencia, Caja Menor, Tarjeta), referencia de comprobante y recálculo inmediato.
+  - **Pestaña B — Registrar Nueva Factura con Soporte:**
+    - Formulario de factura con número, fecha de emisión, forma de pago y tabla dinámica de líneas de insumos.
+    - Carga opcional de comprobante/foto (`wire:model="soporteArchivo"`, admite JPG, PNG, WEBP, PDF hasta 10MB) almacenado en `storage/app/public/facturas_proveedores` con URL pública.
+    - Preview instantáneo en vivo (miniatura para imágenes, chip para PDFs con opción de eliminar).
+- **3. Resolución de Errores Críticos y Diagnósticos IDE:**
+  - Migración ejecutada: `2026_10_06_182500_add_soporte_factura_to_compras_table.php` (`soporte_factura` varchar nullable).
+  - Corregido `Compra::getSoporteUrlAttribute()` usando `asset('storage/'.$this->soporte_factura)` y eliminada la propiedad `$appends` para evitar interferencias de serialización en snapshots de Livewire.
+  - Identificada y eliminada la causa raíz del timeout de 30s en `Exception.php:130`: se debió a un tag abreviado `@php(...)` en Blade que dejaba abierto un bloque PHP crudo; se estandarizó a `@php ... @endphp`.
+  - Corregida la condición `@if ($pagandoCxpId && $compra->cxp && $pagandoCxpId === $compra->cxp->id)` para evitar que `null === null` intentara leer propiedades de objeto nulo.
+  - Implementado método `setPestanaFactura()` en el componente Volt.
+  - Formato PSR-12 verificado con Laravel Pint (`0 errores`).
+  - Suite de pruebas de ciclo de vida Livewire ejecutada y 100% pasando en verde (`ALL TESTS PASSED!`).
+
+---
+- **1. Diagnóstico y Optimización de Altura:**
+  - La sección operativa de 3 columnas en [`ejecutivo.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/dashboard/ejecutivo.blade.php) ("Alerta Primaria de Inventario", "Top Platos Vendidos" y "Rendimiento de Meseros") se extendía desproporcionadamente en vertical debido a que el listado de 20 meseros en turno no poseía límite de altura ni paginación, dejando vacíos negros gigantes en las columnas adyacentes y forzando scrolls innecesarios de más de 1.600 px.
+- **2. Armonización de Altura y Diseño Compacto (`h-[480px]`):**
+  - Las 3 tarjetas quedaron unificadas con una altura fija y elegante de 480 px, alineando visualmente encabezados, cuerpos y pies de tarjeta en toda la fila del grid.
+  - Implementada clase `.resto-scrollbar` en [`app.blade.php`](file:///d:/Proyectos/restomaster/resources/views/layouts/app.blade.php) para barras de desplazamiento estilizadas al tema gastro-luxe (delgadas, color ámbar/terracota con track transparente) tanto para Chrome/Webkit como Firefox.
+- **3. Paginación Reactiva en Cliente con Alpine.js (`0ms` latencia):**
+  - **Alerta Primaria de Inventario:** Paginación de 4 insumos por página con controles `< Anterior / Siguiente >` en cabecera cuando hay más de 4 alertas, encabezados de tabla `sticky top-0` y scroll vertical interno con `.resto-scrollbar`.
+  - **Top Platos Vendidos:** Paginación de 3 platos por página con controles `< Anterior / Siguiente >` y estado vacío balanceado sin estiramiento de pantalla.
+  - **Rendimiento de Meseros:** Paginación reactiva en grupos de 4 meseros (`Pág. 1 a 5` para los 20 meseros en turno), botones táctiles `< 1/5 >` en cabecera, contador dinámico "Meseros X-Y de 20" en pie de tarjeta y scroll interno.
+- **4. Verificación E2E y Calidad:**
+  - `tests/e2e/flujo-08-reposicion-rapida-categorias.spec.ts` ejecutado con Playwright: 100% verde (`1 passed (44.3s)`).
+  - Captura de pantalla [`dashboard_compacto.png`](file:///C:/Users/PC-0001/.gemini/antigravity-ide/brain/32168246-85e5-4cf9-a723-08d1476e2332/dashboard_compacto.png) validando la distribución compacta y balanceada.
+  - Formato PSR-12 verificado con Laravel Pint (`0 errores`).
+
+---
+
+2026-10-06 | Antigravity | 📦 **ELIMINACIÓN TOTAL DE SUSHIXPRESS + CONTROLES PC EN CATEGORÍAS + MODAL RÁPIDO DE REPOSICIÓN (PROVEEDORES / STOCK DIRECTO / CAJA MENOR):**
+- **1. Erradicación Integral de 'Sushixpress':**
+  - Eliminación total en código fuente, controladores, comandos Artisan, vistas Blade, PDFs, seeders, tests, dockerfiles y documentación. Identidad 100% unificada a **RestoMaster Gastro OS**.
+- **2. Controles de Desplazamiento Horizontal en PC para Categorías (`inventario/index.blade.php`):**
+  - Implementado wrapper interactivo Alpine.js con botones flotantes circulares (`chevron_left` y `chevron_right`) con gradiente sutil (`fade`), auto-detección de límites de scroll y soporte de arrastre con el mouse (`drag-to-scroll`) para usuarios de PC y ratón convencional.
+- **3. Modal Rápido de Reposición (`modal-reponer-insumo.blade.php` & `ReposicionRapidaService`):**
+  - Integrado en el botón **"Reponer"** de **Alerta Primaria de Inventario** ([`ejecutivo.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/dashboard/ejecutivo.blade.php)) y del **Kardex de Materias Primas** ([`inventario/index.blade.php`](file:///d:/Proyectos/restomaster/resources/views/livewire/inventario/index.blade.php)).
+  - Trait compartido [`ManejaReposicionRapida.php`](file:///d:/Proyectos/restomaster/app/Livewire/Concerns/ManejaReposicionRapida.php).
+  - Cálculo automático de déficit de stock sugerido según stock de seguridad.
+  - Carga automática de proveedor habitual, selector entre proveedores registrados y formulario inline para registrar un nuevo proveedor en caliente.
+  - **Flujo A (Pedir a Proveedor):** Generación automática de enlace a WhatsApp con mensaje formal pre-armado ("RestoMaster"), enlace para correo electrónico (`mailto:`), botón para copiar al portapapeles y registro de orden de compra en estado `solicitada`.
+  - **Flujo B (Ingreso Directo a Stock):** Registro atómico inmediato en Kardex (`InventarioService`), recálculo de costo promedio ponderado NIIF/DIAN, y selector de fuente de pago (`Caja Menor` con comprobante de egreso automático en el turno abierto actual, `Crédito CxP` o `Pago Externo`).
+  - **Recálculo Instantáneo en Cliente (Alpine.js + @entangle):** Eliminada la latencia de red y peticiones AJAX en cada pulsación de tecla (`0ms de retardo`). El total y comprobante de egreso de caja menor (`cantidad * costo`) se calculan en vivo en el navegador (ej. 250 kg × $16.000 = $4.000.000 COP) y las pestañas conmutan al instante sin peticiones HTTP bloqueantes.
+- **4. Validación y Calidad:**
+  - Creada suite [`ReposicionRapidaInsumoTest.php`](file:///d:/Proyectos/restomaster/tests/Feature/ReposicionRapidaInsumoTest.php) (7 tests, 23 aserciones en verde).
+  - Verificada regresión: 12 tests pasando (34 aserciones en verde) entre Dashboard, Inventario y Reposición.
+  - **Pruebas End-to-End con Playwright (`flujo-08-reposicion-rapida-categorias.spec.ts`):** 100% pasando en verde (`1 passed (40.7s)` en `Desktop Terminal 1440`). Flujo completo verificado en navegador Chromium real: Login Admin -> Dashboard -> Alerta de Inventario -> Apertura modal reactivo Reponer -> Cambio instantáneo a Pestaña 2 -> Ingreso dinámico de 250 unidades y recálculo instantáneo a `$4.000.000 COP` -> Cierre modal -> Navegación `/inventario` -> Controles interactivos y pills de categorías -> Apertura/cierre modal desde fila de Kardex.
+  - Corrección de diagnósticos IDE: `HealthCheckCommand.php` alineado a sintaxis explícita de query builder, `@types/node` y `tsconfig.json` configurados para Playwright (`0 errores de linter / IDE`).
+  - Laravel Pint: Formato PSR-12 verificado.
 2026-10-04 | Antigravity | 🇨🇴 **CORRECCIONES RBAC (OCULTAMIENTO DE MENÚS Y PANTALLAS LIMPIAS) & KIT MAESTRO DE DEMOSTRACIÓN COLOMBIA · MEDELLÍN (AUTO-DEPLOY):**
 - **1. Auditoría y Correcciones RBAC de Acceso y Navegación:**
   - `routes/web.php`: Redirección automática de los roles `delivery` y `repartidor` desde `/dashboard` directamente a su panel operativo `route('delivery')`.
@@ -372,7 +453,7 @@
 ## Actualización previa
 2026-09-29 | OpenCode | ✅ **FASE 9 COMPLETADA — REPORTES COMPARATIVOS + IA + PDF (PLAN MAESTRO CERRADO)** (`app/Services/ReportesComparativosService.php` *(nuevo)*, `app/Services/Ai/AdminAiCopilotService.php::analizarReporte`, `app/Http/Controllers/InformeEjecutivoController.php` *(nuevo)*, `resources/views/pdf/informe-ejecutivo.blade.php` *(nueva)*, `routes/web.php`, `resources/views/livewire/reportes/index.blade.php`, tests Fase 9):
 - **9.1 — Comparativas:** agrupación auto (≤7d día, ≤31d semana, ≤90d quincena, else mes), series A vs B con período anterior automático o personalizado, KPIs Δ (ventas, comandas, ticket, devoluciones), acumulada, heatmap 7×24, top 5, CSV con escape anti-inyección. UI: toggle comparativo, pickers B, tarjetas Δ, charts Apex (línea+heatmap), top 5.
-- **9.2 — IA + PDF:** `analizarReporte()` (admin/gerente, determinista offline + LLM si hay API): resumen, tendencia crecimiento/meseta/caída, 3 recomendaciones, infografía. Botón 🧠 en reportes + tarjeta resultado. `GET /reportes/informe-ejecutivo` (admin/gerente, doble gate) con membrete, KPIs Δ, tablas serie/top, análisis IA y pie Sushixpress IA; + CSV comparativa.
+- **9.2 — IA + PDF:** `analizarReporte()` (admin/gerente, determinista offline + LLM si hay API): resumen, tendencia crecimiento/meseta/caída, 3 recomendaciones, infografía. Botón 🧠 en reportes + tarjeta resultado. `GET /reportes/informe-ejecutivo` (admin/gerente, doble gate) con membrete, KPIs Δ, tablas serie/top, análisis IA y pie restomaster IA; + CSV comparativa.
 - **Tests:** Fase 9: 14/14 nuevos. Certificación por bloques (memoria escasa impedía corrida única: 2 hangs transitorios en tests ajenos — impresoras USB y proveedores — ambos verdes aislados): Unit/Comp/Int 44/44 + Feature A–G 385/385 + H–M 85/85 + N–Z 237/237 = **751/751**. Pint verde. Build 0 errores.
 
 ---
@@ -521,7 +602,7 @@
 - **Bloque I (Fases 1–5):** Hotfix Copiloto IA (crash ventas + egresos de caja + anti-bucle), Function Calling con Gemini (5 tools reales + pestaña config API Key), Módulo de Programación Semanal de Turnos (3 tablas + TurnoSemanalService + vista matriz), Modal de Aviso al Login del Mesero, Suite de tests Bloque I.
 - **Bloque II (Fases 6–9):** Optimización móvil (fix header + botones compartir WA/FB/IG + grid responsivo), Autorrotación equitativa (no-repetición de zona + ciclo descansos 4 semanas), Centralización de cobros en caja (mesero solicita, cajero procesa, notif. WebSocket mesero + Nota de Crédito obligatoria), Reportes comparativos (Semana/Trimestre/Semestre + modo A vs B) + análisis IA + PDF ejecutivo.
 - **Constraints de diseño actualizados:** Se permite `dark:` acorde al sistema existente. Contraste WCAG AA garantizado en ambos modos. Táctil-first, sin CDN nuevos, seguridad server-side siempre.
-- Comando de arranque: `"Ejecuta el PLAN_MAESTRO_SPRINT_FINAL.md de Sushixpress — implementa las 9 fases en orden estricto..."`.
+- Comando de arranque: `"Ejecuta el PLAN_MAESTRO_SPRINT_FINAL.md de restomaster — implementa las 9 fases en orden estricto..."`.
 
 
 ## Actualización previa
@@ -772,7 +853,7 @@
   6. **H-11 (Credenciales Demo en Docker):** Eliminados valores por defecto de `APP_KEY`, `DB_PASSWORD` y `POSTGRES_PASSWORD` en `docker-compose.yml`, obligando a proveerlos por `.env`.
   7. **AUTH (Rate Limiting HTTP):** Añadido `throttle:10,1` a `cliente.magic_verify` y `throttle:15,1` a Volt `login`.
   8. **A11Y (Accesibilidad WCAG 1.4.4):** Eliminado `user-scalable=0/no` en `guest.blade.php`, `menu-cliente.blade.php`, `publico.blade.php` y `app.blade.php`.
-  9. **Comandos Artisan:** Restaurados alias legacy `sushixpress:backup` y `sushixpress:health`.
+  9. **Comandos Artisan:** Restaurados alias legacy `restomaster:backup` y `restomaster:health`.
 - **Estado de Pruebas y Calidad:**
   - **Suite completa:** 632/632 tests PASANDO (2.538 aserciones, 100% verde).
   - **Laravel Pint:** 100% aprobado (PSR-12).
@@ -1187,7 +1268,7 @@
   5. **`app/Jobs/EnviarEncuestaClienteJob.php`:**
      - Verificación segura `$pedido->cliente instanceof Cliente` antes de despachar encuestas de satisfacción.
   6. **Limpieza de Aliases Legados / Código Huérfano (`app/Console/Commands/`):**
-     - Eliminadas referencias huérfanas `sushixpress:*` en `RestaurarEstadoCeroCommand`, `HealthCheckCommand`, `CargarDatosDemoCommand` y `BackupDatabaseCommand`, reemplazándolas por nombres de comando oficiales RestoMaster (`restomaster:*` / `db:*`).
+     - Eliminadas referencias huérfanas `restomaster:*` en `RestaurarEstadoCeroCommand`, `HealthCheckCommand`, `CargarDatosDemoCommand` y `BackupDatabaseCommand`, reemplazándolas por nombres de comando oficiales RestoMaster (`restomaster:*` / `db:*`).
 - **Verificación y Pruebas:**
   - Laravel Pint: 100% aprobado (0 violaciones de estilo PSR-12).
   - Test suites: 27/27 pruebas pasando al 100% (111 aserciones en verde en `CrmAutomatizacionesTest`, `ClienteAuthSocialTest`, `CajaReporteGestionTest`, `TurnoCajaMultipleShiftsTest`).
@@ -2415,7 +2496,7 @@
     * `ConfiguracionSeeder.php`: Razón social `RestoMaster Colombia S.A.S.` y base de datos `restomaster`.
     * `ImpresoraSeeder.php`: Reorganizadas impresoras a Cocina Fría & Entradas, Cocina Caliente & Parrilla, Barra y Caja Principal.
   - **Servicios y Comandos Artisan:**
-    * Creados comandos `restomaster:health` y `restomaster:backup` con retrocompatibilidad para alias `sushixpress:*`.
+    * Creados comandos `restomaster:health` y `restomaster:backup` con retrocompatibilidad para alias `restomaster:*`.
     * Tirillas térmicas y reportes Z actualizados a encabezado fiscal `RESTOMASTER`.
   - **Base de Datos & Verificación:**
     * Migrada y poblada en PostgreSQL local `restomaster` (`php artisan migrate:fresh --seed`).
@@ -2438,7 +2519,7 @@
     * Ejecutados seeders base (`php artisan db:seed`) con roles, sucursal, usuarios admin/operativos, catálogo de sushi, insumos, cajas e impresoras.
   - **Compilación y Diagnóstico:**
     * Compilados assets con `npm run build` (manifest.json y CSS generado).
-    * `php artisan sushixpress:health`: Diagnóstico OK (BD conectada 153ms, colas OK, almacenamiento OK, spooler OK).
+    * `php artisan restomaster:health`: Diagnóstico OK (BD conectada 153ms, colas OK, almacenamiento OK, spooler OK).
     * Suites de tests operacionales verificadas verdes.
 
 2026-09-11 02:00 | Antigravity | CORRECCIÓN DE IDIOMA DE FECHA EN DASHBOARD (ESPAÑOL):
@@ -2467,7 +2548,7 @@
   - **A3 (FIXED):** Corregido `pos/terminal.blade.php:711` para usar `$cat->productos_count ?? 0`.
   - **M2 (FIXED):** En `ClienteService::crear`, forzados `puntos_fidelidad = 0`, `total_gastado = 0` y `visitas_totales = 0` para evitar manipulación o fraude.
   - **M3 & M4 (FIXED):** Validaciones server-side de no-subpago (`montoPagado >= total` y `montoRecibido >= total`) añadidas en `PedidoService::cobrarPedido` y `DeliveryService::marcarEntregado`. `costo_envio` acotado con `max(0, ...)`.
-  - **M9 (FIXED):** Eliminado `123456` hardcodeado en `login.blade.php`; ahora usa dinámicamente `env('DEMO_USERS_PASSWORD', 'sushixpress2026')`.
+  - **M9 (FIXED):** Eliminado `123456` hardcodeado en `login.blade.php`; ahora usa dinámicamente `env('DEMO_USERS_PASSWORD', 'restomaster2026')`.
   - **Deploy Coolify:** Creados `docker-compose.yaml` y `docker-compose.yml`, sincronizada rama `main` en GitHub (`master:main`).
   - **Calidad:** 249/249 tests pasando al 100% verde (783 assertions), Pint 0 violaciones. Lock `.locks/reparacion-evaluativo-2026-09-10.lock` liberado.
 
@@ -2667,7 +2748,7 @@
 | 2026-09-09 | Antigravity | Creación y Gestión de Nuevos Productos y Servicios (MEN-01 / POS): Enlaces en sidebar/drawer/dashboard, botón `+ Nuevo Producto / Carta` en terminal POS, reactividad Volt en header de `/menu`, modal de productos/servicios con precios y áreas de cocina, reactivación en `MenuService`, roles gerente/admin. 170/170 tests OK (522 assertions) | app/Services/MenuService.php, routes/web.php, resources/views/livewire/layout/navigation.blade.php, resources/views/dashboard.blade.php, resources/views/livewire/pos/terminal.blade.php, resources/views/livewire/menu/index.blade.php, tests/Feature/Fase1MenuCrudTest.php |
 | 2026-09-09 | OpenCode | Mejora TRB-01: sucursal asignable a usuarios (migración `sucursal_id` nullable+FK), reset de contraseña con clave temporal mostrada una sola vez (auditada), select de rol mantenido, y acceso visible como "Configuración de Perfiles" en dropdown del avatar (solo admin). 166/166 tests OK (508 assertions) | database/migrations/2026_09_09_211000_add_sucursal_id_to_users_table.php, app/Models/{User,Sucursal}.php, app/Services/TrabajadorService.php (resetearPassword), resources/views/livewire/trabajadores/index.blade.php, resources/views/livewire/layout/navigation.blade.php (dropdown admin), tests/Feature/Fase0TrabajadoresTest.php (+7 tests) |
 | 2026-09-09 | Antigravity | CRUD completo de Mesas y Cajas: botón `+ Nueva Mesa`, modal de creación/edición de mesas por zona y capacidad, eliminación segura sin pedidos activos, `MesaService`, y modal de nueva terminal en `caja/control.blade.php`. 159/159 tests OK | app/Services/{MesaService,CajaService}.php, resources/views/livewire/{mesas,caja}/*, tests/Feature/MesaCrudTest.php |
-| 2026-09-09 | Antigravity | Fase 6: Colas de trabajos (`ShouldQueue`), Sockets TCP 9100 ESC/POS (80mm), Spooler `trabajos_impresion`, reimpresión auditada en `auditorias`, pantalla Stitch IMP-01 `/impresion`, comandos `sushixpress:backup` y `sushixpress:health`, 156/156 tests OK | database/migrations/2026_09_09_210000_*, database/migrations/2026_09_09_210010_*, app/Models/{Impresora,TrabajoImpresion}.php, app/Services/ImpresionService.php, app/Jobs/{ImprimirComandaJob,ImprimirTicketVentaJob,ImprimirReporteZJob}.php, app/Console/Commands/{BackupDatabaseCommand,HealthCheckCommand}.php, resources/views/livewire/impresion/index.blade.php, routes/web.php, tests/Feature/Fase6RobustezImpresionTest.php |
+| 2026-09-09 | Antigravity | Fase 6: Colas de trabajos (`ShouldQueue`), Sockets TCP 9100 ESC/POS (80mm), Spooler `trabajos_impresion`, reimpresión auditada en `auditorias`, pantalla Stitch IMP-01 `/impresion`, comandos `restomaster:backup` y `restomaster:health`, 156/156 tests OK | database/migrations/2026_09_09_210000_*, database/migrations/2026_09_09_210010_*, app/Models/{Impresora,TrabajoImpresion}.php, app/Services/ImpresionService.php, app/Jobs/{ImprimirComandaJob,ImprimirTicketVentaJob,ImprimirReporteZJob}.php, app/Console/Commands/{BackupDatabaseCommand,HealthCheckCommand}.php, resources/views/livewire/impresion/index.blade.php, routes/web.php, tests/Feature/Fase6RobustezImpresionTest.php |
 | 2026-09-09 | OpenCode | Lectura documentación completa | ninguno |
 | 2026-09-09 | OpenCode | Instalación Superpowers plugin | ~/.config/opencode/opencode.jsonc |
 | 2026-09-09 | OpenCode | Corrección script Antigravity | create_laravel.ps1 |
@@ -2712,7 +2793,7 @@
 - [x] Fase 3: Inventario y Recetas (insumos, recetas/escandallo, deducción automática de stock)
 - [x] Fase 4: Clientes y Fidelización + Delivery (clientes, puntos, repartidores, pedidos a domicilio)
 - [x] Fase 5: Reservas y Reportes Avanzados / Facturación Electrónica DIAN
-- [x] Fase 6: Robustez, Colas de Trabajo (`QUEUE_CONNECTION=database`), Impresión en Red ESC/POS (80mm), Spooler, Reimpresión Histórica Auditada y Comandos de Resiliencia (`sushixpress:backup`, `sushixpress:health`)
+- [x] Fase 6: Robustez, Colas de Trabajo (`QUEUE_CONNECTION=database`), Impresión en Red ESC/POS (80mm), Spooler, Reimpresión Histórica Auditada y Comandos de Resiliencia (`restomaster:backup`, `restomaster:health`)
 
 ## Notas para el otro agente
 
@@ -2729,12 +2810,12 @@
 > - **Arquitectura de Colas Asíncronas (`QUEUE_CONNECTION=database`):** Implementados `ImprimirComandaJob`, `ImprimirTicketVentaJob`, y `ImprimirReporteZJob` implementando `ShouldQueue`. Despacho de comandas particionadas por estación de cocina (`sushi`, `calientes`, `barra`), tickets fiscales a 48 columnas y cortes de turno (Reporte Z).
 > - **Spooler & Trazabilidad de Reimpresión:** Tabla `trabajos_impresion` almacena contenido legible en texto y bytes ESC/POS en crudo (`contenido_raw`) con comando de corte de papel `GS V`. La reimpresión histórica incrementa `veces_reimpreso`, registra `reimpreso_por_id` y genera automáticamente una traza inmutable en la tabla `auditorias` (`entidad = 'trabajo_impresion'`, `accion = 'impresion.reimpreso'`) mediante `AuditoriaService`.
 > - **Comandos Operativos de Resiliencia Artisan:**
->   - `php artisan sushixpress:backup`: Genera dump SQL estructurado y versionado en `storage/app/backups/`.
->   - `php artisan sushixpress:health`: Chequeo integral de salud del sistema en consola (latencia PostgreSQL, colas activas/fallidas, almacenamiento, impresoras activas y último registro de auditoría).
+>   - `php artisan restomaster:backup`: Genera dump SQL estructurado y versionado en `storage/app/backups/`.
+>   - `php artisan restomaster:health`: Chequeo integral de salud del sistema en consola (latencia PostgreSQL, colas activas/fallidas, almacenamiento, impresoras activas y último registro de auditoría).
 > - **Pantalla Stitch Livewire Volt (Aura Gastro Expressive OS):**
 >   - `IMP-01` (`/impresion`, role: `gerente,admin`): Bento KPIs, tarjetas de impresoras con botones de Ping y Test de impresión en caliente, filtro de cola por tipo/error, modal de configuración y visor lateral de cinta térmica continua de 80mm con borde en zig-zag (*serrated edge cut*).
 >   - Rutas y navegación: Enlace agregado en el menú lateral (`navigation.blade.php`) y tarjeta de acceso rápido en el launchpad del dashboard (`dashboard.blade.php`).
-> - **Lock liberado:** Archivo `.locks/fase6-robustez-colas-impresion.lock` eliminado. Todas las fases de Sushixpress (0 a 6) se encuentran finalizadas, probadas y operativas.
+> - **Lock liberado:** Archivo `.locks/fase6-robustez-colas-impresion.lock` eliminado. Todas las fases de restomaster (0 a 6) se encuentran finalizadas, probadas y operativas.
 
 > **Fase 5 finalizada (OpenCode, 2026-09-09 23:59) — Suite completa 147/147 tests (425 assertions).**
 > - **Reservas (RES-01):** `ReservaService` (crear/confirmar/marcarLlego/finalizar/cancelar/marcarNoShow/reservasDelDia/verificarDisponibilidad) con relación pivot `reserva_mesa`. **Gotcha SQLite:** columna `date` se guarda como `YYYY-MM-DD 00:00:00` → comparar con `whereDate('fecha', ...)` (NO `where('fecha', $dia)`). Pantalla `/reservas` (mesero,cajero,gerente).

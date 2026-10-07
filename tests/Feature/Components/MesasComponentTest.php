@@ -30,7 +30,7 @@ class MesasComponentTest extends TestCase
         $roleMesero = Role::create(['nombre' => 'Mesero', 'slug' => 'mesero']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'activa' => true,
         ]);

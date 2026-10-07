@@ -1,4 +1,4 @@
-# Plan de Reparaciones — Riesgos Nuevos Post-Remediación (2026-09-15)
+﻿# Plan de Reparaciones — Riesgos Nuevos Post-Remediación (2026-09-15)
 
 > **Para agentes trabajadores:** SKILL SUB-REQUERIDA: usar superpowers:subagent-driven-development (recomendado) o superpowers:executing-plans para implementar este plan tarea por tarea. Los pasos usan sintaxis de casilla (`- [ ]`) para seguimiento.
 
@@ -677,7 +677,7 @@ class RemediacionCredencialDemoTest extends TestCase
         $login = file_get_contents(resource_path('views/livewire/pages/auth/login.blade.php'));
         $envExample = file_get_contents(base_path('.env.example'));
 
-        foreach (['restomaster2026', 'sushixpress2026', 'password123'] as $cred) {
+        foreach (['restomaster2026', 'RESTOMASTER2026', 'password123'] as $cred) {
             $this->assertStringNotContainsString($cred, $seeder, "Seeder contiene fallback demo {$cred}.");
             $this->assertStringNotContainsString($cred, $login, "Login blade contiene fallback demo {$cred}.");
             $this->assertStringNotContainsString($cred, $envExample, ".env.example contiene {$cred}.");
@@ -1313,7 +1313,7 @@ Expected: 0.
 
 Run:
 ```powershell
-rg -n --hidden -g "!vendor" -g "!node_modules" -g "!.git" "restomaster2026|sushixpress2026|ryJ8oRftsst90c9" .
+rg -n --hidden -g "!vendor" -g "!node_modules" -g "!.git" "restomaster2026|RESTOMASTER2026|ryJ8oRftsst90c9" .
 ```
 Expected: 0 resultados fuera de `.env`/historial.
 

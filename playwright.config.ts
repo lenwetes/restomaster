@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Configuración de Playwright E2E para RestoMaster / SushiXpress
+ * Configuración de Playwright E2E para RestoMaster Gastro OS
  * Soporta emulación táctil móvil (390px mesero/comensal) y pantallas de escritorio/KDS.
  */
 export default defineConfig({

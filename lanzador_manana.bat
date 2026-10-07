@@ -1,11 +1,11 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul
-title 🚀 Sushixpress — Sprint Final (9 Fases)
+title 🚀 RESTOMASTER — Sprint Final (9 Fases)
 color 0A
 
 echo.
 echo  ╔══════════════════════════════════════════════════════════╗
-echo  ║      🚀 SUSHIXPRESS — LANZADOR SPRINT FINAL             ║
+echo  ║      🚀 RESTOMASTER — LANZADOR SPRINT FINAL             ║
 echo  ║         9 Fases · 25 Sub-tareas · 13 Test Classes       ║
 echo  ╚══════════════════════════════════════════════════════════╝
 echo.
@@ -56,7 +56,7 @@ echo  ┌───────────────────────�
 echo  │  COPIA este prompt en el chat del agente:               │
 echo  │                                                         │
 echo  │  "Ejecuta el PLAN_MAESTRO_SPRINT_FINAL.md de           │
-echo  │   Sushixpress — implementa las 9 fases en orden        │
+echo  │   RESTOMASTER — implementa las 9 fases en orden        │
 echo  │   estricto sin detenerte hasta que todos los tests      │
 echo  │   estén en verde y npm run build compile sin errores."  │
 echo  └─────────────────────────────────────────────────────────┘

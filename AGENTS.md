@@ -1,13 +1,13 @@
 # AGENTS.md — Contexto Compartido para Agentes de IA
 
 ## Proyecto
-**Sushixpress** — Sistema de gestión integral para restaurante de sushi.
+**RestoMaster** — Sistema de gestión integral para restaurante y gastro-bar.
 
 ## Stack
 - Backend: Laravel 13 + PHP 8.3
 - DB: PostgreSQL 18
 - Frontend: Blade + Livewire (mobile-first, táctil)
-- Ubicación: `D:\Proyectos\sushixpress`
+- Ubicación: `D:\Proyectos\restomaster`
 
 ## Agentes Activos
 | Agente | Rol | Herramienta |
@@ -24,7 +24,7 @@
 
 ## Estructura del Proyecto
 ```
-sushixpress/
+restomaster/
 ├── AGENTS.md              ← Este archivo (contexto compartido)
 ├── coordination.md        ← Estado de trabajo entre agentes
 ├── .ai/rules/             ← Reglas de trabajo

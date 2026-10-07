@@ -15,7 +15,7 @@ class RemediacionCredencialDemoTest extends TestCase
         $login = file_get_contents(resource_path('views/livewire/pages/auth/login.blade.php'));
         $envExample = file_get_contents(base_path('.env.example'));
 
-        foreach (['restomaster2026', 'sushixpress2026', 'password123'] as $cred) {
+        foreach (['restomaster2026', 'RESTOMASTER2026', 'password123'] as $cred) {
             $this->assertStringNotContainsString($cred, $seeder, "Seeder contiene fallback demo {$cred}.");
             $this->assertStringNotContainsString($cred, $login, "Login blade contiene fallback demo {$cred}.");
             $this->assertStringNotContainsString($cred, $envExample, ".env.example contiene {$cred}.");

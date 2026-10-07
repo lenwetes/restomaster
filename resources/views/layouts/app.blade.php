@@ -39,6 +39,26 @@
             ::-webkit-scrollbar {
                 display: none;
             }
+            /* Barra de desplazamiento temática gastro-luxe */
+            .resto-scrollbar {
+                scrollbar-width: thin;
+                scrollbar-color: rgba(122, 90, 82, 0.45) transparent;
+            }
+            .resto-scrollbar::-webkit-scrollbar {
+                display: block !important;
+                width: 5px;
+                height: 5px;
+            }
+            .resto-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .resto-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(122, 90, 82, 0.45);
+                border-radius: 9999px;
+            }
+            .resto-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(224, 68, 46, 0.7);
+            }
             .material-symbols-outlined {
                 font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
                 vertical-align: middle;

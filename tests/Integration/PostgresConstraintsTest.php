@@ -22,7 +22,7 @@ class PostgresConstraintsTest extends TestCase
         parent::setUp();
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'SushiXpress Envigado',
+            'nombre' => 'RESTOMASTER Envigado',
             'codigo' => 'ENV-01',
             'activa' => true,
         ]);

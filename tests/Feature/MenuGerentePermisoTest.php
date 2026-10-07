@@ -41,7 +41,7 @@ class MenuGerentePermisoTest extends TestCase
 
         $this->gerente = User::create([
             'name' => 'Gerente Test',
-            'email' => 'gerente.menu@sushixpress.com',
+            'email' => 'gerente.menu@RESTOMASTER.com',
             'telefono' => '3001112233',
             'role_id' => $rolGerente->id,
             'sucursal_id' => $sucursal->id,
@@ -51,7 +51,7 @@ class MenuGerentePermisoTest extends TestCase
 
         $this->mesero = User::create([
             'name' => 'Mesero Test',
-            'email' => 'mesero.menu@sushixpress.com',
+            'email' => 'mesero.menu@RESTOMASTER.com',
             'telefono' => '3004445566',
             'role_id' => $rolMesero->id,
             'sucursal_id' => $sucursal->id,

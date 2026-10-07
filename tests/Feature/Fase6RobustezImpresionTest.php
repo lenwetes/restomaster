@@ -52,7 +52,7 @@ class Fase6RobustezImpresionTest extends TestCase
         Role::create(['nombre' => 'Gerente', 'slug' => 'gerente']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,
@@ -60,7 +60,7 @@ class Fase6RobustezImpresionTest extends TestCase
 
         $this->admin = User::create([
             'name' => 'Admin Chef',
-            'email' => 'admin@sushixpress.com',
+            'email' => 'admin@RESTOMASTER.com',
             'password' => bcrypt('password123'),
             'role_id' => $roleAdmin->id,
             'activo' => true,
@@ -68,7 +68,7 @@ class Fase6RobustezImpresionTest extends TestCase
 
         $this->mesero = User::create([
             'name' => 'Carlos Mesero',
-            'email' => 'mesero@sushixpress.com',
+            'email' => 'mesero@RESTOMASTER.com',
             'password' => bcrypt('password123'),
             'role_id' => $roleMesero->id,
             'activo' => true,
@@ -392,7 +392,7 @@ class Fase6RobustezImpresionTest extends TestCase
 
     public function test_comando_artisan_backup_crea_archivo_sql(): void
     {
-        $exitCode = $this->artisan('sushixpress:backup');
+        $exitCode = $this->artisan('RESTOMASTER:backup');
         $exitCode->assertExitCode(0);
 
         $backupPath = storage_path('app/backups');
@@ -408,7 +408,7 @@ class Fase6RobustezImpresionTest extends TestCase
 
     public function test_comando_artisan_healthcheck_verifica_componentes(): void
     {
-        $exitCode = $this->artisan('sushixpress:health');
+        $exitCode = $this->artisan('RESTOMASTER:health');
         $exitCode->assertExitCode(0);
     }
 

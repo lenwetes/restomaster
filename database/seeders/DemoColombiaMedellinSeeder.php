@@ -7,6 +7,7 @@ use App\Models\Categoria;
 use App\Models\CategoriaInsumo;
 use App\Models\Cliente;
 use App\Models\Compra;
+use App\Models\CompraLinea;
 use App\Models\CrmConfiguracion;
 use App\Models\CuentaPorPagar;
 use App\Models\DireccionCliente;
@@ -172,21 +173,21 @@ class DemoColombiaMedellinSeeder extends Seeder
 
         // 6. 10 PROVEEDORES DE ANTIOQUIA
         $proveedoresData = [
-            ['nombre' => 'Carnes Frías San Martín Medellín S.A.S.', 'nit' => '890.123.456-1', 'telefono' => '+57 604 444 1122', 'email' => 'ventas@carnesanmartin.com.co', 'contacto' => 'Gustavo Adolfo Pérez', 'direccion' => 'Calle 29 # 43A-20, Medellín'],
-            ['nombre' => 'Avícola Los Andes de Antioquia S.A.S.', 'nit' => '900.876.543-2', 'telefono' => '+57 604 312 8899', 'email' => 'pedidos@avicolalosandes.com', 'contacto' => 'Clara Inés Restrepo', 'direccion' => 'Autopista Sur Km 8, Itagüí'],
-            ['nombre' => 'Pescados y Mariscos del Pacífico S.A.S.', 'nit' => '901.234.567-3', 'telefono' => '+57 604 260 5544', 'email' => 'comercial@mariscospacifico.com', 'contacto' => 'Jairo de Jesús Correa', 'direccion' => 'Carrera 52 # 14-30, Medellín'],
-            ['nombre' => 'Agropecuaria El Trébol & Central Mayorista', 'nit' => '800.987.654-4', 'telefono' => '+57 604 372 1000', 'email' => 'ventas@eltrebolagro.co', 'contacto' => 'Héctor Fabio Gómez', 'direccion' => 'Bloque 12 Local 24 Central Mayorista, Itagüí'],
-            ['nombre' => 'Lácteos y Derivados del Valle de Aburrá', 'nit' => '900.345.678-5', 'telefono' => '+57 604 448 3322', 'email' => 'pedidos@lacteosaburra.com', 'contacto' => 'Marcela Zapata Uribe', 'direccion' => 'Calle 10 # 42-15, Envigado'],
-            ['nombre' => 'Distribuidora Mayorista de Licores La 70 Medellín', 'nit' => '901.456.789-6', 'telefono' => '+57 604 411 9900', 'email' => 'licoresla70@distribuidora.co', 'contacto' => 'Felipe Posada Londoño', 'direccion' => 'Circular 4 # 70-12, Medellín'],
-            ['nombre' => 'Bebidas & Gaseosas de Colombia / Postobón & Bavaria', 'nit' => '890.900.123-7', 'telefono' => '+57 604 510 8000', 'email' => 'atencion@bebidascolombia.com', 'contacto' => 'Guillermo Ochoa Gil', 'direccion' => 'Carrera 48 # 26-85, Medellín'],
-            ['nombre' => 'Horno Francés & Brioche Artesanal Poblado', 'nit' => '901.789.012-8', 'telefono' => '+57 604 311 4455', 'email' => 'pedidos@hornofrances.co', 'contacto' => 'Camille Dubois Restrepo', 'direccion' => 'Calle 8 # 36-22, El Poblado, Medellín'],
-            ['nombre' => 'Café Pergamino & Cordillera Central Jericó', 'nit' => '900.678.901-9', 'telefono' => '+57 604 268 7788', 'email' => 'origen@pergaminocoffee.com', 'contacto' => 'Pedro Echavarría Botero', 'direccion' => 'Vereda Las Brisas, Jericó, Antioquia'],
-            ['nombre' => 'EcoEmpaques Biodegradables de Medellín', 'nit' => '901.890.123-0', 'telefono' => '+57 604 444 6677', 'email' => 'ventas@ecoempaquesmde.com', 'contacto' => 'Natalia Echeverry Mejía', 'direccion' => 'Calle 30A # 65-40, Belén, Medellín'],
+            'carnes' => ['nombre' => 'Carnes Frías San Martín Medellín S.A.S.', 'nit' => '890.123.456-1', 'telefono' => '+57 604 444 1122', 'email' => 'ventas@carnesanmartin.com.co', 'contacto' => 'Gustavo Adolfo Pérez', 'direccion' => 'Calle 29 # 43A-20, Medellín'],
+            'avicola' => ['nombre' => 'Avícola Los Andes de Antioquia S.A.S.', 'nit' => '900.876.543-2', 'telefono' => '+57 604 312 8899', 'email' => 'pedidos@avicolalosandes.com', 'contacto' => 'Clara Inés Restrepo', 'direccion' => 'Autopista Sur Km 8, Itagüí'],
+            'pescados' => ['nombre' => 'Pescados y Mariscos del Pacífico S.A.S.', 'nit' => '901.234.567-3', 'telefono' => '+57 604 260 5544', 'email' => 'comercial@mariscospacifico.com', 'contacto' => 'Jairo de Jesús Correa', 'direccion' => 'Carrera 52 # 14-30, Medellín'],
+            'fruver' => ['nombre' => 'Agropecuaria El Trébol & Central Mayorista', 'nit' => '800.987.654-4', 'telefono' => '+57 604 372 1000', 'email' => 'ventas@eltrebolagro.co', 'contacto' => 'Héctor Fabio Gómez', 'direccion' => 'Bloque 12 Local 24 Central Mayorista, Itagüí'],
+            'lacteos' => ['nombre' => 'Lácteos y Derivados del Valle de Aburrá', 'nit' => '900.345.678-5', 'telefono' => '+57 604 448 3322', 'email' => 'pedidos@lacteosaburra.com', 'contacto' => 'Marcela Zapata Uribe', 'direccion' => 'Calle 10 # 42-15, Envigado'],
+            'licores' => ['nombre' => 'Distribuidora Mayorista de Licores La 70 Medellín', 'nit' => '901.456.789-6', 'telefono' => '+57 604 411 9900', 'email' => 'licoresla70@distribuidora.co', 'contacto' => 'Felipe Posada Londoño', 'direccion' => 'Circular 4 # 70-12, Medellín'],
+            'bebidas' => ['nombre' => 'Bebidas & Gaseosas de Colombia / Postobón & Bavaria', 'nit' => '890.900.123-7', 'telefono' => '+57 604 510 8000', 'email' => 'atencion@bebidascolombia.com', 'contacto' => 'Guillermo Ochoa Gil', 'direccion' => 'Carrera 48 # 26-85, Medellín'],
+            'panaderia' => ['nombre' => 'Horno Francés & Brioche Artesanal Poblado', 'nit' => '901.789.012-8', 'telefono' => '+57 604 311 4455', 'email' => 'pedidos@hornofrances.co', 'contacto' => 'Camille Dubois Restrepo', 'direccion' => 'Calle 8 # 36-22, El Poblado, Medellín'],
+            'cafe' => ['nombre' => 'Café Pergamino & Cordillera Central Jericó', 'nit' => '900.678.901-9', 'telefono' => '+57 604 268 7788', 'email' => 'origen@pergaminocoffee.com', 'contacto' => 'Pedro Echavarría Botero', 'direccion' => 'Vereda Las Brisas, Jericó, Antioquia'],
+            'empaques' => ['nombre' => 'EcoEmpaques Biodegradables de Medellín', 'nit' => '901.890.123-0', 'telefono' => '+57 604 444 6677', 'email' => 'ventas@ecoempaquesmde.com', 'contacto' => 'Natalia Echeverry Mejía', 'direccion' => 'Calle 30A # 65-40, Belén, Medellín'],
         ];
 
         $proveedoresMap = [];
-        foreach ($proveedoresData as $prv) {
-            $proveedoresMap[$prv['nit']] = Proveedor::updateOrCreate(
+        foreach ($proveedoresData as $key => $prv) {
+            $proveedoresMap[$key] = Proveedor::updateOrCreate(
                 ['nit' => $prv['nit']],
                 array_merge($prv, ['dias_credito' => 30, 'activo' => true])
             );
@@ -200,37 +201,55 @@ class DemoColombiaMedellinSeeder extends Seeder
         $catInsumoEmpaques = CategoriaInsumo::firstOrCreate(['slug' => 'empaques-desechables'], ['nombre' => 'Empaques y Suministros']);
 
         $insumosData = [
-            ['codigo' => 'INS-BIF-01', 'nombre' => 'Corte Bife de Chorizo Angus Madurado', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 28.5, 'stock_minimo' => 8.0, 'costo_unitario' => 38000.00, 'proveedor_nombre' => 'Carnes Frías San Martín Medellín'],
-            ['codigo' => 'INS-RIB-01', 'nombre' => 'Ojo de Bife / Ribeye Prime', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 22.0, 'stock_minimo' => 6.0, 'costo_unitario' => 45000.00, 'proveedor_nombre' => 'Carnes Frías San Martín Medellín'],
-            ['codigo' => 'INS-LOM-01', 'nombre' => 'Lomo Fino de Res Tierno', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 3.2, 'stock_minimo' => 8.0, 'costo_unitario' => 42000.00, 'proveedor_nombre' => 'Carnes Frías San Martín Medellín'], // Stock bajo intencional
-            ['codigo' => 'INS-COS-01', 'nombre' => 'Costillar de Cerdo Seleccionado', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 35.0, 'stock_minimo' => 10.0, 'costo_unitario' => 26000.00, 'proveedor_nombre' => 'Carnes Frías San Martín Medellín'],
-            ['codigo' => 'INS-PEC-01', 'nombre' => 'Pechuga de Pollo Fresca Fileteada', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 30.0, 'stock_minimo' => 10.0, 'costo_unitario' => 22000.00, 'proveedor_nombre' => 'Avícola Los Andes de Antioquia'],
-            ['codigo' => 'INS-ALA-01', 'nombre' => 'Alitas de Pollo Frescas', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 25.0, 'stock_minimo' => 8.0, 'costo_unitario' => 18000.00, 'proveedor_nombre' => 'Avícola Los Andes de Antioquia'],
-            ['codigo' => 'INS-ROB-01', 'nombre' => 'Filete de Róbalo / Corvina del Pacífico', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 18.0, 'stock_minimo' => 5.0, 'costo_unitario' => 42000.00, 'proveedor_nombre' => 'Pescados y Mariscos del Pacífico'],
-            ['codigo' => 'INS-CAM-01', 'nombre' => 'Camarones Jumbo U15 Limpios', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'stock_actual' => 24.0, 'stock_minimo' => 6.0, 'costo_unitario' => 54000.00, 'proveedor_nombre' => 'Pescados y Mariscos del Pacífico'],
-            ['codigo' => 'INS-PAP-CRI', 'nombre' => 'Papa Criolla Limpia Selección', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'stock_actual' => 65.0, 'stock_minimo' => 15.0, 'costo_unitario' => 5500.00, 'proveedor_nombre' => 'Agropecuaria El Trébol'],
-            ['codigo' => 'INS-PAP-RUS', 'nombre' => 'Papa Rústica / Francesa Selección', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'stock_actual' => 75.0, 'stock_minimo' => 20.0, 'costo_unitario' => 6200.00, 'proveedor_nombre' => 'Agropecuaria El Trébol'],
-            ['codigo' => 'INS-AGU-HAS', 'nombre' => 'Aguacate Hass Calidad Extra', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'stock_actual' => 40.0, 'stock_minimo' => 10.0, 'costo_unitario' => 8500.00, 'proveedor_nombre' => 'Agropecuaria El Trébol'],
-            ['codigo' => 'INS-LIM-TAH', 'nombre' => 'Limón Tahití Jugoso Fresco', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'stock_actual' => 30.0, 'stock_minimo' => 8.0, 'costo_unitario' => 4200.00, 'proveedor_nombre' => 'Agropecuaria El Trébol'],
-            ['codigo' => 'INS-PAN-BRI', 'nombre' => 'Pan Brioche Mantequilla Artesanal', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoFruver->id, 'stock_actual' => 120.0, 'stock_minimo' => 30.0, 'costo_unitario' => 2500.00, 'proveedor_nombre' => 'Horno Francés Poblado'],
-            ['codigo' => 'INS-QUE-PAR', 'nombre' => 'Queso Parmesano Reggiano Rallado', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoLacteos->id, 'stock_actual' => 15.0, 'stock_minimo' => 4.0, 'costo_unitario' => 48000.00, 'proveedor_nombre' => 'Lácteos Valle de Aburrá'],
-            ['codigo' => 'INS-CRE-LEC', 'nombre' => 'Crema de Leche Fresca 35% Grasa', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoLacteos->id, 'stock_actual' => 2.5, 'stock_minimo' => 8.0, 'costo_unitario' => 16000.00, 'proveedor_nombre' => 'Lácteos Valle de Aburrá'], // Stock bajo intencional
-            ['codigo' => 'INS-GIN-BOT', 'nombre' => 'Ginebra Botánica de Autor', 'unidad_medida' => 'botella', 'categoria_id' => $catInsumoBebidas->id, 'stock_actual' => 18.0, 'stock_minimo' => 5.0, 'costo_unitario' => 85000.00, 'proveedor_nombre' => 'Licores La 70'],
-            ['codigo' => 'INS-RON-MED', 'nombre' => 'Ron Medellín Extra Añejo 8 Años', 'unidad_medida' => 'botella', 'categoria_id' => $catInsumoBebidas->id, 'stock_actual' => 24.0, 'stock_minimo' => 6.0, 'costo_unitario' => 68000.00, 'proveedor_nombre' => 'Licores La 70'],
-            ['codigo' => 'INS-AGU-AZU', 'nombre' => 'Aguardiente Antioqueño Sin Azúcar', 'unidad_medida' => 'botella', 'categoria_id' => $catInsumoBebidas->id, 'stock_actual' => 30.0, 'stock_minimo' => 8.0, 'costo_unitario' => 42000.00, 'proveedor_nombre' => 'Licores La 70'],
-            ['codigo' => 'INS-CAF-ESP', 'nombre' => 'Café Especial de Origen Jericó (Grano)', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoBebidas->id, 'stock_actual' => 20.0, 'stock_minimo' => 5.0, 'costo_unitario' => 48000.00, 'proveedor_nombre' => 'Café Pergamino'],
-            ['codigo' => 'INS-GAS-COL', 'nombre' => 'Gaseosa Colombiana 330ml Vidrio', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoBebidas->id, 'stock_actual' => 96.0, 'stock_minimo' => 24.0, 'costo_unitario' => 2800.00, 'proveedor_nombre' => 'Bebidas de Colombia'],
-            ['codigo' => 'INS-GAS-POS', 'nombre' => 'Gaseosa Postobón Manzana 330ml', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoBebidas->id, 'stock_actual' => 96.0, 'stock_minimo' => 24.0, 'costo_unitario' => 2800.00, 'proveedor_nombre' => 'Bebidas de Colombia'],
-            ['codigo' => 'INS-CER-CLU', 'nombre' => 'Cerveza Club Colombia Dorada 330ml', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoBebidas->id, 'stock_actual' => 120.0, 'stock_minimo' => 36.0, 'costo_unitario' => 4200.00, 'proveedor_nombre' => 'Bebidas de Colombia'],
-            ['codigo' => 'INS-EMP-CAJ', 'nombre' => 'Cajas Térmicas Delivery Caña de Azúcar', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoEmpaques->id, 'stock_actual' => 350.0, 'stock_minimo' => 80.0, 'costo_unitario' => 1200.00, 'proveedor_nombre' => 'EcoEmpaques'],
+            ['codigo' => 'INS-BIF-01', 'nombre' => 'Corte Bife de Chorizo Angus Madurado', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Carnes', 'stock_actual' => 28.5, 'stock_minimo' => 8.0, 'costo_unitario' => 38000.00, 'proveedor_key' => 'carnes'],
+            ['codigo' => 'INS-RIB-01', 'nombre' => 'Ojo de Bife / Ribeye Prime', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Carnes', 'stock_actual' => 22.0, 'stock_minimo' => 6.0, 'costo_unitario' => 45000.00, 'proveedor_key' => 'carnes'],
+            ['codigo' => 'INS-LOM-01', 'nombre' => 'Lomo Fino de Res Tierno', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Carnes', 'stock_actual' => 3.2, 'stock_minimo' => 8.0, 'costo_unitario' => 42000.00, 'proveedor_key' => 'carnes'], // Stock bajo intencional
+            ['codigo' => 'INS-COS-01', 'nombre' => 'Costillar de Cerdo Seleccionado', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Carnes', 'stock_actual' => 35.0, 'stock_minimo' => 10.0, 'costo_unitario' => 26000.00, 'proveedor_key' => 'carnes'],
+            ['codigo' => 'INS-PEC-01', 'nombre' => 'Pechuga de Pollo Fresca Fileteada', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Aves', 'stock_actual' => 30.0, 'stock_minimo' => 10.0, 'costo_unitario' => 22000.00, 'proveedor_key' => 'avicola'],
+            ['codigo' => 'INS-ALA-01', 'nombre' => 'Alitas de Pollo Frescas', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Aves', 'stock_actual' => 25.0, 'stock_minimo' => 8.0, 'costo_unitario' => 18000.00, 'proveedor_key' => 'avicola'],
+            ['codigo' => 'INS-ROB-01', 'nombre' => 'Filete de Róbalo / Corvina del Pacífico', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Pescados', 'stock_actual' => 18.0, 'stock_minimo' => 5.0, 'costo_unitario' => 42000.00, 'proveedor_key' => 'pescados'],
+            ['codigo' => 'INS-CAM-01', 'nombre' => 'Camarones Jumbo U15 Limpios', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoCarnes->id, 'categoria' => 'Mariscos', 'stock_actual' => 24.0, 'stock_minimo' => 6.0, 'costo_unitario' => 54000.00, 'proveedor_key' => 'pescados'],
+            ['codigo' => 'INS-PAP-CRI', 'nombre' => 'Papa Criolla Limpia Selección', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'categoria' => 'Fruver', 'stock_actual' => 65.0, 'stock_minimo' => 15.0, 'costo_unitario' => 5500.00, 'proveedor_key' => 'fruver'],
+            ['codigo' => 'INS-PAP-RUS', 'nombre' => 'Papa Rústica / Francesa Selección', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'categoria' => 'Fruver', 'stock_actual' => 75.0, 'stock_minimo' => 20.0, 'costo_unitario' => 6200.00, 'proveedor_key' => 'fruver'],
+            ['codigo' => 'INS-AGU-HAS', 'nombre' => 'Aguacate Hass Calidad Extra', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'categoria' => 'Fruver', 'stock_actual' => 40.0, 'stock_minimo' => 10.0, 'costo_unitario' => 8500.00, 'proveedor_key' => 'fruver'],
+            ['codigo' => 'INS-LIM-TAH', 'nombre' => 'Limón Tahití Jugoso Fresco', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoFruver->id, 'categoria' => 'Fruver', 'stock_actual' => 30.0, 'stock_minimo' => 8.0, 'costo_unitario' => 4200.00, 'proveedor_key' => 'fruver'],
+            ['codigo' => 'INS-PAN-BRI', 'nombre' => 'Pan Brioche Mantequilla Artesanal', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoFruver->id, 'categoria' => 'Panadería', 'stock_actual' => 120.0, 'stock_minimo' => 30.0, 'costo_unitario' => 2500.00, 'proveedor_key' => 'panaderia'],
+            ['codigo' => 'INS-QUE-PAR', 'nombre' => 'Queso Parmesano Reggiano Rallado', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoLacteos->id, 'categoria' => 'Lácteos', 'stock_actual' => 15.0, 'stock_minimo' => 4.0, 'costo_unitario' => 48000.00, 'proveedor_key' => 'lacteos'],
+            ['codigo' => 'INS-CRE-LEC', 'nombre' => 'Crema de Leche Fresca 35% Grasa', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoLacteos->id, 'categoria' => 'Lácteos', 'stock_actual' => 2.5, 'stock_minimo' => 8.0, 'costo_unitario' => 16000.00, 'proveedor_key' => 'lacteos'], // Stock bajo intencional
+            ['codigo' => 'INS-GIN-BOT', 'nombre' => 'Ginebra Botánica de Autor', 'unidad_medida' => 'botella', 'categoria_id' => $catInsumoBebidas->id, 'categoria' => 'Licores', 'stock_actual' => 18.0, 'stock_minimo' => 5.0, 'costo_unitario' => 85000.00, 'proveedor_key' => 'licores'],
+            ['codigo' => 'INS-RON-MED', 'nombre' => 'Ron Medellín Extra Añejo 8 Años', 'unidad_medida' => 'botella', 'categoria_id' => $catInsumoBebidas->id, 'categoria' => 'Licores', 'stock_actual' => 24.0, 'stock_minimo' => 6.0, 'costo_unitario' => 68000.00, 'proveedor_key' => 'licores'],
+            ['codigo' => 'INS-AGU-AZU', 'nombre' => 'Aguardiente Antioqueño Sin Azúcar', 'unidad_medida' => 'botella', 'categoria_id' => $catInsumoBebidas->id, 'categoria' => 'Licores', 'stock_actual' => 30.0, 'stock_minimo' => 8.0, 'costo_unitario' => 42000.00, 'proveedor_key' => 'licores'],
+            ['codigo' => 'INS-CAF-ESP', 'nombre' => 'Café Especial de Origen Jericó (Grano)', 'unidad_medida' => 'kg', 'categoria_id' => $catInsumoBebidas->id, 'categoria' => 'Café', 'stock_actual' => 20.0, 'stock_minimo' => 5.0, 'costo_unitario' => 48000.00, 'proveedor_key' => 'cafe'],
+            ['codigo' => 'INS-GAS-COL', 'nombre' => 'Gaseosa Colombiana 330ml Vidrio', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoBebidas->id, 'categoria' => 'Bebidas', 'stock_actual' => 96.0, 'stock_minimo' => 24.0, 'costo_unitario' => 2800.00, 'proveedor_key' => 'bebidas'],
+            ['codigo' => 'INS-GAS-POS', 'nombre' => 'Gaseosa Postobón Manzana 330ml', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoBebidas->id, 'categoria' => 'Bebidas', 'stock_actual' => 96.0, 'stock_minimo' => 24.0, 'costo_unitario' => 2800.00, 'proveedor_key' => 'bebidas'],
+            ['codigo' => 'INS-CER-CLU', 'nombre' => 'Cerveza Club Colombia Dorada 330ml', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoBebidas->id, 'categoria' => 'Cervezas', 'stock_actual' => 120.0, 'stock_minimo' => 36.0, 'costo_unitario' => 4200.00, 'proveedor_key' => 'bebidas'],
+            ['codigo' => 'INS-EMP-CAJ', 'nombre' => 'Cajas Térmicas Delivery Caña de Azúcar', 'unidad_medida' => 'unidad', 'categoria_id' => $catInsumoEmpaques->id, 'categoria' => 'Empaques', 'stock_actual' => 350.0, 'stock_minimo' => 80.0, 'costo_unitario' => 1200.00, 'proveedor_key' => 'empaques'],
         ];
 
         $insumosMap = [];
         foreach ($insumosData as $idat) {
+            $prvKey = $idat['proveedor_key'] ?? null;
+            $prv = $prvKey ? ($proveedoresMap[$prvKey] ?? null) : null;
+            unset($idat['proveedor_key']);
+
             $insumosMap[$idat['codigo']] = Insumo::updateOrCreate(
                 ['codigo' => $idat['codigo']],
-                array_merge($idat, ['activo' => true])
+                array_merge($idat, [
+                    'proveedor_id' => $prv?->id,
+                    'proveedor_nombre' => $prv?->nombre,
+                    'proveedor_nit' => $prv?->nit,
+                    'proveedor_telefono' => $prv?->telefono,
+                    'precio_referencia_mercado' => $idat['costo_unitario'] * 1.05,
+                    'activo' => true,
+                ])
             );
+        }
+
+        $insumosPorProveedor = [];
+        foreach ($insumosMap as $ins) {
+            if ($ins->proveedor_id) {
+                $insumosPorProveedor[$ins->proveedor_id][] = $ins;
+            }
         }
 
         // 8. CATEGORÍAS DEL MENÚ / POS
@@ -884,51 +903,104 @@ class DemoColombiaMedellinSeeder extends Seeder
                 }
             }
 
-            // 3. Compras a Proveedores y CxP (cada 3 días)
-            if ($d % 3 === 0) {
-                $prvRandom = $proveedoresMap[array_rand($proveedoresMap)];
-                $montoCompra = rand(850000, 2400000);
-                $numFactura = 'FAC-MDE-'.($d * 110 + 450);
+            // 3. Compras a Proveedores, Líneas de Insumos y CxP vinculadas (30 compras en total rotando los 10 proveedores)
+            $keysProveedores = array_keys($proveedoresMap);
+            $prvKey = $keysProveedores[($d - 1) % count($keysProveedores)];
+            $prv = $proveedoresMap[$prvKey];
+            $insumosDisponibles = $insumosPorProveedor[$prv->id] ?? [];
 
-                $compra = Compra::firstOrCreate(
-                    ['proveedor_id' => $prvRandom->id, 'numero_factura' => $numFactura],
+            $lineasCompra = [];
+            $montoCompra = 0;
+            if (! empty($insumosDisponibles)) {
+                foreach ($insumosDisponibles as $ins) {
+                    $cant = match ($ins->unidad_medida) {
+                        'kg' => rand(15, 35),
+                        'botella' => rand(6, 18),
+                        'unidad' => rand(30, 80),
+                        default => rand(10, 25),
+                    };
+                    $costoUnit = (float) $ins->costo_unitario;
+                    $subtotalLinea = round($cant * $costoUnit, 2);
+                    $montoCompra += $subtotalLinea;
+                    $lineasCompra[] = [
+                        'insumo_id' => $ins->id,
+                        'cantidad' => $cant,
+                        'costo_unitario' => $costoUnit,
+                        'subtotal' => $subtotalLinea,
+                    ];
+                }
+            } else {
+                $montoCompra = rand(950000, 2200000);
+            }
+
+            $numFactura = 'FAC-'.strtoupper(substr($prvKey, 0, 3)).'-'.(1000 + $d * 14);
+            $tieneSoporte = ($d % 2 === 0);
+            $soporteDemo = $tieneSoporte ? 'facturas_proveedores/soporte_demo_factura.png' : null;
+
+            $compra = Compra::firstOrCreate(
+                ['proveedor_id' => $prv->id, 'numero_factura' => $numFactura],
+                [
+                    'fecha' => $fecha->format('Y-m-d'),
+                    'subtotal' => $montoCompra,
+                    'forma_pago' => ($d > 20 && $d % 2 === 1) ? 'contado' : 'credito',
+                    'estado' => 'recibida',
+                    'soporte_factura' => $soporteDemo,
+                    'user_id' => $usersMap['gerente@restomaster.com']->id,
+                    'created_at' => $fecha,
+                ]
+            );
+
+            // Crear líneas de insumos recibidos para esta compra
+            foreach ($lineasCompra as $l) {
+                CompraLinea::firstOrCreate(
+                    ['compra_id' => $compra->id, 'insumo_id' => $l['insumo_id']],
                     [
-                        'fecha' => $fecha->format('Y-m-d'),
-                        'subtotal' => $montoCompra,
-                        'forma_pago' => ($d > 10) ? 'contado' : 'credito',
-                        'estado' => 'recibida',
-                        'user_id' => $usersMap['gerente@restomaster.com']->id,
-                        'created_at' => $fecha,
+                        'cantidad' => $l['cantidad'],
+                        'costo_unitario' => $l['costo_unitario'],
+                        'subtotal' => $l['subtotal'],
                     ]
                 );
+            }
 
-                if ($compra->wasRecentlyCreated) {
-                    $cxp = CuentaPorPagar::create([
-                        'proveedor_nombre' => $prvRandom->nombre,
-                        'proveedor_nit' => $prvRandom->nit,
-                        'concepto' => 'Compra insumos para cocina y barra sede El Poblado · Factura '.$numFactura,
-                        'monto_total' => $montoCompra,
-                        'saldo_pendiente' => ($d > 10) ? 0 : $montoCompra,
-                        'fecha_emision' => $fecha->format('Y-m-d'),
-                        'fecha_vencimiento' => $fecha->copy()->addDays(30)->format('Y-m-d'),
-                        'estado' => ($d > 10) ? 'pagada' : 'pendiente',
-                        'notas' => 'Factura compra registrada en sistema',
+            // Estados de CxP escalonados por antigüedad para pruebas completas de pagos:
+            // - d > 20 (hace 21-30 días): pagada (saldo 0)
+            // - d entre 11 y 20 (hace 11-20 días): parcial (50% abonado, 50% pendiente)
+            // - d <= 10 (hace 1-10 días): pendiente (100% por pagar)
+            $estadoCxp = ($d > 20) ? 'pagada' : (($d > 10) ? 'parcial' : 'pendiente');
+            $abonoInicial = ($estadoCxp === 'pagada') ? $montoCompra : (($estadoCxp === 'parcial') ? round($montoCompra * 0.5, 2) : 0);
+            $saldoPendiente = round($montoCompra - $abonoInicial, 2);
+
+            $cxp = CuentaPorPagar::firstOrCreate(
+                ['compra_id' => $compra->id],
+                [
+                    'proveedor_nombre' => $prv->nombre,
+                    'proveedor_nit' => $prv->nit,
+                    'numero_factura' => $numFactura,
+                    'concepto' => 'Factura de compra '.$numFactura.' · '.$prv->nombre,
+                    'monto_total' => $montoCompra,
+                    'saldo_pendiente' => $saldoPendiente,
+                    'fecha_emision' => $fecha->format('Y-m-d'),
+                    'fecha_vencimiento' => $fecha->copy()->addDays(30)->format('Y-m-d'),
+                    'estado' => $estadoCxp,
+                    'notas' => 'Factura registrada en sistema con insumos recibidos en bodega',
+                    'user_id' => $usersMap['gerente@restomaster.com']->id,
+                    'created_at' => $fecha,
+                ]
+            );
+
+            if ($abonoInicial > 0) {
+                PagoCxp::firstOrCreate(
+                    ['cuenta_por_pagar_id' => $cxp->id, 'monto' => $abonoInicial],
+                    [
                         'user_id' => $usersMap['gerente@restomaster.com']->id,
-                        'created_at' => $fecha,
-                    ]);
-
-                    if ($d > 10) {
-                        PagoCxp::create([
-                            'cuenta_por_pagar_id' => $cxp->id,
-                            'user_id' => $usersMap['gerente@restomaster.com']->id,
-                            'monto' => $montoCompra,
-                            'metodo_pago' => 'transferencia',
-                            'fecha_pago' => $fecha->copy()->addDays(5)->format('Y-m-d'),
-                            'concepto' => 'Pago transferencia Bancolombia Ref: TRF-'.rand(100000, 999999),
-                            'created_at' => $fecha->copy()->addDays(5),
-                        ]);
-                    }
-                }
+                        'metodo_pago' => ($d % 3 === 0) ? 'efectivo' : 'transferencia',
+                        'fecha_pago' => $fecha->copy()->addDays(rand(2, 6))->format('Y-m-d'),
+                        'concepto' => ($estadoCxp === 'pagada')
+                            ? 'Pago cancelación total factura '.$numFactura.' Ref: TRF-'.rand(100000, 999999)
+                            : 'Abono 50% cartera factura '.$numFactura.' Ref: TRF-'.rand(100000, 999999),
+                        'created_at' => $fecha->copy()->addDays(rand(2, 6)),
+                    ]
+                );
             }
 
             // 4. Reservas del Mes

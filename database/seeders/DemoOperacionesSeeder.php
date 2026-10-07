@@ -21,15 +21,12 @@ class DemoOperacionesSeeder extends Seeder
     public function run(): void
     {
         $cajero = User::where('email', 'cajero@restomaster.com')->first()
-            ?? User::where('email', 'cajero@sushixpress.com')->first()
             ?? User::whereHas('role', fn ($q) => $q->where('slug', 'cajero'))->first();
 
         $mesero = User::where('email', 'mesero@restomaster.com')->first()
-            ?? User::where('email', 'mesero@sushixpress.com')->first()
             ?? User::whereHas('role', fn ($q) => $q->where('slug', 'mesero'))->first();
 
         $admin = User::where('email', 'admin@restomaster.com')->first()
-            ?? User::where('email', 'admin@sushixpress.com')->first()
             ?? User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))->first();
 
         $sucursal = Sucursal::first();

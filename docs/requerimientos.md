@@ -1,4 +1,4 @@
-# Requerimientos para la Preparación del Proyecto
+﻿# Requerimientos para la Preparación del Proyecto
 
 Lista de requisitos de entorno, software, hardware y datos necesarios antes de iniciar la **Fase 0 (Cimientos)** del proyecto Laravel + PostgreSQL.
 
@@ -38,8 +38,8 @@ Indispensables para Laravel y PostgreSQL:
 | # | Requisito | Estado |
 |---|-----------|--------|
 | 1 | Servicio PostgreSQL en ejecución | ✅ Running (postgresql-x64-18) |
-| 2 | Usuario de BD con privilegios (ej. `sushixpress`) + contraseña | ⬜ Crear |
-| 3 | Base de datos `sushixpress` creada | ⬜ Crear |
+| 2 | Usuario de BD con privilegios (ej. `RESTOMASTER`) + contraseña | ⬜ Crear |
+| 3 | Base de datos `RESTOMASTER` creada | ⬜ Crear |
 | 4 | Acceso del servidor a la puerta 5432 | ⬜ Verificar |
 | 5 | Herramienta de administración (pgAdmin incluido con PostgreSQL) | ✅ |
 
@@ -49,8 +49,8 @@ Indispensables para Laravel y PostgreSQL:
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=sushixpress
-DB_USERNAME=sushixpress
+DB_DATABASE=RESTOMASTER
+DB_USERNAME=RESTOMASTER
 DB_PASSWORD=********
 ```
 
@@ -109,7 +109,7 @@ Para cargar el sistema en Fase 0/1:
 
 ## 5. Configuración del proyecto (se hará en Fase 0)
 
-- [ ] Inicializar repositorio Git en `D:\Proyectos\sushixpress`
+- [ ] Inicializar repositorio Git en `D:\Proyectos\RESTOMASTER`
 - [ ] `composer create-project` de Laravel (versión 13)
 - [ ] Configurar `.env` con PostgreSQL
 - [ ] Ejecutar migraciones base + seeder de roles y admin

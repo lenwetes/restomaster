@@ -12,7 +12,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
-#[Aliases(['health:check', 'sushixpress:health'])]
+#[Aliases(['health:check', 'resto:health'])]
 #[Description('Verifica el estado operativo y salud integral de los servicios de RestoMaster')]
 #[Signature('restomaster:health')]
 class HealthCheckCommand extends Command
@@ -72,8 +72,8 @@ class HealthCheckCommand extends Command
         // 4. Impresoras de Red y Spooler
         try {
             $totalImpresoras = Impresora::count();
-            $activas = Impresora::activas()->count();
-            $trabajosError = TrabajoImpresion::fallidos()->count();
+            $activas = Impresora::where('activa', true)->count();
+            $trabajosError = TrabajoImpresion::where('estado', 'error')->count();
 
             $estados[] = ['Impresoras & Spooler', 'OK', "{$activas}/{$totalImpresoras} activas · {$trabajosError} errores en spooler"];
         } catch (\Throwable $e) {

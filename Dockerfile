@@ -35,8 +35,8 @@ RUN composer install \
 # =========================================================================
 FROM php:8.3-fpm-alpine
 
-LABEL maintainer="Sushixpress <soporte@sushixpress.com>"
-LABEL description="Sushixpress Enterprise POS & Management Container for Coolify"
+LABEL maintainer="RestoMaster <soporte@restomaster.com>"
+LABEL description="RestoMaster Enterprise POS & Gastro OS Container for Coolify"
 
 # Configure Alpine repositories to use HTTP (prevents TLS handshake timeouts in BuildKit)
 # and install base system dependencies including ca-certificates & runtime libraries

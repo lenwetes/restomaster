@@ -1,4 +1,4 @@
-# Auditoría Integral + Evaluativo — Sushixpress (post fase-2 cierre)
+﻿# Auditoría Integral + Evaluativo — RESTOMASTER (post fase-2 cierre)
 
 - **Fecha:** 2026-09-10
 - **Autor:** OpenCode (solo lectura, 4 auditores paralelos)

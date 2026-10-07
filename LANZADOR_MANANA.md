@@ -1,4 +1,4 @@
-# 🚀 LANZADOR MAESTRO — SPRINT FINAL
+﻿# 🚀 LANZADOR MAESTRO — SPRINT FINAL
 **Fecha programada:** Próxima sesión  
 **Plan de referencia:** `PLAN_MAESTRO_SPRINT_FINAL.md`  
 **Estado:** ✅ Aprobado por el usuario — Listo para ejecutar
@@ -74,7 +74,7 @@
 Cuando abras el chat en la próxima sesión, escribe exactamente:
 
 ```
-Ejecuta el PLAN_MAESTRO_SPRINT_FINAL.md de Sushixpress — implementa las 9 fases
+Ejecuta el PLAN_MAESTRO_SPRINT_FINAL.md de RESTOMASTER — implementa las 9 fases
 en orden estricto sin detenerte hasta que todos los tests estén en verde
 y npm run build compile sin errores.
 ```

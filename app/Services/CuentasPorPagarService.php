@@ -74,6 +74,8 @@ class CuentasPorPagarService
             $cuentaLocked->saldo_pendiente = $nuevoSaldo;
             if ($nuevoSaldo <= 0) {
                 $cuentaLocked->estado = 'pagada';
+            } elseif ($nuevoSaldo < (float) $cuentaLocked->monto_total) {
+                $cuentaLocked->estado = 'parcial';
             }
             $cuentaLocked->save();
 

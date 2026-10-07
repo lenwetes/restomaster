@@ -50,6 +50,7 @@ class CompraService
                 'subtotal' => $subtotal,
                 'forma_pago' => $cabecera['forma_pago'] ?? 'contado',
                 'estado' => 'registrada',
+                'soporte_factura' => $cabecera['soporte_factura'] ?? null,
                 'user_id' => $usuario?->id ?? auth()->id(),
             ]);
 

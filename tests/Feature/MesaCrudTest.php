@@ -34,7 +34,7 @@ class MesaCrudTest extends TestCase
         Role::create(['nombre' => 'Gerente', 'slug' => 'gerente']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,
@@ -42,7 +42,7 @@ class MesaCrudTest extends TestCase
 
         $this->admin = User::create([
             'name' => 'Admin Boss',
-            'email' => 'admin@sushixpress.com',
+            'email' => 'admin@RESTOMASTER.com',
             'password' => bcrypt('password123'),
             'role_id' => $roleAdmin->id,
             'activo' => true,
@@ -50,7 +50,7 @@ class MesaCrudTest extends TestCase
 
         $this->mesero = User::create([
             'name' => 'Mesero Juan',
-            'email' => 'juan@sushixpress.com',
+            'email' => 'juan@RESTOMASTER.com',
             'password' => bcrypt('password123'),
             'role_id' => $roleMesero->id,
             'activo' => true,

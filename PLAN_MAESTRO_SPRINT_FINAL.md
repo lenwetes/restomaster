@@ -1,4 +1,4 @@
-# 🚀 Plan Maestro de Implementación — Sushixpress
+﻿# 🚀 Plan Maestro de Implementación — RESTOMASTER
 **Versión:** Final Unificada (LANZADOR_MANANA + Sprint 6)  
 **Fecha:** 2026-09-29  
 **Estado:** ✅ Aprobado — Listo para ejecutar
@@ -480,7 +480,7 @@ Informe PDF Ejecutivo (GET /reportes/informe-ejecutivo):
   - KPIs clave con variación Δ%.
   - Gráfico comparativo visual.
   - Análisis generado por IA.
-  - Pie: "Generado por Sushixpress IA · {fecha}"
+  - Pie: "Generado por RESTOMASTER IA · {fecha}"
   - Acceso: solo admin y gerente.
 ```
 
@@ -548,7 +548,7 @@ Informe PDF Ejecutivo (GET /reportes/informe-ejecutivo):
 
 **Plan completo (autónomo):**
 ```
-"Ejecuta el PLAN_MAESTRO_SPRINT_FINAL.md de Sushixpress — implementa las 9 fases
+"Ejecuta el PLAN_MAESTRO_SPRINT_FINAL.md de RESTOMASTER — implementa las 9 fases
 en orden estricto sin detenerte hasta que todos los tests estén en verde
 y npm run build compile sin errores."
 ```

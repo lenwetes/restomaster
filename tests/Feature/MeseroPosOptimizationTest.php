@@ -37,13 +37,13 @@ class MeseroPosOptimizationTest extends TestCase
 
         $this->mesero = User::factory()->create([
             'name' => 'Carlos Mesero',
-            'email' => 'mesero@sushixpress.com',
+            'email' => 'mesero@RESTOMASTER.com',
             'role_id' => $roleMesero->id,
         ]);
 
         $this->admin = User::factory()->create([
             'name' => 'Admin Boss',
-            'email' => 'admin@sushixpress.com',
+            'email' => 'admin@RESTOMASTER.com',
             'role_id' => $roleAdmin->id,
         ]);
 
@@ -65,7 +65,7 @@ class MeseroPosOptimizationTest extends TestCase
         ]);
 
         $sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,

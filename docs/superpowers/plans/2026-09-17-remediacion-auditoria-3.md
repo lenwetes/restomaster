@@ -1,4 +1,4 @@
-# Plan de Remediación — Auditoría Integral #3 (2026-09-17)
+﻿# Plan de Remediación — Auditoría Integral #3 (2026-09-17)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -22,7 +22,7 @@
 
 ### Task 1: Eliminar secreto `SecretResto2026!` de infraestructura y docs + endurecer test
 
-**Contexto:** `origin/main` y `origin/master` (público) contienen `SecretResto2026!` en `compose.yml`, `docker-compose.coolify.yml`, `docker-compose.yml` y `docs/despliegue-coolify.md:46`. El working tree local conserva la fuga en `docker-compose.yml:31/65`. El test `RemediacionInfraSeguridadTest::test_r1` solo busca `sushixpress2026`/`sushixpress_secure_password`/base64 APP_KEY → **no detecta el secreto actual**.
+**Contexto:** `origin/main` y `origin/master` (público) contienen `SecretResto2026!` en `compose.yml`, `docker-compose.coolify.yml`, `docker-compose.yml` y `docs/despliegue-coolify.md:46`. El working tree local conserva la fuga en `docker-compose.yml:31/65`. El test `RemediacionInfraSeguridadTest::test_r1` solo busca `RESTOMASTER2026`/`RESTOMASTER_secure_password`/base64 APP_KEY → **no detecta el secreto actual**.
 
 **Files:**
 - Modify: `docker-compose.yml:31,65` (quitar default real)
@@ -49,8 +49,8 @@ public function test_r1_no_existen_secretos_hardcodeados_en_docker_compose(): vo
 
     $secretosConocidos = [
         'SecretResto2026!',
-        'sushixpress2026',
-        'sushixpress_secure_password',
+        'RESTOMASTER2026',
+        'RESTOMASTER_secure_password',
         'base64:ryJ8oRftsst90c9',
     ];
 
@@ -1095,7 +1095,7 @@ npm audit --omit=dev         # 0 vulnerabilities
 
 - [ ] **Step 2: Skills de calidad/seguridad sobre el diff**
 
-Scan con `secrets-scan` sobre `git diff` de HEAD..HEAD~11 y confirmar 0 hallazgos: `rg -n "SecretResto2026|restomaster2026|sushixpress2026|base64:" <diff>` → 0. Aplicar `laravel-security-review` desde OpenCode (`skill` tool) sobre los archivos tocados en dinero: `PedidoService`, `CajaService`, `DeliveryService`, `terminal.blade.php`, `ReporteService`.
+Scan con `secrets-scan` sobre `git diff` de HEAD..HEAD~11 y confirmar 0 hallazgos: `rg -n "SecretResto2026|restomaster2026|RESTOMASTER2026|base64:" <diff>` → 0. Aplicar `laravel-security-review` desde OpenCode (`skill` tool) sobre los archivos tocados en dinero: `PedidoService`, `CajaService`, `DeliveryService`, `terminal.blade.php`, `ReporteService`.
 
 - [ ] **Step 3: Registro en coordination.md**
 

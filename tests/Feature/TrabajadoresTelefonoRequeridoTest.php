@@ -39,7 +39,7 @@ class TrabajadoresTelefonoRequeridoTest extends TestCase
 
         $this->admin = User::create([
             'name' => 'Admin Sistema',
-            'email' => 'admin.trabajadores@sushixpress.com',
+            'email' => 'admin.trabajadores@RESTOMASTER.com',
             'telefono' => '3000000000',
             'role_id' => $rolAdmin->id,
             'sucursal_id' => $this->sucursal->id,
@@ -55,7 +55,7 @@ class TrabajadoresTelefonoRequeridoTest extends TestCase
         Volt::test('trabajadores.index')
             ->call('abrirModalNuevo')
             ->set('nuevo.nombre', 'Carlos Andrés Perez')
-            ->set('nuevo.email', 'carlos.perez@sushixpress.com')
+            ->set('nuevo.email', 'carlos.perez@RESTOMASTER.com')
             ->set('nuevo.telefono', '') // Vacío intencionalmente
             ->set('nuevo.password', 'secret123')
             ->set('nuevo.role_id', $this->rolCajero->id)
@@ -64,7 +64,7 @@ class TrabajadoresTelefonoRequeridoTest extends TestCase
             ->assertHasErrors(['nuevo.telefono' => 'required']);
 
         $this->assertDatabaseMissing('users', [
-            'email' => 'carlos.perez@sushixpress.com',
+            'email' => 'carlos.perez@RESTOMASTER.com',
         ]);
     }
 
@@ -75,7 +75,7 @@ class TrabajadoresTelefonoRequeridoTest extends TestCase
         Volt::test('trabajadores.index')
             ->call('abrirModalNuevo')
             ->set('nuevo.nombre', 'Laura Gómez Soto')
-            ->set('nuevo.email', 'laura.gomez@sushixpress.com')
+            ->set('nuevo.email', 'laura.gomez@RESTOMASTER.com')
             ->set('nuevo.telefono', '3157890123')
             ->set('nuevo.password', 'secret123')
             ->set('nuevo.role_id', $this->rolCajero->id)
@@ -85,7 +85,7 @@ class TrabajadoresTelefonoRequeridoTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'name' => 'Laura Gómez Soto',
-            'email' => 'laura.gomez@sushixpress.com',
+            'email' => 'laura.gomez@RESTOMASTER.com',
             'telefono' => '3157890123',
         ]);
     }
@@ -97,7 +97,7 @@ class TrabajadoresTelefonoRequeridoTest extends TestCase
         Volt::test('trabajadores.index')
             ->call('abrirModalNuevo')
             ->set('nuevo.nombre', 'Otro Admin')
-            ->set('nuevo.email', 'admin.trabajadores@sushixpress.com') // Ya existe
+            ->set('nuevo.email', 'admin.trabajadores@RESTOMASTER.com') // Ya existe
             ->set('nuevo.telefono', '3209998877')
             ->set('nuevo.password', 'secret123')
             ->set('nuevo.role_id', $this->rolCajero->id)

@@ -1,4 +1,4 @@
-# Fase 5 — Reservas, Reportes y Configuración — Implementation Plan
+﻿# Fase 5 — Reservas, Reportes y Configuración — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -91,7 +91,7 @@ class Fase5ConfiguracionTest extends TestCase
 
     public function test_seeder_crea_configuraciones_base(): void
     {
-        $this->assertSame('SushiXpress S.A.S.', $this->service->obtener('general', 'razon_social'));
+        $this->assertSame('RESTOMASTER S.A.S.', $this->service->obtener('general', 'razon_social'));
         $this->assertSame('habilitacion', $this->service->obtener('dian', 'ambiente', ''));
         $this->assertFalse($this->service->obtener('reservas', 'webhook_activo', true));
         $this->assertNotNull($this->service->obtener('reservas', 'webhook_token'));
@@ -247,7 +247,7 @@ class ConfiguracionSeeder extends Seeder
         $svc = app(ConfiguracionService::class);
         $defaults = [
             'general' => [
-                'razon_social' => 'SushiXpress S.A.S.',
+                'razon_social' => 'RESTOMASTER S.A.S.',
                 'nit' => '',
                 'direccion' => '',
                 'telefono' => '',
@@ -269,7 +269,7 @@ class ConfiguracionSeeder extends Seeder
                 'webhook_activo' => false,
             ],
             'impresion' => [
-                'pie_ticket' => '¡Gracias por preferir SushiXpress!',
+                'pie_ticket' => '¡Gracias por preferir RESTOMASTER!',
             ],
         ];
 
@@ -324,7 +324,7 @@ Expected: PASS (6 tests).
 
         \Livewire\Volt\Volt::actingAs($admin)
             ->test('configuracion.index')
-            ->set('dianForm.razon_social', 'SushiXpress S.A.S.')
+            ->set('dianForm.razon_social', 'RESTOMASTER S.A.S.')
             ->set('dianForm.nit', '9011234567')
             ->set('dianForm.regimen', 'Simplificado')
             ->set('dianForm.envio_activo', true)
@@ -1737,7 +1737,7 @@ class ReservaWebhookController extends Controller
     <div class="mx-auto w-full max-w-lg px-4 py-10">
         <div class="rounded-3xl border border-outline-variant/20 bg-white p-6 shadow-sm">
             <span class="material-symbols-outlined text-[28px] text-primary">event_available</span>
-            <h1 class="mt-2 text-xl font-extrabold text-on-surface">Reserva en SushiXpress</h1>
+            <h1 class="mt-2 text-xl font-extrabold text-on-surface">Reserva en RESTOMASTER</h1>
             <p class="mt-1 text-xs text-on-surface-variant">Elige fecha y franja; nuestro equipo confirmará tu reserva.</p>
 
             <form method="GET" action="{{ route('reservas.publico') }}" class="mt-5 flex flex-wrap items-end gap-3">
@@ -2600,7 +2600,7 @@ class ReporteExportController extends Controller
         </table>
     @endif
 
-    <div class="footer">SushiXpress · {{ $razon_social }} · Documento generado por el sistema</div>
+    <div class="footer">RESTOMASTER · {{ $razon_social }} · Documento generado por el sistema</div>
 </body>
 </html>
 ```

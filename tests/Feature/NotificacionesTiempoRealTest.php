@@ -36,14 +36,14 @@ class NotificacionesTiempoRealTest extends TestCase
     {
         parent::setUp();
 
-        $this->sucursal = Sucursal::create(['nombre' => 'Sushixpress Central']);
+        $this->sucursal = Sucursal::create(['nombre' => 'RESTOMASTER Central']);
 
         $roleMesero = Role::firstOrCreate(['slug' => 'mesero'], ['nombre' => 'Mesero']);
         $roleCocina = Role::firstOrCreate(['slug' => 'cocina'], ['nombre' => 'Cocinero']);
 
         $this->mesero = User::create([
             'name' => 'Carlos Mesero',
-            'email' => 'mesero@sushixpress.com',
+            'email' => 'mesero@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $roleMesero->id,
             'sucursal_id' => $this->sucursal->id,
@@ -52,7 +52,7 @@ class NotificacionesTiempoRealTest extends TestCase
 
         $this->cocinero = User::create([
             'name' => 'Kenji Sushi Chef',
-            'email' => 'chef@sushixpress.com',
+            'email' => 'chef@RESTOMASTER.com',
             'password' => bcrypt('password'),
             'role_id' => $roleCocina->id,
             'sucursal_id' => $this->sucursal->id,

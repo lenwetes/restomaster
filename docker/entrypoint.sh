@@ -151,10 +151,8 @@ php /var/www/html/artisan config:clear || true
 php /var/www/html/artisan cache:clear || true
 
 # 4. Ensure storage link exists
-if [ ! -L /var/www/html/public/storage ]; then
-    echo "==> Creating storage link..."
-    php /var/www/html/artisan storage:link || true
-fi
+echo "==> Ensuring public storage link exists..."
+php /var/www/html/artisan storage:link --force || true
 
 # 5. Run database migrations if AUTO_MIGRATE is enabled
 if [ "${AUTO_MIGRATE:-true}" = "true" ]; then

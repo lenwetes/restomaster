@@ -32,7 +32,7 @@ class ImpresionServiceTest extends TestCase
         $this->service = app(ImpresionService::class);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'SushiXpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'activa' => true,
         ]);
@@ -61,7 +61,7 @@ class ImpresionServiceTest extends TestCase
         ]);
 
         $svc = app(ConfiguracionService::class);
-        $svc->guardar('ticket_80mm', 'nombre_comercial', 'SUSHIXPRESS RESTAURANTE');
+        $svc->guardar('ticket_80mm', 'nombre_comercial', 'RESTOMASTER RESTAURANTE');
         $svc->guardar('ticket_80mm', 'nit', '901.999.888-7');
         $svc->guardar('ticket_80mm', 'lema', 'Sushi & Cocina Nikkei');
         $svc->guardar('ticket_80mm', 'pie_pagina', '¡Gracias por su visita!');
@@ -95,7 +95,7 @@ class ImpresionServiceTest extends TestCase
 
         $ticket = $this->service->formatearTicketVentaTexto($pedido);
 
-        $this->assertStringContainsString('SUSHIXPRESS RESTAURANTE', $ticket);
+        $this->assertStringContainsString('RESTOMASTER RESTAURANTE', $ticket);
         $this->assertStringContainsString('901.999.888-7', $ticket);
         $this->assertStringContainsString('Combo Roll 20 Piezas', $ticket);
         $this->assertStringContainsString('60,000', $ticket);

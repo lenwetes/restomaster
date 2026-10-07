@@ -156,7 +156,7 @@ class AuthorizePoliciesTest extends TestCase
         $trabajadorService = app(TrabajadorService::class);
         $user = $trabajadorService->crear([
             'nombre' => 'Test Worker',
-            'email' => 'worker_secure@sushixpress.com',
+            'email' => 'worker_secure@RESTOMASTER.com',
             'role_id' => $this->mesero->role_id,
         ]);
 

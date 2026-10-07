@@ -89,6 +89,6 @@
         </ul>
     </div>
 
-    <div class="footer">Generado por Sushixpress IA · {{ $generado }}</div>
+    <div class="footer">Generado por RestoMaster IA · {{ $generado }}</div>
 </body>
 </html>

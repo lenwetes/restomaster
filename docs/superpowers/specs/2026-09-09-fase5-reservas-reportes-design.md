@@ -1,8 +1,8 @@
-# Fase 5 — Reservas, Reportes Avanzados y Configuración (incl. parametrización DIAN)
+﻿# Fase 5 — Reservas, Reportes Avanzados y Configuración (incl. parametrización DIAN)
 
 Fecha: 2026-09-09
 Autor: OpenCode (diseño aprobado por usuario)
-Proyecto: Sushixpress (D:\Proyectos\sushixpress)
+Proyecto: RESTOMASTER (D:\Proyectos\RESTOMASTER)
 Estado: APROBADO — listo para plan de implementación
 
 ---
@@ -89,11 +89,11 @@ Sigue los patrones existentes del proyecto:
 **Migración `configuraciones`**: `id`, `grupo` (string), `clave` (string unique), `valor` (json), timestamps.
 
 **Seeder `ConfiguracionSeeder`** crea:
-- `general.razon_social` = 'SushiXpress S.A.S.', `general.nit`, `general.direccion`, `general.telefono`, `general.regimen` = 'Común'
+- `general.razon_social` = 'RESTOMASTER S.A.S.', `general.nit`, `general.direccion`, `general.telefono`, `general.regimen` = 'Común'
 - `dian.envio_activo` = false, `dian.ambiente` = 'habilitacion', `dian.tipo_documento` = '01'
 - `dian.resolucion_numero`, `dian.resolucion_fecha`, `dian.prefijo` = 'MP', `dian.desde`, `dian.hasta`, `dian.vigente` = true
 - `reservas.webhook_token` = Str::random(48) (solo si no existe), `reservas.webhook_activo` = false
-- `impresion.pie_ticket` = '¡Gracias por preferir SushiXpress!'
+- `impresion.pie_ticket` = '¡Gracias por preferir RESTOMASTER!'
 
 **Modelo `Configuracion`**: `valor` cast array, scope helpers (`Configuracion::obtener(grupo, clave, default)`).
 

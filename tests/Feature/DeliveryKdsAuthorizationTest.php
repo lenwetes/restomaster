@@ -47,7 +47,7 @@ class DeliveryKdsAuthorizationTest extends TestCase
         $roleBarra = Role::create(['nombre' => 'Barra', 'slug' => 'barra']);
 
         $sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,

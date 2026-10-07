@@ -83,7 +83,7 @@ class Fase5ConfiguracionTest extends TestCase
 
         Volt::actingAs($admin)
             ->test('configuracion.index')
-            ->set('dianForm.razon_social', 'SushiXpress S.A.S.')
+            ->set('dianForm.razon_social', 'RESTOMASTER S.A.S.')
             ->set('dianForm.nit', '9011234567')
             ->set('dianForm.regimen', 'Simplificado')
             ->set('dianForm.envio_activo', true)

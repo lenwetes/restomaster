@@ -36,18 +36,18 @@ class MesaQrAutopedidoTest extends TestCase
 
         $this->meseroA = User::factory()->create([
             'name' => 'Carlos Mesero',
-            'email' => 'carlos@sushixpress.com',
+            'email' => 'carlos@RESTOMASTER.com',
             'role_id' => $roleMesero->id,
         ]);
 
         $this->meseroB = User::factory()->create([
             'name' => 'Andres Servicio',
-            'email' => 'andres@sushixpress.com',
+            'email' => 'andres@RESTOMASTER.com',
             'role_id' => $roleMesero->id,
         ]);
 
         $sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'direccion' => 'Cra 35 # 8A-12',
             'activa' => true,

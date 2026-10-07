@@ -35,3 +35,5 @@ Thumbs.db
 /reports
 reports_*
 _ide_helper_custom.php
+/playwright-report
+/test-results

@@ -1,8 +1,8 @@
-# Runbook de Instalación y Configuración — Proyecto Sushixpress
+﻿# Runbook de Instalación y Configuración — Proyecto RESTOMASTER
 
 Documento de ejecución autónoma para que un agente de IA (**Antigravity**) prepare el entorno y levante el proyecto **Laravel + PostgreSQL** en Windows (PowerShell).
 
-Proyecto destino: `D:\Proyectos\sushixpress`
+Proyecto destino: `D:\Proyectos\RESTOMASTER`
 Boot de herramientas: `D:\Proyectos\tools`
 
 > **Regla para el agente:** Ejecutar los pasos EN ORDEN. Verificar cada uno antes de continuar. Si un paso falla, usar la alternativa indicada e informar en el log. No saltar verificaciones.
@@ -177,16 +177,16 @@ Ruta típica: `C:\Program Files\PostgreSQL\18\bin\psql.exe`
 SQL a ejecutar dentro de `psql` (reemplazar `TU_CLAVE_SEGURA`):
 
 ```sql
-CREATE ROLE sushixpress LOGIN PASSWORD 'TU_CLAVE_SEGURA';
-CREATE DATABASE sushixpress OWNER sushixpress ENCODING 'UTF8';
-GRANT ALL PRIVILEGES ON DATABASE sushixpress TO sushixpress;
+CREATE ROLE RESTOMASTER LOGIN PASSWORD 'TU_CLAVE_SEGURA';
+CREATE DATABASE RESTOMASTER OWNER RESTOMASTER ENCODING 'UTF8';
+GRANT ALL PRIVILEGES ON DATABASE RESTOMASTER TO RESTOMASTER;
 \q
 ```
 
 ### 3.4 Verificar acceso
 
 ```powershell
-& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U sushixpress -h 127.0.0.1 -d sushixpress -c "SELECT version();"
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U RESTOMASTER -h 127.0.0.1 -d RESTOMASTER -c "SELECT version();"
 ```
 
 ---
@@ -196,7 +196,7 @@ GRANT ALL PRIVILEGES ON DATABASE sushixpress TO sushixpress;
 ### 4.1 Inicializar repositorio Git
 
 ```powershell
-Set-Location "D:\Proyectos\sushixpress"
+Set-Location "D:\Proyectos\RESTOMASTER"
 git init
 # Crear .gitignore estándar de Laravel (se completará con el proyecto)
 ```
@@ -210,9 +210,9 @@ composer create-project laravel/laravel . --prefer-dist
 > Este comando instala la última versión estable de Laravel (actualmente **13.x**) en el directorio actual. Si el CLI marca la carpeta como no vacía (por `docs/`), mover temporalmente `docs/` fuera, crear el proyecto y volver a moverla adentro:
 
 ```powershell
-Move-Item "D:\Proyectos\sushixpress\docs" "D:\Proyectos\tools\docs-aux"
+Move-Item "D:\Proyectos\RESTOMASTER\docs" "D:\Proyectos\tools\docs-aux"
 composer create-project laravel/laravel . --prefer-dist
-Move-Item "D:\Proyectos\tools\docs-aux" "D:\Proyectos\sushixpress\docs"
+Move-Item "D:\Proyectos\tools\docs-aux" "D:\Proyectos\RESTOMASTER\docs"
 ```
 
 ### 4.2 Verificar el proyecto
@@ -228,10 +228,10 @@ php artisan key:generate
 
 ## 5. Configuración `.env` (conexión a PostgreSQL)
 
-Editar `D:\Proyectos\sushixpress\.env`:
+Editar `D:\Proyectos\RESTOMASTER\.env`:
 
 ```
-APP_NAME="Sushixpress"
+APP_NAME="RESTOMASTER"
 APP_ENV=local
 APP_DEBUG=true
 APP_URL=http://127.0.0.1:8000
@@ -239,8 +239,8 @@ APP_URL=http://127.0.0.1:8000
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=sushixpress
-DB_USERNAME=sushixpress
+DB_DATABASE=RESTOMASTER
+DB_USERNAME=RESTOMASTER
 DB_PASSWORD=TU_CLAVE_SEGURA
 ```
 
@@ -324,14 +324,14 @@ Abrir en el navegador: `http://127.0.0.1:8000`
 - [ ] `php -v` responde **8.3.x**
 - [ ] `php -m` incluye **pdo_pgsql, pgsql, mbstring, openssl, curl, fileinfo, zip**
 - [ ] `composer --version` responde **2.x**
-- [ ] Base de datos **sushixpress** creada + usuario **sushixpress** con acceso
-- [ ] `composer create-project` completado en `D:\Proyectos\sushixpress`
+- [ ] Base de datos **RESTOMASTER** creada + usuario **RESTOMASTER** con acceso
+- [ ] `composer create-project` completado en `D:\Proyectos\RESTOMASTER`
 - [ ] `.env` conectado a PostgreSQL
 - [ ] `php artisan migrate:fresh` ejecuta migraciones sin error
 - [ ] Login de Laravel Breeze funciona (registro/ingreso)
 - [ ] Seeder de roles/admin/sucursal/mesas ejecutado
 - [ ] `php artisan serve` levanta el sitio en `127.0.0.1:8000`
-- [ ] Git inicializado en `D:\Proyectos\sushixpress`
+- [ ] Git inicializado en `D:\Proyectos\RESTOMASTER`
 
 ---
 
@@ -343,8 +343,8 @@ Al finalizar, este runbook dejó definidos:
 |------|-------|
 | Ruta de PHP | `D:\Proyectos\tools\php83` |
 | Ruta de Composer | (según opción usada) |
-| Usuario BD | `sushixpress` |
-| Base de datos | `sushixpress` |
+| Usuario BD | `RESTOMASTER` |
+| Base de datos | `RESTOMASTER` |
 | Credenciales de BD | definidas en `.env` (no commitear) |
 | Usuario admin inicial | según `AdminUserSeeder` |
 

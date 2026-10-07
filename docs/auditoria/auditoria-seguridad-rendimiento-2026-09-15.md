@@ -1,4 +1,4 @@
-# Auditoría Integral — Seguridad, Rendimiento, Robustez y Lógica (2026-09-15)
+﻿# Auditoría Integral — Seguridad, Rendimiento, Robustez y Lógica (2026-09-15)
 
 - **Fecha:** 2026-09-15
 - **Autor:** OpenCode (solo lectura; 4 subagentes paralelos + verificación manual de críticos)
@@ -62,7 +62,7 @@ La calificación ponderada original es **≈55/100** (auditoría sobre HEAD `05e
 
 | # | Hallazgo | Severidad | Ref |
 |---|---|---|---|
-| Secretos hardcodeados EN EL REPO | `docker-compose.yml:14,26,37,59` (×3 archivos): `APP_KEY`, `DB_PASSWORD`, `DEMO_USERS_PASSWORD=sushixpress2026`, `APP_DEBUG=true`. Robo de sesión, acceso a BD (puerto mapeado), login como admin | 🔴 Crítico | R1 |
+| Secretos hardcodeados EN EL REPO | `docker-compose.yml:14,26,37,59` (×3 archivos): `APP_KEY`, `DB_PASSWORD`, `DEMO_USERS_PASSWORD=RESTOMASTER2026`, `APP_DEBUG=true`. Robo de sesión, acceso a BD (puerto mapeado), login como admin | 🔴 Crítico | R1 |
 | Auto-seed resetea contraseñas en cada boot | `AUTO_SEED=true` + `AdminUserSeeder::updateOrCreate` revierte passwords y re-inyecta demo data en prod | 🔴 Crítico | R2 |
 | Login no valida usuarios `activo` | `LoginForm:33` `Auth::attempt(email,password)` sin `activo=>true` → empleado dado de baja conserva permisos | 🔴 Crítico | R3 |
 | Sesiones `file` sin volumen + sin TLS | `SESSION_DRIVER=file` (perdidas en redeploy/no share entre réplicas), sin `SESSION_SECURE_COOKIE`, `sslmode=prefer` | 🟠 Alta | R4 |

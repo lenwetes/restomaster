@@ -33,8 +33,8 @@ class RemediacionInfraSeguridadTest extends TestCase
 
         $secretosConocidos = [
             'SecretResto2026!',
-            'sushixpress2026',
-            'sushixpress_secure_password',
+            'RESTOMASTER2026',
+            'RESTOMASTER_secure_password',
             'base64:ryJ8oRftsst90c9',
         ];
 

@@ -46,7 +46,7 @@ En la pestaña **Environment Variables** de tu aplicación en Coolify, puedes co
 | `DB_PASSWORD` | *(generar con `openssl rand -base64 42`)* | Contraseña de base de datos — obligatoria, sin valor por defecto |
 | `AUTO_MIGRATE` | `true` | Ejecuta migraciones automáticamente al iniciar |
 | `AUTO_SEED` | `true` | Crea usuarios principales y configuración inicial |
-| `AUTO_SEED_DEMO` | `true` | Carga el Kit Maestro Colombia · Medellín (24 colaboradores, 10 proveedores, 20 clientes, 71 platos/bebidas con fotos, 30 días de operaciones, DIAN POS y encuestas) |
+| `AUTO_SEED_DEMO` | `true` | Carga el Kit Maestro Colombia · Medellín (24 colaboradores, 10 proveedores con catálogo vinculado y CxP escalonadas, 20 clientes, 71 platos/bebidas con fotos, 30 días de operaciones, DIAN POS y encuestas) |
 | `DEMO_USERS_PASSWORD`| `RestoDemo2026` / `password` | Contraseña unificada para los colaboradores del sistema |
 | `APP_PORT` | `8004` | Puerto directo en el VPS (http://IP_VPS:8004) |
 | `GEMINI_API_KEY` | *(opcional)* | Clave de Google Gemini API para asistente de IA y chat en vivo |

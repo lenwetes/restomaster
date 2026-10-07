@@ -30,7 +30,7 @@ class DeliveryComponentTest extends TestCase
         $roleRepartidor = Role::create(['nombre' => 'Repartidor', 'slug' => 'repartidor']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'SushiXpress Envigado',
+            'nombre' => 'RESTOMASTER Envigado',
             'codigo' => 'ENV-01',
             'activa' => true,
         ]);

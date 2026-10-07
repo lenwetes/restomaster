@@ -28,7 +28,7 @@ class CajaControlComponentTest extends TestCase
         $roleCajero = Role::create(['nombre' => 'Cajero', 'slug' => 'cajero']);
 
         $this->sucursal = Sucursal::create([
-            'nombre' => 'Sushixpress Provenza',
+            'nombre' => 'RESTOMASTER Provenza',
             'codigo' => 'PRV-01',
             'activa' => true,
         ]);

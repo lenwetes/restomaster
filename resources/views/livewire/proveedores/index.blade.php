@@ -2,14 +2,21 @@
 
 use App\Models\Compra;
 use App\Models\CompraLinea;
+use App\Models\CuentaPorPagar;
 use App\Models\Insumo;
 use App\Models\Proveedor;
 use App\Services\CompraService;
+use App\Services\CuentasPorPagarService;
 use App\Services\ProveedorService;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Livewire\Volt\Component;
+use Livewire\WithFileUploads;
 
-new class () extends Component {
+new class extends Component
+{
+    use WithFileUploads;
+
     public string $busqueda = '';
 
     public bool $soloActivos = true;
@@ -52,6 +59,25 @@ new class () extends Component {
 
     public bool $reporteConsultado = false;
 
+    // Facturación de Proveedor (Historial, Detalle, Pagos y Nueva Factura)
+    public ?int $facturaProveedorId = null;
+
+    public string $pestanaFactura = 'historial';
+
+    public ?int $verDetalleCompraId = null;
+
+    public ?int $pagandoCxpId = null;
+
+    public array $pagoForm = [
+        'monto' => '',
+        'metodo_pago' => 'efectivo',
+        'comprobante' => '',
+        'notas' => '',
+    ];
+
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|\Illuminate\Http\UploadedFile|null */
+    public mixed $soporteArchivo = null;
+
     public array $factura = [
         'proveedor_id' => null,
         'numero' => '',
@@ -84,6 +110,7 @@ new class () extends Component {
     public function with(): array
     {
         $proveedores = Proveedor::withCount('compras')
+            ->with(['insumos' => fn ($query) => $query->select('id', 'proveedor_id', 'categoria')])
             ->when($this->busqueda !== '', function ($query): void {
                 $query->where(function ($sub): void {
                     $sub->where('nombre', 'like', "%{$this->busqueda}%")
@@ -95,11 +122,26 @@ new class () extends Component {
             ->get();
 
         $ficha = null;
+        $fichaInsumos = collect();
+        $fichaCategorias = [];
         if ($this->fichaId) {
             $ficha = Proveedor::with([
                 'insumos' => fn ($query) => $query->orderBy('nombre'),
                 'compras' => fn ($query) => $query->latest()->with(['lineas.insumo', 'cxp']),
             ])->withCount('compras')->find($this->fichaId);
+
+            if ($ficha) {
+                $insumosData = app(ProveedorService::class)->insumosSuministrados($ficha);
+                $fichaInsumos = $insumosData['insumos'];
+                $fichaCategorias = $insumosData['categorias'];
+            }
+        }
+
+        $proveedorFactura = null;
+        if ($this->facturaProveedorId) {
+            $proveedorFactura = Proveedor::with([
+                'compras' => fn ($q) => $q->latest()->with(['lineas.insumo', 'cxp.pagos', 'usuario']),
+            ])->find($this->facturaProveedorId);
         }
 
         $fichaResumen = $ficha && $this->fichaDesde !== '' && $this->fichaHasta !== ''
@@ -113,7 +155,13 @@ new class () extends Component {
             ? collect($comparadorFilas)->sortBy('ultimo_costo')->first()['proveedor_id']
             : null;
 
-        $insumosConCompras = Insumo::whereIn('id', CompraLinea::distinct()->pluck('insumo_id'))->orderBy('nombre')->get(['id', 'nombre']);
+        $insumosConCompras = ($this->modalFicha && $this->pestana === 'comparador')
+            ? Insumo::whereIn('id', CompraLinea::distinct()->pluck('insumo_id'))->orderBy('nombre')->get(['id', 'nombre'])
+            : collect();
+
+        $insumosActivos = ($this->modalFactura && $this->pestanaFactura === 'nueva')
+            ? Insumo::where('activo', true)->orderBy('nombre')->get(['id', 'nombre', 'unidad_medida', 'categoria'])
+            : collect();
 
         $reporteGasto = $this->reporteConsultado && $this->reporteDesde !== '' && $this->reporteHasta !== ''
             ? app(CompraService::class)->gastoPorProveedor($this->reporteDesde, $this->reporteHasta)
@@ -121,8 +169,11 @@ new class () extends Component {
 
         return [
             'proveedores' => $proveedores,
-            'insumosActivos' => Insumo::where('activo', true)->orderBy('nombre')->get(['id', 'nombre', 'unidad_medida']),
+            'insumosActivos' => $insumosActivos,
             'ficha' => $ficha,
+            'fichaInsumos' => $fichaInsumos,
+            'fichaCategorias' => $fichaCategorias,
+            'proveedorFactura' => $proveedorFactura,
             'fichaResumen' => $fichaResumen,
             'comparadorFilas' => $comparadorFilas,
             'comparadorMejorId' => $comparadorMejorId,
@@ -245,9 +296,14 @@ new class () extends Component {
 
     public function abrirFactura(int $proveedorId): void
     {
-        $this->authorize('create', Compra::class);
+        $this->authorize('viewAny', Compra::class);
 
         $proveedor = Proveedor::findOrFail($proveedorId);
+        $this->facturaProveedorId = $proveedor->id;
+        $this->pestanaFactura = $proveedor->compras()->exists() ? 'historial' : 'nueva';
+        $this->verDetalleCompraId = null;
+        $this->pagandoCxpId = null;
+        $this->soporteArchivo = null;
 
         $this->factura = [
             'proveedor_id' => $proveedor->id,
@@ -257,6 +313,79 @@ new class () extends Component {
         ];
         $this->lineas = [['insumo_id' => null, 'cantidad' => 1, 'costo_unitario' => '']];
         $this->modalFactura = true;
+    }
+
+    public function setPestanaFactura(string $pestana): void
+    {
+        $this->pestanaFactura = in_array($pestana, ['historial', 'nueva'], true) ? $pestana : 'historial';
+        $this->pagandoCxpId = null;
+        $this->verDetalleCompraId = null;
+    }
+
+    public function toggleDetalleCompra(int $compraId): void
+    {
+        $this->verDetalleCompraId = ($this->verDetalleCompraId === $compraId) ? null : $compraId;
+    }
+
+    public function abrirPagarFactura(int $cxpId): void
+    {
+        $cxp = CuentaPorPagar::findOrFail($cxpId);
+        $this->authorize('update', $cxp);
+
+        $this->pagandoCxpId = $cxp->id;
+        $this->pagoForm = [
+            'monto' => (string) (float) $cxp->saldo_pendiente,
+            'metodo_pago' => 'efectivo',
+            'comprobante' => '',
+            'notas' => "Pago Factura #{$cxp->numero_factura}",
+        ];
+    }
+
+    public function cancelarPagoFactura(): void
+    {
+        $this->pagandoCxpId = null;
+        $this->pagoForm = [
+            'monto' => '',
+            'metodo_pago' => 'efectivo',
+            'comprobante' => '',
+            'notas' => '',
+        ];
+    }
+
+    public function guardarPagoFactura(): void
+    {
+        if (! $this->pagandoCxpId) {
+            return;
+        }
+
+        $cxp = CuentaPorPagar::findOrFail($this->pagandoCxpId);
+        $this->authorize('update', $cxp);
+
+        $this->validate([
+            'pagoForm.monto' => ['required', 'numeric', 'min:1', "max:{$cxp->saldo_pendiente}"],
+            'pagoForm.metodo_pago' => ['required', 'string', 'in:efectivo,transferencia,caja_menor,tarjeta'],
+            'pagoForm.comprobante' => ['nullable', 'string', 'max:100'],
+            'pagoForm.notas' => ['nullable', 'string', 'max:255'],
+        ], [
+            'pagoForm.monto.max' => 'El monto no puede superar el saldo pendiente ($'.number_format($cxp->saldo_pendiente, 0, ',', '.').').',
+        ]);
+
+        try {
+            app(CuentasPorPagarService::class)->registrarPago(
+                cuenta: $cxp,
+                monto: (float) $this->pagoForm['monto'],
+                usuario: auth()->user(),
+                metodoPago: $this->pagoForm['metodo_pago'],
+                concepto: "Pago factura #{$cxp->numero_factura}",
+                comprobante: $this->pagoForm['comprobante'] ?: null,
+                notas: $this->pagoForm['notas'] ?: null,
+            );
+
+            $this->dispatch('notificacion', 'Pago registrado exitosamente.');
+            $this->cancelarPagoFactura();
+        } catch (\Throwable $e) {
+            $this->addError('pagoForm.general', $e->getMessage());
+        }
     }
 
     public function agregarLinea(?int $insumoId = null): void
@@ -286,13 +415,20 @@ new class () extends Component {
             'lineas.*.insumo_id' => ['required', 'integer', 'exists:insumos,id'],
             'lineas.*.cantidad' => ['required', 'numeric', 'min:0.01'],
             'lineas.*.costo_unitario' => ['required', 'numeric', 'min:0'],
+            'soporteArchivo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:10240'],
         ]);
+
+        $soporteRuta = null;
+        if ($this->soporteArchivo) {
+            $soporteRuta = $this->soporteArchivo->store('facturas_proveedores', 'public');
+        }
 
         $cabecera = [
             'proveedor_id' => $this->factura['proveedor_id'],
             'numero_factura' => $validated['factura']['numero'],
             'fecha' => $validated['factura']['fecha'],
             'forma_pago' => $validated['factura']['forma_pago'],
+            'soporte_factura' => $soporteRuta,
         ];
 
         try {
@@ -303,8 +439,15 @@ new class () extends Component {
             return;
         }
 
-        $this->reset('factura', 'lineas', 'modalFactura');
-        $this->dispatch('notificacion', 'Factura registrada.');
+        $this->reset('lineas', 'soporteArchivo');
+        $this->factura = [
+            'proveedor_id' => $this->facturaProveedorId,
+            'numero' => '',
+            'fecha' => now()->toDateString(),
+            'forma_pago' => 'contado',
+        ];
+        $this->pestanaFactura = 'historial';
+        $this->dispatch('notificacion', 'Factura registrada con éxito.');
     }
 
     public function confirmarAnulacion(int $compraId): void
@@ -347,7 +490,7 @@ new class () extends Component {
 
     public function cerrarModales(): void
     {
-        $this->reset('modalCrear', 'modalEditar', 'modalFicha', 'modalFactura', 'modalAnular', 'enEdicion', 'anulandoId');
+        $this->reset('modalCrear', 'modalEditar', 'modalFicha', 'modalFactura', 'modalAnular', 'enEdicion', 'anulandoId', 'pagandoCxpId', 'soporteArchivo', 'verDetalleCompraId');
     }
 }; ?>
 
@@ -425,6 +568,19 @@ new class () extends Component {
                                         · {{ $proveedor->dias_credito }} días crédito
                                     @endif
                                 </p>
+                                @php
+                                    $categoriasProv = $proveedor->insumos->pluck('categoria')->filter()->unique();
+                                @endphp
+                                @if ($categoriasProv->isNotEmpty())
+                                    <div class="mt-2 flex flex-wrap gap-1">
+                                        @foreach ($categoriasProv as $cat)
+                                            <span class="inline-flex items-center gap-1 rounded-md bg-surface-container-highest px-2 py-0.5 text-[10px] font-bold text-on-surface-variant border border-outline-variant/20">
+                                                <span class="material-symbols-outlined text-[12px] text-primary">category</span>
+                                                {{ $cat }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 @can('view', $proveedor)
@@ -633,14 +789,33 @@ new class () extends Component {
         <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="cerrarModales">
             <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-2xl sm:rounded-3xl" wire:key="modal-ficha-prov">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-base font-extrabold text-on-surface truncate">{{ $ficha->nombre }}</h3>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-base font-extrabold text-on-surface truncate">{{ $ficha->nombre }}</h3>
+                            @if ($ficha->nit)
+                                <span class="rounded-lg bg-surface-container-high px-2 py-0.5 text-[10px] font-black text-on-surface-variant border border-outline-variant/30">
+                                    NIT {{ $ficha->nit }}
+                                </span>
+                            @endif
+                        </div>
+                        @if (! empty($fichaCategorias))
+                            <div class="mt-1 flex flex-wrap gap-1">
+                                @foreach ($fichaCategorias as $catNom => $catCount)
+                                    <span class="inline-flex items-center gap-1 rounded-md bg-secondary/10 px-2 py-0.5 text-[10px] font-bold text-secondary border border-secondary/20">
+                                        <span class="material-symbols-outlined text-[12px]">category</span>
+                                        {{ $catNom }} ({{ $catCount }})
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                     <button wire:click="cerrarModales" class="text-on-surface-variant">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
 
                 <div class="mt-3 flex gap-2 overflow-x-auto">
-                    @foreach (['datos' => 'Datos', 'insumos' => 'Insumos', 'facturas' => 'Facturas', 'cxp' => 'CxP', 'comparador' => 'Comparador'] as $clave => $etiqueta)
+                    @foreach (['datos' => 'Datos', 'insumos' => 'Insumos / Catálogo', 'facturas' => 'Facturas', 'cxp' => 'CxP', 'comparador' => 'Comparador'] as $clave => $etiqueta)
                         <button wire:click="setPestana('{{ $clave }}')"
                             class="shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold {{ $pestana === $clave ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant' }}">
                             {{ $etiqueta }}
@@ -680,18 +855,83 @@ new class () extends Component {
                         <div class="rounded-xl bg-surface-container-low p-3"><dt class="font-bold text-on-surface-variant">Dirección</dt><dd class="font-extrabold text-on-surface">{{ $ficha->direccion ?? '—' }}</dd></div>
                         <div class="rounded-xl bg-surface-container-low p-3"><dt class="font-bold text-on-surface-variant">Días crédito</dt><dd class="font-extrabold text-on-surface">{{ $ficha->dias_credito }}</dd></div>
                     </dl>
+                    @if (! empty($fichaCategorias))
+                        <div class="mt-3 rounded-2xl border border-outline-variant/15 bg-surface-container-low p-3">
+                            <p class="text-xs font-bold text-on-surface-variant mb-2">Rubro y categorías suministradas:</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach ($fichaCategorias as $catNom => $catCount)
+                                    <span class="rounded-xl bg-surface-container-high px-2.5 py-1 text-xs font-bold text-on-surface border border-outline-variant/30 flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[14px] text-primary">category</span>
+                                        {{ $catNom }}
+                                        <span class="rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-black text-primary">{{ $catCount }} insumo(s)</span>
+                                    </span>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
                 @elseif ($pestana === 'insumos')
-                    @if ($ficha->insumos->isEmpty())
-                        <p class="mt-4 text-xs text-on-surface-variant">Este proveedor aún no surte insumos vinculados.</p>
-                    @else
-                        <ul class="mt-4 divide-y divide-outline-variant/10 text-xs">
-                            @foreach ($ficha->insumos as $insumo)
-                                <li class="flex justify-between py-2">
-                                    <span class="font-bold text-on-surface">{{ $insumo->nombre }}</span>
-                                    <span class="text-on-surface-variant">Último costo ${{ number_format((float) $insumo->costo_unitario, 0, ',', '.') }} / {{ $insumo->unidad_medida }}</span>
-                                </li>
+                    @if (! empty($fichaCategorias))
+                        <div class="mt-3 flex flex-wrap items-center gap-1.5 rounded-2xl border border-outline-variant/15 bg-surface-container-low p-3">
+                            <span class="text-[11px] font-bold text-on-surface-variant flex items-center gap-1 mr-1">
+                                <span class="material-symbols-outlined text-[14px] text-primary">category</span>
+                                Categorías que nos provee:
+                            </span>
+                            @foreach ($fichaCategorias as $catNom => $catCount)
+                                <span class="rounded-lg bg-surface-container-high px-2 py-0.5 text-[11px] font-extrabold text-on-surface border border-outline-variant/30 flex items-center gap-1">
+                                    {{ $catNom }}
+                                    <span class="rounded-full bg-secondary/20 px-1 py-0.2 text-[9px] font-black text-secondary">{{ $catCount }}</span>
+                                </span>
                             @endforeach
-                        </ul>
+                        </div>
+                    @endif
+
+                    @if ($fichaInsumos->isEmpty())
+                        <div class="mt-4 rounded-2xl border border-dashed border-outline-variant/30 p-6 text-center">
+                            <span class="material-symbols-outlined text-[32px] text-on-surface-variant/40">inventory_2</span>
+                            <p class="mt-1 text-xs font-bold text-on-surface-variant">Este proveedor aún no cuenta con insumos registrados o comprados.</p>
+                        </div>
+                    @else
+                        <div class="mt-3 overflow-x-auto rounded-2xl border border-outline-variant/15">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-surface-container-low text-[10px] font-black uppercase tracking-wider text-on-surface-variant">
+                                    <tr>
+                                        <th class="px-3 py-2.5">Insumo / Producto</th>
+                                        <th class="px-3 py-2.5">Categoría</th>
+                                        <th class="px-3 py-2.5">Unidad</th>
+                                        <th class="px-3 py-2.5 text-right">Último Costo</th>
+                                        <th class="px-3 py-2.5 text-right">Stock Actual</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-outline-variant/10 bg-surface-container-lowest">
+                                    @foreach ($fichaInsumos as $insumo)
+                                        <tr class="hover:bg-surface-container-low/40">
+                                            <td class="px-3 py-2.5">
+                                                <div class="font-extrabold text-on-surface">{{ $insumo->nombre }}</div>
+                                                @if ($insumo->codigo)
+                                                    <div class="text-[10px] text-on-surface-variant font-mono">{{ $insumo->codigo }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="px-3 py-2.5">
+                                                <span class="inline-flex items-center gap-1 rounded-md bg-surface-container-high px-2 py-0.5 text-[10px] font-bold text-on-surface">
+                                                    {{ $insumo->categoria ?: 'General' }}
+                                                </span>
+                                            </td>
+                                            <td class="px-3 py-2.5 font-medium text-on-surface-variant">
+                                                {{ $insumo->unidad_medida }}
+                                            </td>
+                                            <td class="px-3 py-2.5 text-right font-black text-on-surface">
+                                                ${{ number_format((float) ($insumo->costo_unitario ?? 0), 0, ',', '.') }}
+                                            </td>
+                                            <td class="px-3 py-2.5 text-right">
+                                                <span class="font-bold {{ ($insumo->stock_actual ?? 0) > 0 ? 'text-secondary' : 'text-error' }}">
+                                                    {{ number_format((float) ($insumo->stock_actual ?? 0), 2, ',', '.') }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
                     @endif
                 @elseif ($pestana === 'facturas')
                     @if ($ficha->compras->isEmpty())
@@ -754,7 +994,9 @@ new class () extends Component {
                         @endif
                     </div>
                 @else
-                    @php($cxps = $ficha->compras->filter(fn ($c) => $c->cxp))
+                    @php
+                        $cxps = $ficha->compras->filter(fn ($c) => $c->cxp);
+                    @endphp
                     @if ($cxps->isEmpty())
                         <p class="mt-4 text-xs text-on-surface-variant">Sin cuentas por pagar vinculadas.</p>
                     @else
@@ -772,94 +1014,431 @@ new class () extends Component {
         </div>
     @endif
 
-    <!-- Modal factura -->
-    @if ($modalFactura)
+    <!-- Modal Factura Integral (Historial, Detalle, Pagos y Nueva Factura con Soporte) -->
+    @if ($modalFactura && $proveedorFactura)
+        @php
+            $saldoTotalProveedor = $proveedorFactura->compras->sum(fn ($c) => $c->cxp?->saldo_pendiente ?? 0);
+        @endphp
         <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="cerrarModales">
-            <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-xl sm:rounded-3xl" wire:key="modal-factura-prov">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-base font-extrabold text-on-surface">Registrar factura</h3>
-                    <button wire:click="cerrarModales" class="text-on-surface-variant">
+            <div class="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-3xl sm:rounded-3xl" wire:key="modal-factura-prov-{{ $proveedorFactura->id }}">
+                <!-- Cabecera del modal -->
+                <div class="flex items-start justify-between gap-3 border-b border-outline-variant/15 pb-4">
+                    <div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="material-symbols-outlined text-[24px] text-primary">receipt_long</span>
+                            <h3 class="text-base font-extrabold text-on-surface">Facturación — {{ $proveedorFactura->nombre }}</h3>
+                            @if ($proveedorFactura->nit)
+                                <span class="rounded-lg bg-surface-container-high px-2 py-0.5 text-[10px] font-black text-on-surface-variant border border-outline-variant/30">
+                                    NIT {{ $proveedorFactura->nit }}
+                                </span>
+                            @endif
+                        </div>
+                        <div class="mt-1 flex flex-wrap items-center gap-3 text-xs text-on-surface-variant">
+                            @if ($proveedorFactura->telefono)
+                                <span>Tel: {{ $proveedorFactura->telefono }}</span>
+                            @endif
+                            @if ($proveedorFactura->dias_credito > 0)
+                                <span>Crédito a {{ $proveedorFactura->dias_credito }} días</span>
+                            @endif
+                            @if ($saldoTotalProveedor > 0)
+                                <span class="font-extrabold text-error">
+                                    Saldo CxP pendiente: ${{ number_format((float) $saldoTotalProveedor, 0, ',', '.') }}
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                    <button wire:click="cerrarModales" class="text-on-surface-variant hover:text-on-surface">
                         <span class="material-symbols-outlined">close</span>
                     </button>
                 </div>
 
+                <!-- Selector de pestañas -->
+                <div class="mt-4 flex gap-2 border-b border-outline-variant/15 pb-3">
+                    <button type="button" wire:click="setPestanaFactura('historial')"
+                        class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all {{ $pestanaFactura === 'historial' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:text-on-surface' }}">
+                        <span class="material-symbols-outlined text-[16px]">history</span>
+                        Historial y Pagos
+                        <span class="rounded-full px-1.5 py-0.2 text-[10px] font-black {{ $pestanaFactura === 'historial' ? 'bg-on-primary/20 text-on-primary' : 'bg-surface-container-highest text-on-surface' }}">
+                            {{ $proveedorFactura->compras->count() }}
+                        </span>
+                    </button>
+                    @can('create', App\Models\Compra::class)
+                        <button type="button" wire:click="setPestanaFactura('nueva')"
+                            class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all {{ $pestanaFactura === 'nueva' ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface-container-high text-on-surface-variant hover:text-on-surface' }}">
+                            <span class="material-symbols-outlined text-[16px]">add_circle</span>
+                            Registrar Nueva Factura
+                        </button>
+                    @endcan
+                </div>
+
+                <!-- Mensaje de errores globales -->
                 @error('factura.numero')
-                    <p class="mt-3 rounded-xl bg-error/10 px-3 py-2 text-xs font-bold text-error">{{ $message }}</p>
+                    <p class="mt-3 rounded-xl bg-error/10 px-3 py-2 text-xs font-bold text-error border border-error/30">{{ $message }}</p>
+                @enderror
+                @error('pagoForm.general')
+                    <p class="mt-3 rounded-xl bg-error/10 px-3 py-2 text-xs font-bold text-error border border-error/30">{{ $message }}</p>
                 @enderror
 
-                <form wire:submit="guardarFactura" class="mt-4 space-y-3">
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant">Número *</label>
-                            <input type="text" wire:model="factura.numero" required
-                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-on-surface-variant">Fecha *</label>
-                            <input type="date" wire:model="factura.fecha"
-                                class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-on-surface-variant">Forma de pago *</label>
-                        <select wire:model="factura.forma_pago"
-                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0">
-                            <option value="contado">Contado</option>
-                            <option value="credito">Crédito</option>
-                        </select>
-                    </div>
+                <!-- PESTAÑA A: HISTORIAL, DETALLE Y PAGOS -->
+                @if ($pestanaFactura === 'historial')
+                    <div class="mt-4 space-y-3">
+                        @if ($proveedorFactura->compras->isEmpty())
+                            <div class="rounded-2xl border border-dashed border-outline-variant/30 p-8 text-center">
+                                <span class="material-symbols-outlined text-[36px] text-on-surface-variant/40">receipt</span>
+                                <p class="mt-2 text-xs font-bold text-on-surface-variant">No hay facturas registradas para este proveedor.</p>
+                                @can('create', App\Models\Compra::class)
+                                    <button type="button" wire:click="setPestanaFactura('nueva')" class="mt-3 rounded-xl bg-primary px-4 py-2 text-xs font-black text-on-primary">
+                                        Registrar primera factura
+                                    </button>
+                                @endcan
+                            </div>
+                        @else
+                            <div class="space-y-3">
+                                @foreach ($proveedorFactura->compras as $compra)
+                                    <div class="rounded-2xl border border-outline-variant/15 bg-surface-container-low p-4 transition-all" wire:key="compra-card-{{ $compra->id }}">
+                                        <!-- Cabecera de la factura -->
+                                        <div class="flex flex-wrap items-center justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span class="text-sm font-black text-on-surface">
+                                                        Factura #{{ $compra->numero_factura }}
+                                                    </span>
+                                                    <span class="text-xs text-on-surface-variant">
+                                                        · {{ $compra->fecha?->format('d/m/Y') }}
+                                                    </span>
+                                                    <!-- Estado de la compra -->
+                                                    @if ($compra->estado === 'anulada')
+                                                        <span class="rounded-lg bg-error/10 px-2 py-0.5 text-[10px] font-black text-error border border-error/20">
+                                                            Anulada
+                                                        </span>
+                                                    @elseif ($compra->forma_pago === 'contado')
+                                                        <span class="rounded-lg bg-secondary/10 px-2 py-0.5 text-[10px] font-black text-secondary border border-secondary/20">
+                                                            Contado · Pagada
+                                                        </span>
+                                                    @elseif ($compra->cxp && $compra->cxp->saldo_pendiente > 0)
+                                                        <span class="rounded-lg bg-error/10 px-2 py-0.5 text-[10px] font-black text-error border border-error/20">
+                                                            Crédito · Pendiente: ${{ number_format((float) $compra->cxp->saldo_pendiente, 0, ',', '.') }}
+                                                        </span>
+                                                    @elseif ($compra->cxp && $compra->cxp->saldo_pendiente <= 0)
+                                                        <span class="rounded-lg bg-secondary/10 px-2 py-0.5 text-[10px] font-black text-secondary border border-secondary/20">
+                                                            Crédito · Pagado
+                                                        </span>
+                                                    @else
+                                                        <span class="rounded-lg bg-surface-container-high px-2 py-0.5 text-[10px] font-black text-on-surface-variant">
+                                                            {{ ucfirst($compra->forma_pago) }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-on-surface-variant">
+                                                    <span>{{ $compra->lineas->count() }} insumo(s)</span>
+                                                    @if ($compra->usuario)
+                                                        <span>· Registrada por {{ $compra->usuario->name }}</span>
+                                                    @endif
+                                                </div>
+                                            </div>
 
-                    <div class="flex items-center justify-between">
-                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-on-surface">Líneas</h4>
-                        <button type="button" wire:click="agregarLinea" class="inline-flex items-center gap-1 rounded-xl bg-surface-container-high px-3 py-1.5 text-[11px] font-bold text-on-surface">
-                            <span class="material-symbols-outlined text-[16px]">add</span>
-                            Agregar línea
-                        </button>
-                    </div>
-                    @error('lineas') <p class="text-[11px] font-bold text-error">{{ $message }}</p> @enderror
+                                            <div class="flex items-center gap-3">
+                                                <div class="text-right">
+                                                    <div class="text-xs font-bold text-on-surface-variant">Total</div>
+                                                    <div class="text-sm font-black text-on-surface">
+                                                        ${{ number_format((float) $compra->subtotal, 0, ',', '.') }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                    @foreach ($lineas as $indice => $linea)
-                        <div class="grid grid-cols-12 items-end gap-2 rounded-2xl border border-outline-variant/10 bg-surface-container-low p-3" wire:key="linea-{{ $indice }}">
-                            <div class="col-span-5">
-                                <label class="text-xs font-bold text-on-surface-variant">Insumo</label>
-                                <select wire:model="lineas.{{ $indice }}.insumo_id"
-                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
-                                    <option value="">Seleccionar…</option>
-                                    @foreach ($insumosActivos as $insumo)
-                                        <option value="{{ $insumo->id }}">{{ $insumo->nombre }} ({{ $insumo->unidad_medida }})</option>
+                                        <!-- Botones de Acción de la Factura -->
+                                        <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-outline-variant/10 pt-3">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <!-- Botón Ver Detalle Toggle -->
+                                                <button type="button" wire:click="toggleDetalleCompra({{ $compra->id }})"
+                                                    class="inline-flex items-center gap-1 rounded-xl bg-surface-container-high px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container-highest">
+                                                    <span class="material-symbols-outlined text-[16px]">
+                                                        {{ $verDetalleCompraId === $compra->id ? 'expand_less' : 'visibility' }}
+                                                    </span>
+                                                    {{ $verDetalleCompraId === $compra->id ? 'Ocultar Detalle' : 'Ver Detalle' }}
+                                                </button>
+
+                                                <!-- Botón Ver Soporte Adjunto (si existe) -->
+                                                @if ($compra->soporte_factura)
+                                                    <a href="{{ $compra->soporte_url }}" target="_blank"
+                                                        class="inline-flex items-center gap-1 rounded-xl bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 border border-primary/20">
+                                                        <span class="material-symbols-outlined text-[16px]">attachment</span>
+                                                        Ver Soporte
+                                                    </a>
+                                                @endif
+                                            </div>
+
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <!-- Botón Pagar / Abonar Factura si tiene CxP pendiente -->
+                                                @if ($compra->cxp && $compra->cxp->saldo_pendiente > 0 && $compra->estado !== 'anulada')
+                                                    @can('update', $compra->cxp)
+                                                        <button type="button" wire:click="abrirPagarFactura({{ $compra->cxp->id }})"
+                                                            class="inline-flex items-center gap-1 rounded-xl bg-secondary px-3 py-1.5 text-xs font-bold text-white hover:bg-secondary/90 shadow-sm">
+                                                            <span class="material-symbols-outlined text-[16px]">payments</span>
+                                                            Pagar / Abonar
+                                                        </button>
+                                                    @endcan
+                                                @endif
+
+                                                <!-- Botón Anular Factura -->
+                                                @can('anular', $compra)
+                                                    @if ($compra->estado === 'registrada')
+                                                        <button type="button" wire:click="confirmarAnulacion({{ $compra->id }})"
+                                                            class="rounded-xl bg-error/10 px-3 py-1.5 text-xs font-bold text-error hover:bg-error/20">
+                                                            Anular
+                                                        </button>
+                                                    @endif
+                                                @endcan
+                                            </div>
+                                        </div>
+
+                                        <!-- Panel Desplegable: Detalle de Insumos de la Compra -->
+                                        @if ($verDetalleCompraId === $compra->id)
+                                            <div class="mt-3 overflow-x-auto rounded-xl border border-outline-variant/15 bg-surface-container-lowest p-3">
+                                                <p class="text-[11px] font-extrabold uppercase tracking-wider text-on-surface-variant mb-2">Desglose de la factura:</p>
+                                                <table class="w-full text-left text-xs">
+                                                    <thead class="text-[10px] font-black uppercase text-on-surface-variant border-b border-outline-variant/10">
+                                                        <tr>
+                                                            <th class="py-1.5 pr-2">Insumo</th>
+                                                            <th class="py-1.5 px-2">Categoría</th>
+                                                            <th class="py-1.5 px-2 text-right">Cantidad</th>
+                                                            <th class="py-1.5 px-2 text-right">Costo Unit.</th>
+                                                            <th class="py-1.5 pl-2 text-right">Subtotal</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-outline-variant/10">
+                                                        @foreach ($compra->lineas as $linea)
+                                                            <tr>
+                                                                <td class="py-2 pr-2 font-bold text-on-surface">
+                                                                    {{ $linea->insumo?->nombre ?? 'Insumo #'.$linea->insumo_id }}
+                                                                </td>
+                                                                <td class="py-2 px-2 text-on-surface-variant">
+                                                                    <span class="rounded bg-surface-container-high px-1.5 py-0.5 text-[10px]">
+                                                                        {{ $linea->insumo?->categoria ?? 'General' }}
+                                                                    </span>
+                                                                </td>
+                                                                <td class="py-2 px-2 text-right font-medium text-on-surface-variant">
+                                                                    {{ number_format((float) $linea->cantidad, 2, ',', '.') }} {{ $linea->insumo?->unidad_medida }}
+                                                                </td>
+                                                                <td class="py-2 px-2 text-right font-medium text-on-surface-variant">
+                                                                    ${{ number_format((float) $linea->costo_unitario, 0, ',', '.') }}
+                                                                </td>
+                                                                <td class="py-2 pl-2 text-right font-black text-on-surface">
+                                                                    ${{ number_format((float) $linea->subtotal, 0, ',', '.') }}
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        @endif
+
+                                        <!-- Panel Desplegable Inline: Formulario de Pago de Factura -->
+                                        @if ($pagandoCxpId && $compra->cxp && $pagandoCxpId === $compra->cxp->id)
+                                            <div class="mt-3 rounded-2xl border border-secondary/30 bg-secondary/5 p-4" wire:key="panel-pago-{{ $compra->cxp->id }}">
+                                                <div class="flex items-center justify-between border-b border-secondary/20 pb-2">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <span class="material-symbols-outlined text-[18px] text-secondary">point_of_sale</span>
+                                                        <h5 class="text-xs font-black text-on-surface">
+                                                            Registrar pago a Factura #{{ $compra->numero_factura }}
+                                                        </h5>
+                                                    </div>
+                                                    <span class="text-xs font-extrabold text-secondary">
+                                                        Saldo: ${{ number_format((float) $compra->cxp->saldo_pendiente, 0, ',', '.') }}
+                                                    </span>
+                                                </div>
+
+                                                <div class="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 text-xs">
+                                                    <div>
+                                                        <label class="font-bold text-on-surface-variant">Monto a pagar *</label>
+                                                        <div class="mt-1 flex gap-1.5">
+                                                            <input type="number" step="0.01" min="1" max="{{ $compra->cxp->saldo_pendiente }}"
+                                                                wire:model="pagoForm.monto" required placeholder="0.00"
+                                                                class="w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-secondary focus:ring-0" />
+                                                            <button type="button" wire:click="$set('pagoForm.monto', '{{ $compra->cxp->saldo_pendiente }}')"
+                                                                class="shrink-0 rounded-xl bg-secondary/15 px-2.5 py-1 text-[11px] font-black text-secondary border border-secondary/30">
+                                                                Total
+                                                            </button>
+                                                        </div>
+                                                        @error('pagoForm.monto') <p class="mt-1 text-[10px] font-bold text-error">{{ $message }}</p> @enderror
+                                                    </div>
+
+                                                    <div>
+                                                        <label class="font-bold text-on-surface-variant">Método de pago *</label>
+                                                        <select wire:model="pagoForm.metodo_pago"
+                                                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-secondary focus:ring-0">
+                                                            <option value="efectivo">Efectivo</option>
+                                                            <option value="transferencia">Transferencia bancaria</option>
+                                                            <option value="caja_menor">Caja Menor</option>
+                                                            <option value="tarjeta">Tarjeta débito/crédito</option>
+                                                        </select>
+                                                        @error('pagoForm.metodo_pago') <p class="mt-1 text-[10px] font-bold text-error">{{ $message }}</p> @enderror
+                                                    </div>
+
+                                                    <div>
+                                                        <label class="font-bold text-on-surface-variant">Comprobante / Referencia</label>
+                                                        <input type="text" wire:model="pagoForm.comprobante" placeholder="Ej. TRANSF-90214"
+                                                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-secondary focus:ring-0" />
+                                                    </div>
+
+                                                    <div>
+                                                        <label class="font-bold text-on-surface-variant">Notas u observaciones</label>
+                                                        <input type="text" wire:model="pagoForm.notas" placeholder="Opcional..."
+                                                            class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-xs font-bold text-on-surface focus:border-secondary focus:ring-0" />
+                                                    </div>
+                                                </div>
+
+                                                <div class="mt-3 flex justify-end gap-2">
+                                                    <button type="button" wire:click="cancelarPagoFactura"
+                                                        class="rounded-xl bg-surface-container-high px-3 py-2 text-xs font-bold text-on-surface">
+                                                        Cancelar
+                                                    </button>
+                                                    <button type="button" wire:click="guardarPagoFactura" wire:loading.attr="disabled"
+                                                        class="rounded-xl bg-secondary px-4 py-2 text-xs font-black text-white hover:bg-secondary/90 shadow-sm disabled:opacity-50">
+                                                        <span wire:loading.remove wire:target="guardarPagoFactura">Confirmar Pago</span>
+                                                        <span wire:loading wire:target="guardarPagoFactura">Procesando…</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+                @endif
+
+                <!-- PESTAÑA B: REGISTRAR NUEVA FACTURA -->
+                @if ($pestanaFactura === 'nueva')
+                    @can('create', App\Models\Compra::class)
+                        <form wire:submit="guardarFactura" class="mt-4 space-y-4">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                <div>
+                                    <label class="text-xs font-bold text-on-surface-variant">Número de Factura *</label>
+                                    <input type="text" wire:model="factura.numero" required placeholder="Ej: FAC-00129"
+                                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-on-surface-variant">Fecha de Emisión *</label>
+                                    <input type="date" wire:model="factura.fecha" required
+                                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0" />
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-on-surface-variant">Forma de pago *</label>
+                                    <select wire:model="factura.forma_pago"
+                                        class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-low px-3 py-2 text-sm font-bold text-on-surface focus:border-primary focus:ring-0">
+                                        <option value="contado">Contado</option>
+                                        <option value="credito">Crédito</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Soporte de Factura (Carga de Foto o Documento PDF Opcional) -->
+                            <div class="rounded-2xl border border-dashed border-outline-variant/30 bg-surface-container-low/60 p-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <span class="material-symbols-outlined text-[20px] text-primary">add_a_photo</span>
+                                        <label class="text-xs font-extrabold text-on-surface">
+                                            Foto o Documento de la Factura (Opcional)
+                                        </label>
+                                    </div>
+                                    <span class="text-[10px] text-on-surface-variant">JPG, PNG, WEBP o PDF (Máx. 10MB)</span>
+                                </div>
+
+                                <div class="mt-2.5 flex flex-wrap items-center gap-3">
+                                    <input type="file" wire:model="soporteArchivo" id="soporte_file_input" accept=".jpg,.jpeg,.png,.webp,.pdf"
+                                        class="block w-full text-xs text-on-surface-variant file:mr-3 file:rounded-xl file:border-0 file:bg-surface-container-high file:px-3 file:py-2 file:text-xs file:font-bold file:text-on-surface hover:file:bg-surface-container-highest cursor-pointer" />
+                                </div>
+
+                                <div wire:loading wire:target="soporteArchivo" class="mt-2 text-xs font-bold text-primary flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                                    Cargando archivo adjunto…
+                                </div>
+
+                                @if ($soporteArchivo)
+                                    <div class="mt-2.5 flex items-center justify-between rounded-xl bg-surface-container-high p-2.5 text-xs">
+                                        <div class="flex items-center gap-2 truncate">
+                                            @if (str_starts_with($soporteArchivo->getMimeType() ?? '', 'image/'))
+                                                <img src="{{ $soporteArchivo->temporaryUrl() }}" class="h-10 w-10 rounded-lg object-cover border border-outline-variant/30" />
+                                            @else
+                                                <span class="material-symbols-outlined text-[24px] text-primary">picture_as_pdf</span>
+                                            @endif
+                                            <span class="font-bold text-on-surface truncate">{{ $soporteArchivo->getClientOriginalName() }}</span>
+                                        </div>
+                                        <button type="button" wire:click="$set('soporteArchivo', null)" class="text-error hover:opacity-80 p-1">
+                                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                                        </button>
+                                    </div>
+                                @endif
+                                @error('soporteArchivo') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror
+                            </div>
+
+                            <!-- Líneas de Insumos -->
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-on-surface">Líneas de insumos</h4>
+                                    <button type="button" wire:click="agregarLinea" class="inline-flex items-center gap-1 rounded-xl bg-surface-container-high px-3 py-1.5 text-xs font-bold text-on-surface hover:bg-surface-container-highest">
+                                        <span class="material-symbols-outlined text-[16px]">add</span>
+                                        Agregar insumo
+                                    </button>
+                                </div>
+                                @error('lineas') <p class="mt-1 text-xs font-bold text-error">{{ $message }}</p> @enderror
+
+                                <div class="mt-2 space-y-2">
+                                    @foreach ($lineas as $indice => $linea)
+                                        <div class="grid grid-cols-12 items-end gap-2 rounded-2xl border border-outline-variant/10 bg-surface-container-low p-3" wire:key="linea-{{ $indice }}">
+                                            <div class="col-span-12 sm:col-span-5">
+                                                <label class="text-[11px] font-bold text-on-surface-variant">Insumo *</label>
+                                                <select wire:model="lineas.{{ $indice }}.insumo_id" required
+                                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0">
+                                                    <option value="">Seleccionar insumo…</option>
+                                                    @foreach ($insumosActivos as $insumo)
+                                                        <option value="{{ $insumo->id }}">{{ $insumo->nombre }} ({{ $insumo->categoria ?: 'General' }} - {{ $insumo->unidad_medida }})</option>
+                                                    @endforeach
+                                                </select>
+                                                @error("lineas.{$indice}.insumo_id") <p class="text-[10px] text-error font-bold">{{ $message }}</p> @enderror
+                                            </div>
+                                            <div class="col-span-5 sm:col-span-3">
+                                                <label class="text-[11px] font-bold text-on-surface-variant">Cantidad *</label>
+                                                <input type="text" inputmode="decimal" data-miles data-decimales="3" min="0.01" wire:model="lineas.{{ $indice }}.cantidad" required
+                                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
+                                                @error("lineas.{$indice}.cantidad") <p class="text-[10px] text-error font-bold">{{ $message }}</p> @enderror
+                                            </div>
+                                            <div class="col-span-5 sm:col-span-3">
+                                                <label class="text-[11px] font-bold text-on-surface-variant">Costo Unit. *</label>
+                                                <input type="text" inputmode="decimal" data-miles data-decimales="2" min="0" wire:model="lineas.{{ $indice }}.costo_unitario" required
+                                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
+                                                @error("lineas.{$indice}.costo_unitario") <p class="text-[10px] text-error font-bold">{{ $message }}</p> @enderror
+                                            </div>
+                                            <div class="col-span-2 sm:col-span-1 flex justify-center pb-1">
+                                                <button type="button" wire:click="quitarLinea({{ $indice }})" class="text-error hover:opacity-75">
+                                                    <span class="material-symbols-outlined text-[20px]">delete</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     @endforeach
-                                </select>
+                                </div>
                             </div>
-                            <div class="col-span-3">
-                                <label class="text-xs font-bold text-on-surface-variant">Cantidad</label>
-                                <input type="text" inputmode="decimal" data-miles data-decimales="3" min="0.01" wire:model="lineas.{{ $indice }}.cantidad"
-                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
-                            </div>
-                            <div class="col-span-3">
-                                <label class="text-xs font-bold text-on-surface-variant">Costo unit.</label>
-                                <input type="text" inputmode="decimal" data-miles data-decimales="2" min="0" wire:model="lineas.{{ $indice }}.costo_unitario"
-                                    class="mt-1 w-full rounded-xl border border-outline-variant/30 bg-surface-container-lowest px-2 py-2 text-xs font-bold text-on-surface focus:border-primary focus:ring-0" />
-                            </div>
-                            <div class="col-span-1">
-                                <button type="button" wire:click="quitarLinea({{ $indice }})" class="text-error">
-                                    <span class="material-symbols-outlined">delete</span>
-                                </button>
-                            </div>
-                        </div>
-                    @endforeach
 
-                    <button type="submit" wire:loading.attr="disabled" wire:target="guardarFactura" class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary disabled:opacity-50">
-                        <span wire:loading.remove wire:target="guardarFactura">Guardar factura</span>
-                        <span wire:loading wire:target="guardarFactura">Guardando…</span>
-                    </button>
-                </form>
+                            <!-- Botón Guardar Factura -->
+                            <button type="submit" wire:loading.attr="disabled" wire:target="guardarFactura,soporteArchivo"
+                                class="w-full rounded-xl bg-primary py-3 text-sm font-black text-on-primary shadow-sm disabled:opacity-50 transition-all hover:bg-primary/95">
+                                <span wire:loading.remove wire:target="guardarFactura">Guardar factura y registrar inventario</span>
+                                <span wire:loading wire:target="guardarFactura">Guardando factura…</span>
+                            </button>
+                        </form>
+                    @endcan
+                @endif
             </div>
         </div>
     @endif
 
     <!-- Modal anular -->
     @if ($modalAnular && $anulandoId)
-        @php($anulando = App\Models\Compra::with('proveedor')->find($anulandoId))
+        @php
+            $anulando = App\Models\Compra::with('proveedor')->find($anulandoId);
+        @endphp
         @if ($anulando)
             <div class="fixed inset-0 z-50 flex items-end justify-center bg-scrim/40 sm:items-center" wire:click.self="cerrarModales">
                 <div class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-surface-container-lowest p-5 shadow-2xl sm:max-w-md sm:rounded-3xl" wire:key="modal-anular-prov">

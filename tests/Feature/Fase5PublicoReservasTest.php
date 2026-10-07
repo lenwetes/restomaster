@@ -63,7 +63,7 @@ class Fase5PublicoReservasTest extends TestCase
         // 2. Personal (cajero/mesero/admin) abre la vista de reservas y confirma la reserva asignando mesa
         $admin = User::create([
             'name' => 'Admin Staff',
-            'email' => 'admin_test@sushixpress.com',
+            'email' => 'admin_test@RESTOMASTER.com',
             'password' => bcrypt('secret'),
             'role_id' => Role::where('slug', 'admin')->value('id'),
             'activo' => true,
@@ -100,7 +100,7 @@ class Fase5PublicoReservasTest extends TestCase
 
         // 2. Staff confirma y combina mesas para cubrir los 6 comensales
         $admin = User::firstOrCreate(
-            ['email' => 'admin_test2@sushixpress.com'],
+            ['email' => 'admin_test2@RESTOMASTER.com'],
             ['name' => 'Admin Staff 2', 'password' => bcrypt('secret'), 'role_id' => Role::where('slug', 'admin')->value('id'), 'activo' => true]
         );
 

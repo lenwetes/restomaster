@@ -7,6 +7,7 @@ use App\Models\CompraLinea;
 use App\Models\CuentaPorPagar;
 use App\Models\Insumo;
 use App\Models\Proveedor;
+use Illuminate\Database\Eloquent\Collection;
 use InvalidArgumentException;
 
 class ProveedorService
@@ -147,5 +148,34 @@ class ProveedorService
         }
 
         return $filas;
+    }
+
+    /**
+     * Devuelve el catálogo consolidado de insumos provistos por el proveedor,
+     * combinando los asignados por proveedor_id y los comprados en facturas históricas.
+     *
+     * @return array{insumos: Collection, categorias: array<string, int>}
+     */
+    public function insumosSuministrados(Proveedor $proveedor): array
+    {
+        $insumoIdsDirectos = Insumo::where('proveedor_id', $proveedor->id)->pluck('id');
+        $insumoIdsCompras = CompraLinea::whereHas('compra', fn ($q) => $q->where('proveedor_id', $proveedor->id))
+            ->pluck('insumo_id');
+
+        $todosIds = $insumoIdsDirectos->concat($insumoIdsCompras)->unique()->filter()->values();
+
+        $insumos = Insumo::whereIn('id', $todosIds)
+            ->orderBy('categoria')
+            ->orderBy('nombre')
+            ->get();
+
+        $categorias = $insumos->groupBy(fn ($i) => $i->categoria ?: 'General')
+            ->map(fn ($group) => $group->count())
+            ->toArray();
+
+        return [
+            'insumos' => $insumos,
+            'categorias' => $categorias,
+        ];
     }
 }

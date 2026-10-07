@@ -19,7 +19,7 @@ class BackupDatabaseCommand extends Command
                             {--disk= : Disco de destino en almacenamiento de objetos (por defecto: r2 o s3)}
                             {--keep-remote=14 : Cantidad de respaldos a conservar en el bucket de almacenamiento de objetos}';
 
-    protected $aliases = ['db:backup', 'sushixpress:backup'];
+    protected $aliases = ['db:backup', 'resto:backup'];
 
     protected $description = 'Genera un volcado estructurado de respaldo de la base de datos de RestoMaster con streaming y rotación en local y en la nube';
 

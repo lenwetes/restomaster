@@ -17,12 +17,18 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'subtotal',
     'forma_pago',
     'estado',
+    'soporte_factura',
     'user_id',
 ])]
 #[Table(name: 'compras')]
 class Compra extends Model
 {
     use HasFactory;
+
+    public function getSoporteUrlAttribute(): ?string
+    {
+        return $this->soporte_factura ? asset('storage/'.$this->soporte_factura) : null;
+    }
 
     protected function casts(): array
     {
