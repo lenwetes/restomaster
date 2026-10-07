@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -38,14 +37,12 @@ class Impresora extends Model
         return $this->hasMany(TrabajoImpresion::class, 'impresora_id')->where('estado', 'pendiente');
     }
 
-    #[Scope]
-    protected function activas(Builder $query): Builder
+    public function scopeActivas(Builder $query): Builder
     {
         return $query->where('activa', true);
     }
 
-    #[Scope]
-    protected function porArea(Builder $query, string $area): Builder
+    public function scopePorArea(Builder $query, string $area): Builder
     {
         return $query->where(function ($q) use ($area) {
             $q->where('area', $area)

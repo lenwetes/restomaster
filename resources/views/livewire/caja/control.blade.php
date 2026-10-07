@@ -119,27 +119,47 @@ new class () extends Component {
             ->get();
     }
 
+    public ?array $notificacionCobroFlotante = null;
+    public int $conteoPrevioCobrosPendientes = 0;
+
+    public function verificarNuevasSolicitudesCobro(): void
+    {
+        $pendientes = $this->cobrosPendientes();
+        $conteoActual = $pendientes->count();
+
+        if ($conteoActual > $this->conteoPrevioCobrosPendientes && $conteoActual > 0) {
+            $ultimo = $pendientes->last();
+            $this->notificacionCobroFlotante = [
+                'pedido_id' => $ultimo->id,
+                'codigo' => $ultimo->codigo,
+                'mesa' => $ultimo->mesa ? 'Mesa ' . $ultimo->mesa->numero : 'Mostrador',
+                'mesero' => $ultimo->mesero?->name ?? $ultimo->usuario?->name ?? 'Mesero',
+                'total' => (float) $ultimo->total,
+                'hora' => now()->format('h:i A'),
+            ];
+            $this->dispatch('sonar-campana-caja');
+        }
+
+        $this->conteoPrevioCobrosPendientes = $conteoActual;
+    }
+
+    public function descartarNotificacionCobro(): void
+    {
+        $this->notificacionCobroFlotante = null;
+    }
+
     public function abrirCobroPendiente(int $pedidoId): void
     {
         $this->authorize('cobrar', Pedido::class);
-
-        $pedido = Pedido::with(['mesa', 'mesero'])->findOrFail($pedidoId);
-        abort_if($pedido->estado !== 'pendiente_cobro', 422, 'El pedido ya no está pendiente de cobro.');
-        abort_if(Auth::user()?->sucursal_id && $pedido->sucursal_id !== Auth::user()->sucursal_id, 403);
-
-        $this->cobroPendienteId = $pedido->id;
-        $this->metodoPagoPendiente = 'efectivo';
-        $this->montoPagadoPendiente = (float) $pedido->total;
-        $this->propinaPendiente = 0.0;
-        $this->resetErrorBag();
-        $this->mostrarModalCobroPendiente = true;
+        $this->descartarNotificacionCobro();
+        $this->dispatch('abrir-modal-cobro-unificado', pedidoId: $pedidoId);
     }
 
-    public function cerrarCobroPendiente(): void
+    #[\Livewire\Attributes\On('pedido-cobrado-exitosamente')]
+    public function alCobrarPedidoExitosamente(array $datos): void
     {
-        $this->mostrarModalCobroPendiente = false;
-        $this->cobroPendienteId = null;
-        $this->resetErrorBag();
+        $this->notificacionCobroFlotante = null;
+        $this->conteoPrevioCobrosPendientes = $this->cobrosPendientes()->count();
     }
 
     public function cobrarPendiente(): void
@@ -505,6 +525,7 @@ new class () extends Component {
 
     public function mount(): void
     {
+        $this->conteoPrevioCobrosPendientes = $this->cobrosPendientes()->count();
         app(CajaService::class)->asegurarIndiceParcialTurnos();
 
         $userSucursalId = Auth::user()?->sucursal_id;
@@ -790,7 +811,82 @@ new class () extends Component {
     }
 }; ?>
 
-<div class="space-y-6">
+<div 
+    class="space-y-6 relative"
+    wire:poll.4s="verificarNuevasSolicitudesCobro"
+    x-data="{
+        sonarCampana() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(587.33, now);
+                gain1.gain.setValueAtTime(0.3, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                osc1.connect(gain1);
+                gain1.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.6);
+
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(880, now + 0.15);
+                gain2.gain.setValueAtTime(0.4, now + 0.15);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start(now + 0.15);
+                osc2.stop(now + 1.2);
+            } catch(e) {}
+        }
+    }"
+    @sonar-campana-caja.window="sonarCampana()"
+>
+    <!-- NOTIFICACIÓN VISUAL FLOTANTE: SOLICITUD DE COBRO EN VIVO -->
+    @if($notificacionCobroFlotante)
+        <div class="fixed top-5 right-5 z-50 max-w-sm w-full animate-bounce shadow-2xl">
+            <div class="p-4 rounded-3xl bg-gradient-to-r from-[#2a170f] via-[#361f14] to-[#2a170f] border-2 border-amber-500 shadow-[0_10px_35px_rgba(245,158,11,0.35)] flex items-start gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-amber-500 text-[#140e0b] flex items-center justify-center shrink-0 shadow-md">
+                    <span class="material-symbols-outlined text-[24px]">notifications_active</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-amber-400">¡Cobro Solicitado!</span>
+                        <span class="text-[10px] text-[#a89086]">{{ $notificacionCobroFlotante['hora'] }}</span>
+                    </div>
+                    <h3 class="text-xs font-black text-white mt-0.5">
+                        {{ $notificacionCobroFlotante['mesa'] }} · ${{ number_format($notificacionCobroFlotante['total'], 0, ',', '.') }}
+                    </h3>
+                    <p class="text-[11px] text-[#d6c4bc]">
+                        Mesero: <span class="font-bold text-amber-300">{{ $notificacionCobroFlotante['mesero'] }}</span>
+                    </p>
+                    <div class="mt-2 flex items-center gap-2">
+                        <button 
+                            type="button"
+                            wire:click="abrirCobroPendiente({{ $notificacionCobroFlotante['pedido_id'] }})"
+                            class="px-3 py-1 rounded-xl bg-gradient-to-r from-[#10b981] to-[#059669] text-white font-black text-xs hover:brightness-110 shadow cursor-pointer"
+                        >
+                            💳 Cobrar Ahora
+                        </button>
+                        <button 
+                            type="button"
+                            wire:click="descartarNotificacionCobro"
+                            class="px-2.5 py-1 rounded-xl bg-[#1c130f] border border-[#3d2b22] text-[#a89086] hover:text-white font-bold text-xs cursor-pointer"
+                        >
+                            Descartar
+                        </button>
+                    </div>
+                </div>
+                <button wire:click="descartarNotificacionCobro" class="text-[#a89086] hover:text-white cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+            </div>
+        </div>
+    @endif
+
     <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>
             <div class="flex items-center gap-2">
@@ -2787,4 +2883,7 @@ new class () extends Component {
             </div>
         </div>
     @endif
+
+    <!-- Modal Maestro Unificado de Cobro de Tickets -->
+    <livewire:caja.modal-cobro-unificado />
 </div>

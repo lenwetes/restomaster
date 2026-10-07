@@ -782,8 +782,18 @@
                                             <span class="text-[10px] font-bold text-[#10b981] bg-[#10b981]/15 px-1.5 py-0.2 rounded">ACTIVA</span>
                                         @endif
                                     </h2>
+                                    @php
+                                        $pedidoActivoHeader = $this->obtenerPedidoActivoMesa();
+                                        $mesaObjHeader = $mesaId ? $mesas->firstWhere('id', $mesaId) : null;
+                                        $meseroNombre = $pedidoActivoHeader?->mesero?->name 
+                                            ?? $mesaObjHeader?->mesero?->name 
+                                            ?? (Auth::user()?->isMesero() ? Auth::user()->name : 'Sin asignar');
+                                        $clienteNombre = $clienteId 
+                                            ? ($mesaObjHeader?->cliente?->nombre ?? 'Registrado') 
+                                            : ($pedidoActivoHeader?->nombre_cliente ?? 'Ocasional');
+                                    @endphp
                                     <p class="text-[10px] text-[#a89086]">
-                                        Comensal: {{ $clienteId ? ($mesas->firstWhere('id', $mesaId)?->cliente?->nombre ?? 'Registrado') : 'Ocasional' }} · Mesero: {{ Auth::user()?->name ?? 'Alejandro' }}
+                                        Comensal: {{ $clienteNombre }} · Mesero: {{ $meseroNombre }}
                                     </p>
                                 </div>
                             </div>

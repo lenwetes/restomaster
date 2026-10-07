@@ -596,8 +596,15 @@
                                         </div>
                                         <div>
                                             <h3 class="text-sm font-extrabold text-on-surface">Comanda en Mano (Móvil)</h3>
+                                            @php
+                                                $pedidoActivoMovil = $this->obtenerPedidoActivoMesa();
+                                                $meseroNombreMovil = $pedidoActivoMovil?->mesero?->name 
+                                                    ?? ($mesaId ? $mesas->find($mesaId)?->mesero?->name : null)
+                                                    ?? (Auth::user()?->isMesero() ? Auth::user()->name : null);
+                                                $descMesa = $tipo === 'mesa' ? ($mesaId ? $mesas->find($mesaId)?->nombre_sala : 'Mesa sin asignar') : 'Para Llevar';
+                                            @endphp
                                             <p class="text-[11px] text-on-surface-variant">
-                                                {{ $tipo === 'mesa' ? ($mesaId ? $mesas->find($mesaId)?->nombre_sala : 'Mesa sin asignar') : 'Para Llevar' }}
+                                                {{ $descMesa }}{{ $meseroNombreMovil ? ' · Mesero: ' . $meseroNombreMovil : '' }}
                                             </p>
                                         </div>
                                     </div>

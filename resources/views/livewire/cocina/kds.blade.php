@@ -25,6 +25,19 @@ new class () extends Component {
 
     public ?int $historialDetalleId = null;
 
+    public ?array $notificacionComandaFlotante = null;
+    public int $conteoPrevioComandas = 0;
+
+    public function mount(): void
+    {
+        $this->conteoPrevioComandas = Pedido::whereIn('estado', ['en_cocina', 'en_preparacion', 'creado'])->count();
+    }
+
+    public function descartarNotificacionComanda(): void
+    {
+        $this->notificacionComandaFlotante = null;
+    }
+
     public function abrirComanda(int $pedidoId): void
     {
         $this->comandaParaImprimir = $pedidoId;
@@ -280,6 +293,19 @@ new class () extends Component {
             $tiempoPromedioHistorial = $totalHistorial > 0 ? round($tiempos->average(), 1) : 0.0;
         }
 
+        $pedidosEnCocinaCount = $pedidos->count();
+        if ($pedidosEnCocinaCount > $this->conteoPrevioComandas && $this->conteoPrevioComandas > 0) {
+            $ultima = $pedidos->first();
+            $this->notificacionComandaFlotante = [
+                'codigo' => $ultima?->codigo ?? 'N/A',
+                'mesa' => $ultima?->mesa ? 'Mesa ' . $ultima->mesa->numero : ($ultima?->tipo === 'mostrador' ? 'Mostrador' : 'Delivery'),
+                'items_count' => $ultima?->items->count() ?? 1,
+                'hora' => now()->format('h:i A'),
+            ];
+            $this->dispatch('sonar-timbre-cocina');
+        }
+        $this->conteoPrevioComandas = $pedidosEnCocinaCount;
+
         return [
             'pedidos' => $pedidos,
             'conteo' => $conteo,
@@ -303,17 +329,80 @@ new class () extends Component {
 }; ?>
 
 <div wire:poll.3s
-     x-data
+     x-data="{
+         sonarTimbre() {
+             try {
+                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                 const now = ctx.currentTime;
+                 const osc = ctx.createOscillator();
+                 const gain = ctx.createGain();
+                 osc.type = 'triangle';
+                 osc.frequency.setValueAtTime(1046.50, now);
+                 gain.gain.setValueAtTime(0.5, now);
+                 gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                 osc.connect(gain);
+                 gain.connect(ctx.destination);
+                 osc.start(now);
+                 osc.stop(now + 0.8);
+
+                 const osc2 = ctx.createOscillator();
+                 const gain2 = ctx.createGain();
+                 osc2.type = 'sine';
+                 osc2.frequency.setValueAtTime(1318.51, now + 0.1);
+                 gain2.gain.setValueAtTime(0.4, now + 0.1);
+                 gain2.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+                 osc2.connect(gain2);
+                 gain2.connect(ctx.destination);
+                 osc2.start(now + 0.1);
+                 osc2.stop(now + 1.2);
+             } catch(e) {}
+         }
+     }"
+     @sonar-timbre-cocina.window="sonarTimbre()"
      x-init="if (window.Echo) {
          window.Echo.private('cocina.{{ Auth::user()?->sucursal_id ?? 1 }}')
              .listen('.comanda.enviada', (e) => {
-                 if (typeof window.sonarCampanaCocina === 'function') {
-                     window.sonarCampanaCocina();
-                 }
+                 sonarTimbre();
                  $wire.$refresh();
              });
      }"
-     class="space-y-5">
+     class="space-y-5 relative">
+
+    <!-- NOTIFICACIÓN GRÁFICA FLOTANTE: NUEVA COMANDA ENTRA A COCINA -->
+    @if($notificacionComandaFlotante)
+        <div class="fixed top-5 right-5 z-50 max-w-sm w-full animate-bounce shadow-2xl">
+            <div class="p-4 rounded-3xl bg-gradient-to-r from-[#1f1611] via-[#2d1b14] to-[#1f1611] border-2 border-[#10b981] shadow-[0_10px_35px_rgba(16,185,129,0.35)] flex items-start gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-[#10b981] text-[#140e0b] flex items-center justify-center shrink-0 shadow-md">
+                    <span class="material-symbols-outlined text-[24px]">restaurant</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-black uppercase tracking-wider text-[#10b981]">¡Nueva Comanda en Cola!</span>
+                        <span class="text-[10px] text-[#a89086]">{{ $notificacionComandaFlotante['hora'] }}</span>
+                    </div>
+                    <h3 class="text-sm font-black text-white mt-0.5">
+                        {{ $notificacionComandaFlotante['mesa'] }} · {{ $notificacionComandaFlotante['items_count'] ?? 1 }} plato(s)
+                    </h3>
+                    <p class="text-xs text-[#d6c4bc]">
+                        Orden #<span class="font-bold text-emerald-300 font-mono">{{ $notificacionComandaFlotante['codigo'] }}</span>
+                    </p>
+                    <div class="mt-2 flex items-center gap-2">
+                        <button 
+                            type="button"
+                            wire:click="descartarNotificacionComanda"
+                            class="px-3 py-1 rounded-xl bg-[#10b981] text-[#140e0b] font-black text-xs hover:brightness-110 shadow cursor-pointer"
+                        >
+                            ✓ Ver Comanda
+                        </button>
+                    </div>
+                </div>
+                <button wire:click="descartarNotificacionComanda" class="text-[#a89086] hover:text-white cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+            </div>
+        </div>
+    @endif
+
     <!-- ENCABEZADO PRINCIPAL: SWITCH KDS EN VIVO vs HISTORIAL DE COMANDAS -->
     <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between rounded-3xl border border-surface-container-highest bg-surface-container-lowest p-5 shadow-sm">
         <div>

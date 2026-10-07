@@ -120,12 +120,38 @@ trait ManejaCobroPos
             return;
         }
 
-        $this->tipoPropina = 'cero';
-        $this->montoPropina = 0.0;
-        $this->porcentajePropina = 0.0;
-        $this->montoPagado = $this->total;
-        $this->mostrarModalCobro = true;
-        $this->dispatch('enfocar-monto');
+        $pedidoCobro = $this->obtenerPedidoActivoMesa();
+        if (! $pedidoCobro && ! empty($this->carrito)) {
+            $pedidoService = app(PedidoService::class);
+            $mesaIdCobro = $this->tipo === 'mesa' ? $this->mesaId : null;
+            $itemsPayload = [];
+            foreach ($this->carrito as $itemCar) {
+                $itemsPayload[] = [
+                    'producto_id' => $itemCar['producto_id'],
+                    'cantidad' => $itemCar['cantidad'],
+                    'notas' => $itemCar['notas'] ?? null,
+                ];
+            }
+            $pedidoCobro = $pedidoService->crearPedido([
+                'tipo' => $this->tipo,
+                'mesa_id' => $mesaIdCobro,
+                'cliente_id' => $this->clienteId,
+                'usuario_id' => Auth::id(),
+                'sucursal_id' => Auth::user()?->sucursal_id ?? 1,
+                'items' => $itemsPayload,
+            ]);
+            $pedidoCobro->items()->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
+            $this->limpiarCarrito();
+        }
+
+        if ($pedidoCobro) {
+            $this->dispatch('abrir-modal-cobro-unificado', pedidoId: $pedidoCobro->id);
+        } else {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'No hay una comanda o ítems activos para cobrar.',
+                'tipo' => 'warning',
+            ]);
+        }
     }
 
     public function abrirModalAperturaPosManual(): void
@@ -242,10 +268,22 @@ trait ManejaCobroPos
         }
 
         $mesa = Mesa::find($this->mesaId);
-        $pedido = $this->obtenerPedidoActivoMesa();
-        $meseroId = $pedido?->mesero_id ?? $mesa?->mesero_id;
+        if (! $mesa) {
+            return false;
+        }
 
-        return $meseroId !== null && (int) $meseroId !== (int) $user->id;
+        // Si la mesa no tiene mesero asignado formalmente en el salón, pertenece al mesero que la está operando
+        if (! $mesa->mesero_id) {
+            return false;
+        }
+
+        // Si la mesa está formalmente asignada a este mismo mesero
+        if ((int) $mesa->mesero_id === (int) $user->id) {
+            return false;
+        }
+
+        // Solo es de otro mesero si la mesa en el salón está formalmente asignada a un mesero diferente
+        return true;
     }
 
     public function procesarCobro(): void
@@ -461,6 +499,17 @@ trait ManejaCobroPos
             ]);
 
             return;
+        }
+
+        $user = Auth::user();
+        if ($user && (! $pedido->mesero_id || (int) $pedido->mesero_id === (int) $user->id)) {
+            $pedido->update(['mesero_id' => $user->id]);
+        }
+        if ($this->mesaId && $user?->isMesero()) {
+            $mesa = Mesa::find($this->mesaId);
+            if ($mesa && ! $mesa->mesero_id) {
+                $mesa->update(['mesero_id' => $user->id]);
+            }
         }
 
         try {

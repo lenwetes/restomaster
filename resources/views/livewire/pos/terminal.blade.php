@@ -272,8 +272,16 @@ new class () extends Component {
         $this->modoNuevaAdicion = false;
         $this->limpiarCarrito();
         if ($value) {
+            $mesa = Mesa::find((int) $value);
+            $user = Auth::user();
+            if ($mesa && ! $mesa->mesero_id && $user?->isMesero()) {
+                $mesa->update(['mesero_id' => $user->id]);
+            }
             $pedidoExistente = Pedido::where('mesa_id', (int) $value)->activos()->latest()->first();
             if ($pedidoExistente) {
+                if ($user?->isMesero() && (! $pedidoExistente->mesero_id || ! $mesa?->mesero_id || (int) $mesa?->mesero_id === (int) $user->id)) {
+                    $pedidoExistente->update(['mesero_id' => $user->id]);
+                }
                 $this->cargarCarritoDesdePedido($pedidoExistente);
             }
         }
@@ -857,6 +865,15 @@ new class () extends Component {
             'ticketConfig' => $ticketConfig,
         ];
     }
+
+    #[\Livewire\Attributes\On('pedido-cobrado-exitosamente')]
+    public function alCobrarPedidoExitosamente(array $datos): void
+    {
+        $this->limpiarCarrito();
+        $this->mesaId = null;
+        $this->modoNuevaAdicion = false;
+        $this->dispatch('cerrar-modal-mesas');
+    }
 }; ?>
 
 <div class="space-y-4"
@@ -883,8 +900,8 @@ new class () extends Component {
     <!-- Modal de Apertura Rápida de Turno de Caja desde POS -->
     @include('livewire.pos.partials.modal-apertura-caja')
 
-    <!-- Modal de Cobro Táctil (Stitch POS-02 Billing Console) -->
-    @include('livewire.pos.partials.modal-cobro')
+    <!-- Modal Maestro Unificado de Cobro de Tickets -->
+    <livewire:caja.modal-cobro-unificado />
 
     <!-- Thermal Ticket 80mm Simulation Modal (Optimizado para Impresoras Locales USB / Driver Navegador) -->
     @include('livewire.pos.partials.modal-ticket-preview')

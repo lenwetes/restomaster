@@ -6,6 +6,32 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | 🧾 **MODAL MAESTRO UNIFICADO DE COBRO DE TICKETS, FIX ASIGNACIÓN DE MESERO EN POS & NOTIFICACIONES EN TIEMPO REAL:**
+- **1. Corrección Crítica en Asignación de Mesero y Mesa en POS:**
+  - En `vista-escritorio.blade.php` y `vista-movil.blade.php`: se corrigió la cabecera de la comanda para mostrar dinámicamente el mesero real de la mesa/pedido (`$mesaSeleccionada->mesero?->name ?? $pedidoActivo->mesero?->name`), en lugar de mostrar incorrectamente el usuario autenticado.
+  - En `ManejaCobroPos.php`: se ajustó `esMesaDeOtroMesero()` para que mesas sin mesero asignado (`mesero_id === null`) no se bloqueen como si pertenecieran a otro mesero.
+  - En `terminal.blade.php`: al seleccionar una mesa libre/sin mesero, se asigna automáticamente al mesero actual. En `solicitarCobroCaja()`, se actualiza el `pedido->mesero_id` con el usuario activo.
+- **2. Modal Maestro Unificado de Cobro de Tickets (`modal-cobro-unificado.blade.php`):**
+  - Creado componente único y centralizado de cobro para todo el sistema (POS y Caja).
+  - Verificación detallada de ticket: desglose completo de ítems, cantidades, notas, subtotal e IVA.
+  - Manejo de propina voluntaria sugerida (Ley 1935 Colombia, 10% / manual / sin propina).
+  - Cálculo en tiempo real de valor entregado y vueltas exactas.
+  - Botones rápidos de pago táctiles con apariencia miniatura de billetes colombianos ($10.000, $20.000, $50.000, $100.000 y Exacto).
+  - Asignación de clientes: buscador rápido y formulario inline "+ Nuevo Cliente Rápido" (Nombre, Cédula/NIT, WhatsApp, Email).
+  - Emisión de comprobante: alternador entre Factura Física Térmica (80mm) y Factura Electrónica (DIAN POS con CUFE/QR).
+  - Canales de envío integrados: WhatsApp y Correo Electrónico.
+  - Control de acceso RBAC estricto: solo roles cajero, gerente y admin pueden ejecutar el cobro.
+- **3. Notificaciones Auditivas y Visuales en Tiempo Real:**
+  - En Caja (`control.blade.php`): banner flotante y timbre chime Web Audio API al recibir solicitud de cobro de mesa.
+  - En Cocina KDS (`kds.blade.php`): banner flotante y timbre de campana de cocina al entrar una nueva comanda (`pedido-creado`).
+- **4. Corrección de Scopes en Impresora y Calidad:**
+  - En `Impresora.php`: estandarizados `scopeActivas` y `scopePorArea` para corregir advertencias de argumentos en IDE.
+  - Suites de tests pasando al 100%: `CajaPosGavetaMejorasTest` (11 tests), `PosTerminalComponentTest` y `RbacServerSideGatekeeperTest` (9 tests).
+  - Laravel Pint validado.
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 🍳 **NORMALIZACIÓN INTEGRAL DE ÁREAS DE COCINA & ERRADICACIÓN DE FALLBACKS RESIDUALES:**
 - **1. Normalización de Áreas Gastronómicas en Servicios Backend:**
   - En `PedidoService.php` (`crearPedido` y `agregarItem`), el valor fallback para `area_cocina` se alineó a `'caliente'` en lugar del valor legado `'sushi'`.
