@@ -152,6 +152,7 @@ new class () extends Component {
     {
         $this->authorize('cobrar', Pedido::class);
         $this->descartarNotificacionCobro();
+        $this->cobroPendienteId = $pedidoId;
         $this->dispatch('abrir-modal-cobro-unificado', pedidoId: $pedidoId);
     }
 
@@ -197,6 +198,14 @@ new class () extends Component {
             'mensaje' => "Cobro procesado: {$pedido->codigo}. Ticket generado para el mesero.",
             'tipo' => 'success',
         ]);
+    }
+
+    public function cerrarCobroPendiente(): void
+    {
+        $this->cobroPendienteId = null;
+        $this->metodoPagoPendiente = 'efectivo';
+        $this->montoPagadoPendiente = 0.0;
+        $this->propinaPendiente = 0.0;
     }
 
     public function abrirModalDevolucion(int $itemId): void

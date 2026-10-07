@@ -251,6 +251,17 @@ trait ManejaCobroPos
             && $pedido->items()->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->exists();
     }
 
+    public function cobroEnviadoACaja(): bool
+    {
+        if ($this->tipo !== 'mesa' || ! $this->mesaId) {
+            return false;
+        }
+
+        $pedido = $this->obtenerPedidoActivoMesa();
+
+        return $pedido !== null && $pedido->estado === 'pendiente_cobro';
+    }
+
     public function comandaListaParaCobrar(): bool
     {
         if ($this->tipo !== 'mesa') {

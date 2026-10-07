@@ -8,7 +8,8 @@ use Illuminate\Validation\Rule;
 use Livewire\Attributes\On;
 use Livewire\Volt\Component;
 
-new class () extends Component {
+new class extends Component
+{
     public string $filtroZona = 'todas';
 
     public string $filtroEstado = 'todas';
@@ -118,7 +119,7 @@ new class () extends Component {
 
         $reglaUnica = 'unique:mesas,numero';
         if ($this->mesaEditandoId) {
-            $reglaUnica .= ',' . $this->mesaEditandoId;
+            $reglaUnica .= ','.$this->mesaEditandoId;
         }
 
         $this->validate([
@@ -254,7 +255,7 @@ new class () extends Component {
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->mensajeFlash = 'Error al tomar pedido: ' . $e->getMessage();
+            $this->mensajeFlash = 'Error al tomar pedido: '.$e->getMessage();
             $this->tipoFlash = 'error';
         }
     }
@@ -392,7 +393,7 @@ new class () extends Component {
                 'tipo' => 'warning',
             ]);
         } catch (\Throwable $e) {
-            $this->mensajeFlash = 'Error al cancelar la mesa: ' . $e->getMessage();
+            $this->mensajeFlash = 'Error al cancelar la mesa: '.$e->getMessage();
             $this->tipoFlash = 'error';
             $this->modalCancelarOpen = false;
         }
@@ -950,6 +951,7 @@ new class () extends Component {
         @forelse ($mesas as $mesa)
             @php
                 $pedidoActivo = $mesa->pedidos->first();
+                $comandaEnCaja = $pedidoActivo && $pedidoActivo->estado === 'pendiente_cobro';
                 $tieneCocinaPendiente = $pedidoActivo ? $pedidoActivo->items->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->isNotEmpty() : false;
                 $tieneCocinaLista = $pedidoActivo ? $pedidoActivo->items->where('estado_cocina', 'listo')->isNotEmpty() : false;
                 $comandaListaServir = $pedidoActivo && ($pedidoActivo->estado === 'listo' || (! $tieneCocinaPendiente && $tieneCocinaLista));
@@ -957,18 +959,22 @@ new class () extends Component {
 
                 $cardBorder = match($mesa->estado) {
                     'libre' => 'border-secondary/30 hover:border-secondary hover:shadow-md',
-                    'ocupada' => $comandaListaServir 
-                        ? 'border-emerald-500 ring-2 ring-emerald-500/40 hover:shadow-lg' 
-                        : ($comandaEnCocina ? 'border-amber-400 hover:border-amber-500 hover:shadow-md' : 'border-primary/30 hover:border-primary hover:shadow-md'),
+                    'ocupada' => $comandaEnCaja
+                        ? 'border-amber-500 ring-2 ring-amber-500/50 shadow-md animate-pulse'
+                        : ($comandaListaServir 
+                            ? 'border-emerald-500 ring-2 ring-emerald-500/40 hover:shadow-lg' 
+                            : ($comandaEnCocina ? 'border-amber-400 hover:border-amber-500 hover:shadow-md' : 'border-primary/30 hover:border-primary hover:shadow-md')),
                     'por_limpiar' => 'border-tertiary/40 hover:border-tertiary hover:shadow-md',
                     'reservada' => 'border-secondary/30 hover:border-secondary hover:shadow-md',
                     default => 'border-surface-container-highest',
                 };
                 $badgeStyle = match($mesa->estado) {
                     'libre' => 'bg-secondary-container/60 text-on-secondary-container border-secondary/30',
-                    'ocupada' => $comandaListaServir
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-black animate-pulse'
-                        : ($comandaEnCocina ? 'bg-amber-100 text-amber-800 border-amber-300 font-bold' : 'bg-primary-fixed text-on-primary-fixed border-primary/30'),
+                    'ocupada' => $comandaEnCaja
+                        ? 'bg-amber-500/20 text-amber-900 dark:text-amber-300 border-amber-500/50 font-black animate-pulse'
+                        : ($comandaListaServir
+                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-black animate-pulse'
+                            : ($comandaEnCocina ? 'bg-amber-100 text-amber-800 border-amber-300 font-bold' : 'bg-primary-fixed text-on-primary-fixed border-primary/30')),
                     'por_limpiar' => 'bg-tertiary-container/30 text-tertiary border-tertiary/30',
                     'reservada' => 'bg-secondary-container/60 text-on-secondary-container border-secondary/30',
                     default => 'bg-surface-container text-on-surface-variant border-surface-container-high',
@@ -1180,7 +1186,12 @@ new class () extends Component {
                                 <span class="text-primary font-mono font-extrabold">${{ number_format($pedidoActivo->total, 0, ',', '.') }}</span>
                             </div>
                             <div class="mt-1 flex items-center justify-between text-[10px] font-medium">
-                                @if($comandaListaServir)
+                                @if($pedidoActivo->estado === 'pendiente_cobro')
+                                    <span class="inline-flex items-center gap-1 font-black text-amber-800 bg-amber-100 dark:bg-amber-950/60 dark:text-amber-300 px-2 py-0.5 rounded-full border border-amber-300/60 animate-pulse">
+                                        <span class="material-symbols-outlined text-[13px] animate-spin">hourglass_top</span>
+                                        <span>⏳ Cobro en Caja</span>
+                                    </span>
+                                @elseif($comandaListaServir)
                                     <span class="inline-flex items-center gap-1 font-black text-emerald-800 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300/60 animate-pulse">
                                         <span class="material-symbols-outlined text-[13px]">room_service</span>
                                         <span>🛎️ ¡Lista para Servir!</span>
@@ -1242,7 +1253,16 @@ new class () extends Component {
                             <span>✓ Marcar Limpia</span>
                         </button>
                     @elseif($mesa->estado === 'ocupada')
-                        @if($comandaListaServir)
+                        @if($comandaEnCaja)
+                            <a 
+                                href="{{ route('pos', ['mesa_id' => $mesa->id]) }}" 
+                                wire:navigate
+                                class="flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-amber-500/20 border border-amber-500/50 text-xs font-black text-amber-900 dark:text-amber-200 hover:bg-amber-500/30 transition-all active:scale-95 shadow-xs animate-pulse"
+                            >
+                                <span class="material-symbols-outlined text-[18px] text-amber-500 animate-spin">hourglass_top</span>
+                                <span>⏳ Cobro en Caja (Ver)</span>
+                            </a>
+                        @elseif($comandaListaServir)
                             <a 
                                 href="{{ route('pos', ['mesa_id' => $mesa->id]) }}" 
                                 wire:navigate
@@ -1488,13 +1508,14 @@ new class () extends Component {
                             @foreach ($mesasZona as $mesa)
                                 @php
                                     $pedidoActivo = $mesa->pedidos->first();
+                                    $comandaEnCaja = $pedidoActivo && $pedidoActivo->estado === 'pendiente_cobro';
                                     $tieneCocinaPendiente = $pedidoActivo ? $pedidoActivo->items->whereIn('estado_cocina', ['pendiente', 'en_preparacion'])->isNotEmpty() : false;
                                     $tieneCocinaLista = $pedidoActivo ? $pedidoActivo->items->where('estado_cocina', 'listo')->isNotEmpty() : false;
                                     $comandaListaServir = $pedidoActivo && ($pedidoActivo->estado === 'listo' || (! $tieneCocinaPendiente && $tieneCocinaLista));
                                     $comandaEnCocina = $pedidoActivo && ($tieneCocinaPendiente || in_array($pedidoActivo->estado, ['en_cocina', 'en_preparacion', 'en_proceso']));
 
                                     $mapaEstado = match ($mesa->estado) {
-                                        'ocupada' => $comandaListaServir ? 'lista_servir' : ($comandaEnCocina ? 'en_cocina' : 'ocupada'),
+                                        'ocupada' => $comandaEnCaja ? 'cuenta_pedida' : ($comandaListaServir ? 'lista_servir' : ($comandaEnCocina ? 'en_cocina' : 'ocupada')),
                                         default => $mesa->estado,
                                     };
 

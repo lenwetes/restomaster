@@ -93,19 +93,25 @@
 
                     <!-- Selector de Mesa Activa Botón Táctil -->
                     @if($tipo === 'mesa')
-                        @php $mesaSeleccionada = $mesaId ? $mesas->firstWhere('id', $mesaId) : null; @endphp
+                        @php 
+                            $mesaSeleccionada = $mesaId ? $mesas->firstWhere('id', $mesaId) : null; 
+                            $esCobroPendienteTop = $this->cobroEnviadoACaja();
+                        @endphp
                         <button 
                             type="button"
                             @click="modalMesasAbierto = true"
-                            class="flex items-center gap-2 bg-[#251b16] px-3.5 py-1.5 rounded-xl border transition cursor-pointer {{ !$mesaId ? 'border-amber-500/60 ring-2 ring-amber-500/30' : 'border-[#3d2b22] hover:border-[#e0442e]/50' }}"
+                            class="flex items-center gap-2 bg-[#251b16] px-3.5 py-1.5 rounded-xl border transition cursor-pointer {{ $esCobroPendienteTop ? 'border-amber-500/80 ring-2 ring-amber-500/30' : (!$mesaId ? 'border-amber-500/60 ring-2 ring-amber-500/30' : 'border-[#3d2b22] hover:border-[#e0442e]/50') }}"
                         >
-                            <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ $mesaSeleccionada ? 'bg-[#10b981] shadow-xs shadow-[#10b981]' : 'bg-amber-500 animate-pulse' }}"></span>
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0 {{ $esCobroPendienteTop ? 'bg-amber-400 animate-ping' : ($mesaSeleccionada ? 'bg-[#10b981] shadow-xs shadow-[#10b981]' : 'bg-amber-500 animate-pulse') }}"></span>
                             <div class="flex flex-col text-left -space-y-0.5">
-                                <span class="text-[9px] font-bold uppercase tracking-wider {{ !$mesaId ? 'text-amber-400' : 'text-[#a89086]' }}">
-                                    {{ !$mesaId ? '⚠️ Mesa Requerida' : 'Mesa Seleccionada' }}
+                                <span class="text-[9px] font-bold uppercase tracking-wider {{ $esCobroPendienteTop ? 'text-amber-400 font-black' : (!$mesaId ? 'text-amber-400' : 'text-[#a89086]') }}">
+                                    {{ $esCobroPendienteTop ? '⏳ Cobro Enviado a Caja' : (!$mesaId ? '⚠️ Mesa Requerida' : 'Mesa Seleccionada') }}
                                 </span>
                                 <span class="text-xs font-black text-white flex items-center gap-1.5">
                                     {{ $mesaSeleccionada ? $mesaSeleccionada->nombre_sala . ($mesaSeleccionada->zona ? ' · ' . $mesaSeleccionada->zona : '') : 'Elegir mesa para comanda...' }}
+                                    @if($esCobroPendienteTop)
+                                        <span class="text-[10px] font-black text-amber-300 bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.2 rounded">En Caja</span>
+                                    @endif
                                     <span class="material-symbols-outlined text-[16px] text-[#a89086]">touch_app</span>
                                 </span>
                             </div>
@@ -227,10 +233,17 @@
                                                         <span class="text-[10px] text-[#a89086] capitalize font-medium">{{ $m->zona ?: 'Salón' }}</span>
                                                     </div>
                                                 </div>
-                                                <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $esOcupada ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' }}">
-                                                    <span class="w-1.5 h-1.5 rounded-full {{ $esOcupada ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse' }}"></span>
-                                                    {{ $esOcupada ? 'Ocupada' : 'Libre' }}
-                                                </span>
+                                                @if(!empty($m->cobro_pendiente))
+                                                    <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/30 text-amber-300 border border-amber-500/50 shadow-xs animate-pulse">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                                                        Cobro en Caja
+                                                    </span>
+                                                @else
+                                                    <span class="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider {{ $esOcupada ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' }}">
+                                                        <span class="w-1.5 h-1.5 rounded-full {{ $esOcupada ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse' }}"></span>
+                                                        {{ $esOcupada ? 'Ocupada' : 'Libre' }}
+                                                    </span>
+                                                @endif
                                             </div>
 
                                             <!-- Fila Inferior: Capacidad y Mesero -->
@@ -239,7 +252,12 @@
                                                     <span class="material-symbols-outlined text-[14px]">group</span>
                                                     <span>{{ $m->capacidad ?? 4 }} pers.</span>
                                                 </span>
-                                                @if($m->mesero_nombre)
+                                                @if(!empty($m->cobro_pendiente))
+                                                    <span class="text-[10px] font-black text-amber-300 flex items-center gap-0.5">
+                                                        <span class="material-symbols-outlined text-[12px] animate-spin">hourglass_top</span>
+                                                        <span>En Caja</span>
+                                                    </span>
+                                                @elseif($m->mesero_nombre)
                                                     <span class="text-[10px] font-semibold truncate max-w-[110px] text-amber-200/90 flex items-center gap-0.5">
                                                         <span class="material-symbols-outlined text-[12px]">person</span>
                                                         <span>{{ $m->mesero_nombre }}</span>
@@ -779,7 +797,14 @@
                                     <h2 class="text-xs font-black text-white flex items-center gap-1.5">
                                         <span>COMANDA · {{ $tipo === 'mesa' ? ($mesaId ? 'MESA ' . $mesas->find($mesaId)?->numero : 'SIN ASIGNAR') : strtoupper($tipo) }}</span>
                                         @if($tipo === 'mesa' && $mesaId)
-                                            <span class="text-[10px] font-bold text-[#10b981] bg-[#10b981]/15 px-1.5 py-0.2 rounded">ACTIVA</span>
+                                            @if($this->cobroEnviadoACaja())
+                                                <span class="text-[10px] font-black text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs animate-pulse">
+                                                    <span class="material-symbols-outlined text-[12px] animate-spin">hourglass_top</span>
+                                                    COBRO EN CAJA
+                                                </span>
+                                            @else
+                                                <span class="text-[10px] font-bold text-[#10b981] bg-[#10b981]/15 px-1.5 py-0.2 rounded">ACTIVA</span>
+                                            @endif
                                         @endif
                                     </h2>
                                     @php
@@ -809,6 +834,30 @@
                             @endif
                         </div>
                     </div>
+
+                    @if($pedidoActivoHeader && $pedidoActivoHeader->estado === 'pendiente_cobro')
+                        <div class="shrink-0 mt-2 rounded-xl border border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-amber-600/15 to-[#251b16] p-2.5 flex items-center justify-between gap-2 shadow-lg shadow-amber-950/20 animate-fade-in">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="w-8 h-8 rounded-xl bg-amber-500/25 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/40">
+                                    <span class="material-symbols-outlined text-[18px] animate-pulse">point_of_sale</span>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-[10px] font-black uppercase text-amber-300 tracking-wider">Cobro Enviado a Caja</span>
+                                        <span class="inline-block w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                                    </div>
+                                    <p class="text-[11px] font-semibold text-amber-100/90 leading-tight">
+                                        Solicitud enviada a caja. Esperando cobro del cajero (${{ number_format((float) $pedidoActivoHeader->total, 0, ',', '.') }}).
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <span class="text-[10px] font-mono font-black text-amber-300 bg-black/40 px-2 py-1 rounded-md border border-amber-500/30">
+                                    Turno en Caja
+                                </span>
+                            </div>
+                        </div>
+                    @endif
 
                     @if($pedidoQrPendiente)
                         <div class="shrink-0 mt-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-2 flex items-center justify-between gap-2 shadow-xs animate-pulse">
@@ -1000,16 +1049,28 @@
                                 </button>
                             @endif
                             @if (Auth::user()?->isMesero())
-                                <button
-                                    wire:click="solicitarCobroCaja"
-                                    type="button"
-                                    @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
-                                    class="h-11 rounded-xl bg-gradient-to-r from-[#2eb8b4] to-[#1e8e8a] hover:brightness-110 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                    title="Solicitar el cobro de la mesa a Caja"
-                                >
-                                    <span class="material-symbols-outlined text-[18px]">forward_to_inbox</span>
-                                    <span>📲 Solicitar cobro a Caja</span>
-                                </button>
+                                @if ($this->cobroEnviadoACaja())
+                                    <button
+                                        type="button"
+                                        disabled
+                                        class="h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-black text-xs flex items-center justify-center gap-1.5 shadow-md cursor-not-allowed"
+                                        title="La solicitud de cobro ya fue enviada a caja y está pendiente de pago por el cajero."
+                                    >
+                                        <span class="material-symbols-outlined text-[18px] animate-spin">hourglass_top</span>
+                                        <span>⏳ Cobro Solicitado a Caja</span>
+                                    </button>
+                                @else
+                                    <button
+                                        wire:click="solicitarCobroCaja"
+                                        type="button"
+                                        @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
+                                        class="h-11 rounded-xl bg-gradient-to-r from-[#2eb8b4] to-[#1e8e8a] hover:brightness-110 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title="Solicitar el cobro de la mesa a Caja"
+                                    >
+                                        <span class="material-symbols-outlined text-[18px]">forward_to_inbox</span>
+                                        <span>📲 Solicitar cobro a Caja</span>
+                                    </button>
+                                @endif
                             @else
                             <button
                                 wire:click="abrirModalCobro"
@@ -1024,7 +1085,12 @@
                             @endif
                         </div>
 
-                        @if($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
+                        @if($this->cobroEnviadoACaja())
+                            <div class="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 px-2.5 py-1.5 text-[10px] font-bold text-amber-300 shadow-xs animate-pulse">
+                                <span class="material-symbols-outlined text-[15px] text-amber-400 animate-spin">hourglass_top</span>
+                                <span>Cobro solicitado a Caja · Esperando liquidación y cierre del ticket por el cajero</span>
+                            </div>
+                        @elseif($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
                             <div class="mt-1 flex items-center justify-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 text-[10px] font-bold text-amber-500">
                                 <span class="material-symbols-outlined text-[14px]">skillet</span>
                                 <span>⚠️ Comanda sin enviar: envía primero a cocina antes de cobrar</span>

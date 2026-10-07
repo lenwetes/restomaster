@@ -6,6 +6,25 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | ⏳ **VISUALIZACIÓN INTEGRAL DEL ESTADO DEL PEDIDO AL ENVIAR COBRO A CAJA (POS & SALÓN DE MESAS):**
+- **1. Visualización en POS Terminal (Escritorio y Móvil):**
+  - Creado método helper `cobroEnviadoACaja(): bool` en `ManejaCobroPos.php` para detectar de forma reactiva si el pedido activo de la mesa está en estado `pendiente_cobro`.
+  - **Cabecera de Comanda:** Insignia ámbar pulsante `⏳ COBRO EN CAJA` en lugar de simplemente `ACTIVA`.
+  - **Banner Informativo:** Alerta visual destacada en la comanda indicando: *"Cobro Enviado a Caja · Solicitud enviada por [Mesero]. Esperando cobro del cajero ($[Total])"*.
+  - **Barra de Comandos Superior:** Selector de mesa con borde ámbar iluminado, punto ping y etiqueta `⏳ Cobro Enviado a Caja`.
+  - **Botón de Acción del Mesero:** Cambia automáticamente de "📲 Solicitar cobro a Caja" a `⏳ Cobro Solicitado a Caja` (deshabilitado con reloj de arena y tooltip explicativo para evitar re-envíos).
+  - **Móvil (Pocket):** Header móvil, banner resumen del ticket y selector táctil de mesa reflejando `⏳ Cobro en Caja`.
+- **2. Visualización en Salón & Mapa de Mesas (`mesas/index.blade.php`):**
+  - **Vista Tarjetas:** Borde ámbar pulsante (`border-amber-500 ring-2 ring-amber-500/50`), badge `Cobro en Caja` y botón directo `⏳ Cobro en Caja (Ver)`.
+  - **Vista Mapa Gráfico Arquitectónico:** Estado de mesa `en_caja` con disco brillante ámbar, icono `point_of_sale` y badge `Cobro en Caja`.
+- **3. Calidad y Retrocompatibilidad en Caja:**
+  - En `caja/control.blade.php`: incorporado `cobroPendienteId` y método `cerrarCobroPendiente()` para retrocompatibilidad total con tests de cobro centralizado.
+  - Suites de pruebas 100% pasando: `PosTerminalComponentTest`, `MesasComponentTest`, `CajaPosGavetaMejorasTest` y `CentralizacionCobrosTest` (23 tests, 67 aserciones).
+  - Assets de frontend compilados con éxito (`npm run build`).
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 🧾 **MODAL MAESTRO UNIFICADO DE COBRO DE TICKETS, FIX ASIGNACIÓN DE MESERO EN POS & NOTIFICACIONES EN TIEMPO REAL:**
 - **1. Corrección Crítica en Asignación de Mesero y Mesa en POS:**
   - En `vista-escritorio.blade.php` y `vista-movil.blade.php`: se corrigió la cabecera de la comanda para mostrar dinámicamente el mesero real de la mesa/pedido (`$mesaSeleccionada->mesero?->name ?? $pedidoActivo->mesero?->name`), en lugar de mostrar incorrectamente el usuario autenticado.

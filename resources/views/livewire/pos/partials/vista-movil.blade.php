@@ -125,8 +125,8 @@
                                 <span class="material-symbols-outlined text-[20px]">table_restaurant</span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <span class="block text-[10px] font-black uppercase tracking-wider {{ !$mesaId ? 'text-primary' : 'text-on-surface-variant' }}">
-                                    {{ $mesaId ? 'Mesa Activa' : 'Paso 1: Asignar Mesa' }}
+                                <span class="block text-[10px] font-black uppercase tracking-wider {{ $this->cobroEnviadoACaja() ? 'text-amber-400 font-black' : (!$mesaId ? 'text-primary' : 'text-on-surface-variant') }}">
+                                    {{ $this->cobroEnviadoACaja() ? '⏳ Cobro Enviado a Caja' : ($mesaId ? 'Mesa Activa' : 'Paso 1: Asignar Mesa') }}
                                 </span>
                                 <select 
                                     wire:model.live="mesaId" 
@@ -138,7 +138,7 @@
                                         {{-- rol intencional, no permiso: guard de mesa ajena (identidad de dominio) --}}
                                         @php $mesaAjenaMovil = $m->mesero_id && (int) $m->mesero_id !== (int) Auth::id() && Auth::user()?->role?->slug === 'mesero'; @endphp
                                         <option value="{{ $m->id }}" @disabled($mesaAjenaMovil)>
-                                            {{ $m->nombre_sala }} (Zona {{ $m->zona }} - {{ ucfirst($m->estado) }}){{ $m->mesero_nombre ? ' · '.$m->mesero_nombre : '' }}
+                                            {{ $m->nombre_sala }} (Zona {{ $m->zona }} - {{ !empty($m->cobro_pendiente) ? '⏳ Cobro en Caja' : ucfirst($m->estado) }}){{ $m->mesero_nombre ? ' · '.$m->mesero_nombre : '' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -595,7 +595,15 @@
                                             <span class="material-symbols-outlined text-[20px]">receipt_long</span>
                                         </div>
                                         <div>
-                                            <h3 class="text-sm font-extrabold text-on-surface">Comanda en Mano (Móvil)</h3>
+                                            <h3 class="text-sm font-extrabold text-on-surface flex items-center gap-1.5">
+                                                <span>Comanda en Mano (Móvil)</span>
+                                                @if($this->cobroEnviadoACaja())
+                                                    <span class="text-[10px] font-black text-amber-300 bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.2 rounded-full flex items-center gap-0.5 animate-pulse">
+                                                        <span class="material-symbols-outlined text-[12px] animate-spin">hourglass_top</span>
+                                                        En Caja
+                                                    </span>
+                                                @endif
+                                            </h3>
                                             @php
                                                 $pedidoActivoMovil = $this->obtenerPedidoActivoMesa();
                                                 $meseroNombreMovil = $pedidoActivoMovil?->mesero?->name 
@@ -619,6 +627,18 @@
                                         </button>
                                     </div>
                                 </div>
+
+                                @if($pedidoActivoMovil && $pedidoActivoMovil->estado === 'pendiente_cobro')
+                                    <div class="mt-2 rounded-2xl border border-amber-500/40 bg-amber-500/15 p-2.5 flex items-center justify-between text-xs animate-fade-in shrink-0">
+                                        <div class="flex items-center gap-2 text-amber-300 font-bold text-[11px] min-w-0">
+                                            <span class="material-symbols-outlined text-[16px] text-amber-400 animate-spin shrink-0">hourglass_top</span>
+                                            <span class="truncate">Cobro solicitado a Caja · En espera de pago</span>
+                                        </div>
+                                        <span class="text-[10px] font-black text-amber-300 font-mono bg-black/40 px-2 py-0.5 rounded border border-amber-500/30 shrink-0">
+                                            ${{ number_format((float) $pedidoActivoMovil->total, 0, ',', '.') }}
+                                        </span>
+                                    </div>
+                                @endif
 
                                 <!-- Lista de items móvil -->
                                 <div class="mt-3 space-y-2.5 flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-none max-h-[42vh]">
@@ -692,16 +712,28 @@
                                         </button>
                                     @endif
                                     @if (Auth::user()?->isMesero())
-                                        <button
-                                            wire:click="solicitarCobroCaja"
-                                            type="button"
-                                            @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
-                                            class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 bg-gradient-to-r from-[#2eb8b4] to-[#1e8e8a] text-white hover:brightness-110"
-                                            title="Solicitar el cobro de la mesa a Caja"
-                                        >
-                                            <span class="material-symbols-outlined text-[18px]">forward_to_inbox</span>
-                                            <span>📲 Solicitar cobro a Caja</span>
-                                        </button>
+                                        @if ($this->cobroEnviadoACaja())
+                                            <button
+                                                type="button"
+                                                disabled
+                                                class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md cursor-not-allowed bg-amber-500/20 border border-amber-500/40 text-amber-300"
+                                                title="La solicitud de cobro ya fue enviada a caja y está pendiente de pago."
+                                            >
+                                                <span class="material-symbols-outlined text-[18px] animate-spin">hourglass_top</span>
+                                                <span>⏳ Cobro Solicitado a Caja</span>
+                                            </button>
+                                        @else
+                                            <button
+                                                wire:click="solicitarCobroCaja"
+                                                type="button"
+                                                @disabled((empty($carrito) && !$this->obtenerPedidoActivoMesa()) || ($tipo === 'mesa' && $this->comandaRequiereEnvioCocina()) || $this->comandaActivaBloqueaCobro() || $this->esMesaDeOtroMesero())
+                                                class="flex h-11 items-center justify-center gap-1.5 rounded-xl text-xs font-black shadow-md disabled:opacity-40 cursor-pointer active:scale-95 bg-gradient-to-r from-[#2eb8b4] to-[#1e8e8a] text-white hover:brightness-110"
+                                                title="Solicitar el cobro de la mesa a Caja"
+                                            >
+                                                <span class="material-symbols-outlined text-[18px]">forward_to_inbox</span>
+                                                <span>📲 Solicitar cobro a Caja</span>
+                                            </button>
+                                        @endif
                                     @else
                                     <button
                                         wire:click="abrirModalCobro"
@@ -715,7 +747,12 @@
                                     </button>
                                     @endif
                                 </div>
-                                @if($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
+                                @if($this->cobroEnviadoACaja())
+                                    <p class="text-[10px] text-center font-bold text-amber-300 bg-amber-500/15 py-1 px-2 rounded-lg border border-amber-500/30 flex items-center justify-center gap-1 animate-pulse">
+                                        <span class="material-symbols-outlined text-xs animate-spin">hourglass_top</span>
+                                        Cobro solicitado a Caja · Esperando pago del cajero
+                                    </p>
+                                @elseif($tipo === 'mesa' && $this->comandaRequiereEnvioCocina())
                                     <p class="text-[10px] text-center font-bold text-amber-500 bg-amber-500/15 py-1 px-2 rounded-lg border border-amber-500/30 flex items-center justify-center gap-1">
                                         <span class="material-symbols-outlined text-xs">skillet</span>
                                         ⚠️ Comanda sin enviar: envía primero a cocina antes de cobrar
