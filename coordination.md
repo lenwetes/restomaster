@@ -6,6 +6,23 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | 🍳 **NORMALIZACIÓN INTEGRAL DE ÁREAS DE COCINA & ERRADICACIÓN DE FALLBACKS RESIDUALES:**
+- **1. Normalización de Áreas Gastronómicas en Servicios Backend:**
+  - En `PedidoService.php` (`crearPedido` y `agregarItem`), el valor fallback para `area_cocina` se alineó a `'caliente'` en lugar del valor legado `'sushi'`.
+  - En `MenuService.php` (`crearProducto`), el fallback por defecto para `area_cocina` se estandarizó a `'caliente'`.
+  - En `ImpresionService.php` (`despacharComandaCocina`), la agrupación por área gastronómica utiliza `'caliente'` como estación fallback.
+- **2. Ajustes en Vistas y Asistente IA:**
+  - En `resources/views/livewire/pos/partials/vista-escritorio.blade.php`, se actualizó el placeholder de notas de comanda a `"Nota a la cocina..."`.
+  - En `resources/views/livewire/impresion/index.blade.php`, se estandarizó la opción del formulario a `cocina_fria`.
+  - En `AdminAiCopilotService.php`, se actualizaron comentarios de intención, ejemplos de platos insignia y preguntas de encuestas del restaurante.
+- **3. Calidad y Validación:**
+  - `CopilotoReportesIntegracionTest`: 6 tests pasando (17 aserciones).
+  - `CartaDigitalPublicaTest` y `DeliveryPublicoWebTest`: 10 tests pasando (45 aserciones).
+  - Laravel Pint validado (0 errores).
+
+---
+
+## Actualización previa
 2026-10-06 | Antigravity | 🛠️ **CORRECCIÓN INTEGRAL DE ERRORES CONSOLA POS (POS-OFFLINE.JS, ALPINES RESIDUALES Y WEBSOCKETS REVERB):**
 - **1. Fix Redeclaración `DB_NAME` en `pos-offline.js` (`Identifier 'DB_NAME' has already been declared`):**
   - Encapsulado `public/js/pos-offline.js` dentro de una IIFE `(function () { 'use strict'; ... })()` con guarda idempotente `if (window.RestoMasterOffline) return;` para evitar que `const DB_NAME` y `const DB_VERSION` colisionen en el scope léxico global de window.

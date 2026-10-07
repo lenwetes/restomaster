@@ -867,7 +867,7 @@
                                         <input 
                                             type="text" 
                                             wire:model.lazy="carrito.{{ $pId }}.notas" 
-                                            placeholder="Nota al sushiman..." 
+                                            placeholder="Nota a la cocina..." 
                                             class="w-full bg-[#120d0b] border border-[#32231c] rounded-lg px-2 py-1 text-[10px] text-[#f59e0b] placeholder-[#786158] focus:outline-none focus:border-[#f59e0b]"
                                         />
                                     </div>

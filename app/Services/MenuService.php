@@ -179,7 +179,7 @@ class MenuService
             'descripcion' => $datos['descripcion'] ?? null,
             'precio' => $precio,
             'costo' => (float) ($datos['costo'] ?? 0),
-            'area_cocina' => $datos['area_cocina'] ?? 'sushi',
+            'area_cocina' => $datos['area_cocina'] ?? 'caliente',
             'activo' => $datos['activo'] ?? true,
             'imagen' => $datos['imagen'] ?? null,
         ]);

@@ -36,7 +36,7 @@ class ImpresionService
             return [];
         }
 
-        $itemsPorArea = $itemsCocina->groupBy(fn ($item) => $item->area_cocina ?: 'sushi');
+        $itemsPorArea = $itemsCocina->groupBy(fn ($item) => $item->area_cocina ?: 'caliente');
 
         $trabajosCreados = [];
 

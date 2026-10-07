@@ -143,7 +143,7 @@ class PedidoService
                     'cantidad' => $cantidad,
                     'precio_unitario' => $precioUnitario,
                     'subtotal' => $itemSubtotal,
-                    'area_cocina' => $producto->area_cocina ?? 'sushi',
+                    'area_cocina' => $producto->area_cocina ?? 'caliente',
                     'estado_cocina' => 'pendiente',
                     'notas' => $itemData['notas'] ?? null,
                 ]);
@@ -637,7 +637,7 @@ class PedidoService
                 'cantidad' => $cantidad,
                 'precio_unitario' => $precioUnitario,
                 'subtotal' => $itemSubtotal,
-                'area_cocina' => $producto->area_cocina ?? 'sushi',
+                'area_cocina' => $producto->area_cocina ?? 'caliente',
                 'estado_cocina' => 'pendiente',
                 'notas' => $notas,
             ]);

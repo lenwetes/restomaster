@@ -20,7 +20,7 @@ new class () extends Component {
         'driver_nombre' => '',
         'ip_address' => '',
         'puerto' => 9100,
-        'area' => 'cocina_sushi',
+        'area' => 'cocina_fria',
         'ancho_columnas' => 48,
         'copias' => 1,
         'activa' => true,
@@ -606,7 +606,7 @@ new class () extends Component {
                             <select wire:model="formImpresora.area"
                                     class="w-full h-10 px-3 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-xs focus:border-primary outline-none">
                                 <option value="caja_principal">Caja Principal</option>
-                                <option value="cocina_sushi">Cocina Fría / Platos Fríos</option>
+                                <option value="cocina_fria">Cocina Fría / Platos Fríos</option>
                                 <option value="cocina_calientes">Cocina Calientes</option>
                                 <option value="barra">Barra de Bebidas</option>
                                 <option value="todas">Todas las Áreas</option>

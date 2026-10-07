@@ -94,7 +94,7 @@ class AdminAiCopilotService
             return $this->ejecutarConsultaMeseros($usuario, $rangoFecha, $mensaje);
         }
 
-        // 10. Consulta de Platos / Top Productos (ej. "platos más vendidos", "top 5 sushi")
+        // 10. Consulta de Platos / Top Productos (ej. "platos más vendidos", "top 5 platos")
         if ($this->esConsultaTopProductos($mensajeNormalizado)) {
             return $this->ejecutarConsultaTopProductos($usuario, $rangoFecha, 5, $mensaje);
         }
@@ -2221,7 +2221,7 @@ PROMPT;
                     'ventas' => $kpis['ventas'],
                     'transacciones' => $transacciones,
                     'ticket_promedio' => $kpis['ticket_promedio'],
-                    'top_plato' => $top[0]->producto ?? 'Sushi Clásico',
+                    'top_plato' => $top[0]->producto ?? 'Bife de Chorizo Angus',
                 ],
                 'kpis' => $kpis,
             ],
@@ -2727,7 +2727,7 @@ PROMPT;
                 [
                     'id' => 2,
                     'tipo' => 'estrellas',
-                    'texto' => '¿La temperatura y frescura del sushi y tus platos fue la adecuada?',
+                    'texto' => '¿La temperatura y frescura de tus platos fue la adecuada?',
                     'requerida' => true,
                 ],
                 [
