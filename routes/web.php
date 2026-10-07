@@ -83,7 +83,7 @@ Route::middleware(['auth'])->group(function () {
     });
     Volt::route('cxp', 'cxp.index')->middleware('role:gerente')->name('cxp');
     Volt::route('proveedores', 'proveedores.index')->middleware('role:gerente,admin')->name('proveedores');
-    Volt::route('reservas', 'reservas.index')->middleware('role:mesero,cajero,gerente')->name('reservas');
+    Volt::route('reservas', 'reservas.index')->middleware('role:admin,gerente,cajero,mesero')->name('reservas');
     Volt::route('configuracion', 'configuracion.index')->middleware('role:admin')->name('configuracion');
     Volt::route('impresion', 'impresion.index')->middleware('role:gerente,admin')->name('impresion');
 

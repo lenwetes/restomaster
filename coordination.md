@@ -6,6 +6,21 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | 🛠️ **CORRECCIÓN DE ÍTEMS EN TERMINAL DE COBRO, RUTA DE RESERVAS (404) & LÍMITES PHP POST:**
+- **1. Visualización de Productos en Verificación de Ticket (Terminal Maestro de Cobro):**
+  - **Causa raíz:** En `OperacionesMesCompletoSeeder.php`, la orden `ORD-HOY-104` (Mesa 4) se creaba con `subtotal` $145.000 pero sin registrar sus `ItemPedido`s correspondientes.
+  - **Corrección en BD & Seeder:** Se inyectaron los ítems (2x Bife de Chorizo Angus 350g por $130.000 + 1x Coctel Gin Tonic por $15.000 = $145.000) tanto en la base de datos activa como en el seeder.
+  - **Hidratación Reactiva Livewire:** En `modal-cobro-unificado.blade.php`, se agregó el método `with()` para garantizar que `$this->pedido` siempre cargue con eager loading (`items.producto`, `mesa`, `mesero`, `usuario`, `cliente`) en cada ciclo de renderizado, evitando listas vacías en round-trips.
+- **2. Corrección 404 en Ruta `/reservas`:**
+  - **Causa raíz:** Caché de rutas obsoleta en `bootstrap/cache` y middleware restrictivo sin `admin` explícito.
+  - **Corrección:** En `routes/web.php`, se actualizó el middleware de `/reservas` a `role:admin,gerente,cajero,mesero`.
+  - Se ejecutó `optimize:clear` y `route:clear`, dejando las rutas limpias y funcionales (verificado con tests `Fase5ReservasTest` y `ReservasCalendarioMensualTest` al 100%).
+- **3. Corrección del Límite PHP POST (8.5MB Warning):**
+  - En `php.ini` (`D:\Proyectos\tools\php83\php.ini`), se actualizaron `post_max_size` de `8M` a `64M`, `upload_max_filesize` de `2M` a `64M` y `memory_limit` de `128M` a `512M`. Esto previene el descarte de payloads y errores al subir imágenes de productos, soportes o backups.
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | ⏳ **VISUALIZACIÓN INTEGRAL DEL ESTADO DEL PEDIDO AL ENVIAR COBRO A CAJA (POS & SALÓN DE MESAS):**
 - **1. Visualización en POS Terminal (Escritorio y Móvil):**
   - Creado método helper `cobroEnviadoACaja(): bool` en `ManejaCobroPos.php` para detectar de forma reactiva si el pedido activo de la mesa está en estado `pendiente_cobro`.

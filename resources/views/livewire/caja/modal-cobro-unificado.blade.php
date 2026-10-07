@@ -370,6 +370,18 @@ new class () extends Component {
             $this->errorCobro = "Error al procesar el cobro: " . $e->getMessage();
         }
     }
+
+    public function with(): array
+    {
+        if ($this->pedidoId && $this->mostrarModal) {
+            $this->pedido = Pedido::with(['items.producto', 'mesa', 'mesero', 'usuario', 'cliente'])
+                ->find($this->pedidoId);
+        }
+
+        return [
+            'pedido' => $this->pedido,
+        ];
+    }
 }; ?>
 
 <div>

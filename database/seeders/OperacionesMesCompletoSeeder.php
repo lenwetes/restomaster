@@ -697,7 +697,7 @@ class OperacionesMesCompletoSeeder extends Seeder
         $m4 = $mesas->firstWhere('numero', '4') ?? $mesas->skip(3)->first();
         $m4->update(['estado' => 'ocupada']);
 
-        Pedido::firstOrCreate(
+        $pedCobro104 = Pedido::firstOrCreate(
             ['codigo' => 'ORD-HOY-104'],
             [
                 'tipo' => 'mesa',
@@ -716,6 +716,34 @@ class OperacionesMesCompletoSeeder extends Seeder
                 'created_at' => now()->subMinutes(45),
             ]
         );
+
+        if ($pedCobro104->items()->count() === 0) {
+            ItemPedido::create([
+                'pedido_id' => $pedCobro104->id,
+                'producto_id' => $platoCarnes->id,
+                'nombre_producto' => $platoCarnes->nombre,
+                'cantidad' => 2,
+                'precio_unitario' => 65000.00,
+                'subtotal' => 130000.00,
+                'area_cocina' => 'caliente',
+                'estado_cocina' => 'servido',
+                'iniciado_en' => now()->subMinutes(40),
+                'listo_en' => now()->subMinutes(25),
+            ]);
+
+            ItemPedido::create([
+                'pedido_id' => $pedCobro104->id,
+                'producto_id' => $bebidaBarra->id,
+                'nombre_producto' => $bebidaBarra->nombre,
+                'cantidad' => 1,
+                'precio_unitario' => 15000.00,
+                'subtotal' => 15000.00,
+                'area_cocina' => 'barra',
+                'estado_cocina' => 'servido',
+                'iniciado_en' => now()->subMinutes(42),
+                'listo_en' => now()->subMinutes(35),
+            ]);
+        }
 
         // 5. Delivery Activo (En camino con repartidor)
         Pedido::firstOrCreate(
