@@ -1,12 +1,13 @@
         <!-- VISTA PC / TABLET: TERMINAL TÁCTIL BENTO TOUCH PRO                        -->
         <!-- ========================================================================= -->
         <div 
+            wire:key="pos-terminal-vista-escritorio"
             class="space-y-2.5 -my-2 lg:-my-4 relative {{ $vistaMesero === 'tablet' ? 'max-w-5xl mx-auto' : 'w-full' }}"
             x-data="{ 
                 modalMesasAbierto: false,
                 filtroZonaModal: 'todas',
-                toastVisible: {{ session()->has('advertencia_mesa') ? 'true' : 'false' }}, 
-                toastMsg: '{{ session('advertencia_mesa', '¡Atención! Primero debes seleccionar una mesa para tomar el pedido.') }}',
+                toastVisible: @js(session()->has('advertencia_mesa')), 
+                toastMsg: @js(session('advertencia_mesa', '¡Atención! Primero debes seleccionar una mesa para tomar el pedido.')),
                 mostrarToast(msg) {
                     this.toastMsg = msg || '¡Atención! Primero debes seleccionar una mesa para tomar el pedido.';
                     this.toastVisible = true;
@@ -498,6 +499,7 @@
                 <div class="lg:col-span-8 flex flex-col gap-2 min-h-0 h-auto lg:h-[calc(100vh-14rem)]">
                     <!-- CATEGORÍAS (Con soporte PC: rueda ratón, scroll buttons y micro-indicadores táctiles) -->
                     <div 
+                        wire:key="pos-cats-scroll-container"
                         x-data="{
                             canScrollLeft: false,
                             canScrollRight: true,

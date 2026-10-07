@@ -187,7 +187,7 @@
         @endif
 
         <!-- Resiliencia Offline: IndexedDB y Sincronización Automática -->
-        <script src="/js/pos-offline.js" defer></script>
+        <script src="/js/pos-offline.js" defer data-navigate-once></script>
 
         @stack('scripts')
     </body>

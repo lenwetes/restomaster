@@ -860,13 +860,14 @@ new class () extends Component {
 }; ?>
 
 <div class="space-y-4"
-     wire:poll.5s
-     x-data="{ online: navigator.onLine }"
-     @online.window="online = true"
-     @offline.window="online = false">
+     wire:poll.5s>
 
     <!-- Banner de Estado de Conexión Offline / PWA Store-and-Forward -->
-    <div x-show="!online" x-cloak class="rounded-2xl bg-amber-500/15 border border-amber-500/40 p-3 flex items-center justify-between text-amber-500 animate-pulse shadow-sm">
+    <div x-data="{ online: navigator.onLine }"
+         @online.window="online = true"
+         @offline.window="online = false"
+         x-show="!online" x-cloak
+         class="rounded-2xl bg-amber-500/15 border border-amber-500/40 p-3 flex items-center justify-between text-amber-500 animate-pulse shadow-sm">
         <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-[20px]">wifi_off</span>
             <span class="text-xs font-bold">Modo Offline Activo · Sin conexión de red. Los pedidos locales se conservan y sincronizan automáticamente.</span>

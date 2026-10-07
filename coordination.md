@@ -6,6 +6,25 @@
 ---
 
 ## Última Actualización
+2026-10-06 | Antigravity | 🛠️ **CORRECCIÓN INTEGRAL DE ERRORES CONSOLA POS (POS-OFFLINE.JS, ALPINES RESIDUALES Y WEBSOCKETS REVERB):**
+- **1. Fix Redeclaración `DB_NAME` en `pos-offline.js` (`Identifier 'DB_NAME' has already been declared`):**
+  - Encapsulado `public/js/pos-offline.js` dentro de una IIFE `(function () { 'use strict'; ... })()` con guarda idempotente `if (window.RestoMasterOffline) return;` para evitar que `const DB_NAME` y `const DB_VERSION` colisionen en el scope léxico global de window.
+  - Añadido atributo `data-navigate-once` en el tag `<script src="/js/pos-offline.js" defer data-navigate-once>` en `resources/views/layouts/app.blade.php` para que Livewire SPA (`wire:navigate`) no vuelva a clonar y re-ejecutar el script al cambiar de pantalla.
+- **2. Fix Conexión WebSocket / Reverb (`ERR_CERT_AUTHORITY_INVALID` y 404):**
+  - En `resources/js/echo.js`, la bandera `forceTLS` ahora se ciñe estrictamente a `window.location.protocol === 'https:'`. Si la aplicación se consulta por HTTP sin SSL (`http://2.25.186.13`), no fuerza `wss://` en puerto 80 evitando `net::ERR_CERT_AUTHORITY_INVALID`.
+  - Agregada detección dinámica del puerto del navegador (`window.location.port`) para entornos con mapeo de puertos Docker/Coolify (`8004`, etc.).
+  - Removido import duplicado de `./echo` en `resources/js/app.js` y recompilados los assets de producción con `npm run build`.
+- **3. Fix Expresiones Alpine.js en POS (`online`, `modalMesasAbierto`, `toastVisible`, `canScrollLeft` is not defined):**
+  - En `terminal.blade.php`, se eliminó `x-data` del elemento raíz del componente Volt (que comparte `wire:poll.5s`), encapsulándolo de forma aislada en el contenedor específico del banner PWA Offline.
+  - En `vista-escritorio.blade.php`, se agregó `wire:key="pos-terminal-vista-escritorio"` y `wire:key="pos-cats-scroll-container"` para preservar las instancias de componentes reactivos Alpine ante diffing/morph de Livewire.
+  - Reemplazadas interpolaciones Blade directas en `x-data` por directiva `@js(...)` para serialización JSON segura (`toastVisible`, `toastMsg`).
+- **4. Validación y Calidad:**
+  - `PosTerminalComponentTest.php` 100% pasando en verde (4 tests, 12 aserciones).
+  - Laravel Pint validado (0 errores).
+
+---
+
+## Actualización previa
 2026-10-06 | Antigravity | 🚀 **SINCRONIZACIÓN GITHUB + DESPLIEGUE COOLIFY (DOCKER COMPOSE + ENTRYPOINT + MULTI-RAMA):**
 - **1. Sincronización Multi-Rama a GitHub:**
   - Actualizadas y sincronizadas las ramas `main`, `master` y `feat/gestor-zonas-drag-drop` en remoto `origin` (`https://github.com/lenwetes/restomaster.git`).
