@@ -18,6 +18,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'estado',
     'mesero_id',
 ])]
+/**
+ * @property int $id
+ * @property int $sucursal_id
+ * @property string $numero
+ * @property int $capacidad
+ * @property string|null $zona
+ * @property string $estado
+ * @property int|null $mesero_id
+ * @property-read string $nombre_sala
+ * @property-read string $nombre_corto
+ */
 class Mesa extends Model
 {
     use HasFactory;

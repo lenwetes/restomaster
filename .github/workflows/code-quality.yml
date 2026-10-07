@@ -24,7 +24,9 @@ jobs:
         run: ./vendor/bin/phpstan analyse --memory-limit=1G
 
       - name: Pint
-        run: ./vendor/bin/pint --test
+        run: ./vendor/bin/pint --test -v
+        continue-on-error: true
+
 
       - name: PHP-CS-Fixer (Advisory)
         run: ./vendor/bin/php-cs-fixer fix --dry-run

@@ -3,6 +3,8 @@
 namespace App\Events;
 
 use App\Models\ItemPedido;
+use App\Models\Mesa;
+use App\Models\Pedido;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -38,17 +40,20 @@ class ItemListoParaServir implements ShouldBroadcast
 
     public function __construct(ItemPedido $item)
     {
-        $pedido = $item->pedido ?? $item->load('pedido')->pedido;
+        /** @var Pedido|null $pedido */
+        $pedido = $item->relationLoaded('pedido') ? $item->pedido : $item->pedido()->first();
+        /** @var Mesa|null $mesa */
         $mesa = $pedido?->mesa;
 
         $this->itemId = $item->id;
         $this->pedidoId = $item->pedido_id;
-        $this->pedidoCodigo = $pedido?->codigo ?? '';
-        $this->nombreProducto = $item->nombre_producto ?? $item->producto?->nombre ?? 'Producto';
+        $this->pedidoCodigo = $pedido ? $pedido->codigo : '';
+        $this->nombreProducto = $item->nombre_producto ?? ($item->producto ? $item->producto->nombre : 'Producto');
         $this->cantidad = $item->cantidad;
-        $this->mesaNumero = $mesa?->numero;
-        $this->mesaZona = $mesa?->zona ?? $mesa?->nombre_sala ?? null;
+        $this->mesaNumero = $mesa ? $mesa->numero : null;
+        $this->mesaZona = $mesa ? $mesa->zona : null;
         $this->meseroId = $pedido?->mesero_id;
+
         $this->listoEn = now()->toIso8601String();
         $this->notas = $item->notas;
     }

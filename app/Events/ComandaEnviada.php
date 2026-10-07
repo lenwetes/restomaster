@@ -2,6 +2,7 @@
 
 namespace App\Events;
 
+use App\Models\Mesa;
 use App\Models\Pedido;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -33,11 +34,15 @@ class ComandaEnviada implements ShouldBroadcast
     {
         $pedido->loadMissing(['items', 'mesa']);
 
+        /** @var Mesa|null $mesa */
+        $mesa = $pedido->mesa;
+
         $this->pedidoId = $pedido->id;
         $this->codigo = $pedido->codigo;
-        $this->mesaNumero = $pedido->mesa?->numero;
-        $this->mesaZona = $pedido->mesa?->zona ?? $pedido->mesa?->nombre_sala ?? null;
-        $this->sucursalId = $pedido->sucursal_id ?? 1;
+        $this->mesaNumero = $mesa ? $mesa->numero : null;
+        $this->mesaZona = $mesa ? $mesa->zona : null;
+        $this->sucursalId = (int) ($pedido->sucursal_id ?? 1);
+
         $this->itemsCount = $pedido->items->count();
         $this->enviadaEn = now()->toIso8601String();
     }

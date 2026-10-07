@@ -86,8 +86,8 @@ class RestaurarEstadoCeroCommand extends Command
         $rows = $usuarios->map(function ($u) {
             return [
                 'ID' => $u->id,
-                'Rol' => $u->role?->nombre ?? 'Sin Rol',
-                'Slug' => $u->role?->slug ?? '-',
+                'Rol' => $u->role ? $u->role->nombre : 'Sin Rol',
+                'Slug' => $u->role ? $u->role->slug : '-',
                 'Nombre' => $u->name,
                 'Email' => $u->email,
                 'Password' => 'restomaster2026',

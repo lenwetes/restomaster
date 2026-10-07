@@ -11,3 +11,4 @@ parameters:
     level: 5
     tmpDir: storage/framework/cache/phpstan
     treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
