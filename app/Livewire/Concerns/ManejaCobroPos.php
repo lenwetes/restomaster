@@ -14,8 +14,30 @@ use App\Services\FidelizacionService;
 use App\Services\PedidoService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 
+/**
+ * Trait para la gestión de cobro, arqueo y liquidación en el POS.
+ *
+ * @property float $total
+ * @property float $totalConPropina
+ * @property float $subtotal
+ * @property array $carrito
+ * @property string $tipo
+ * @property ?int $mesaId
+ * @property ?int $clienteId
+ * @property bool $mostrarModalCobro
+ * @property bool $mostrarModalAperturaPos
+ * @property float $montoPagado
+ * @property float $montoEfectivoMixto
+ * @property string $tipoPropina
+ * @property float $montoPropina
+ * @property ?float $porcentajePropina
+ * @property ?string $clienteSeleccionadoNombre
+ * @property ?string $clienteSeleccionadoDocumento
+ *
+ * @method float getTotalProperty()
+ * @method float getTotalConPropinaProperty()
+ */
 trait ManejaCobroPos
 {
     public function abrirModalCobro(): void
@@ -138,8 +160,7 @@ trait ManejaCobroPos
                 'cliente_id' => $this->clienteId,
                 'usuario_id' => Auth::id(),
                 'sucursal_id' => Auth::user()?->sucursal_id ?? 1,
-                'items' => $itemsPayload,
-            ]);
+            ], $itemsPayload, Auth::user());
             $pedidoCobro->items()->update(['estado_cocina' => 'entregado', 'listo_en' => now()]);
             $this->limpiarCarrito();
         }
@@ -197,7 +218,7 @@ trait ManejaCobroPos
                 $this->tipoPropina = 'cero';
                 $this->montoPropina = 0.0;
                 $this->porcentajePropina = 0.0;
-                $this->montoPagado = $this->total;
+                $this->montoPagado = $this->obtenerTotal();
                 $this->mostrarModalCobro = true;
             }
         } catch (\Exception $e) {
@@ -207,7 +228,7 @@ trait ManejaCobroPos
 
     public function setMontoExacto(): void
     {
-        $this->montoPagado = $this->totalConPropina;
+        $this->montoPagado = $this->obtenerTotalConPropina();
     }
 
     public function sumarMonto(float $cantidad): void
@@ -534,13 +555,23 @@ trait ManejaCobroPos
             $this->montoPropina = 0.0;
             $this->porcentajePropina = 0.0;
         } elseif ($tipo === 'diez_porciento') {
-            $this->montoPropina = round($this->total * 0.10);
+            $this->montoPropina = round($this->obtenerTotal() * 0.10);
             $this->porcentajePropina = 10.0;
         } elseif ($tipo === 'personalizada') {
             $this->porcentajePropina = null;
         }
 
-        $this->montoPagado = $this->totalConPropina;
+        $this->montoPagado = $this->obtenerTotalConPropina();
+    }
+
+    public function obtenerTotal(): float
+    {
+        return method_exists($this, 'getTotalProperty') ? (float) $this->getTotalProperty() : (float) ($this->total ?? 0.0);
+    }
+
+    public function obtenerTotalConPropina(): float
+    {
+        return method_exists($this, 'getTotalConPropinaProperty') ? (float) $this->getTotalConPropinaProperty() : (float) ($this->totalConPropina ?? 0.0);
     }
 
     public function cerrarModalCobro(): void

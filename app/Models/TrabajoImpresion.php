@@ -4,13 +4,17 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @method static \Illuminate\Database\Eloquent\Builder|TrabajoImpresion pendientes()
+ * @method static \Illuminate\Database\Eloquent\Builder|TrabajoImpresion fallidos()
+ * @method static \Illuminate\Database\Eloquent\Builder|TrabajoImpresion hoy()
+ */
 #[Fillable([
     'tipo',
     'pedido_id',
@@ -57,20 +61,17 @@ class TrabajoImpresion extends Model
         return $this->belongsTo(User::class, 'reimpreso_por_id');
     }
 
-    #[Scope]
-    protected function pendientes(Builder $query): Builder
+    public function scopePendientes(Builder $query): Builder
     {
         return $query->where('estado', 'pendiente');
     }
 
-    #[Scope]
-    protected function fallidos(Builder $query): Builder
+    public function scopeFallidos(Builder $query): Builder
     {
         return $query->where('estado', 'error');
     }
 
-    #[Scope]
-    protected function hoy(Builder $query): Builder
+    public function scopeHoy(Builder $query): Builder
     {
         return $query->whereDate('created_at', Carbon::today());
     }
