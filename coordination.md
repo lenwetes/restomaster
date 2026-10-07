@@ -6,6 +6,31 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | 💵 **RESOLUCIÓN ERROR 404 AL ABRIR CAJA COMO CAJERO (AISLAMIENTO MULTISEDE & AUTO-PROVISIÓN):**
+- **1. Causa Raíz Identificada:**
+  - En la consola del navegador y modal de depuración de Livewire aparecía `404 | Not Found` sobre `POST /livewire-xxxx/update`.
+  - La inspección del DOM reveló que el usuario autenticado pertenecía a una sucursal (`sucursal_id = 2`) que no contaba con terminal de caja registrada o cuyas cajas disponibles pertenecían a la sede principal (`sucursal_id = 1`).
+  - En `control.blade.php`:
+    - `mount()` intentaba filtrar cajas por la sede del usuario y al no encontrar ninguna, recurría a `Caja::first()` (perteneciente a `sucursal_id = 1`), fijando `$this->cajaSeleccionadaId = 1`.
+    - Al pulsar "Confirmar Apertura" (`abrirTurno()`), el backend ejecutaba `Caja::where('sucursal_id', $sucursalId)->findOrFail($this->cajaSeleccionadaId)`.
+    - Como el ID seleccionado pertenecía a la sede 1 y el cajero a la sede 2, `findOrFail()` lanzaba `ModelNotFoundException`, traducido por Laravel a respuesta HTTP `404 Not Found` que abría el diálogo de error de Livewire.
+- **2. Solución Implementada:**
+  - **Auto-provisión de Terminales por Sede (`CajaService.php`):** Creados métodos `asegurarCajaParaSucursal(int $sucursalId)` y `asegurarCajasParaTodasLasSucursales()`. Cuando cualquier sede carezca de terminal de caja activa, el sistema provisiona automáticamente una "Caja Principal - Sede X" con código único auto-incremental (`CAJ-XX-01`).
+  - **Aislamiento Multisede y Selección Segura en Livewire (`control.blade.php`):**
+    - En `mount()` y `abrirModalApertura()`: se asegura la existencia de caja para la sede del usuario y se selecciona prioritariamente una terminal perteneciente a su sucursal.
+    - En `abrirTurno()`: sustituido `findOrFail()` por consulta controlada con `$cajaQuery->find()`. Si la caja no pertenece a la sede o no está disponible, se emite error de validación en `$this->addError('cajaSeleccionadaId')` sin arrojar una excepción 404 que rompa la interfaz.
+    - En `with()`: las colecciones `$cajas`, `$todasLasCajas` y `$ultimosTurnos` ahora filtran proactivamente por la sucursal del usuario (salvo rol administrador), impidiendo mezclar terminales entre sedes en el selector.
+    - En templates Blade: agregados operadores nullsafe `?->name` a `$turno->cajero` y `$t->cajero` para prevenir errores de tipo si un turno histórico no cuenta con cajero asignado.
+- **3. Pruebas y Validación:**
+  - Nuevos tests añadidos en `CajaControlComponentTest.php`:
+    - `test_cajero_sucursal_2_abre_caja_sin_error_404_con_multiples_sucursales`
+    - `test_cajero_intentando_abrir_caja_de_otra_sucursal_no_lanza_404`
+  - Suite de pruebas de Caja ejecutada: **100% pasando en verde (31 tests, 107 aserciones)**.
+  - Laravel Pint y PHPStan Nivel 5: **0 errores**.
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 🛡️ **CALIDAD DE CÓDIGO & PIPELINE CI GITHUB ACTIONS 100% EN VERDE:**
 - **1. Saneamiento de Malas Prácticas y Anotaciones PHPStan:**
   - **Uso de `env()` fuera de `config/`:** En `CrmWebhookController`, `CrmConfiguracion` y `AutomatizacionIaGeneratorService`, reemplazadas llamadas a `env()` por `config('services.whatsapp.app_secret')`, `config('services.gemini.key')` y `config('services.openai.key')`.

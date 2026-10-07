@@ -352,7 +352,16 @@ new class () extends Component {
             'items.producto',
             'turnoCaja.caja',
             'turnoCaja.cajero',
-        ])->findOrFail($pedidoId);
+        ])->find($pedidoId);
+
+        if (! $pedido) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'El pedido o ticket solicitado no fue encontrado.',
+                'tipo' => 'warning',
+            ]);
+
+            return;
+        }
 
         $usuario = Auth::user();
         if ($usuario && ! $usuario->isAdmin() && $usuario->sucursal_id && $pedido->sucursal_id != $usuario->sucursal_id) {
@@ -416,7 +425,10 @@ new class () extends Component {
 
     public function iniciarEdicionCaja(int $id): void
     {
-        $caja = Caja::findOrFail($id);
+        $caja = Caja::find($id);
+        if (! $caja) {
+            return;
+        }
         $usuario = Auth::user();
         if ($usuario && ! $usuario->isAdmin() && $usuario->sucursal_id && $caja->sucursal_id != $usuario->sucursal_id) {
             abort(403, 'No autorizado para editar cajas de otra sucursal.');
@@ -463,7 +475,10 @@ new class () extends Component {
 
     public function alternarEstadoCaja(int $id): void
     {
-        $caja = Caja::findOrFail($id);
+        $caja = Caja::find($id);
+        if (! $caja) {
+            return;
+        }
         $this->authorize('update', $caja);
 
         app(CajaService::class)->alternarEstadoCaja($caja, Auth::user());
@@ -476,7 +491,10 @@ new class () extends Component {
 
     public function eliminarCaja(int $id): void
     {
-        $caja = Caja::findOrFail($id);
+        $caja = Caja::find($id);
+        if (! $caja) {
+            return;
+        }
         $this->authorize('delete', $caja);
 
         try {
@@ -522,7 +540,12 @@ new class () extends Component {
             'formCaja.descripcion' => 'nullable|string|max:255',
         ]);
 
-        $caja = app(CajaService::class)->crearCaja($this->formCaja, Auth::user());
+        $datos = $this->formCaja;
+        if (Auth::user()?->sucursal_id) {
+            $datos['sucursal_id'] = Auth::user()->sucursal_id;
+        }
+
+        $caja = app(CajaService::class)->crearCaja($datos, Auth::user());
         $this->cajaSeleccionadaId = $caja->id;
         $this->modalNuevaCajaOpen = false;
 
@@ -535,32 +558,49 @@ new class () extends Component {
     public function mount(): void
     {
         $this->conteoPrevioCobrosPendientes = $this->cobrosPendientes()->count();
-        app(CajaService::class)->asegurarIndiceParcialTurnos();
+        $cajaService = app(CajaService::class);
+        $cajaService->asegurarIndiceParcialTurnos();
 
-        $userSucursalId = Auth::user()?->sucursal_id;
-        $cajasQuery = Caja::query();
+        $user = Auth::user();
+        $userSucursalId = $user?->sucursal_id;
+        $esAdmin = $user?->isAdmin();
+
         if ($userSucursalId) {
-            $cajasQuery->where('sucursal_id', $userSucursalId);
-        }
-        $caja = $cajasQuery->first() ?? Caja::first();
-        if ($caja) {
+            $caja = $cajaService->asegurarCajaParaSucursal($userSucursalId);
             $this->cajaSeleccionadaId = $caja->id;
+        } else {
+            $caja = Caja::where('activa', true)->first();
+            if ($caja) {
+                $this->cajaSeleccionadaId = $caja->id;
+            }
         }
 
         $turnosQuery = TurnoCaja::where('estado', 'abierto');
-        if ($userSucursalId) {
+        if ($userSucursalId && ! $esAdmin) {
             $turnosQuery->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
         }
         $turnoActivo = $turnosQuery->latest()->first();
         if ($turnoActivo) {
             $this->turnoId = $turnoActivo->id;
+            $this->cajaSeleccionadaId = $turnoActivo->caja_id;
             $this->montoContado = 0.0;
         }
     }
 
     public function abrirModalApertura(): void
     {
-        app(CajaService::class)->asegurarIndiceParcialTurnos();
+        $cajaService = app(CajaService::class);
+        $cajaService->asegurarIndiceParcialTurnos();
+
+        $user = Auth::user();
+        $userSucursalId = $user?->sucursal_id;
+        if ($userSucursalId) {
+            $caja = $cajaService->asegurarCajaParaSucursal($userSucursalId);
+            if (! $this->cajaSeleccionadaId || ! Caja::where('id', $this->cajaSeleccionadaId)->where('sucursal_id', $userSucursalId)->exists()) {
+                $this->cajaSeleccionadaId = $caja->id;
+            }
+        }
+
         $this->mostrarModalApertura = true;
     }
 
@@ -573,13 +613,26 @@ new class () extends Component {
             'fondoInicial' => 'required|numeric|min:0',
         ]);
 
-        $sucursalId = Auth::user()?->sucursal_id;
-        $caja = Caja::when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
-            ->findOrFail($this->cajaSeleccionadaId);
+        $user = Auth::user();
+        $sucursalId = $user?->sucursal_id;
+        $esAdmin = $user?->isAdmin();
+
+        $cajaQuery = Caja::query();
+        if ($sucursalId && ! $esAdmin) {
+            $cajaQuery->where('sucursal_id', $sucursalId);
+        }
+        $caja = $cajaQuery->find($this->cajaSeleccionadaId);
+
+        if (! $caja) {
+            $this->addError('cajaSeleccionadaId', 'La terminal de caja seleccionada no pertenece a tu sede o no está disponible.');
+
+            return;
+        }
+
         $cajaService = app(CajaService::class);
 
         try {
-            $turno = $cajaService->abrirTurno($caja, Auth::user(), $this->fondoInicial, $this->notasApertura);
+            $turno = $cajaService->abrirTurno($caja, $user, (float) $this->fondoInicial, $this->notasApertura);
             $this->turnoId = $turno->id;
             $this->mostrarModalApertura = false;
             $this->notasApertura = '';
@@ -723,6 +776,12 @@ new class () extends Component {
         ]);
 
         $turno = $this->obtenerTurnoValido();
+        if (! $turno) {
+            $this->addError('montoContado', 'No hay un turno activo para cerrar.');
+
+            return;
+        }
+
         $cajaService = app(CajaService::class);
 
         try {
@@ -742,10 +801,16 @@ new class () extends Component {
 
     public function generarReporteX(): void
     {
-        if (! $this->turnoId) {
+        $turno = $this->obtenerTurnoValido();
+        if (! $turno) {
+            $this->dispatch('notificacion', [
+                'mensaje' => 'No hay un turno activo para generar el corte X.',
+                'tipo' => 'warning',
+            ]);
+
             return;
         }
-        $turno = $this->obtenerTurnoValido();
+
         $this->reporteZ = app(CajaService::class)->generarReporteZ($turno);
         $this->mostrarModalReporteZ = true;
     }
@@ -762,6 +827,10 @@ new class () extends Component {
 
     public function with(): array
     {
+        $user = Auth::user();
+        $userSucursalId = $user?->sucursal_id;
+        $esAdmin = $user?->isAdmin();
+
         $turnoActivo = $this->turnoId ? TurnoCaja::with([
             'caja.sucursal',
             'cajero',
@@ -773,13 +842,35 @@ new class () extends Component {
             'pedidos.items.producto',
         ])->withCount('pedidos')->find($this->turnoId) : null;
 
-        $cajas = Caja::where('activa', true)->get();
-        $ultimosTurnos = TurnoCaja::with(['caja', 'cajero'])->latest()->take(5)->get();
+        $cajasQuery = Caja::where('activa', true);
+        if ($userSucursalId && ! $esAdmin) {
+            $cajasQuery->where('sucursal_id', $userSucursalId);
+        }
+        $cajas = $cajasQuery->get();
+
+        if ($cajas->isEmpty() && $userSucursalId) {
+            $cajas = collect([app(\App\Services\CajaService::class)->asegurarCajaParaSucursal($userSucursalId)]);
+        }
+
+        if ($this->cajaSeleccionadaId === null) {
+            $this->cajaSeleccionadaId = $cajas->first()?->id;
+        }
+
+        $todasCajasQuery = Caja::withCount('turnos')->orderBy('id');
+        if ($userSucursalId && ! $esAdmin) {
+            $todasCajasQuery->where('sucursal_id', $userSucursalId);
+        }
+        $todasLasCajas = $todasCajasQuery->get();
+
+        $ultimosTurnosQuery = TurnoCaja::with(['caja', 'cajero'])->latest();
+        if ($userSucursalId && ! $esAdmin) {
+            $ultimosTurnosQuery->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
+        }
+        $ultimosTurnos = $ultimosTurnosQuery->take(5)->get();
 
         // Selector de contexto operativo: turnos abiertos visibles para el usuario (alcance por sucursal).
-        $userSucursalId = Auth::user()?->sucursal_id;
         $turnosAbiertosQuery = TurnoCaja::with(['caja', 'cajero'])->withCount('movimientos')->where('estado', 'abierto');
-        if ($userSucursalId && ! in_array(Auth::user()?->role?->slug, ['admin'], true)) {
+        if ($userSucursalId && ! $esAdmin) {
             $turnosAbiertosQuery->whereHas('caja', fn ($q) => $q->where('sucursal_id', $userSucursalId));
         }
         $turnosAbiertos = $turnosAbiertosQuery->latest()->get();
@@ -807,7 +898,7 @@ new class () extends Component {
         return [
             'turno' => $turnoActivo,
             'cajas' => $cajas,
-            'todasLasCajas' => Caja::withCount('turnos')->orderBy('id')->get(),
+            'todasLasCajas' => $todasLasCajas,
             'ultimosTurnos' => $ultimosTurnos,
             'turnosAbiertos' => $turnosAbiertos,
             'resumenPorCaja' => $resumenPorCaja,
@@ -1080,7 +1171,7 @@ new class () extends Component {
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-on-surface-variant">
                     <div class="flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-[16px] text-primary">badge</span>
-                        <span><strong>Cajero:</strong> {{ $turno->cajero->name }}</span>
+                        <span><strong>Cajero:</strong> {{ $turno->cajero?->name ?? 'Sin cajero asignado' }}</span>
                     </div>
                     <span class="text-surface-container-highest hidden sm:inline">•</span>
                     <div class="flex items-center gap-1.5">
@@ -1167,7 +1258,7 @@ new class () extends Component {
                         >
                             <span class="material-symbols-outlined text-[16px]">point_of_sale</span>
                             <span>{{ $t->caja->codigo }}</span>
-                            <span class="opacity-70 font-bold">· {{ $t->cajero->name }} · {{ $t->apertura_en->format('H:i') }} · {{ $t->movimientos_count }} movs</span>
+                            <span class="opacity-70 font-bold">· {{ $t->cajero?->name ?? '—' }} · {{ $t->apertura_en->format('H:i') }} · {{ $t->movimientos_count }} movs</span>
                         </button>
                     @endforeach
                 </div>
@@ -1446,7 +1537,7 @@ new class () extends Component {
                             <tr class="hover:bg-surface-container-low/50 transition-colors">
                                 <td class="py-2.5 px-3 font-mono font-bold text-on-surface">#{{ $t->id }}</td>
                                 <td class="py-2.5 px-3 text-on-surface">{{ $t->caja->nombre }}</td>
-                                <td class="py-2.5 px-3 text-on-surface-variant">{{ $t->cajero->name }}</td>
+                                <td class="py-2.5 px-3 text-on-surface-variant">{{ $t->cajero?->name ?? '—' }}</td>
                                 <td class="py-2.5 px-3 font-mono text-on-surface-variant">{{ $t->apertura_en->format('d/m/y H:i') }}</td>
                                 <td class="py-2.5 px-3 font-mono text-on-surface-variant">{{ $t->cierre_en?->format('d/m/y H:i') ?? 'Abierto' }}</td>
                                 <td class="py-2.5 px-3 text-right font-mono font-bold text-primary">${{ number_format($t->total_ventas, 2) }}</td>

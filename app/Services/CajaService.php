@@ -149,8 +149,54 @@ class CajaService
                 DB::statement('DROP INDEX IF EXISTS turnos_caja_caja_id_abierto_unique');
                 DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS turnos_caja_caja_id_abierto_unique ON turnos_caja (caja_id) WHERE estado = 'abierto'");
             }
+            $this->asegurarCajasParaTodasLasSucursales();
         } catch (\Throwable) {
             // Best effort para no bloquear si el usuario no tiene permisos DDL
+        }
+    }
+
+    /**
+     * Asegura que una sucursal cuente con al menos una terminal de caja activa.
+     */
+    public function asegurarCajaParaSucursal(int $sucursalId): Caja
+    {
+        $caja = Caja::where('sucursal_id', $sucursalId)->where('activa', true)->first();
+
+        if (! $caja) {
+            $sucursal = Sucursal::find($sucursalId);
+            $nombreSucursal = $sucursal ? $sucursal->nombre : "Sede #{$sucursalId}";
+            $codigoBase = 'CAJ-'.str_pad((string) $sucursalId, 2, '0', STR_PAD_LEFT);
+            $codigo = $codigoBase.'-01';
+            $sufijo = 1;
+            while (Caja::where('codigo', $codigo)->exists()) {
+                $sufijo++;
+                $codigo = $codigoBase.'-'.str_pad((string) $sufijo, 2, '0', STR_PAD_LEFT);
+            }
+
+            $caja = Caja::create([
+                'sucursal_id' => $sucursalId,
+                'nombre' => "Caja Principal - {$nombreSucursal}",
+                'codigo' => $codigo,
+                'tipo' => 'principal',
+                'activa' => true,
+            ]);
+        }
+
+        return $caja;
+    }
+
+    /**
+     * Asegura que todas las sucursales existentes cuenten con al menos una terminal activa.
+     */
+    public function asegurarCajasParaTodasLasSucursales(): void
+    {
+        try {
+            $sucursales = Sucursal::all();
+            foreach ($sucursales as $sucursal) {
+                $this->asegurarCajaParaSucursal($sucursal->id);
+            }
+        } catch (\Throwable) {
+            // Best effort
         }
     }
 
