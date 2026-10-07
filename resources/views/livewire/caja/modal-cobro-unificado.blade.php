@@ -25,14 +25,14 @@ new class () extends Component {
     public float $descuentoPuntos = 0.0;
     public float $costoEnvio = 0.0;
     public float $consumoBase = 0.0;
-    public float $montoPropina = 0.0;
+    public float|int|string|null $montoPropina = 0.0;
     public string $tipoPropina = 'cero'; // 'cero', 'diez_porciento', 'personalizada'
     public float $totalConPropina = 0.0;
 
     // Pago
     public string $metodoPago = 'efectivo'; // 'efectivo', 'tarjeta', 'mixto', 'transferencia'
-    public float $montoPagado = 0.0;
-    public float $montoEfectivoMixto = 0.0;
+    public float|int|string|null $montoPagado = 0.0;
+    public float|int|string|null $montoEfectivoMixto = 0.0;
     public float $cambio = 0.0;
 
     // Cliente
@@ -132,42 +132,49 @@ new class () extends Component {
         }
 
         $this->recalcularTotales();
-        if ($this->montoPagado < $this->totalConPropina) {
+        $pagadoFloat = (is_numeric($this->montoPagado) && $this->montoPagado !== '') ? (float) $this->montoPagado : 0.0;
+        if ($pagadoFloat < $this->totalConPropina) {
             $this->montoPagado = $this->totalConPropina;
         }
         $this->recalcularCambio();
     }
 
-    public function updatedMontoPropina(): void
+    public function updatedMontoPropina(mixed $value = null): void
     {
-        $this->montoPropina = max(0.0, (float) $this->montoPropina);
+        $this->montoPropina = (is_numeric($value) && $value !== '') ? max(0.0, (float) $value) : 0.0;
         $this->recalcularTotales();
         $this->recalcularCambio();
     }
 
-    public function updatedMontoPagado(): void
+    public function updatedMontoPagado(mixed $value = null): void
     {
-        $this->montoPagado = max(0.0, (float) $this->montoPagado);
+        $this->montoPagado = (is_numeric($value) && $value !== '') ? max(0.0, (float) $value) : 0.0;
         $this->recalcularCambio();
     }
 
-    public function updatedMontoEfectivoMixto(): void
+    public function updatedMontoEfectivoMixto(mixed $value = null): void
     {
-        $this->montoEfectivoMixto = min($this->totalConPropina, max(0.0, (float) $this->montoEfectivoMixto));
+        $numericVal = (is_numeric($value) && $value !== '') ? (float) $value : 0.0;
+        $this->montoEfectivoMixto = min((float) $this->totalConPropina, max(0.0, $numericVal));
         $this->recalcularCambio();
     }
 
     public function recalcularTotales(): void
     {
-        $this->totalConPropina = $this->consumoBase + $this->montoPropina;
+        $propina = (is_numeric($this->montoPropina) && $this->montoPropina !== '') ? (float) $this->montoPropina : 0.0;
+        $this->totalConPropina = $this->consumoBase + $propina;
     }
 
     public function recalcularCambio(): void
     {
+        $pagado = (is_numeric($this->montoPagado) && $this->montoPagado !== '') ? (float) $this->montoPagado : 0.0;
+        $total = (float) $this->totalConPropina;
+        $mixto = (is_numeric($this->montoEfectivoMixto) && $this->montoEfectivoMixto !== '') ? (float) $this->montoEfectivoMixto : 0.0;
+
         if ($this->metodoPago === 'efectivo') {
-            $this->cambio = max(0.0, (float) $this->montoPagado - (float) $this->totalConPropina);
+            $this->cambio = max(0.0, $pagado - $total);
         } elseif ($this->metodoPago === 'mixto') {
-            $this->cambio = max(0.0, (float) $this->montoPagado - (float) $this->montoEfectivoMixto);
+            $this->cambio = max(0.0, $pagado - $mixto);
         } else {
             $this->cambio = 0.0;
         }
@@ -175,14 +182,18 @@ new class () extends Component {
 
     public function setMontoExacto(): void
     {
-        $this->montoPagado = $this->totalConPropina;
+        if ($this->metodoPago === 'mixto') {
+            $this->montoPagado = (is_numeric($this->montoEfectivoMixto) && $this->montoEfectivoMixto !== '') ? (float) $this->montoEfectivoMixto : 0.0;
+        } else {
+            $this->montoPagado = (float) $this->totalConPropina;
+        }
         $this->recalcularCambio();
     }
 
     public function sumarBillete(float $denominacion): void
     {
-        // Si el monto pagado actual era menor o igual al total o cero, sumar progresivamente
-        $this->montoPagado = (float) $this->montoPagado + $denominacion;
+        $actual = (is_numeric($this->montoPagado) && $this->montoPagado !== '') ? (float) $this->montoPagado : 0.0;
+        $this->montoPagado = $actual + $denominacion;
         $this->recalcularCambio();
     }
 
@@ -288,23 +299,33 @@ new class () extends Component {
         // Validar monto pagado
         $totalPagar = (float) $this->totalConPropina;
         $montoEfectivoFinal = null;
+        $pagadoFloat = (is_numeric($this->montoPagado) && $this->montoPagado !== '') ? (float) $this->montoPagado : 0.0;
+        $mixtoFloat = (is_numeric($this->montoEfectivoMixto) && $this->montoEfectivoMixto !== '') ? (float) $this->montoEfectivoMixto : 0.0;
 
         if ($this->metodoPago === 'efectivo') {
-            if ((float) $this->montoPagado < $totalPagar) {
-                $this->errorCobro = "El monto entregado ($" . number_format($this->montoPagado, 0, ',', '.') . ") es menor al total a pagar ($" . number_format($totalPagar, 0, ',', '.') . ").";
+            if ($pagadoFloat < $totalPagar) {
+                $this->errorCobro = "El monto entregado ($" . number_format($pagadoFloat, 0, ',', '.') . ") es menor al total a pagar ($" . number_format($totalPagar, 0, ',', '.') . ").";
                 return;
             }
-            $montoEfectivoFinal = (float) $this->montoPagado;
+            $montoEfectivoFinal = $pagadoFloat;
+            $this->montoPagado = $pagadoFloat;
         } elseif ($this->metodoPago === 'mixto') {
-            if ((float) $this->montoEfectivoMixto > $totalPagar) {
+            if ($mixtoFloat > $totalPagar) {
                 $this->errorCobro = "El monto en efectivo no puede superar el total del pedido.";
                 return;
             }
-            $montoEfectivoFinal = (float) $this->montoEfectivoMixto;
-            $this->montoPagado = $totalPagar;
+            if ($pagadoFloat < $mixtoFloat) {
+                $this->errorCobro = "El monto entregado ($" . number_format($pagadoFloat, 0, ',', '.') . ") es menor al monto en efectivo acordado ($" . number_format($mixtoFloat, 0, ',', '.') . ").";
+                return;
+            }
+            $montoEfectivoFinal = $mixtoFloat;
+            $this->montoPagado = $pagadoFloat;
         } else {
             $this->montoPagado = $totalPagar;
         }
+
+        $propinaFloat = (is_numeric($this->montoPropina) && $this->montoPropina !== '') ? (float) $this->montoPropina : 0.0;
+        $this->montoPropina = $propinaFloat;
 
         $porcentajePropina = $this->tipoPropina === 'diez_porciento' ? 10.0 : null;
 
@@ -389,6 +410,38 @@ new class () extends Component {
         <div 
             x-data="{
                 copiado: false,
+                montoEntregado: @entangle('montoPagado'),
+                totalCobrar: @entangle('totalConPropina'),
+                metodoPago: @entangle('metodoPago'),
+                montoEfectivoMixto: @entangle('montoEfectivoMixto'),
+                get totalEfectivoRequerido() {
+                    if (this.metodoPago === 'mixto') {
+                        return parseFloat(this.montoEfectivoMixto) || 0;
+                    }
+                    return parseFloat(this.totalCobrar) || 0;
+                },
+                get vueltas() {
+                    let pagado = parseFloat(this.montoEntregado) || 0;
+                    return Math.max(0, pagado - this.totalEfectivoRequerido);
+                },
+                get faltan() {
+                    let pagado = parseFloat(this.montoEntregado) || 0;
+                    return Math.max(0, this.totalEfectivoRequerido - pagado);
+                },
+                get tieneSuficiente() {
+                    let pagado = parseFloat(this.montoEntregado) || 0;
+                    return pagado >= this.totalEfectivoRequerido;
+                },
+                formatMoney(amount) {
+                    return new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 }).format(amount || 0);
+                },
+                sumarBillete(valor) {
+                    let actual = parseFloat(this.montoEntregado) || 0;
+                    this.montoEntregado = actual + valor;
+                },
+                setExacto() {
+                    this.montoEntregado = this.totalEfectivoRequerido;
+                },
                 abrirWhatsapp(url) {
                     if (url) window.open(url, '_blank');
                 }
@@ -803,11 +856,11 @@ new class () extends Component {
                                         min="0"
                                         step="1000"
                                         max="{{ (int) $totalConPropina }}"
-                                        wire:model.live.debounce.300ms="montoEfectivoMixto" 
+                                        x-model="montoEfectivoMixto" 
                                         class="w-full h-9 rounded-xl bg-[#140e0b] border border-[#3d2b22] px-3 font-mono font-bold text-sm text-[#f5e8e2] outline-none"
                                     />
                                     <p class="text-[10px] text-[#a89086]">
-                                        El excedente (${{ number_format(max(0, $totalConPropina - $montoEfectivoMixto), 0, ',', '.') }}) se registra automáticamente como Tarjeta.
+                                        El excedente ($<span x-text="formatMoney(Math.max(0, totalCobrar - (parseFloat(montoEfectivoMixto) || 0)))">{{ number_format(max(0, $totalConPropina - (float) $montoEfectivoMixto), 0, ',', '.') }}</span>) se registra automáticamente como Tarjeta.
                                     </p>
                                 </div>
                             @endif
@@ -822,7 +875,7 @@ new class () extends Component {
                                         </span>
                                         <button 
                                             type="button" 
-                                            wire:click="setMontoExacto" 
+                                            @click="setExacto()" 
                                             class="px-2.5 py-0.5 rounded-lg bg-[#2c1d17] hover:bg-[#38261e] border border-[#3d2b22] text-[11px] font-bold text-white transition cursor-pointer"
                                         >
                                             Valor Exacto
@@ -835,7 +888,7 @@ new class () extends Component {
                                         <!-- BILLETE $10.000 (Rosa / Amazonas / Virginia Gutiérrez) -->
                                         <button 
                                             type="button"
-                                            wire:click="sumarBillete(10000)"
+                                            @click="sumarBillete(10000)"
                                             class="relative group rounded-xl p-2.5 bg-gradient-to-r from-[#831843] via-[#9d174d] to-[#be185d] border border-[#f472b6]/40 text-white shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer flex flex-col justify-between overflow-hidden h-16"
                                             title="Sumar billete de $10.000 COP"
                                         >
@@ -852,7 +905,7 @@ new class () extends Component {
                                         <!-- BILLETE $20.000 (Naranja / Vueltiao / Alfonso López) -->
                                         <button 
                                             type="button"
-                                            wire:click="sumarBillete(20000)"
+                                            @click="sumarBillete(20000)"
                                             class="relative group rounded-xl p-2.5 bg-gradient-to-r from-[#9a3412] via-[#c2410c] to-[#ea580c] border border-[#fb923c]/40 text-white shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer flex flex-col justify-between overflow-hidden h-16"
                                             title="Sumar billete de $20.000 COP"
                                         >
@@ -869,7 +922,7 @@ new class () extends Component {
                                         <!-- BILLETE $50.000 (Violeta / Macondo / Gabo) -->
                                         <button 
                                             type="button"
-                                            wire:click="sumarBillete(50000)"
+                                            @click="sumarBillete(50000)"
                                             class="relative group rounded-xl p-2.5 bg-gradient-to-r from-[#581c87] via-[#7e22ce] to-[#9333ea] border border-[#c084fc]/40 text-white shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer flex flex-col justify-between overflow-hidden h-16"
                                             title="Sumar billete de $50.000 COP"
                                         >
@@ -886,7 +939,7 @@ new class () extends Component {
                                         <!-- BILLETE $100.000 (Verde / Valle de Cocora / Carlos Lleras) -->
                                         <button 
                                             type="button"
-                                            wire:click="sumarBillete(100000)"
+                                            @click="sumarBillete(100000)"
                                             class="relative group rounded-xl p-2.5 bg-gradient-to-r from-[#064e3b] via-[#047857] to-[#059669] border border-[#34d399]/40 text-white shadow-md hover:brightness-110 active:scale-95 transition cursor-pointer flex flex-col justify-between overflow-hidden h-16"
                                             title="Sumar billete de $100.000 COP"
                                         >
@@ -913,7 +966,8 @@ new class () extends Component {
                                                 type="number" 
                                                 step="500"
                                                 min="0"
-                                                wire:model.live.debounce.150ms="montoPagado" 
+                                                x-model="montoEntregado" 
+                                                @keydown.enter.prevent="$wire.confirmarCobro()"
                                                 class="w-full h-11 pl-7 pr-3 rounded-xl bg-[#140e0b] border border-[#3d2b22] font-mono text-xl font-black text-white focus:border-[#10b981] outline-none"
                                             />
                                         </div>
@@ -922,12 +976,15 @@ new class () extends Component {
                                     <!-- Vueltas / Cambio calculado en tiempo real -->
                                     <div>
                                         <label class="text-[11px] font-bold text-[#d6c4bc] block mb-1">Cambio a Devolver:</label>
-                                        <div class="h-11 px-3 rounded-xl border flex items-center justify-between {{ $montoPagado >= $totalConPropina ? 'bg-[#10b981]/15 border-[#10b981]/50 text-[#10b981]' : 'bg-[#f59e0b]/15 border-[#f59e0b]/40 text-[#f59e0b]' }}">
-                                            <span class="text-xs font-black">
-                                                {{ $montoPagado >= $totalConPropina ? 'Vueltas:' : 'Faltan:' }}
+                                        <div 
+                                            class="h-11 px-3 rounded-xl border flex items-center justify-between transition-colors"
+                                            :class="tieneSuficiente ? 'bg-[#10b981]/15 border-[#10b981]/50 text-[#10b981]' : 'bg-[#f59e0b]/15 border-[#f59e0b]/40 text-[#f59e0b]'"
+                                        >
+                                            <span class="text-xs font-black" x-text="tieneSuficiente ? 'Vueltas:' : 'Faltan:'">
+                                                {{ (float) $montoPagado >= (float) $totalConPropina ? 'Vueltas:' : 'Faltan:' }}
                                             </span>
                                             <span class="font-mono text-xl font-black">
-                                                ${{ number_format($montoPagado >= $totalConPropina ? $cambio : ($totalConPropina - $montoPagado), 0, ',', '.') }}
+                                                $<span x-text="formatMoney(tieneSuficiente ? vueltas : faltan)">{{ number_format((float) $montoPagado >= (float) $totalConPropina ? (float) $cambio : ((float) $totalConPropina - (float) $montoPagado), 0, ',', '.') }}</span>
                                             </span>
                                         </div>
                                     </div>

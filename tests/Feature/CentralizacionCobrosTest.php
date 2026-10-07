@@ -184,4 +184,44 @@ class CentralizacionCobrosTest extends TestCase
         $response->assertSee('Cobros Pendientes');
         $response->assertSee('Mesa 5');
     }
+
+    public function test_modal_cobro_unificado_permite_vaciar_montos_sin_error(): void
+    {
+        $pedido = $this->crearPedidoCobrable();
+
+        Volt::actingAs($this->cajero)
+            ->test('caja.modal-cobro-unificado')
+            ->call('abrir', $pedido->id)
+            ->set('montoPagado', '')
+            ->assertSet('montoPagado', 0.0)
+            ->assertSet('cambio', 0.0)
+            ->set('montoPagado', null)
+            ->assertSet('montoPagado', 0.0)
+            ->set('montoPropina', '')
+            ->assertSet('montoPropina', 0.0)
+            ->set('montoEfectivoMixto', '')
+            ->assertSet('montoEfectivoMixto', 0.0)
+            ->assertHasNoErrors();
+    }
+
+    public function test_modal_cobro_unificado_billetes_y_cambio(): void
+    {
+        $pedido = $this->crearPedidoCobrable(); // total 70.000
+
+        Volt::actingAs($this->cajero)
+            ->test('caja.modal-cobro-unificado')
+            ->call('abrir', $pedido->id)
+            ->set('montoPagado', 100000)
+            ->assertSet('cambio', 30000.0)
+            ->call('setMontoExacto')
+            ->assertSet('montoPagado', 70000.0)
+            ->assertSet('cambio', 0.0)
+            ->call('sumarBillete', 50000)
+            ->assertSet('montoPagado', 120000.0)
+            ->assertSet('cambio', 50000.0)
+            ->call('confirmarCobro')
+            ->assertHasNoErrors();
+
+        $this->assertEquals('pagado', $pedido->fresh()->estado);
+    }
 }

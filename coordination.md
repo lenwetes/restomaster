@@ -6,6 +6,26 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | ⚡ **OPTIMIZACIÓN TERMINAL DE COBRO: CERO LATENCIA (0ms) EN CAMBIO/VUELTAS & RESOLUCIÓN ERROR 500 AL BORRAR:**
+- **1. Corrección de Error 500 al Borrar el Valor (`TypeError: float`):**
+  - **Causa raíz:** En `modal-cobro-unificado.blade.php`, las propiedades `$montoPagado`, `$montoPropina` y `$montoEfectivoMixto` estaban tipadas estrictamente como `public float`. Al borrar todos los caracteres en el input HTML, el navegador/Livewire enviaba `""` o `null` (por middleware `ConvertEmptyStringsToNull`), lanzando una excepción fatal en PHP 8.3 (`TypeError: Cannot assign null/string to property of type float`) que arrojaba `500 Internal Server Error` en `/livewire/update`.
+  - **Solución:** Se flexibilizó el tipado a `public float|int|string|null`, y en los hooks de ciclo de vida (`updatedMontoPagado`, `updatedMontoPropina`, `updatedMontoEfectivoMixto`), en `recalcularCambio()`, y en `confirmarCobro()`, se añadió saneamiento defensivo con `is_numeric($val) ? (float)$val : 0.0`.
+- **2. Eliminación de Delay e Interferencia al Escribir Rápido (Lag & Caracteres Sobrescritos):**
+  - **Causa raíz:** El input utilizaba `wire:model.live.debounce.150ms="montoPagado"`. Cada 150ms se enviaba una petición HTTP al servidor para calcular el cambio; mientras el cajero seguía tecleando dígitos rápidamente, la respuesta del servidor llegaba y el diffing de Livewire sobrescribía el valor del input con el estado previo del servidor, perdiendo dígitos.
+  - **Solución (Reactividad en el Cliente con Alpine.js):**
+    - Se delegó el cálculo de vueltas y faltantes a getters reactivos en Alpine.js (`get vueltas`, `get faltan`, `get tieneSuficiente`, `formatMoney`).
+    - El input se enlazó con `x-model="montoEntregado"`, sincronizado con Livewire mediante `@entangle('montoPagado')`.
+    - Cálculo de vueltas y formateo monetario instantáneo en **0 milisegundos (60 FPS)** directamente en JavaScript sin roundtrips al servidor durante el tipeo.
+    - Los botones de billetes colombianos (10k, 20k, 50k, 100k) y el botón "Valor Exacto" actualizan el estado de Alpine y el input al instante sin lag.
+    - Soporte para confirmación ágil con teclado mediante `@keydown.enter.prevent="$wire.confirmarCobro()"`.
+- **3. Verificación Automatizada & Estilo:**
+  - Nuevas pruebas unitarias/feature en `CentralizacionCobrosTest`: `test_modal_cobro_unificado_permite_vaciar_montos_sin_error` y `test_modal_cobro_unificado_billetes_y_cambio`.
+  - Suite de pruebas ejecutada con **100% de éxito (8/8 tests, 26 aserciones)**.
+  - Laravel Pint validado y aplicado sin advertencias.
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 📅 **CORRECCIÓN FLUJO RESERVAS IA: AGENDAMIENTO SIN AUTO-CONFIRMACIÓN:**
 - **1. Corrección en Creación de Reservas por IA Concierge (`CrmAiAgentService.php`):**
   - **Requerimiento:** Las reservas procesadas por la IA deben agendarse/registrarse en el sistema pero NO auto-confirmarse; deben quedar en estado `solicitada` para ser revisadas y confirmadas por el personal del restaurante (anfitrión/mesero/gerente).
