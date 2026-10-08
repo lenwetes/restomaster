@@ -6,6 +6,26 @@
 ---
 
 ## Última Actualización
+2026-10-08 | Antigravity | 🛡️ **RESOLUCIÓN ERRORES CODE QUALITY CI EN GITHUB ACTIONS (PHPSTAN 100% EN VERDE):**
+- **1. Causa Raíz Identificada:**
+  - En la última incorporación de metadatos enriquecidos de cobro (`solicitarCobroCaja`), se añadió `$pedido->mesa?->numero`.
+  - Como el modelo `Pedido` carecía de anotaciones genéricas de retorno en `public function mesa(): BelongsTo`, Larastan infería la relación como `Illuminate\Database\Eloquent\Model|null`.
+  - El baseline anterior (`phpstan-baseline.neon`) tenía fijado `count: 4` para el patrón `Access to an undefined property Illuminate\Database\Eloquent\Model::$numero.` en `PedidoService.php`. Al haber 5 accesos, PHPStan arrojó error de discrepancia de conteo (`ignore.count`, esperado 4, ocurrido 5) y el acceso extra en línea 597 como no capturado.
+- **2. Solución Implementada:**
+  - **Tipado estricto en `Pedido.php`:**
+    - Agregadas anotaciones PHPDoc en la clase (`@property-read Mesa|null $mesa`, `@property-read User|null $mesero`, etc.).
+    - Añadidos tipos genéricos a todos los métodos de relación Eloquent (`@return BelongsTo<Mesa, $this>`, `@return BelongsTo<Sucursal, $this>`, `@return HasMany<ItemPedido, $this>`, etc.).
+  - **Saneamiento y Regeneración del Baseline:**
+    - Al tener `Pedido` y `Mesa` debidamente tipados, Larastan reconoce de forma nativa la propiedad `$numero` en `$pedido->mesa`.
+    - Se regeneró `phpstan-baseline.neon`, pasando de 404 a 357 errores históricos (-47 errores resueltos en limpio).
+- **3. Verificación:**
+  - `./vendor/bin/phpstan analyse --memory-limit=1G`: **0 errores (PASSED)**.
+  - `./vendor/bin/pint --test -v`: **0 errores (PASSED)**.
+  - `php artisan test --filter CentralizacionCobrosTest`: **10 tests, 35 aserciones pasando al 100%**.
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 📦 **SEEDER CON RÉPLICA COMPLETA DE BD LOCAL PARA REDEPLOY & ACCIÓN INMEDIATA DE COBRO A CAJA ("PROCESAR COBRO DE INMEDIATO"):**
 - **1. Base de Datos Completa Local en Seeder & Redeploy:**
   - **Exportación Snapshot Completo Local (`database/dumps/local_full_data.sql`):** Generado volcado de datos SQL nativo de 1.84 MB con los 71 platos/productos con imágenes, 36 insumos de inventario, 24 colaboradores, 14 proveedores colombianos, 48 clientes, 887 pedidos, 2.461 ítems, 754 facturas electrónicas DIAN POS, 93 turnos de caja, mesas, zonas y movimientos.

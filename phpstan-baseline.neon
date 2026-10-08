@@ -1,109 +1,13 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Console/Commands/RestaurarEstadoCeroCommand.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>slug" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Console/Commands/RestaurarEstadoCeroCommand.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_sala\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/ComandaEnviada.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/ComandaEnviada.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$zona\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/ComandaEnviada.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>nombre_sala" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Events/ComandaEnviada.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>zona" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Events/ComandaEnviada.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/ItemListoParaServir.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesa\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/ItemListoParaServir.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesero_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/ItemListoParaServir.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Events/ItemListoParaServir.php
 
 		-
-			message: '#^Using nullsafe property access "\?\-\>codigo" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Events/ItemListoParaServir.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>nombre" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Events/ItemListoParaServir.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>nombre_sala" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Events/ItemListoParaServir.php
-
-		-
-			message: '#^Using nullsafe property access "\?\-\>zona" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
-			identifier: nullsafe.neverNull
-			count: 1
-			path: app/Events/ItemListoParaServir.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_sala\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/PedidoQrSolicitado.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/PedidoQrSolicitado.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$zona\.$#'
+			message: '#^Access to an undefined property App\\Models\\Mesa\:\:\$nombre_sala\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Events/PedidoQrSolicitado.php
@@ -119,18 +23,6 @@ parameters:
 			identifier: nullsafe.neverNull
 			count: 1
 			path: app/Events/PedidoQrSolicitado.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Events/SolicitudCobroEnviada.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Events/SolicitudCobroEnviada.php
 
 		-
 			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
@@ -511,15 +403,9 @@ parameters:
 			path: app/Services/CrmAutomatizacionService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/CrmAutomatizacionService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
 			identifier: property.notFound
-			count: 6
+			count: 2
 			path: app/Services/CrmAutomatizacionService.php
 
 		-
@@ -538,12 +424,6 @@ parameters:
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:renderizar\(\)\.$#'
 			identifier: method.notFound
 			count: 5
-			path: app/Services/CrmAutomatizacionService.php
-
-		-
-			message: '#^Parameter \#2 \$cliente of method App\\Services\\EncuestaService\:\:generarEnvio\(\) expects App\\Models\\Cliente, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 1
 			path: app/Services/CrmAutomatizacionService.php
 
 		-
@@ -679,50 +559,8 @@ parameters:
 			path: app/Services/DeliveryService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cantidad\.$#'
+			message: '#^Access to an undefined property App\\Models\\Cliente\:\:\$identificacion\.$#'
 			identifier: property.notFound
-			count: 1
-			path: app/Services/Dian/DianPosElectronicoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$identificacion\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dian/DianPosElectronicoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dian/DianPosElectronicoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_producto\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dian/DianPosElectronicoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$precio_unitario\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dian/DianPosElectronicoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$producto_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dian/DianPosElectronicoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$subtotal\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Dian/DianPosElectronicoService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
 			count: 1
 			path: app/Services/Dian/DianPosElectronicoService.php
 
@@ -769,18 +607,6 @@ parameters:
 			path: app/Services/ExportadorContableService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$activo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/FidelizacionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/FidelizacionService.php
-
-		-
 			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
 			identifier: nullsafe.neverNull
 			count: 1
@@ -793,31 +619,7 @@ parameters:
 			path: app/Services/ImpresionService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$area_cocina\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$cantidad\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ImpresionService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$codigo\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$documento\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$estado_cocina\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Services/ImpresionService.php
@@ -825,29 +627,17 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
 			identifier: property.notFound
-			count: 2
+			count: 1
 			path: app/Services/ImpresionService.php
 
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre\.$#'
 			identifier: property.notFound
-			count: 2
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_producto\.$#'
-			identifier: property.notFound
-			count: 2
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
-			identifier: property.notFound
 			count: 1
 			path: app/Services/ImpresionService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$precio_unitario\.$#'
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$nombre_producto\.$#'
 			identifier: property.notFound
 			count: 1
 			path: app/Services/ImpresionService.php
@@ -856,30 +646,6 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$puerto\.$#'
 			identifier: property.notFound
 			count: 2
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$puntos_fidelidad\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$subtotal\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$telefono\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ImpresionService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$tier\.$#'
-			identifier: property.notFound
-			count: 1
 			path: app/Services/ImpresionService.php
 
 		-
@@ -925,12 +691,6 @@ parameters:
 			path: app/Services/ImpresionService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$inventario_descontado\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/InventarioService.php
-
-		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$recetas\.$#'
 			identifier: property.notFound
 			count: 4
@@ -946,12 +706,6 @@ parameters:
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$usuario_id\.$#'
 			identifier: property.notFound
 			count: 1
-			path: app/Services/InventarioService.php
-
-		-
-			message: '#^Parameter \#1 \$item of method App\\Services\\InventarioService\:\:descontarPorItemPedido\(\) expects App\\Models\\ItemPedido, Illuminate\\Database\\Eloquent\\Model given\.$#'
-			identifier: argument.type
-			count: 2
 			path: app/Services/InventarioService.php
 
 		-
@@ -1033,12 +787,6 @@ parameters:
 			path: app/Services/Pasarela/PasarelaPagoService.php
 
 		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/Pasarela/PasarelaPagoService.php
-
-		-
 			message: '#^Parameter \$pedido of method App\\Services\\PedidoService\:\:cobrarPedido\(\) expects App\\Models\\Pedido, Illuminate\\Database\\Eloquent\\Model given\.$#'
 			identifier: argument.type
 			count: 1
@@ -1071,19 +819,7 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$mesero_id\.$#'
 			identifier: property.notFound
-			count: 2
-			path: app/Services/PedidoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
 			count: 1
-			path: app/Services/PedidoService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$numero\.$#'
-			identifier: property.notFound
-			count: 4
 			path: app/Services/PedidoService.php
 
 		-
@@ -1215,18 +951,6 @@ parameters:
 		-
 			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$costo\.$#'
 			identifier: property.notFound
-			count: 1
-			path: app/Services/ReporteService.php
-
-		-
-			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: app/Services/ReporteService.php
-
-		-
-			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,App\\Models\\Pedido\>\:\:map\(\) contains unresolvable type\.$#'
-			identifier: argument.unresolvableType
 			count: 1
 			path: app/Services/ReporteService.php
 

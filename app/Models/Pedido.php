@@ -34,6 +34,30 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'notas',
     'idempotencia_uuid',
 ])]
+/**
+ * @property int $id
+ * @property string $codigo
+ * @property string $tipo
+ * @property int|null $sucursal_id
+ * @property int|null $mesa_id
+ * @property int|null $usuario_id
+ * @property int|null $mesero_id
+ * @property int|null $turno_caja_id
+ * @property int|null $cliente_id
+ * @property int|null $repartidor_id
+ * @property string $estado
+ * @property string|null $canal_origen
+ * @property string|null $metodo_pago
+ * @property float $subtotal
+ * @property float $total
+ * @property float $propina
+ * @property-read Mesa|null $mesa
+ * @property-read User|null $mesero
+ * @property-read User|null $usuario
+ * @property-read Cliente|null $cliente
+ * @property-read Sucursal|null $sucursal
+ * @property-read TurnoCaja|null $turnoCaja
+ */
 #[Table(name: 'pedidos')]
 class Pedido extends Model
 {
@@ -70,66 +94,105 @@ class Pedido extends Model
         });
     }
 
+    /**
+     * @return BelongsTo<Sucursal, $this>
+     */
     public function sucursal(): BelongsTo
     {
         return $this->belongsTo(Sucursal::class);
     }
 
+    /**
+     * @return BelongsTo<Mesa, $this>
+     */
     public function mesa(): BelongsTo
     {
         return $this->belongsTo(Mesa::class);
     }
 
+    /**
+     * @return BelongsTo<Cliente, $this>
+     */
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class, 'cliente_id');
     }
 
+    /**
+     * @return BelongsTo<DireccionCliente, $this>
+     */
     public function direccion(): BelongsTo
     {
         return $this->belongsTo(DireccionCliente::class, 'direccion_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function repartidor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'repartidor_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function usuario(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function mesero(): BelongsTo
     {
         return $this->belongsTo(User::class, 'mesero_id');
     }
 
+    /**
+     * @return BelongsTo<TurnoCaja, $this>
+     */
     public function turnoCaja(): BelongsTo
     {
         return $this->belongsTo(TurnoCaja::class, 'turno_caja_id');
     }
 
+    /**
+     * @return HasMany<ItemPedido, $this>
+     */
     public function items(): HasMany
     {
         return $this->hasMany(ItemPedido::class);
     }
 
+    /**
+     * @return HasMany<MovimientoPuntos, $this>
+     */
     public function movimientosPuntos(): HasMany
     {
         return $this->hasMany(MovimientoPuntos::class, 'pedido_id');
     }
 
+    /**
+     * @return HasMany<PedidoDevolucion, $this>
+     */
     public function devoluciones(): HasMany
     {
         return $this->hasMany(PedidoDevolucion::class, 'pedido_id');
     }
 
+    /**
+     * @return HasOne<FacturaElectronica, $this>
+     */
     public function facturaElectronica(): HasOne
     {
         return $this->hasOne(FacturaElectronica::class);
     }
 
+    /**
+     * @return HasMany<PagoPasarela, $this>
+     */
     public function pagosPasarela(): HasMany
     {
         return $this->hasMany(PagoPasarela::class);
