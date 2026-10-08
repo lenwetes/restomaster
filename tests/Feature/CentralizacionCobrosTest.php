@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Events\SolicitudCobroEnviada;
 use App\Models\Caja;
 use App\Models\Mesa;
+use App\Models\NotificacionUsuario;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\Role;
@@ -223,5 +224,38 @@ class CentralizacionCobrosTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertEquals('pagado', $pedido->fresh()->estado);
+    }
+
+    public function test_solicitud_cobro_notificacion_contiene_datos_estructurados_para_caja(): void
+    {
+        Event::fake([SolicitudCobroEnviada::class]);
+        $pedido = $this->crearPedidoCobrable();
+
+        app(PedidoService::class)->solicitarCobroCaja($pedido, $this->mesero);
+
+        $notif = NotificacionUsuario::where('user_id', $this->cajero->id)
+            ->where('tipo', 'solicitud_cobro')
+            ->first();
+
+        $this->assertNotNull($notif);
+        $this->assertEquals($pedido->id, $notif->datos['pedido_id']);
+        $this->assertEquals($pedido->codigo, $notif->datos['pedido_codigo']);
+        $this->assertEquals($this->mesa->numero, $notif->datos['mesa_numero']);
+        $this->assertEquals(70000.0, $notif->datos['total']);
+        $this->assertStringContainsString('cobro_id='.$pedido->id, $notif->datos['ticket_url']);
+    }
+
+    public function test_modal_cobro_unificado_se_abre_con_query_param_cobro_id(): void
+    {
+        $pedido = $this->crearPedidoCobrable();
+
+        // Simular request query string ?cobro_id=
+        request()->merge(['cobro_id' => $pedido->id]);
+
+        Volt::actingAs($this->cajero)
+            ->test('caja.modal-cobro-unificado', ['cobro_id' => $pedido->id])
+            ->assertSet('pedidoId', $pedido->id)
+            ->assertSet('mostrarModal', true)
+            ->assertSee($pedido->codigo);
     }
 }

@@ -196,30 +196,19 @@ if [ "${AUTO_MIGRATE:-true}" = "true" ]; then
     echo "==> Running php artisan migrate --force..."
     php /var/www/html/artisan migrate --force || echo "==> Migrations failed or DB not ready"
 
-    # Always ensure default CRM AI Privilege Templates exist (idempotent updateOrCreate)
-    echo "==> Ensuring default CRM AI Privilege Templates are seeded..."
-    php /var/www/html/artisan db:seed --class=CrmIaPlantillaSeeder --force || true
-
-    # Always ensure default Colombian Waiters and Rotation Queues exist (idempotent updateOrCreate)
-    echo "==> Ensuring default Colombian Waiters and Rotation Queues are seeded..."
-    php /var/www/html/artisan db:seed --class=MeseroPruebaSeeder --force || true
-
-    # Always ensure default CRM Automations exist (idempotent updateOrCreate)
-    echo "==> Ensuring default CRM Automations are seeded..."
-    php /var/www/html/artisan db:seed --class=CrmSeeder --force || true
-
-    # Always ensure Club VIP demo profiles exist (idempotent updateOrCreate)
-    echo "==> Ensuring Club VIP demo profiles are seeded..."
-    php /var/www/html/artisan db:seed --class=ClubVipDemoSeeder --force || true
-
-    # Run database seeds (AUTO_SEED_DEMO loads full client-ready catalog, operations, and images)
+    # Run database seeds (AUTO_SEED_DEMO loads full local database snapshot with all products, tables, operations and staff)
     if [ "${AUTO_SEED_DEMO:-true}" = "true" ]; then
-        echo "==> AUTO_SEED_DEMO is enabled. Loading full demo (php artisan restomaster:seed-demo)..."
+        echo "==> AUTO_SEED_DEMO is enabled. Loading full database with local data (php artisan restomaster:seed-demo)..."
         php /var/www/html/artisan restomaster:seed-demo || echo "==> Demo seed finished or partially seeded"
     elif [ "${AUTO_SEED:-true}" = "true" ]; then
         echo "==> AUTO_SEED is enabled. Seeding essential data (php artisan db:seed --force)..."
         php /var/www/html/artisan db:seed --force || echo "==> Seed finished or partially seeded"
     fi
+
+    # Ensure idempotency of CRM AI templates, automations and VIP profiles
+    php /var/www/html/artisan db:seed --class=CrmIaPlantillaSeeder --force || true
+    php /var/www/html/artisan db:seed --class=CrmSeeder --force || true
+    php /var/www/html/artisan db:seed --class=ClubVipDemoSeeder --force || true
 fi
 
 # 6. Publish Livewire assets to ensure they are physically present on disk

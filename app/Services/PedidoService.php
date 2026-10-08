@@ -474,7 +474,14 @@ class PedidoService
                     'tipo' => 'solicitud_cobro',
                     'titulo' => 'Solicitud de cobro desde salón',
                     'cuerpo' => ($pedido->mesa ? 'Mesa '.$pedido->mesa->numero.' · ' : '')."{$mesero->name} solicita cobrar {$pedido->codigo} ($".number_format((float) $pedido->total, 0, ',', '.').').',
-                    'datos' => ['pedido_id' => $pedido->id, 'mesero_id' => $mesero->id],
+                    'datos' => [
+                        'pedido_id' => $pedido->id,
+                        'pedido_codigo' => $pedido->codigo,
+                        'mesa_numero' => $pedido->mesa?->numero,
+                        'mesero_id' => $mesero->id,
+                        'total' => (float) $pedido->total,
+                        'ticket_url' => route('caja', ['cobro_id' => $pedido->id]),
+                    ],
                     'leida' => false,
                     'created_at' => now(),
                 ]);

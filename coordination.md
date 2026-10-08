@@ -6,6 +6,33 @@
 ---
 
 ## Última Actualización
+2026-10-07 | Antigravity | 📦 **SEEDER CON RÉPLICA COMPLETA DE BD LOCAL PARA REDEPLOY & ACCIÓN INMEDIATA DE COBRO A CAJA ("PROCESAR COBRO DE INMEDIATO"):**
+- **1. Base de Datos Completa Local en Seeder & Redeploy:**
+  - **Exportación Snapshot Completo Local (`database/dumps/local_full_data.sql`):** Generado volcado de datos SQL nativo de 1.84 MB con los 71 platos/productos con imágenes, 36 insumos de inventario, 24 colaboradores, 14 proveedores colombianos, 48 clientes, 887 pedidos, 2.461 ítems, 754 facturas electrónicas DIAN POS, 93 turnos de caja, mesas, zonas y movimientos.
+  - **Comando Artisan de Respaldo (`ExportarDumpLocalCommand.php`):** Creado `php artisan restomaster:dump-local` (alias `db:dump-local`) para permitir actualizar el archivo snapshot de forma inmediata tras cualquier cambio futuro en la base de datos local.
+  - **Carga en `DatabaseSeeder.php`:** Integrada verificación idempotente: si `local_full_data.sql` existe y la base de datos tiene menos de 10 pedidos (redeploy en limpio o fresh), restaura automáticamente toda la base de datos local usando `psql` (o fallback seguro vía `DB::unprepared`). Si la base ya tiene datos, omite re-importación sin errores.
+  - **Optimización de Entrada en Contenedor (`docker/entrypoint.sh`):** Reordenada la secuencia de arranque en producción/Coolify para que `restomaster:seed-demo` / `db:seed` restaure primero el snapshot sin colisiones de claves primarias preexistentes.
+- **2. Notificación y Acción Inmediata de Cobro en Caja:**
+  - **Adecuación del Mensaje y Acción (`alerta-cocina-mesero.blade.php`):**
+    - Diferenciado el tipo de aviso: las alertas de cobro (`solicitud_cobro`) ya no muestran "✓ Entendido, voy a servir" ni cabecera de cocina.
+    - Cabecera visual: insignia esmeralda con icono `point_of_sale` y título *"¡Cobro enviado a caja!"*.
+    - Desglose: indica el código del pedido (`ORD-XXX`), mesero solicitante y total a cobrar.
+    - Botón de Acción Principal: **"Procesar cobro de inmediato"** con estilo de alta visibilidad esmeralda.
+    - Envío directo al cobro notificado: al pulsar el botón, marca la alerta como leída y abre inmediatamente el cobro (si está en `/caja` despacha `abrir-modal-cobro-unificado`, o redirige a `/caja?cobro_id={id}`).
+    - Integrado canal WebSocket `caja.{sucursalId}` escuchando `.solicitud.cobro` con timbre para avisar al cajero en vivo.
+  - **Soporte de Apertura Directa en Terminal de Cobro:**
+    - En `caja/control.blade.php`: `mount()` captura el parámetro `cobro_id` de la URL para fijar el pedido pendiente. Botón del banner flotante actualizado a *"💳 Procesar cobro de inmediato"*.
+    - En `caja/modal-cobro-unificado.blade.php`: `mount(?int $cobro_id = null)` abre automáticamente el modal con los datos del pedido cuando se recibe `cobro_id` en la query string.
+    - En `PedidoService.php`: `solicitarCobroCaja` incluye metadatos enriquecidos (`pedido_codigo`, `mesa_numero`, `total`, `ticket_url`).
+- **3. Validación y Pruebas Automatizadas:**
+  - Creadas pruebas en `CentralizacionCobrosTest.php`:
+    - `test_solicitud_cobro_notificacion_contiene_datos_estructurados_para_caja` (verificando estructura y URL directa).
+    - `test_modal_cobro_unificado_se_abre_con_query_param_cobro_id` (verificando apertura reactiva directa).
+  - Tests ejecutados y pasando al 100%. Formato PSR-12 verificado con Laravel Pint (`0 errores`).
+
+---
+
+## Actualización previa
 2026-10-07 | Antigravity | 💵 **RESOLUCIÓN ERROR 404 AL ABRIR CAJA COMO CAJERO (AISLAMIENTO MULTISEDE & AUTO-PROVISIÓN):**
 - **1. Causa Raíz Identificada:**
   - En la consola del navegador y modal de depuración de Livewire aparecía `404 | Not Found` sobre `POST /livewire-xxxx/update`.

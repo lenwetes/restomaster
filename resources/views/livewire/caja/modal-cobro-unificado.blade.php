@@ -55,6 +55,14 @@ new class () extends Component {
     public ?string $errorCobro = null;
     public ?string $mensajeExito = null;
 
+    public function mount(?int $cobro_id = null): void
+    {
+        $id = $cobro_id ?: (int) request()->query('cobro_id', 0);
+        if ($id > 0) {
+            $this->abrir($id);
+        }
+    }
+
     #[On('abrir-modal-cobro-unificado')]
     public function abrir(int $pedidoId): void
     {

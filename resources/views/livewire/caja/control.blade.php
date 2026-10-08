@@ -585,6 +585,13 @@ new class () extends Component {
             $this->cajaSeleccionadaId = $turnoActivo->caja_id;
             $this->montoContado = 0.0;
         }
+
+        if (request()->has('cobro_id')) {
+            $cobroId = (int) request()->query('cobro_id');
+            if ($cobroId > 0) {
+                $this->cobroPendienteId = $cobroId;
+            }
+        }
     }
 
     public function abrirModalApertura(): void
@@ -969,7 +976,7 @@ new class () extends Component {
                             wire:click="abrirCobroPendiente({{ $notificacionCobroFlotante['pedido_id'] }})"
                             class="px-3 py-1 rounded-xl bg-gradient-to-r from-[#10b981] to-[#059669] text-white font-black text-xs hover:brightness-110 shadow cursor-pointer"
                         >
-                            💳 Cobrar Ahora
+                            💳 Procesar cobro de inmediato
                         </button>
                         <button 
                             type="button"
