@@ -190,9 +190,6 @@ class Pedido extends Model
         return $this->hasOne(FacturaElectronica::class);
     }
 
-    /**
-     * @return HasMany<PagoPasarela, $this>
-     */
     public function pagosPasarela(): HasMany
     {
         return $this->hasMany(PagoPasarela::class);
